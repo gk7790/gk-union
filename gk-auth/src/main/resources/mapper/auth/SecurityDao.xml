@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.auth.dao.SecurityDao">
+
+    <select id="getUserByUserId" resultType="com.gk.auth.entity.SysUser">
+        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
+        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender'
+        FROM sys_user AS u WHERE u.id = #{uid}
+    </select>
+
+    <select id="findByUsername" resultType="com.gk.auth.entity.SysUser">
+        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
+        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender'
+        FROM sys_user AS u
+        WHERE u.username = #{username}
+    </select>
+
+    <select id="findByEmail" resultType="com.gk.auth.entity.SysUser">
+        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
+        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender'
+        FROM sys_user AS u
+        WHERE u.email = #{email}
+    </select>
+
+    <select id="existsByUsername" resultType="java.lang.Boolean">
+        SELECT COUNT(1) > 0 FROM sys_user WHERE username = #{username}
+    </select>
+
+    <select id="existsByEmail" resultType="java.lang.Boolean">
+        SELECT COUNT(1) > 0 FROM sys_user WHERE email = #{email}
+    </select>
+
+    <select id="getRoleAuthList" resultType="string">
+        SELECT r.auth from sys_role r LEFT JOIN sys_role_user u ON r.id = u.role_id
+        WHERE u.user_id = #{userId}
+    </select>
+
+    <select id="getPermissionsList" resultType="string">
+        SELECT auth_code FROM sys_menu WHERE auth_code IS NOT NULL AND auth_code != ''
+    </select>
+
+    <select id="getUserPermissionsList" resultType="string">
+        select t3.auth_code from sys_role_user t1 left join sys_role_menu t2 on t1.role_id = t2.role_id
+        left join sys_menu t3 on t2.menu_id = t3.id
+        where t1.user_id = #{userId} AND auth_code IS NOT NULL AND auth_code != '' order by t3.sort asc
+    </select>
+
+    <select id="getDataScopeList" resultType="java.lang.Long">
+        select t2.dept_id from sys_role_user t1, sys_role_data_scope t2
+        where t1.user_id = #{value} and t1.role_id = t2.role_id
+    </select>
+
+</mapper>

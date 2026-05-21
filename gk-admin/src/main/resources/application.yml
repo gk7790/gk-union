@@ -1,0 +1,74 @@
+# Tomcat
+server:
+  tomcat:
+    uri-encoding: UTF-8
+    threads:
+      max: 200  # 最大工作线程数，建议设置为 CPU 核心数 * 2~4（除非极高并发）
+      min-spare: 10   # 最小空闲线程数，Tomcat 启动时初始化的线程数
+    accept-count: 150   # 等待队列长度（请求超出此值直接拒绝），建议 100~500 足够
+    connection-timeout: 20000 # 客户端连接超时时间（毫秒）
+    max-keep-alive-requests: 100 # 每个连接最大请求数，建议设置 100+ 提高长连接利用率
+
+  servlet:
+    session:
+      cookie:
+        http-only: true
+
+knife4j:
+  enable: true
+  basic:
+    enable: false
+    username: admin
+    password: admin
+  setting:
+    enableFooter: false
+  ui:
+    enabled: true
+    path: /swagger-ui
+  api-docs:
+    path: /v3/api-docs
+
+spring:
+  # 环境 dev|test|prod
+  profiles:
+    active: dev
+  messages:
+    encoding: UTF-8
+    basename: i18n/messages
+  mvc:
+    pathmatch:
+      matching-strategy: PATH_PATTERN_PARSER
+    dispatch-trace-request: true
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+  liquibase:
+    enabled: false
+
+#mybatis
+mybatis-plus:
+  mapper-locations:  classpath*:/mapper/**/*.xml
+  #实体扫描，多个package用逗号或者分号分隔
+  typeAliasesPackage: com.gk.**.entity
+  global-config:
+    #数据库相关配置
+    db-config:
+      #主键类型
+      id-type: ASSIGN_ID
+    banner: false
+  #原生配置
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+  configuration-properties:
+    prefix:
+    blobType: BLOB
+    boolValue: TRUE
+
+xss:
+  exclude:
+    path-list: /devtools/template,/survey/callbacktemplate

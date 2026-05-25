@@ -44,4 +44,12 @@ public interface SysMenuService extends BaseService<SysMenuEntity> {
 	 * @param pid  父菜单ID
 	 */
 	List<SysMenuDTO> getListPid(Long pid);
+
+    /**
+     * 校验菜单名称是否存在,
+     * @param id 菜单id
+     * @param name 菜单名称
+     * @return 是否存在
+     */
+    boolean isExistsName(Long id, String name);
 }

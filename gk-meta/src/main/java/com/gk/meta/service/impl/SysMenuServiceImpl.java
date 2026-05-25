@@ -1,5 +1,6 @@
 package com.gk.meta.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
@@ -24,16 +25,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntity> implements SysMenuService {
     private final CurrentUser currentUser;
-    // private final SysRoleMenuService sysRoleMenuService;
-//    private final SysLanguageService sysLanguageService;
     private final RedisUtils redisUtils;
 
     @Override
 	public SysMenuDTO get(Long id) {
 		SysMenuEntity entity = baseDao.getById(id, ReqContextHolder.getLang());
-
 		SysMenuDTO dto = ConvertUtils.sourceToTarget(entity, SysMenuDTO.class);
-
 		return dto;
 	}
 
@@ -43,7 +40,6 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
         entity.getMeta().setOrder(entity.getSort());
 		//保存菜单
 		insert(entity);
-		// saveLanguage(entity.getId(), "meta.tile", ValueUtils.defaultValue(entity.getMeta().getTitle(), entity.getName()));
 	}
 
 	@Override
@@ -58,7 +54,6 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
         entity.getMeta().setOrder(entity.getSort());
 		//更新菜单
 		updateById(entity);
-		// saveLanguage(entity.getId(), "meta.tile", ValueUtils.defaultValue(entity.getMeta().getTitle(), entity.getName()));
 	}
 
 	@Override
@@ -104,8 +99,12 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 		return ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class);
 	}
 
-//	private void saveLanguage(Long tableId, String fieldName, String fieldValue){
-//		sysLanguageService.saveOrUpdate("sys_menu", tableId, fieldName, fieldValue, HttpContextUtils.getLanguage());
-//	}
+    @Override
+    public boolean isExistsName(Long id, String name) {
+        QueryWrapper<SysMenuEntity> wrapper = new QueryWrapper<>();
+        wrapper.eq("name", name);
+        wrapper.ne("id", id);
+        return baseDao.exists(wrapper);
+    }
 
 }

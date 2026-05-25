@@ -73,8 +73,8 @@ public class SysMenuController {
     @GetMapping("name-exists")
     @Operation(summary = "信息")
     public R<?> nameExists(@RequestMap DataMap dto){
-
-        return R.ok(true);
+        boolean rresult = sysMenuService.isExistsName(dto.getLong("id", 0L), dto.getStr("name"));
+        return R.ok(rresult);
     }
 
 

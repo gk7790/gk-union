@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.infra.i18n.dao.SysI18nDao">
+
+    <resultMap type="com.gk.infra.i18n.entity.SysI18nEntity" id="sysI18nMap">
+        <result property="id" column="id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="bizType" column="biz_type"/>
+        <result property="bizId" column="biz_id"/>
+        <result property="i18nKey" column="i18n_key"/>
+        <result property="lang" column="lang"/>
+        <result property="value" column="value"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectByLang" resultType="com.gk.infra.i18n.entity.SysI18nEntity">
+        SELECT * FROM sys_i18n WHERE biz_type = #{type} AND lang = #{lang}
+    </select>
+
+</mapper>

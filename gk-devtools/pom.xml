@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-common</artifactId>
+            <artifactId>gk-infra</artifactId>
             <version>1.0.0</version>
         </dependency>
         <dependency>

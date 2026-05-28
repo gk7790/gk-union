@@ -10,8 +10,9 @@ import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.dto.LabelDTO;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.auth.dao.SysRoleDao;
 import com.gk.auth.dto.SysRoleDTO;
@@ -48,7 +49,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 //    }
 
     @Override
-	public PageData<SysRoleDTO> page(DataMap params) {
+	public PageData<SysRoleDTO> page(DynMap params) {
 		IPage<SysRoleEntity> page = baseDao.selectPage(
 			getPage(params, Constant.CREATED_AT, false),
 			getWrapper(params)
@@ -58,13 +59,13 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	}
 
 	@Override
-	public List<SysRoleDTO> list(DataMap params) {
+	public List<SysRoleDTO> list(DynMap params) {
 		List<SysRoleEntity> entityList = baseDao.selectList(getWrapper(params));
 
 		return ConvertUtils.sourceToTarget(entityList, SysRoleDTO.class);
 	}
 
-	private QueryWrapper<SysRoleEntity> getWrapper(DataMap params){
+	private QueryWrapper<SysRoleEntity> getWrapper(DynMap params){
 		String name = (String)params.get("name");
 
 		QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
@@ -87,8 +88,8 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	}
 
     @Override
-    public List<LabelDTO> getDict(DataMap params) {
-        List<Integer> list = params.getList("status", Integer.class, Constant.Status.defaultStatus());
+    public List<LabelDTO> getDict(DynMap params) {
+        List<Integer> list = params.getList("status", Integer.class, StatusEnum.defaultStatus());
 
         QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");

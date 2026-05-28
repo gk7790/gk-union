@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.dto.AuthUser;
-import com.gk.common.enums.SysEnum;
+import com.gk.common.enums.AdminEnum;
 import com.gk.common.page.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -96,7 +96,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		entity.setPassword(password);
 
 		//保存用户
-		entity.setSuperAdmin(SysEnum.sAdmin.NO.value());
+		entity.setSuperAdmin(AdminEnum.NO.code());
 		insert(entity);
 
 		// TODO 角色用户 保存角色用户关系

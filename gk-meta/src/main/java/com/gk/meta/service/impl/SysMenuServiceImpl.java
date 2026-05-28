@@ -29,7 +29,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
     @Override
 	public SysMenuDTO get(Long id) {
-		SysMenuEntity entity = baseDao.getById(id, ReqContextHolder.getLang());
+		SysMenuEntity entity = baseDao.getById(id);
 		SysMenuDTO dto = ConvertUtils.sourceToTarget(entity, SysMenuDTO.class);
 		return dto;
 	}
@@ -71,7 +71,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
 	@Override
 	public List<SysMenuDTO> getAllMenuList(List<Integer> typeList) {
-		List<SysMenuEntity> menuList = baseDao.getMenuList(typeList, ReqContextHolder.getLang());
+		List<SysMenuEntity> menuList = baseDao.getMenuList(typeList, "", "");
         List<SysMenuDTO> dtoList = ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class);
         return TreeUtils.build(dtoList, Constant.MENU_ROOT);
 	}
@@ -82,10 +82,14 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
 		//系统管理员，拥有最高权限
 		if(user.isSAdmin()){
-			menuList = baseDao.getMenuList(typeList, ReqContextHolder.getLang());
-		}else {
-			menuList = baseDao.getUserMenuList(user.getId(), typeList, ReqContextHolder.getLang());
-		}
+			menuList = baseDao.getMenuList(typeList,"", "");
+		} else if (Constant.ADMIN.equals(ReqContextHolder.getScope())) {
+            menuList = baseDao.getUserMenuList(user.getId(), typeList, ReqContextHolder.getScope(), "");
+        } else if (Constant.ORG.equals(ReqContextHolder.getScope())) {
+			menuList = baseDao.getUserMenuList(user.getId(), typeList, ReqContextHolder.getScope(), "");
+		} else {
+            menuList = baseDao.getUserMenuList(user.getId(), typeList, ReqContextHolder.getScope(), ReqContextHolder.getDomain());
+        }
 
 		List<SysMenuDTO> dtoList = ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class);
 

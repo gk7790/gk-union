@@ -1,10 +1,12 @@
 package com.gk.meta.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.gk.common.core.entity.SimpleEntity;
 import com.gk.meta.dto.SysMenuMeta;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -32,10 +34,6 @@ public class SysMenuEntity extends SimpleEntity {
      */
     private String path;
     /**
-     * 类型
-     */
-    private String type;
-    /**
      * 状态
      */
     private Integer status;
@@ -50,7 +48,12 @@ public class SysMenuEntity extends SimpleEntity {
     /**
      * 组件路径
      */
+    @TableField(updateStrategy = FieldStrategy.NOT_NULL)
     private String component;
+    /**
+     * 类型
+     */
+    private Integer type;
     /**
      * 排序
      */
@@ -58,7 +61,12 @@ public class SysMenuEntity extends SimpleEntity {
     /**
      * 领域
      */
-    private String scope;
+    private Integer scope;
+    /**
+     * 业务领域
+     */
+    @TableField(updateStrategy = FieldStrategy.NOT_NULL)
+    private Integer domain;
     /**
      * 样式
      */

@@ -2,7 +2,7 @@ package com.gk.common.core.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 
 import java.util.List;
 
@@ -13,9 +13,9 @@ import java.util.List;
  */
 public interface CrudService<T, D> extends BaseService<T> {
 
-    PageData<D> page(DataMap params);
+    PageData<D> page(DynMap params);
 
-    List<D> list(DataMap params);
+    List<D> list(DynMap params);
 
     D get(Long id);
 

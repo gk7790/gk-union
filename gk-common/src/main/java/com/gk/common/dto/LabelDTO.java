@@ -17,6 +17,7 @@ public class LabelDTO {
     private Long pid;
     private String value;
     private String label;
+    private String i18nKey;
     private List<LabelDTO> children;
 
     public LabelDTO() {
@@ -31,4 +32,11 @@ public class LabelDTO {
         this.id = id;
         this.label = label;
     }
+
+    public LabelDTO(String value, String label, String i18nKey) {
+        this.value = value;
+        this.label = label;
+        this.i18nKey = i18nKey;
+    }
+
 }

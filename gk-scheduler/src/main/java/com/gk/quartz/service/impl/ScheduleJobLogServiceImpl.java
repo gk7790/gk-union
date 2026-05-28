@@ -7,7 +7,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.quartz.dao.ScheduleJobLogDao;
 import com.gk.quartz.dto.ScheduleJobLogDTO;
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 public class ScheduleJobLogServiceImpl extends BaseServiceImpl<ScheduleJobLogDao, ScheduleJobLogEntity> implements ScheduleJobLogService {
 
     @Override
-	public PageData<ScheduleJobLogDTO> page(DataMap params) {
+	public PageData<ScheduleJobLogDTO> page(DynMap params) {
 		IPage<ScheduleJobLogEntity> page = baseDao.selectPage(
 			getPage(params, Constant.CREATED_AT, false),
 			getWrapper(params)
@@ -27,7 +27,7 @@ public class ScheduleJobLogServiceImpl extends BaseServiceImpl<ScheduleJobLogDao
 		return getPageData(page, ScheduleJobLogDTO.class);
 	}
 
-	private QueryWrapper<ScheduleJobLogEntity> getWrapper(DataMap params){
+	private QueryWrapper<ScheduleJobLogEntity> getWrapper(DynMap params){
 		String jobId = MapUtil.getStr(params, "jobId");
 		String beanName = MapUtil.getStr(params, "beanName");
 		QueryWrapper<ScheduleJobLogEntity> wrapper = new QueryWrapper<>();

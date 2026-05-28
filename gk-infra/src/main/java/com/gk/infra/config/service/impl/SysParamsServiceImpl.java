@@ -1,5 +1,6 @@
 package com.gk.infra.config.service.impl;
 
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -9,8 +10,7 @@ import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.page.PageData;
-import com.gk.common.service.SysParams;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.config.dao.SysParamsDao;
 import com.gk.infra.config.dto.SysParamsDTO;
@@ -32,10 +32,10 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParamsEntity> implements SysParamsService, SysParams {
+public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParamsEntity> implements SysParamsService {
     private final SysParamsRedis sysParamsRedis;
 
-    private QueryWrapper<SysParamsEntity> getWrapper(DataMap params) {
+    private QueryWrapper<SysParamsEntity> getWrapper(DynMap params) {
         String paramCode = (String) params.get("paramCode");
         QueryWrapper<SysParamsEntity> wrapper = new QueryWrapper<>();
         wrapper.eq("param_type", 1);
@@ -44,7 +44,7 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
     }
 
     @Override
-    public PageData<SysParamsDTO> page(DataMap params) {
+    public PageData<SysParamsDTO> page(DynMap params) {
         IPage<SysParamsEntity> page = baseDao.selectPage(
                 getPage(params, Constant.CREATED_AT, false),
                 getWrapper(params)
@@ -53,7 +53,7 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
     }
 
     @Override
-    public List<SysParamsDTO> list(DataMap params) {
+    public List<SysParamsDTO> list(DynMap params) {
         List<SysParamsEntity> entityList = baseDao.selectList(getWrapper(params));
 
         return ConvertUtils.sourceToTarget(entityList, SysParamsDTO.class);
@@ -116,6 +116,20 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
 
         try {
             return clazz.newInstance();
+        } catch (Exception e) {
+            throw new GkException(ErrorCode.PARAMS_GET_ERROR);
+        }
+    }
+
+    @Override
+    public <T> List<T> getValueList(String paramCode, Class<T> clazz) {
+        String paramValue = getValue(paramCode);
+        if (StringUtils.isBlank(paramValue)) {
+            return List.of();
+        }
+
+        try {
+            return JSONArray.parseArray(paramValue, clazz);
         } catch (Exception e) {
             throw new GkException(ErrorCode.PARAMS_GET_ERROR);
         }

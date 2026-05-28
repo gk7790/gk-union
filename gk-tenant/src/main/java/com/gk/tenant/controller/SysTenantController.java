@@ -5,7 +5,7 @@ import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.tenant.dto.SysTenantDTO;
@@ -40,14 +40,14 @@ public class SysTenantController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY) ,
     })
     @RequiresPermission("sys:user:page")
-    public R<?> page(@RequestMap DataMap params){
+    public R<?> page(@RequestMap DynMap params){
         PageData<SysTenantDTO> page = sysTenantService.page(params);
         return R.ok(page);
     }
 
     @GetMapping("dict")
     @Operation(summary = "字典")
-    public R<?> dict(@RequestMap DataMap params){
+    public R<?> dict(@RequestMap DynMap params){
         List<LabelDTO> list = sysTenantService.getDict(params);
         return R.ok(list);
     }

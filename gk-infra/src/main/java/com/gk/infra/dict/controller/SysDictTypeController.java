@@ -6,7 +6,7 @@ import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dict.dto.SysDictTypeDTO;
@@ -45,7 +45,7 @@ public class SysDictTypeController {
             @Parameter(name = "dictName", description = "字典名称", in = ParameterIn.QUERY)
     })
     @RequiresPermission("sys:dict:page")
-    public R<PageData<SysDictTypeDTO>> page(@Parameter(hidden = true) @RequestMap DataMap params){
+    public R<PageData<SysDictTypeDTO>> page(@Parameter(hidden = true) @RequestMap DynMap params){
         //字典类型
         PageData<SysDictTypeDTO> page = sysDictTypeService.page(params);
         return R.ok(page);

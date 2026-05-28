@@ -1,11 +1,15 @@
 package com.gk.common.redis;
 
 import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.json.JSON;
+import com.alibaba.fastjson2.JSONObject;
+import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.ConvertUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -126,7 +130,13 @@ public class RedisUtils {
      * 获取指定类型的keu数据
      */
     public <T> T get(String key, Class<T> clazz) {
-        return ConvertUtils.sourceToTarget(get(key), clazz);
+        Object o = get(key);
+        if (o == null) return null;
+
+        String str = o.toString().trim();
+        if (str.isEmpty()) return null;
+
+        return JSONObject.parseObject(str, clazz);
     }
 
     /// ****************************************** Redis opsForValue 方法 end *******************************************/

@@ -29,6 +29,9 @@ public class JwtUtils {
     public static final String TENANT_ID = "tenantId";
     public static final String DEPT_ID = "deptId";
     public static final String UNAME = "uname";
+    public static final String SUPER_Admin = "sAdmin";
+    public static final String DOMAIN = "domain";
+
 
     // JWT 签名密钥（生产环境应从配置读取）
     private static final String SECRET = "X8h9V4nK7eLpBz2G1qR0sY5mDf3wJt6uN4cE7aP1bQ8rFv9Z";

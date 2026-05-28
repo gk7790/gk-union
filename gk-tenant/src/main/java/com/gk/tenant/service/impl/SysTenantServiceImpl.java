@@ -1,10 +1,10 @@
 package com.gk.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
-import com.gk.common.tools.DataMap;
+import com.gk.infra.enums.StatusEnum;
+import com.gk.common.tools.DynMap;
 import com.gk.tenant.dao.SysTenantDao;
 import com.gk.tenant.dto.SysTenantDTO;
 import com.gk.tenant.entity.SysTenantEntity;
@@ -25,14 +25,14 @@ import java.util.List;
 public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenantEntity, SysTenantDTO> implements SysTenantService {
 
     @Override
-    public QueryWrapper<SysTenantEntity> getWrapper(DataMap params) {
+    public QueryWrapper<SysTenantEntity> getWrapper(DynMap params) {
         QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
         return wrapper;
     }
 
     @Override
-    public List<LabelDTO> getDict(DataMap params) {
-        List<Integer> list = params.getList("status", Integer.class, Constant.Status.defaultStatus());
+    public List<LabelDTO> getDict(DynMap params) {
+        List<Integer> list = params.getList("status", Integer.class, StatusEnum.defaultStatus());
 
         QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");

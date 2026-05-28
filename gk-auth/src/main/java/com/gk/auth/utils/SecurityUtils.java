@@ -3,7 +3,7 @@ package com.gk.auth.utils;
 import cn.hutool.core.util.ObjectUtil;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.dto.AuthUser;
-import com.gk.common.enums.SysEnum;
+import com.gk.common.enums.AdminEnum;
 import com.gk.auth.entity.SysUser;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
@@ -118,7 +118,7 @@ public class SecurityUtils implements CurrentUser {
      */
     public void setDeptAndTenant(Map<String, Object> params) {
         AuthUser user = getAuthUser();
-        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == SysEnum.sAdmin.NO.value()) {
+        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == AdminEnum.NO.code()) {
             Optional<Long> dept = Optional.of(user).map(AuthUser::getDeptId);
             dept.ifPresent(aLong -> params.put("deptId", aLong));
             Optional<Long> tenant = Optional.of(user).map(AuthUser::getTenantId);
@@ -131,7 +131,7 @@ public class SecurityUtils implements CurrentUser {
      */
     public void setDept(Map<String, Object> params) {
         AuthUser user = getAuthUser();
-        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == SysEnum.sAdmin.NO.value()) {
+        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == AdminEnum.NO.code()) {
             Optional<Long> dept = Optional.of(user).map(AuthUser::getDeptId);
             dept.ifPresent(aLong -> params.put("deptId", aLong));
         }

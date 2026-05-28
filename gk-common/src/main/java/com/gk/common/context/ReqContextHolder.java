@@ -79,6 +79,20 @@ public class ReqContextHolder {
     }
 
     /**
+     * 领域
+     */
+    public static String getScope() {
+        return get().getScope();
+    }
+
+    /**
+     * 业务领域
+     */
+    public static String getDomain() {
+        return get().getDomain();
+    }
+
+    /**
      * 当前时区
      */
     public static String getTimezone() {
@@ -95,9 +109,9 @@ public class ReqContextHolder {
     /**
      * 是否超级管理员
      */
-    public static Boolean isSuperAdmin() {
+    public static Boolean isSAdmin() {
         return Boolean.TRUE.equals(
-                get().getSuperAdmin()
+                get().getSAdmin()
         );
     }
 
@@ -108,7 +122,7 @@ public class ReqContextHolder {
         return ReqContext.builder()
                 .lang("zh-CN")
                 .timezone("UTC")
-                .superAdmin(false)
+                .sAdmin(false)
                 .build();
     }
 }

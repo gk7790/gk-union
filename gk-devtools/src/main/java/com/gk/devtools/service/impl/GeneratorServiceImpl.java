@@ -4,7 +4,6 @@ import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.gk.common.constant.Constant;
 import com.gk.common.exception.GkException;
-import com.gk.common.service.SysParams;
 import com.gk.common.utils.DateUtils;
 import com.gk.devtools.config.DataSourceInfo;
 import com.gk.devtools.dao.GeneratorMenuDao;
@@ -12,6 +11,7 @@ import com.gk.devtools.entity.*;
 import com.gk.devtools.service.*;
 import com.gk.devtools.utils.DbUtils;
 import com.gk.devtools.utils.GenUtils;
+import com.gk.infra.config.service.SysParamsService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ public class GeneratorServiceImpl implements GeneratorService {
     private final BaseClassService baseClassService;
     private final TemplateService templateService;
     private final GeneratorMenuDao generatorMenuDao;
-    private final SysParams sysParams;
+    private final SysParamsService sysParamsService;
     private final DataSource dataSource;
 
     @Override
@@ -74,7 +74,7 @@ public class GeneratorServiceImpl implements GeneratorService {
         table = DbUtils.getTablesInfo(info, tableInfo.getTableName());
 
         //代码生成器参数
-        GenParam param = sysParams.getValueObject(Constant.DEV_TOOLS_PARAM_KEY, GenParam.class);
+        GenParam param = sysParamsService.getValueObject(Constant.DEV_TOOLS_PARAM_KEY, GenParam.class);
 
         //保存表信息
         table.setPackageName(param.getPackageName());

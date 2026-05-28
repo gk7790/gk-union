@@ -30,9 +30,6 @@ public class SysMenuDTO extends TreeNode<SysMenuDTO> implements Serializable {
     @Schema(title = "菜单名称")
 	private String name;
 
-    @Schema(title = "类型")
-	private String type;
-
     @Schema(title = "地址栏路径")
     private String path;
 
@@ -57,8 +54,14 @@ public class SysMenuDTO extends TreeNode<SysMenuDTO> implements Serializable {
     @Schema(title = "标题")
     private String title;
 
+    @Schema(title = "类型")
+    private Integer type;
+
     @Schema(title = "领域")
-    private String scope;
+    private Integer scope;
+
+    @Schema(title = "业务领域")
+    private Integer domain;
 
     /**
      * 样式

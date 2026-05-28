@@ -15,24 +15,18 @@
         <result property="authCode" column="auth_code"/>
         <result property="component" column="component"/>
         <result property="sort" column="sort"/>
-<!--        &lt;!&ndash; 关键：meta 字段加 typeHandler &ndash;&gt;-->
+        <result property="scope" column="scope"/>
+        <result property="domain" column="domain"/>
         <result column="meta" property="meta" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
     </resultMap>
 
 	<select id="getById" resultType="com.gk.meta.entity.SysMenuEntity">
-		select t1.*,
-		(select lang.field_value from sys_language lang where lang.table_name='sys_menu' and lang.field_name='name'
-		and lang.table_id=t1.pid and lang.language=#{language}) as parentName,
-		(select lang.field_value from sys_language lang where lang.table_name='sys_menu' and lang.field_name='name'
-		and lang.table_id=t1.id and lang.language=#{language}) as name
-		from sys_menu t1
+		select t1.* from sys_menu t1
 		where t1.id = #{id}
 	</select>
 
 	<select id="getMenuList" resultMap="SysMenuResultMap">
-		select t1.*, (select l.field_value from sys_language l where l.table_name='sys_menu' and l.field_name='meta.tile'
-        and l.table_id=t1.id and l.language=#{language}) as 'title'
-	  	from sys_menu t1
+		select t1.*	from sys_menu t1
 		<where>
             <if test="typeList != null">
                 and t1.type in
@@ -40,13 +34,18 @@
                     #{type}
                 </foreach>
             </if>
+            <if test="scope != null and scope.trim() != ''">
+                AND t1.scope = #{scope}
+            </if>
+            <if test="domain != null and domain.trim() != ''">
+                AND t1.domain = #{domain}
+            </if>
 		</where>
 		order by t1.sort asc
 	</select>
 
 	<select id="getUserMenuList" resultMap="SysMenuResultMap">
-		select t3.*, (select lang.field_value from sys_language lang where lang.table_name='sys_menu' and lang.field_name='name'
-		and lang.table_id=t3.id and lang.language=#{language}) as 'title' from sys_role_user t1
+		select t3.* from sys_role_user t1
 		left join sys_role_menu t2 on t1.role_id = t2.role_id
 		left join sys_menu t3 on t2.menu_id = t3.id
 		where t1.user_id = #{userId}
@@ -55,6 +54,12 @@
             <foreach item="type" collection="typeList" open="(" separator="," close=")">
                 #{type}
             </foreach>
+        </if>
+        <if test="scope != null and scope.trim() != ''">
+            AND t3.scope = #{scope}
+        </if>
+        <if test="domain != null and domain.trim() != ''">
+            AND t3.domain = #{domain}
         </if>
 		order by t3.sort asc
 	</select>

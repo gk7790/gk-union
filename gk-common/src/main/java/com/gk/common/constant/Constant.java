@@ -31,6 +31,18 @@ public interface Constant {
      */
     String ADMIN = "ADMIN";
     /**
+     * organization
+     */
+    String ORG = "ORG";
+    /**
+     * client
+     */
+    String CLIENT = "CLIENT";
+    /**
+     * client
+     */
+    String CLIENT_APP = "client_app";
+    /**
      * 菜单根节点标识
      */
     Long MENU_ROOT = 0L;
@@ -90,6 +102,23 @@ public interface Constant {
     String DEV_TOOLS_PARAM_KEY = "DEV_TOOLS_PARAM_KEY";
 
     /**
+     * 国际化语言key
+     */
+    String SYS_I18N_PARAMS_KEY = "SYS_I18N_PARAMS_KEY";
+
+    /**
+     * 国际化语言类型key
+     */
+    String SYS_I18N_TYPE_KEY = "SYS_I18N_TYPE_KEY";
+    /**
+     * 用户范围
+     */
+    String SYS_USER_SCOPE = "SYS_USER_SCOPE";
+    /**
+     * 用户范围
+     */
+    String SYS_DOMAIN_KEY = "SYS_DOMAIN_KEY";
+    /**
      * Redis 缓存时间
      */
     String REDIS_EXPIRE_KEY = "REDIS_EXPIRE_KEY";
@@ -123,202 +152,4 @@ public interface Constant {
      * 调查订单通知配置
      */
     String SURVEY_ORDER_NOTICE_CONFIG = "SURVEY_ORDER_NOTICE_CONFIG";
-
-    /**
-     * 会员人设状态
-     */
-    @Getter
-    enum Status {
-        NORMAL(1, "正常"),
-        PAUSE(2, "暂停"),
-        STOP(3, "停用");
-
-        private final int value;
-        private final String label;
-
-        Status(int value, String label) {
-            this.value = value;
-            this.label = label;
-        }
-
-        public static List<Integer> defaultStatus() {
-            return List.of(NORMAL.value, PAUSE.value);
-        }
-    }
-
-    /**
-     * 会员人设状态
-     */
-    @Getter
-    enum Enabled {
-        ENABLE(1, "启用"),
-        DISABLE(0, "禁用");
-
-        private final int value;
-        private final String label;
-
-        Enabled(int value, String label) {
-            this.value = value;
-            this.label = label;
-        }
-
-        public static boolean isEnabled(Integer value) {
-            return value != null && value == ENABLE.value;
-        }
-    }
-
-    /**
-     * 逻辑删除
-     */
-    @Getter
-    enum Deleted {
-        NORMAL(0, "正常"),
-        DISABLE(1, "删除");
-
-        private final int value;
-        private final String label;
-
-        Deleted(int value, String label) {
-            this.value = value;
-            this.label = label;
-        }
-
-        public static int normal() {
-            return NORMAL.value;
-        }
-    }
-
-
-
-    /**
-     * 定时任务状态
-     */
-    enum ScheduleStatus {
-        /**
-         * 正常
-         */
-        NORMAL(1),
-        /**
-         * 暂停
-         */
-        PAUSE(2);
-
-        private int value;
-
-        ScheduleStatus(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
-
-    /**
-     * 云服务商
-     */
-    enum CloudService {
-        /**
-         * 七牛云
-         */
-        QINIU(1),
-        /**
-         * 阿里云
-         */
-        ALIYUN(2),
-        /**
-         * 腾讯云
-         */
-        QCLOUD(3),
-        /**
-         * FASTDFS
-         */
-        FASTDFS(4),
-        /**
-         * 本地
-         */
-        LOCAL(5),
-        /**
-         * MinIO
-         */
-        MINIO(6);
-
-        private int value;
-
-        CloudService(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
-
-    /**
-     * 订单状态
-     */
-    enum OrderStatus {
-        /**
-         * 已取消
-         */
-        CANCEL(-1),
-        /**
-         * 等待付款
-         */
-        WAITING(0),
-        /**
-         * 已完成
-         */
-        FINISH(1);
-
-        private int value;
-
-        OrderStatus(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
-
-
-    /**
-     * 短信服务商
-     */
-    enum SmsService {
-        /**
-         * 云片
-         */
-        YUNPIAN(1),
-        /**
-         * 阿里云
-         */
-        ALIYUN(4),
-        /**
-         * 腾讯云
-         */
-        QCLOUD(2),
-        /**
-         * 七牛
-         */
-        QINIU(3),
-
-        /**
-         * 塞班云
-         */
-        SUB(5),
-
-        EJOIN(6);
-
-        private int value;
-
-        SmsService(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
 }

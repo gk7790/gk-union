@@ -3,7 +3,7 @@ package com.gk.auth.service;
 import com.gk.common.core.service.BaseService;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.auth.dto.SysRoleDTO;
 import com.gk.auth.entity.SysRoleEntity;
 
@@ -17,9 +17,9 @@ import java.util.List;
  */
 public interface SysRoleService extends BaseService<SysRoleEntity> {
 
-	PageData<SysRoleDTO> page(DataMap params);
+	PageData<SysRoleDTO> page(DynMap params);
 
-	List<SysRoleDTO> list(DataMap params);
+	List<SysRoleDTO> list(DynMap params);
 
 	SysRoleDTO get(Long id);
 
@@ -29,5 +29,5 @@ public interface SysRoleService extends BaseService<SysRoleEntity> {
 
 	void delete(Long[] ids);
 
-    List<LabelDTO> getDict(DataMap params);
+    List<LabelDTO> getDict(DynMap params);
 }

@@ -3,7 +3,7 @@ package com.gk.infra.config.service;
 
 import com.gk.common.core.service.BaseService;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.infra.config.dto.SysParamsDTO;
 import com.gk.infra.config.entity.SysParamsEntity;
 
@@ -17,9 +17,9 @@ import java.util.List;
  */
 public interface SysParamsService extends BaseService<SysParamsEntity> {
 
-    PageData<SysParamsDTO> page(DataMap params);
+    PageData<SysParamsDTO> page(DynMap params);
 
-    List<SysParamsDTO> list(DataMap params);
+    List<SysParamsDTO> list(DynMap params);
 
     SysParamsDTO get(Long id);
 
@@ -44,6 +44,13 @@ public interface SysParamsService extends BaseService<SysParamsEntity> {
      */
     <T> T getValueObject(String paramCode, Class<T> clazz);
 
+    /**
+     * 根据参数编码，获取value的Object集合
+     * @param paramCode 参数编码
+     * @param clazz Object对象
+     * @return 集合
+     */
+    <T> List<T> getValueList(String paramCode, Class<T> clazz);
     /**
      * 根据参数编码，更新value
      *

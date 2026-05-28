@@ -4,7 +4,7 @@ import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.quartz.dto.ScheduleJobLogDTO;
 import com.gk.quartz.service.ScheduleJobLogService;
@@ -41,7 +41,7 @@ public class ScheduleJobLogController {
             @Parameter(name = "jobId", description = "jobId", in = ParameterIn.QUERY)
     })
     @RequiresPermission("sys:schedule:log")
-    public R page(@Parameter(hidden = true) @RequestMap DataMap params) {
+    public R page(@Parameter(hidden = true) @RequestMap DynMap params) {
         PageData<ScheduleJobLogDTO> page = scheduleJobLogService.page(params);
         return R.ok(page);
     }

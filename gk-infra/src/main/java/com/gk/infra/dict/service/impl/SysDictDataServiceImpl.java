@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.dict.dao.SysDictDataDao;
 import com.gk.infra.dict.dto.SysDictDataDTO;
@@ -30,7 +30,7 @@ public class SysDictDataServiceImpl extends BaseServiceImpl<SysDictDataDao, SysD
     // private final SysLanguageService sysLanguageService;
 
     @Override
-    public PageData<SysDictDataDTO> page(DataMap params) {
+    public PageData<SysDictDataDTO> page(DynMap params) {
         IPage<SysDictDataEntity> page = baseDao.selectPage(
             getPage(params, "sort", true),
             getWrapper(params)
@@ -39,7 +39,7 @@ public class SysDictDataServiceImpl extends BaseServiceImpl<SysDictDataDao, SysD
         return getPageData(page, SysDictDataDTO.class);
     }
 
-    private QueryWrapper<SysDictDataEntity> getWrapper(DataMap params){
+    private QueryWrapper<SysDictDataEntity> getWrapper(DynMap params){
         String dictTypeId = (String) params.get("dictTypeId");
         String dictLabel = (String) params.get("dictLabel");
         String dictValue = (String) params.get("dictValue");
@@ -54,7 +54,7 @@ public class SysDictDataServiceImpl extends BaseServiceImpl<SysDictDataDao, SysD
 
 
     @Override
-    public PageData<SysDictDataDTO> getPage(DataMap params) {
+    public PageData<SysDictDataDTO> getPage(DynMap params) {
         //分页
         IPage<SysDictDataEntity> page = getPage(params, "d.sort", true);
         params.put("language", ReqContextHolder.getLang());

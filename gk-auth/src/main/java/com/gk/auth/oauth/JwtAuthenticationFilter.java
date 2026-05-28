@@ -8,6 +8,8 @@ import com.gk.auth.utils.JwtUtils;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -45,14 +47,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = JwtUtils.parseToken(jwt);
 
                 ReqContext context = formContext(claims, request);
-                ReqContextHolder.set(context);
 
-                if (Constant.ADMIN.equals(claims.getSubject())) {
+                if (Constant.ADMIN.equals(claims.getSubject()) || Constant.ORG.equals(claims.getSubject())) {
                     // 确保用户未认证且用户名有效
                     if (context.getUserId() > 0) {
 
                         // 加载用户信息
                         SysUser userDetails = userDetailsService.getUserByUserId(Constant.ADMIN, context.getUserId());
+
+                        context.setSAdmin(userDetails.isSuperAdmin());
 
                         // 创建认证对象
                         UsernamePasswordAuthenticationToken authentication =
@@ -64,8 +67,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         // 设置到 SecurityContext
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
-                } else {
-
+                } else if (Constant.CLIENT.equals(claims.getSubject())) {
                     // 创建认证对象
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(claims, null, List.of());
                     // 设置认证详情
@@ -76,11 +78,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
                 // ========== 3. MDC（日志追踪强烈建议） ==========
                 MDC.put("traceId", context.getTraceId());
+                ReqContextHolder.set(context);
             }
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             log.error("JWT 认证失败: {}", e.getMessage());
             SecurityContextHolder.clearContext();
+            throw new GkException(ErrorCode.FORBIDDEN);
         } finally {
             // ========== 4. 清理上下文（必须） ==========
             ReqContextHolder.clear();
@@ -130,6 +134,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Long tenantId = claims.get(JwtUtils.TENANT_ID, Long.class);
         Long deptId = claims.get(JwtUtils.DEPT_ID, Long.class);
         String username = claims.get(JwtUtils.UNAME, String.class);
+        String domain = claims.get(JwtUtils.DOMAIN, String.class);
 
         if (ObjUtil.isEmpty(userId)) {
             userId = 0L;
@@ -143,7 +148,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             traceId = UUID.fastUUID().toString();
         }
 
-        return ReqContext.builder()
+        return ReqContext.builder().scope(claims.getSubject()).domain(domain)
                 .userId(userId).username(username).tenantId(tenantId).deptId(deptId)
                 .lang(lang).timezone(timezone).traceId(traceId).build();
     }

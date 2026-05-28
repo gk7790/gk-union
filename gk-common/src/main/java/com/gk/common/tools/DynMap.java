@@ -15,7 +15,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class DataMap extends HashMap<String, Object> {
+public class DynMap extends HashMap<String, Object> {
 
     public String getStr(Object key) {
         return MapUtil.getStr(this, key);
@@ -67,18 +67,18 @@ public class DataMap extends HashMap<String, Object> {
         return MapUtil.getDate(this, key, defaultValue);
     }
 
-    public DataMap getMap(String key) {
+    public DynMap getMap(String key) {
         Object value = this.get(key);
         if (value == null) {
-            return new DataMap();
+            return new DynMap();
         }
-        if (value instanceof DataMap im) {
+        if (value instanceof DynMap im) {
             return im;
         }
 
         // 普通 Map，直接复制到新的 ItemMap
         if (value instanceof Map<?, ?> map) {
-            DataMap itemMap = new DataMap();
+            DynMap itemMap = new DynMap();
             map.forEach((k, v) -> itemMap.put(String.valueOf(k), v));
             return itemMap;
         }
@@ -86,24 +86,24 @@ public class DataMap extends HashMap<String, Object> {
         // JSON 字符串，尝试解析
         if (value instanceof String str) {
             if (StrUtil.isBlank(str)) {
-                return new DataMap();
+                return new DynMap();
             }
             try {
                 // 使用 TypeReference 避免泛型警告
                 Map<String, Object> parsed = JSONUtil.toBean(str, new TypeReference<>() {}, false);
                 if (parsed == null) {
-                    return new DataMap();
+                    return new DynMap();
                 }
-                DataMap itemMap = new DataMap();
+                DynMap itemMap = new DynMap();
                 itemMap.putAll(parsed);
                 return itemMap;
             } catch (Exception e) {
                 // 解析失败，返回空 Map，保证容错
-                return new DataMap();
+                return new DynMap();
             }
         }
         // 其他类型一律兜底
-        return new DataMap();
+        return new DynMap();
     }
 
     public <T> List<T> getList(Object key, Class<T> clazz) {

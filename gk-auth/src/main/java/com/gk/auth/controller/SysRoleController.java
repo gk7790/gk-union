@@ -6,7 +6,7 @@ import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.auth.dto.SysRoleDTO;
@@ -47,7 +47,7 @@ public class SysRoleController {
 		@Parameter(name = "name", description = "角色名", in = ParameterIn.QUERY)
 	})
 	@RequiresPermission("sys:role:page")
-	public R<?> page(@Parameter(hidden = true) @RequestMap DataMap params){
+	public R<?> page(@Parameter(hidden = true) @RequestMap DynMap params){
 		PageData<SysRoleDTO> page = sysRoleService.page(params);
 		return R.ok(page);
 	}
@@ -56,13 +56,13 @@ public class SysRoleController {
     @Operation(summary = "列表")
     @RequiresPermission("sys:role:list")
     public R<?> list(){
-        List<SysRoleDTO> data = sysRoleService.list(new DataMap());
+        List<SysRoleDTO> data = sysRoleService.list(new DynMap());
         return R.ok(data);
     }
 
 	@GetMapping("dict")
 	@Operation(summary = "字典")
-	public R<?> dict(@RequestMap DataMap params){
+	public R<?> dict(@RequestMap DynMap params){
 		List<LabelDTO> data = sysRoleService.getDict(params);
 		return R.ok(data);
 	}

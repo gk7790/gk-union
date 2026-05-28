@@ -19,7 +19,6 @@ public class ReqContext {
      * 用户名
      */
     private String username;
-
     /**
      * 租户ID
      */
@@ -32,7 +31,7 @@ public class ReqContext {
     /**
      * 是否超级管理员
      */
-    private Boolean superAdmin;
+    private Boolean sAdmin;
 
     /**
      * 当前语言
@@ -53,4 +52,12 @@ public class ReqContext {
      * requestId
      */
     private String requestId;
+    /**
+     * 领域
+     */
+    private String scope;
+    /**
+     * 业务领域
+     */
+    private String domain;
 }

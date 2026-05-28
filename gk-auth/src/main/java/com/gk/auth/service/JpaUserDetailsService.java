@@ -32,6 +32,12 @@ public class JpaUserDetailsService implements UserDetailsService {
     public SysUser getUserByUserId(String model, Long uid) throws UsernameNotFoundException {
         log.debug("Loading user by username: {}", uid);
 
+        String redisKey = RedisKeys.getSysLonginKey(model, ":" + uid);
+        SysUser sUser = redisUtils.get(redisKey, SysUser.class);
+        if (ObjectUtils.isNotEmpty(sUser)) {
+            return sUser;
+        }
+
         SysUser user = getByUid(model, uid);
         validateUser(user);
 
@@ -50,6 +56,8 @@ public class JpaUserDetailsService implements UserDetailsService {
             authorities.add(new SimpleGrantedAuthority(permission));
         }
         user.setAuthorities(authorities);
+
+        redisUtils.set(redisKey, user, TimeUnit.HOURS.toSeconds(5));
         return user;
     }
 
@@ -107,22 +115,10 @@ public class JpaUserDetailsService implements UserDetailsService {
      * @return        返回部门ID列表
      */
     public Set<String> getRoleAuthList(Long userId) {
-        String redisKey = RedisKeys.getSysLonginKey(Constant.ADMIN, "role-auth:" + userId);
-        Set<String> idList = redisUtils.getSet(redisKey, String.class);
-        if (ObjectUtils.isNotEmpty(idList)) {
-            return idList;
-        }
-        Set<String> scopeList = securityDao.getRoleAuthList(userId);
-        redisUtils.addSet(redisKey, scopeList, TimeUnit.HOURS.toSeconds(5));
-        return scopeList;
+        return securityDao.getRoleAuthList(userId);
     }
 
     public Set<String> getUserPermissions(Long userId, boolean isAdmin) {
-        String redisKey = RedisKeys.getSysLonginKey(Constant.ADMIN, "permissions:" + userId);
-        Set<String> permList = redisUtils.getSet(redisKey, String.class);
-        if (CollectionUtils.isNotEmpty(permList)) {
-            return permList;
-        }
         //系统管理员，拥有最高权限
         List<String> permissionsList;
         if (isAdmin) {
@@ -139,8 +135,6 @@ public class JpaUserDetailsService implements UserDetailsService {
             }
             permsSet.addAll(Arrays.asList(permissions.trim().split(",")));
         }
-
-        redisUtils.addSet(redisKey, permsSet, TimeUnit.HOURS.toSeconds(5));
         return permsSet;
     }
 
@@ -150,13 +144,6 @@ public class JpaUserDetailsService implements UserDetailsService {
      * @return        返回部门ID列表
      */
     public Set<Long> getDataScopeList(Long userId) {
-        String redisKey = RedisKeys.getSysLonginKey(Constant.ADMIN, "dataScope:" + userId);
-        Set<Long> idList = redisUtils.getSet(redisKey, Long.class);
-        if (ObjectUtils.isNotEmpty(idList)) {
-            return idList;
-        }
-        Set<Long> scopeList = securityDao.getDataScopeList(userId);
-        redisUtils.addSet(redisKey, scopeList, TimeUnit.HOURS.toSeconds(5));
-        return scopeList;
+        return securityDao.getDataScopeList(userId);
     }
 }

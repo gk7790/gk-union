@@ -2,7 +2,7 @@ package com.gk.common.handler;
 
 import cn.hutool.core.util.StrUtil;
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -25,7 +25,7 @@ public class RequestMapResolver implements HandlerMethodArgumentResolver {
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(RequestMap.class) &&
-                parameter.getParameterType().equals(DataMap.class);
+                parameter.getParameterType().equals(DynMap.class);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class RequestMapResolver implements HandlerMethodArgumentResolver {
                                   WebDataBinderFactory binderFactory) {
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        DataMap queryMap = new DataMap();
+        DynMap queryMap = new DynMap();
         if (request != null) {
             Map<String, String[]> parameterMap = request.getParameterMap();
             parameterMap.forEach((key, values) -> {

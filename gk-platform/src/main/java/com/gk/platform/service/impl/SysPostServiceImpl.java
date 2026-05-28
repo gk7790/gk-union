@@ -3,7 +3,7 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.platform.dao.SysPostDao;
 import com.gk.platform.dto.SysPostDTO;
@@ -30,7 +30,7 @@ public class SysPostServiceImpl extends CrudServiceImpl<SysPostDao, SysPostEntit
 
 
     @Override
-    public QueryWrapper<SysPostEntity> getWrapper(DataMap params){
+    public QueryWrapper<SysPostEntity> getWrapper(DynMap params){
         QueryWrapper<SysPostEntity> wrapper = new QueryWrapper<>();
 
         String postCode = (String)params.get("postCode");
@@ -50,7 +50,7 @@ public class SysPostServiceImpl extends CrudServiceImpl<SysPostDao, SysPostEntit
     }
 
     @Override
-    public List<SysPostDTO> list(DataMap params) {
+    public List<SysPostDTO> list(DynMap params) {
         List<SysPostEntity> entityList = baseDao.selectList(getWrapper(params));
 
         return ConvertUtils.sourceToTarget(entityList, SysPostDTO.class);

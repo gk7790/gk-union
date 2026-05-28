@@ -3,7 +3,7 @@ package com.gk.infra.dict.service;
 import com.gk.common.core.service.BaseService;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.infra.dict.dto.SysDictTypeDTO;
 import com.gk.infra.dict.entity.DictType;
 import com.gk.infra.dict.entity.SysDictTypeEntity;
@@ -17,7 +17,7 @@ import java.util.List;
  */
 public interface SysDictTypeService extends BaseService<SysDictTypeEntity> {
 
-    PageData<SysDictTypeDTO> page(DataMap params);
+    PageData<SysDictTypeDTO> page(DynMap params);
 
     SysDictTypeDTO get(Long id);
 

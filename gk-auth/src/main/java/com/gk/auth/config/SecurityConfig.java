@@ -1,6 +1,7 @@
 package com.gk.auth.config;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.gk.common.constant.Constant;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.tools.R;
 import com.gk.auth.entity.SysUser;
@@ -164,11 +165,11 @@ public class SecurityConfig {
             claims.put(JwtUtils.TENANT_ID, user.getTenantId());
             claims.put(JwtUtils.DEPT_ID, user.getDeptId());
             claims.put(JwtUtils.UNAME, user.getUsername());
+            claims.put(JwtUtils.SUPER_Admin, user.isSuperAdmin());
             claims.put("email", user.getEmail());
             claims.put("realName", user.getRealName());
-            claims.put("admin", user.getSuperAdmin());
             claims.put("roles", user.getRoleAuthList());
-            String token = JwtUtils.generateToken("admin", claims);
+            String token = JwtUtils.generateToken(Constant.ADMIN, claims);
 
             Map<String, Object> userMap = new HashMap<>();
             userMap.put("id", user.getId());

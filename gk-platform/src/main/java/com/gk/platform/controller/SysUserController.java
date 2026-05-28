@@ -9,7 +9,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.page.PageData;
 import com.gk.common.password.PasswordUtils;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dto.PasswordDTO;
@@ -58,7 +58,7 @@ public class SysUserController {
             @Parameter(name = "deptId", description = "部门ID", in = ParameterIn.QUERY)
     })
 	@RequiresPermission("sys:user:page")
-	public R<?> page(@RequestMap DataMap params){
+	public R<?> page(@RequestMap DynMap params){
 		PageData<SysUserDTO> page = sysUserService.page(params);
 		return R.ok(page);
 	}

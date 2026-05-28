@@ -5,6 +5,7 @@ import com.gk.infra.i18n.entity.SysI18nEntity;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
+import java.util.Map;
 
 /**
 * 系统-国际化
@@ -15,5 +16,9 @@ import java.util.List;
 @Mapper
 public interface SysI18nDao extends BaseDao<SysI18nEntity> {
 
+    List<SysI18nEntity> getPageList(Map<String, Object> params);
+
     List<SysI18nEntity> selectByLang(String type, String lang);
+
+    List<SysI18nEntity> getList(Map<String, Object> params);
 }

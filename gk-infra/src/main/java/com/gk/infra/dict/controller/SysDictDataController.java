@@ -5,7 +5,7 @@ import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dict.dto.SysDictDataDTO;
@@ -41,7 +41,7 @@ public class SysDictDataController {
             @Parameter(name = "dictValue", description = "字典值", in = ParameterIn.QUERY)
     })
     @RequiresPermission("sys:dict:page")
-    public R<?> page(@RequestMap DataMap params){
+    public R<?> page(@RequestMap DynMap params){
         //字典类型
         PageData<SysDictDataDTO> page = sysDictDataService.getPage(params);
         return R.ok(page);

@@ -1,7 +1,7 @@
 package com.gk.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 
 import java.io.Serial;
 import java.util.List;
@@ -10,7 +10,7 @@ import java.util.Set;
 
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class AuthUser extends DataMap {
+public class AuthUser extends DynMap {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -74,10 +74,9 @@ public class AuthUser extends DataMap {
      * 当前登入用户是否是超级管理员
      */
     public int getSAdmin() {
-        String key = containsKey("sAdmin") ? "sAdmin" : "admin";
-        return getInt(key, 0);
+        return getInt("sAdmin", 0);
     }
-    public void setSAdmin(Integer sadmin) {put("sadmin", sadmin);}
+    public void setSAdmin(Integer sadmin) {put("sAdmin", sadmin);}
     public boolean isSAdmin() { return getSAdmin() == 1; }
 
     /**

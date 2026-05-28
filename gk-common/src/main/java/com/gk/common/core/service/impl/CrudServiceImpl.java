@@ -7,9 +7,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.ReflectionKit;
 import com.gk.common.core.service.CrudService;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.util.CollectionUtils;
 
@@ -29,7 +28,7 @@ public abstract class CrudServiceImpl<M extends BaseMapper<T>, T, D> extends Bas
     }
 
     @Override
-    public PageData<D> page(DataMap params) {
+    public PageData<D> page(DynMap params) {
         IPage<T> page = baseDao.selectPage(
             getPage(params, "id", false),
             getWrapper(params)
@@ -39,7 +38,7 @@ public abstract class CrudServiceImpl<M extends BaseMapper<T>, T, D> extends Bas
     }
 
     @Override
-    public List<D> list(DataMap params) {
+    public List<D> list(DynMap params) {
         List<T> entityList = baseDao.selectList(getWrapper(params));
         if (CollectionUtils.isEmpty(entityList)) {
             return new ArrayList<>(0);
@@ -47,7 +46,7 @@ public abstract class CrudServiceImpl<M extends BaseMapper<T>, T, D> extends Bas
         return ConvertUtils.sourceToTarget(entityList, currentDtoClass());
     }
 
-    public abstract QueryWrapper<T> getWrapper(DataMap params);
+    public abstract QueryWrapper<T> getWrapper(DynMap params);
 
     @Override
     public D get(Long id) {

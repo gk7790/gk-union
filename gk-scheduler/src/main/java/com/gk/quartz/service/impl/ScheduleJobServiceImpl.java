@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
+import com.gk.quartz.enums.ScheduleStatusEnum;
 import com.gk.common.page.PageData;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.quartz.dao.ScheduleJobDao;
@@ -14,7 +15,6 @@ import com.gk.quartz.service.ScheduleJobService;
 import com.gk.quartz.utils.ScheduleUtils;
 import lombok.RequiredArgsConstructor;
 import org.quartz.Scheduler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +57,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
     public void save(ScheduleJobDTO dto) {
         ScheduleJobEntity entity = ConvertUtils.sourceToTarget(dto, ScheduleJobEntity.class);
 
-        entity.setStatus(Constant.ScheduleStatus.NORMAL.getValue());
+        entity.setStatus(ScheduleStatusEnum.NORMAL.code());
         this.insert(entity);
 
         ScheduleUtils.createScheduleJob(scheduler, entity);
@@ -107,7 +107,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
             ScheduleUtils.pauseJob(scheduler, id);
         }
 
-        updateBatch(ids, Constant.ScheduleStatus.PAUSE.getValue());
+        updateBatch(ids, ScheduleStatusEnum.PAUSE.code());
     }
 
     @Override
@@ -117,7 +117,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
             ScheduleUtils.resumeJob(scheduler, id);
         }
 
-        updateBatch(ids, Constant.ScheduleStatus.NORMAL.getValue());
+        updateBatch(ids, ScheduleStatusEnum.NORMAL.code());
     }
 
 }

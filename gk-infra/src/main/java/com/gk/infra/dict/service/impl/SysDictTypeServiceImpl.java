@@ -6,7 +6,7 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.dict.dao.SysDictDataDao;
 import com.gk.infra.dict.dao.SysDictTypeDao;
@@ -35,7 +35,7 @@ public class SysDictTypeServiceImpl extends BaseServiceImpl<SysDictTypeDao, SysD
 
 
     @Override
-    public PageData<SysDictTypeDTO> page(DataMap params) {
+    public PageData<SysDictTypeDTO> page(DynMap params) {
         IPage<SysDictTypeEntity> page = baseDao.selectPage(
             getPage(params, "sort", true),
             getWrapper(params)
@@ -44,7 +44,7 @@ public class SysDictTypeServiceImpl extends BaseServiceImpl<SysDictTypeDao, SysD
         return getPageData(page, SysDictTypeDTO.class);
     }
 
-    private QueryWrapper<SysDictTypeEntity> getWrapper(DataMap params){
+    private QueryWrapper<SysDictTypeEntity> getWrapper(DynMap params){
         String dictType = (String) params.get("dictType");
         String dictName = (String) params.get("dictName");
 
@@ -56,7 +56,7 @@ public class SysDictTypeServiceImpl extends BaseServiceImpl<SysDictTypeDao, SysD
     }
 
 
-    public PageData<SysDictTypeDTO> getPage(DataMap params) {
+    public PageData<SysDictTypeDTO> getPage(DynMap params) {
         IPage<SysDictTypeEntity> page = baseDao.selectPage(
                 getPage(params, "sort", true),
                 getWrapper(params)

@@ -4,7 +4,7 @@ package com.gk.infra.config.controller;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.common.tools.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.config.dto.SysParamsDTO;
@@ -40,7 +40,7 @@ public class SysParamsController {
         @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY) ,
         @Parameter(name = "paramCode", description = "参数编码", in = ParameterIn.QUERY)
     })
-    public R<?> page(@Parameter(hidden = true) @RequestMap DataMap params){
+    public R<?> page(@Parameter(hidden = true) @RequestMap DynMap params){
         PageData<SysParamsDTO> page = sysParamsService.page(params);
 
         return R.ok(page);

@@ -2,7 +2,7 @@ package com.gk.infra.dict.service;
 
 import com.gk.common.core.service.BaseService;
 import com.gk.common.page.PageData;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import com.gk.infra.dict.dto.SysDictDataDTO;
 import com.gk.infra.dict.entity.SysDictDataEntity;
 
@@ -13,9 +13,9 @@ import com.gk.infra.dict.entity.SysDictDataEntity;
  */
 public interface SysDictDataService extends BaseService<SysDictDataEntity> {
 
-    PageData<SysDictDataDTO> page(DataMap params);
+    PageData<SysDictDataDTO> page(DynMap params);
 
-    PageData<SysDictDataDTO> getPage(DataMap params);
+    PageData<SysDictDataDTO> getPage(DynMap params);
 
     SysDictDataDTO get(Long id);
 

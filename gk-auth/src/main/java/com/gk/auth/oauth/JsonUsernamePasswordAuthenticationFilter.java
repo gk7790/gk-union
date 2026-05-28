@@ -1,7 +1,7 @@
 package com.gk.auth.oauth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gk.common.tools.DataMap;
+import com.gk.common.tools.DynMap;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -22,9 +22,9 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
             throws AuthenticationException {
         if (request.getContentType() != null && request.getContentType().startsWith(MediaType.APPLICATION_JSON_VALUE)) {
             try (InputStream is = request.getInputStream()) {
-                DataMap dataMap = objectMapper.readValue(is, DataMap.class);
-                String username = dataMap.getStr("username");
-                String password = dataMap.getStr("password");
+                DynMap dynMap = objectMapper.readValue(is, DynMap.class);
+                String username = dynMap.getStr("username");
+                String password = dynMap.getStr("password");
                 UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
                 setDetails(request, token);
                 return this.getAuthenticationManager().authenticate(token);

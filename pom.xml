@@ -27,6 +27,7 @@
         <module>gk-tenant</module>
         <module>gk-cloak</module>
         <module>gk-notify</module>
+        <module>gk-ledger</module>
     </modules>
 
     <properties>

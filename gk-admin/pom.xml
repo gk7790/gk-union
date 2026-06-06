@@ -48,6 +48,11 @@
             <artifactId>gk-tenant</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-cloak</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -13,10 +13,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -71,28 +68,6 @@ public class SecurityUtils implements CurrentUser {
     }
 
     /**
-     * 检查是否有权限
-     */
-    public boolean hasAuthority(String authority) {
-        return getAuthorities().contains(authority);
-    }
-
-    /**
-     * 检查是否有角色
-     */
-    public boolean hasRole(String role) {
-        return hasAuthority("ROLE_" + role);
-    }
-
-    /**
-     * 是否是管理员
-     */
-    public boolean isAdmin() {
-        AuthUser user = getAuthUser();
-        return user.isSAdmin();
-    }
-
-    /**
      * 获取当前登录用户
      */
     public AuthUser getAuthUser() {
@@ -137,5 +112,86 @@ public class SecurityUtils implements CurrentUser {
         }
     }
 
+    /**
+     * 是否是管理员
+     */
+    public boolean isAdmin() {
+        AuthUser user = getAuthUser();
+        return user.isSAdmin();
+    }
+
+    /**
+     * 检查是否有权限
+     */
+    public boolean hasAuthority(String authority) {
+        return getAuthorities().contains(authority);
+    }
+
+    /**
+     * 检查是否有角色
+     */
+    public boolean hasRole(String role) {
+        return hasAuthority("ROLE_" + role);
+    }
+
+    @Override
+    public boolean hasAllAuth(String... auths) {
+        if (auths == null || auths.length == 0) {
+            return false;
+        }
+
+        List<String> authorities = getAuthorities();
+
+        for (String auth : auths) {
+            if (auth == null || !authorities.contains(auth)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public boolean hasAnyAuth(String... auths) {
+        if (auths == null || auths.length == 0) {
+            return false;
+        }
+
+        List<String> authorities = getAuthorities();
+
+        for (String auth : auths) {
+            if (auth != null && authorities.contains(auth)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasAnyRole(String... roles) {
+        if (roles == null) {
+            return false;
+        }
+
+        for (String role : roles) {
+            if (role != null && hasRole(role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean hasAllRole(String... roles) {
+        if (roles == null || roles.length == 0) {
+            return false;
+        }
+
+        for (String role : roles) {
+            if (role == null || !hasRole(role)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 }

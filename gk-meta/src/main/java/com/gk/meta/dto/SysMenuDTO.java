@@ -1,11 +1,12 @@
 package com.gk.meta.dto;
 
-import com.gk.common.tools.TreeNode;
+import com.gk.common.model.TreeNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * 菜单管理
@@ -58,10 +59,10 @@ public class SysMenuDTO extends TreeNode<SysMenuDTO> implements Serializable {
     private Integer type;
 
     @Schema(title = "领域")
-    private Integer scope;
+    private List<Integer> scope;
 
     @Schema(title = "业务领域")
-    private Integer domain;
+    private List<Integer> domain;
 
     /**
      * 样式

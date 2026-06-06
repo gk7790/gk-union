@@ -15,7 +15,7 @@ public class LabelDTO {
     private Long id;
     @JsonSerialize(using = ToStringSerializer.class)
     private Long pid;
-    private String value;
+    private Object value;
     private String label;
     private String i18nKey;
     private List<LabelDTO> children;
@@ -33,10 +33,9 @@ public class LabelDTO {
         this.label = label;
     }
 
-    public LabelDTO(String value, String label, String i18nKey) {
+    public LabelDTO(Object value, String label, String i18nKey) {
         this.value = value;
         this.label = label;
         this.i18nKey = i18nKey;
     }
-
 }

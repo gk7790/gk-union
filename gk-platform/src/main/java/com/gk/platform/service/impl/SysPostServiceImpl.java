@@ -3,7 +3,7 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.platform.dao.SysPostDao;
 import com.gk.platform.dto.SysPostDTO;

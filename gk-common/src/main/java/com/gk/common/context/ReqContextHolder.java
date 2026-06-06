@@ -1,6 +1,9 @@
 package com.gk.common.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import org.apache.commons.collections4.CollectionUtils;
+
+import java.util.*;
 
 public class ReqContextHolder {
 
@@ -72,6 +75,39 @@ public class ReqContextHolder {
     }
 
     /**
+     * 及子集部门ID
+     */
+    public static Set<Long> getSubDeptIds() {
+        Set<Long> deptIdList = get().getDeptIdList();
+        if (CollectionUtils.isNotEmpty(deptIdList)) {
+            return deptIdList;
+        }
+        return Set.of(-1L);
+    }
+
+    /**
+     * 本部门以及子集部门ID
+     */
+    public static Set<Long> getSubDeptIdsWithSelf() {
+        ReqContext context = get();
+        Long deptId = context.getDeptId();
+
+        Set<Long> result = getSubDeptIds();
+        if (result == null) {
+            result = new HashSet<>();
+        }
+
+        if (deptId != null) {
+            result.add(deptId);
+        }
+
+        if (CollectionUtils.isNotEmpty(result)) {
+            return result;
+        }
+        return Set.of(-1L);
+    }
+
+    /**
      * 当前语言
      */
     public static String getLang() {
@@ -81,14 +117,14 @@ public class ReqContextHolder {
     /**
      * 领域
      */
-    public static String getScope() {
+    public static Integer getScope() {
         return get().getScope();
     }
 
     /**
      * 业务领域
      */
-    public static String getDomain() {
+    public static Integer getDomain() {
         return get().getDomain();
     }
 

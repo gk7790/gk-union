@@ -1,20 +1,23 @@
 package com.gk.platform.controller;
 
 
+import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dto.PasswordDTO;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
+import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,7 +44,7 @@ public class SysUserController {
     private final CurrentUser currentUser;
 	private final SysUserService sysUserService;
 	private final SysUserPostService sysUserPostService;
-//	private final SysRoleUserService sysRoleUserService;
+	private final SysRoleUserService sysRoleUserService;
 
     /**
      * 分页
@@ -70,8 +73,8 @@ public class SysUserController {
 		SysUserDTO data = sysUserService.getById(id);
 
 		//用户角色列表
-//		List<Long> roleIdList = sysRoleUserService.getRoleIdList(id);
-//		data.setRoleIdList(roleIdList);
+		List<Long> roleIdList = sysRoleUserService.getRoleIdList(id);
+		data.setRoleIdList(roleIdList);
 
 		//用户岗位列表
 		List<Long> postIdList = sysUserPostService.getPostIdList(id);
@@ -116,8 +119,14 @@ public class SysUserController {
 
 	@PostMapping
 	@Operation(summary = "保存")
-	@RequiresPermission("sys:user:save")
+	@RequiresPermission("sys:user:add")
 	public R<?> save(@RequestBody SysUserDTO dto){
+        if (!ReqContextHolder.isSAdmin()) {
+            dto.setTenantId(ReqContextHolder.getTenantId());
+        }
+        if (ObjUtil.isEmpty(dto.getDeptId())) {
+            dto.setDeptId(ReqContextHolder.getDeptId());
+        }
 		sysUserService.save(dto);
 		return R.ok();
 	}
@@ -126,6 +135,11 @@ public class SysUserController {
 	@Operation(summary = "修改")
 	@RequiresPermission("sys:user:update")
 	public R<?> update(@RequestBody SysUserDTO dto){
+        dto.setTenantId(null);
+        boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
+        if (!allowed) {
+            dto.setDeptId(null);
+        }
 		sysUserService.update(dto);
 		return R.ok();
 	}

@@ -1,9 +1,5 @@
 package com.gk.common.constant;
 
-import lombok.Getter;
-
-import java.util.List;
-
 /**
  * 常量
  *
@@ -17,7 +13,23 @@ public interface Constant {
     /**
      * 失败
      */
-    int FAIL = 0;
+    int FAIL = 3;
+    /**
+     * 菜单根节点标识
+     */
+    Long MENU_ROOT = 0L;
+    /**
+     * 部门根节点标识
+     */
+    Long DEPT_ROOT = 0L;
+    /**
+     * 系统最小id,用于处理数据隐藏
+     */
+    Long MIN_SYS_ID = 10L;
+    /**
+     * 系统保留最大id
+     */
+    Long MAX_RESERVED_ID = 1000L;
     /**
      * OK
      */
@@ -42,14 +54,6 @@ public interface Constant {
      * client
      */
     String CLIENT_APP = "client_app";
-    /**
-     * 菜单根节点标识
-     */
-    Long MENU_ROOT = 0L;
-    /**
-     * 部门根节点标识
-     */
-    Long DEPT_ROOT = 0L;
     /**
      *  升序
      */
@@ -105,15 +109,18 @@ public interface Constant {
      * 国际化语言key
      */
     String SYS_I18N_PARAMS_KEY = "SYS_I18N_PARAMS_KEY";
-
     /**
      * 国际化语言类型key
      */
     String SYS_I18N_TYPE_KEY = "SYS_I18N_TYPE_KEY";
     /**
+     * 系统时区
+     */
+    String SYS_TIMEZONE_KEY = "SYS_TIMEZONE_KEY";
+    /**
      * 用户范围
      */
-    String SYS_USER_SCOPE = "SYS_USER_SCOPE";
+    String SYS_USER_SCOPE_KEY = "SYS_USER_SCOPE_KEY";
     /**
      * 用户范围
      */

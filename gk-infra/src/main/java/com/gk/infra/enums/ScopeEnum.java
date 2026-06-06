@@ -2,11 +2,14 @@ package com.gk.infra.enums;
 
 import com.gk.common.enums.SimpleEnum;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public enum ScopeEnum implements SimpleEnum<Integer> {
-    PLATFORM(1, "平台", "enum.platform"),
-    TENANT(2, "租户", "enum.tenant"),
-    ORG(3, "组织", "enum.org"),
-    CLIENT(4, "客户", "enum.client");
+    PLATFORM(1, "平台", "dict.scope.platform"),
+    TENANT(3, "租户", "dict.scope.tenant"),
+    ORG(5, "组织", "dict.scope.org"),
+    AGENT(7, "代理", "dict.scope.agent");
 
     private final Integer code;
     private final String label;
@@ -16,6 +19,20 @@ public enum ScopeEnum implements SimpleEnum<Integer> {
         this.code = code;
         this.label = label;
         this.i18nKey = i18nKey;
+    }
+
+    public static List<Integer> sysList() {
+        return List.of(PLATFORM.code, TENANT.code, ORG.code, AGENT.code);
+    }
+
+    public static List<ScopeEnum> scope(int scope) {
+        List<ScopeEnum> result = new ArrayList<>();
+        for (ScopeEnum value : ScopeEnum.values()) {
+            if (value.code > scope) {
+                result.add(value);
+            }
+        }
+        return result;
     }
 
     @Override

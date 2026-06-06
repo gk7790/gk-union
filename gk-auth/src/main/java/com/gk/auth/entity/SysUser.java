@@ -1,5 +1,6 @@
 package com.gk.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gk.common.dto.AuthUser;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
@@ -25,6 +26,8 @@ public class SysUser implements UserDetails {
     private Integer status;
     private String realName;
     private Integer gender;
+    private Integer scope;
+    private Integer domain;
 
     /**
      * 模块: admin(管理后台用户), zap(内网穿透用户), relay(节点客户端用户)
@@ -33,14 +36,20 @@ public class SysUser implements UserDetails {
     /**
      *部门数据权限
      */
-    private Set<String> roleAuthList;
+    private Set<String> roleList;
+    /**
+     *部门数据权限
+     */
+    private Set<String> authList;
     /**
      * 部门数据权限
      */
+    @JsonIgnore
     private Set<Long> deptIdList;
     /**
      * 权限标识
      */
+    @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
     @Override
@@ -72,7 +81,8 @@ public class SysUser implements UserDetails {
         authUser.setEmail(email);
         authUser.setSAdmin(this.superAdmin);
         authUser.setDeptIdList(deptIdList);
-        authUser.setRoleAuthList(roleAuthList);
+        authUser.setRoleList(roleList);
+        authUser.setAuthList(authList);
         return authUser;
     }
 }

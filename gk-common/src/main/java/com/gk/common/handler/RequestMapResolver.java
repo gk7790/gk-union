@@ -2,7 +2,7 @@ package com.gk.common.handler;
 
 import cn.hutool.core.util.StrUtil;
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;

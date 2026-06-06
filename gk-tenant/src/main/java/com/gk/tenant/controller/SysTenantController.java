@@ -4,9 +4,10 @@ import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.tenant.dto.SysTenantDTO;
 import com.gk.tenant.service.SysTenantService;
@@ -61,10 +62,12 @@ public class SysTenantController {
         return R.ok();
     }
 
-    @PutMapping
+    @PutMapping("{id}")
     @Operation(summary = "修改")
-    public R<?> update(@RequestBody SysTenantDTO dto){
+    public R<?> update(@PathVariable("id") Long id, @RequestBody SysTenantDTO dto){
         //效验数据
+        AssertUtils.isReserved(id);
+        dto.setId(id);
         sysTenantService.update(dto);
         return R.ok();
     }
@@ -73,7 +76,7 @@ public class SysTenantController {
     @Operation(summary = "删除")
     public R<?> delete(@RequestParam Long id){
         //效验数据
-        AssertUtils.isNull(id, "id");
+        AssertUtils.isReserved(id);
         sysTenantService.delete(id);
         return R.ok();
     }

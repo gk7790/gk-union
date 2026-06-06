@@ -3,7 +3,7 @@ package com.gk.auth.config;
 import com.alibaba.fastjson2.JSONObject;
 import com.gk.common.constant.Constant;
 import com.gk.common.exception.ErrorCode;
-import com.gk.common.tools.R;
+import com.gk.common.model.R;
 import com.gk.auth.entity.SysUser;
 import com.gk.auth.oauth.JsonUsernamePasswordAuthenticationFilter;
 import com.gk.auth.oauth.JwtAuthenticationFilter;
@@ -91,9 +91,11 @@ public class SecurityConfig {
         return http.authorizeHttpRequests(authorize ->authorize.requestMatchers(
                         "/auth/**", // 认证相关端点
                         "/internal/**", // 内部接口使用
-                        "/error", // 错误端点
+                        "/public/**",
                         "/static/**",
-                        "/.well-known/**" // OIDC发现端点
+                        "/.well-known/**", // OIDC发现端点
+                        "/favicon.ico",
+                        "/error"  // 错误端点
                         ).permitAll().anyRequest().authenticated()
                 )
                 // 禁用CSRF - 前后端分离通常不需要
@@ -107,7 +109,6 @@ public class SecurityConfig {
                 // 退出登录配置
                 .logout(logout -> logout
                         .logoutUrl("/auth/logout")
-                        .logoutSuccessHandler(logoutSuccessHandler())
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                         .permitAll()
@@ -166,16 +167,18 @@ public class SecurityConfig {
             claims.put(JwtUtils.DEPT_ID, user.getDeptId());
             claims.put(JwtUtils.UNAME, user.getUsername());
             claims.put(JwtUtils.SUPER_Admin, user.isSuperAdmin());
+            claims.put(JwtUtils.SCOPE, user.getScope());
+            claims.put(JwtUtils.DOMAIN, user.getDomain());
             claims.put("email", user.getEmail());
             claims.put("realName", user.getRealName());
-            claims.put("roles", user.getRoleAuthList());
+            claims.put("roles", user.getRoleList());
             String token = JwtUtils.generateToken(Constant.ADMIN, claims);
 
             Map<String, Object> userMap = new HashMap<>();
             userMap.put("id", user.getId());
             userMap.put("username", user.getUsername());
             userMap.put("realName", user.getNickName());
-            userMap.put("roles", user.getRoleAuthList());
+            userMap.put("roles", user.getRoleList());
             userMap.put("accessToken", token);
             userMap.put("tokenType", "Bearer");
             userMap.put("expiresIn", 86400);

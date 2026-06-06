@@ -1,7 +1,7 @@
 package com.gk.auth.service;
 
 import cn.hutool.core.util.StrUtil;
-import com.gk.common.constant.Constant;
+import com.gk.common.enums.MenuTypeEnum;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.auth.dao.SecurityDao;
@@ -32,7 +32,7 @@ public class JpaUserDetailsService implements UserDetailsService {
     public SysUser getUserByUserId(String model, Long uid) throws UsernameNotFoundException {
         log.debug("Loading user by username: {}", uid);
 
-        String redisKey = RedisKeys.getSysLonginKey(model, ":" + uid);
+        String redisKey = RedisKeys.getSysLonginKey(model, uid + "");
         SysUser sUser = redisUtils.get(redisKey, SysUser.class);
         if (ObjectUtils.isNotEmpty(sUser)) {
             return sUser;
@@ -41,21 +41,12 @@ public class JpaUserDetailsService implements UserDetailsService {
         SysUser user = getByUid(model, uid);
         validateUser(user);
 
-        Set<Long> dataScopeList = getDataScopeList(user.getId());
-        user.setDeptIdList(dataScopeList);
-
         Set<String> roleAuth = getRoleAuthList(user.getId());
-        user.setRoleAuthList(roleAuth);
-        Set<String> permissions =  getUserPermissions(user.getId(), user.isSuperAdmin());
+        user.setRoleList(roleAuth);
 
-        List<SimpleGrantedAuthority> authorities = new ArrayList<>(roleAuth.size() +  permissions.size());
-        for (String auth : roleAuth) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_" + auth));
-        }
-        for (String permission : permissions) {
-            authorities.add(new SimpleGrantedAuthority(permission));
-        }
-        user.setAuthorities(authorities);
+        // TODO 后期数据多了单独缓存
+        Set<String> permissions = getUserPermissions(user.getId(), user.isSuperAdmin());
+        user.setAuthList(permissions);
 
         redisUtils.set(redisKey, user, TimeUnit.HOURS.toSeconds(5));
         return user;
@@ -89,30 +80,23 @@ public class JpaUserDetailsService implements UserDetailsService {
 
     /**
      * 获取用户对应的部门数据权限
-     * @param uid  用户uname
+     *
+     * @param uid 用户uname
      * @return 返回部门ID列表
      */
     public SysUser getByUid(String model, Long uid) {
-        String redisKey = RedisKeys.getSysLonginKey(model, "auth-user:" + uid);
-        SysUser idList = redisUtils.get(redisKey, SysUser.class);
-        if (ObjectUtils.isNotEmpty(idList)) {
-            return idList;
-        }
-
         Optional<SysUser> userOpt = securityDao.getUserByUserId(uid);
         if (userOpt.isEmpty()) {
             throw new UsernameNotFoundException("User not found");
         }
-
-        SysUser sysUser = userOpt.get();
-        redisUtils.set(redisKey, sysUser, TimeUnit.HOURS.toSeconds(5));
-        return sysUser;
+        return userOpt.get();
     }
 
     /**
      * 获取用户对应的部门数据权限
-     * @param userId  用户ID
-     * @return        返回部门ID列表
+     *
+     * @param userId 用户ID
+     * @return 返回部门ID列表
      */
     public Set<String> getRoleAuthList(Long userId) {
         return securityDao.getRoleAuthList(userId);
@@ -122,9 +106,10 @@ public class JpaUserDetailsService implements UserDetailsService {
         //系统管理员，拥有最高权限
         List<String> permissionsList;
         if (isAdmin) {
-            permissionsList = securityDao.getPermissionsList();
+
+            permissionsList = securityDao.getPermissionsList(MenuTypeEnum.auth());
         } else {
-            permissionsList = securityDao.getUserPermissionsList(userId);
+            permissionsList = securityDao.getUserPermissionsList(userId,  MenuTypeEnum.auth());
         }
 
         //用户权限列表
@@ -139,11 +124,20 @@ public class JpaUserDetailsService implements UserDetailsService {
     }
 
     /**
-     * 获取用户对应的部门数据权限
-     * @param userId  用户ID
-     * @return        返回部门ID列表
+     * 根据部门ID，获取所有子部门ID列表
+     *
+     * @param deptId 部门ID
      */
-    public Set<Long> getDataScopeList(Long userId) {
-        return securityDao.getDataScopeList(userId);
+    public Set<Long> getSubDeptIdList(Long deptId) {
+        String redisKey = RedisKeys.getDeptIdsKey(deptId);
+        Set<Long> ids = redisUtils.getSet(redisKey, Long.class);
+        if (CollectionUtils.isNotEmpty(ids)) {
+            return ids;
+        }
+        Set<Long> subDeptIdList = securityDao.getSubDeptIdList(deptId);
+        if  (CollectionUtils.isNotEmpty(subDeptIdList)) {
+            redisUtils.addSet(redisKey, subDeptIdList, TimeUnit.HOURS.toSeconds(5));
+        }
+        return securityDao.getSubDeptIdList(deptId);
     }
 }

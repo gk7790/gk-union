@@ -16,6 +16,10 @@ import lombok.EqualsAndHashCode;
 @TableName("sys_dept")
 public class SysDeptEntity extends SimpleEntity {
 
+    /**
+     * 租户id
+     */
+    private Long tenantId;
 	/**
 	 * 上级ID
 	 */

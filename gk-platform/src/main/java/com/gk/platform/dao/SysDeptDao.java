@@ -25,10 +25,4 @@ public interface SysDeptDao extends BaseMapper<SysDeptEntity> {
      */
     List<SysDeptEntity> getIdAndPidList();
 
-    /**
-     * 根据部门ID，获取所有子部门ID列表
-     * @param id   部门ID
-     */
-    List<Long> getSubDeptIdList(String id);
-
 }

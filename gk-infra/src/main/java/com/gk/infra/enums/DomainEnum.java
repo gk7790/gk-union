@@ -3,8 +3,8 @@ package com.gk.infra.enums;
 import com.gk.common.enums.SimpleEnum;
 
 public enum DomainEnum implements SimpleEnum<Integer> {
-    GAMING(1, "游戏", "enum.domain.gaming"),
-    CLOAK(2, "斗篷", "enum.domain.cloak"),;
+    GAMING(1, "游戏", "dict.domain.gaming"),
+    CLOAK(2, "斗篷", "dict.domain.cloak"),;
 
     private final int code;
     private final String label;

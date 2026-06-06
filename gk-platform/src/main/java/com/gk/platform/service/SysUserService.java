@@ -1,7 +1,7 @@
 package com.gk.platform.service;
 
 import com.gk.common.core.service.BaseService;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
 

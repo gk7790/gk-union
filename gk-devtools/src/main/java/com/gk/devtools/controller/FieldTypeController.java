@@ -1,7 +1,7 @@
 package com.gk.devtools.controller;
 
-import com.gk.common.page.PageData;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.devtools.entity.FieldTypeEntity;
 import com.gk.devtools.service.FieldTypeService;

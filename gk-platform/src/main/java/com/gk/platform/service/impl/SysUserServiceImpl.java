@@ -2,16 +2,19 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.beans.CurrentUser;
+import com.gk.common.context.ReqContext;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.dto.AuthUser;
 import com.gk.common.enums.AdminEnum;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.platform.dao.SysUserDao;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
 import com.gk.platform.service.SysDeptService;
+import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +37,7 @@ import java.util.Map;
 public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntity> implements SysUserService {
 	private final SysDeptService sysDeptService;
     private final SysUserPostService sysUserPostService;
-    private final CurrentUser currentUser;
-    // TODO 角色用户
-//    private final SysRoleUserService sysRoleUserService;
+    private final SysRoleUserService sysRoleUserService;
 
     @Override
 	public PageData<SysUserDTO> page(Map<String, Object> params) {
@@ -47,10 +48,9 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		IPage<SysUserEntity> page = getPage(params, "t1.created_at", false);
 
         //普通管理员，只能查询所属部门及子部门的数据
-        AuthUser user = currentUser.getAuthUser();
-        if (user.isSAdmin()) {
-            params.put("deptIdList", sysDeptService.getSubDeptIdList(user.getDeptId()));
-			params.put("selfId", user.getId());
+        if (!ReqContextHolder.isSAdmin()) {
+            params.put("deptIdList", ReqContextHolder.getSubDeptIds());
+			params.put("selfId", ReqContextHolder.getUserId());
         }
 
 		//查询
@@ -61,11 +61,10 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
 	@Override
 	public List<SysUserDTO> list(Map<String, Object> params) {
-		//普通管理员，只能查询所属部门及子部门的数据
-        AuthUser user = currentUser.getAuthUser();
-        if (user.isSAdmin()) {
-            params.put("deptIdList", sysDeptService.getSubDeptIdList(user.getDeptId()));
-            params.put("selfId", user.getId());
+		//普通管理员，只能查询子部门的数据
+        if (!ReqContextHolder.isSAdmin()) {
+            params.put("deptIdList", ReqContextHolder.getSubDeptIds());
+            params.put("selfId", ReqContextHolder.getUserId());
         }
 
 		List<SysUserEntity> entityList = baseDao.getList(params);
@@ -99,8 +98,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		entity.setSuperAdmin(AdminEnum.NO.code());
 		insert(entity);
 
-		// TODO 角色用户 保存角色用户关系
-//		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
+		// 角色用户 保存角色用户关系
+		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
 
 		//保存用户岗位关系
 		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
@@ -122,8 +121,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		//更新用户
 		updateById(entity);
 
-		// TODO 角色用户 更新角色用户关系
-//		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
+		// 角色用户 更新角色用户关系
+		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
 
 		//保存用户岗位关系
 		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
@@ -148,8 +147,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		//删除用户
 		baseDao.deleteBatchIds(Arrays.asList(ids));
 
-		// TODO 角色用户 删除角色用户关系
-		// sysRoleUserService.deleteByUserIds(ids);
+		// 角色用户 删除角色用户关系
+		sysRoleUserService.deleteByUserIds(ids);
 
 		//删除用户岗位关系
 		sysUserPostService.deleteByUserIds(ids);

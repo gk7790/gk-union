@@ -2,8 +2,8 @@ package com.gk.devtools.controller;
 
 import cn.hutool.core.map.MapUtil;
 import com.gk.common.exception.GkException;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.R;
 import com.gk.devtools.entity.TemplateEntity;
 import com.gk.devtools.service.TemplateService;
 import com.gk.devtools.utils.GenUtils;

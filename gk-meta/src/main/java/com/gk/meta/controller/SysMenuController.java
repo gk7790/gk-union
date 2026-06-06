@@ -4,15 +4,14 @@ package com.gk.meta.controller;
 import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
-import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
-import com.gk.common.dto.AuthUser;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.utils.EnumUtils;
 import com.gk.infra.enums.DomainEnum;
-import com.gk.meta.enums.MenuTypeEnum;
+import com.gk.common.enums.MenuTypeEnum;
 import com.gk.common.exception.ErrorCode;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.config.service.SysParamsService;
@@ -28,7 +27,6 @@ import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * 菜单管理
@@ -40,15 +38,16 @@ import java.util.Objects;
 @Tag(name = "菜单管理")
 @AllArgsConstructor
 public class SysMenuController {
-    private final CurrentUser currentUser;
     private final SysMenuService sysMenuService;
     private final SysParamsService sysParamsService;
 
 	@GetMapping("nav")
 	@Operation(summary = "导航")
 	public R<?> nav(){
-        AuthUser user = currentUser.getAuthUser();
-		List<SysMenuDTO> list = sysMenuService.getUserMenuList(user, MenuTypeEnum.enums());
+		List<SysMenuDTO> list = sysMenuService.getUserMenuList(MenuTypeEnum.enums(), Constant.MIN_SYS_ID);
+        if(!ReqContextHolder.isSAdmin()){
+            list.addFirst(sysMenuService.defaultNav());
+        }
 		return R.ok(list);
 	}
 
@@ -56,7 +55,7 @@ public class SysMenuController {
 	@Operation(summary = "列表")
 	@Parameter(name = "type", description = "菜单类型 0：菜单 1：按钮  null：全部", in = ParameterIn.QUERY)
 	public R<?> list(@RequestParam(required = false) List<Integer> typeList){
-		List<SysMenuDTO> list = sysMenuService.getAllMenuList(typeList);
+		List<SysMenuDTO> list = sysMenuService.getUserMenuList(typeList, Constant.MIN_SYS_ID);
 		return R.ok(list);
 	}
 
@@ -149,8 +148,7 @@ public class SysMenuController {
 	@Operation(summary = "角色菜单权限")
 	@RequiresPermission("sys:menu:select")
 	public R<?> select(){
-        AuthUser user = currentUser.getAuthUser();
-		List<SysMenuDTO> list = sysMenuService.getUserMenuList(user, null);
+		List<SysMenuDTO> list = sysMenuService.getUserMenuList(null, Constant.MIN_SYS_ID);
 		return R.ok(list);
 	}
 }

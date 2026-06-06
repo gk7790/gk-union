@@ -2,7 +2,7 @@ package com.gk.quartz.service;
 
 
 import com.gk.common.core.service.BaseService;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.quartz.dto.ScheduleJobDTO;
 import com.gk.quartz.entity.ScheduleJobEntity;
 

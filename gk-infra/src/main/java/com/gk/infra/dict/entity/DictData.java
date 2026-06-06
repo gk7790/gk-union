@@ -15,5 +15,6 @@ public class DictData {
     private String dictLabel;
     private String dictValue;
     private String attrType;
+    private String i18nKey;
 
 }

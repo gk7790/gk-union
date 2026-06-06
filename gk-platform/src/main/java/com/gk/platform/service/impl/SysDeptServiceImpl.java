@@ -2,9 +2,12 @@ package com.gk.platform.service.impl;
 
 
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.TreeUtils;
 import com.gk.platform.dao.SysDeptDao;
@@ -17,24 +20,21 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @Service
 @RequiredArgsConstructor
 public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntity> implements SysDeptService {
     private final SysUserDao sysUserDao;
+    private final RedisUtils redisUtils;
 
     @Override
 	public List<SysDeptDTO> list(Map<String, Object> params) {
 		//普通管理员，只能查询所属部门及子部门的数据
-//		UserDetail user = SecurityUser.getUser();
-//		if(user.getSuperAdmin() == SuperAdminEnum.NO.value()) {
-//			params.put("deptIdList", getSubDeptIdList(user.getDeptId()));
-//		}
+		if(!ReqContextHolder.isSAdmin()) {
+			params.put("deptIdList", ReqContextHolder.getSubDeptIds());
+		}
 
 		//查询部门列表
 		List<SysDeptEntity> entityList = baseDao.getList(params);
@@ -60,7 +60,11 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void save(SysDeptDTO dto) {
 		SysDeptEntity entity = ConvertUtils.sourceToTarget(dto, SysDeptEntity.class);
-
+        if (!ReqContextHolder.isSAdmin()) {
+            entity.setTenantId(ReqContextHolder.getTenantId());
+            // 清缓存
+            clearCache(entity.getId());
+        }
 		entity.setPids(getPidList(entity.getPid()));
 		insert(entity);
 	}
@@ -75,12 +79,15 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 			throw new GkException(ErrorCode.SUPERIOR_DEPT_ERROR);
 		}
 
-		//上级部门不能为下级部门
-		List<Long> subDeptList = getSubDeptIdList(entity.getId());
-		if(subDeptList.contains(entity.getPid())){
+		// 用户只能修改下级部门
+		Set<Long> subDeptList = ReqContextHolder.getSubDeptIds();
+		if(!subDeptList.contains(entity.getId())){
 			throw new GkException(ErrorCode.SUPERIOR_DEPT_ERROR);
 		}
-
+        if (!ReqContextHolder.isSAdmin()) {
+            // 清缓存
+            clearCache(entity.getId());
+        }
 		entity.setPids(getPidList(entity.getPid()));
 		updateById(entity);
 	}
@@ -89,7 +96,7 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void delete(Long id) {
 		//判断是否有子部门
-		List<Long> subList = getSubDeptIdList(id);
+		Set<Long> subList = ReqContextHolder.getSubDeptIds();
 		if(subList.size() > 1){
 			throw new GkException(ErrorCode.DEPT_SUB_DELETE_ERROR);
 		}
@@ -99,17 +106,9 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 		if(count > 0){
 			throw new GkException(ErrorCode.DEPT_USER_DELETE_ERROR);
 		}
-
+        clearCache(id);
 		//删除
 		baseDao.deleteById(id);
-	}
-
-	@Override
-	public List<Long> getSubDeptIdList(Long id) {
-		List<Long> deptIdList = baseDao.getSubDeptIdList("%" + id + "%");
-		deptIdList.add(id);
-
-		return deptIdList;
 	}
 
 	/**
@@ -152,4 +151,11 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 
 		pidList.add(pid);
 	}
+
+    public void clearCache(Long deptId) {
+        String deptIdsKey = RedisKeys.getDeptIdsKey(deptId);
+        String deptIdsKey1 = RedisKeys.getDeptIdsKey(ReqContextHolder.getDeptId());
+        // 清缓存
+        redisUtils.delete(List.of(deptIdsKey, deptIdsKey1));
+    }
 }

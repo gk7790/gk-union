@@ -29,6 +29,13 @@ public class RedisKeys {
     /**
      * 验证码Key
      */
+    public static String getDeptIdsKey(Long deptId){
+        return "sys:login:DeptIds:" + deptId;
+    }
+
+    /**
+     * 验证码Key
+     */
     public static String getSysLonginMerchantKey(String key){
         return "sys:login-merchant:" + key;
     }

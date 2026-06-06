@@ -9,6 +9,8 @@ import com.gk.meta.dto.SysMenuMeta;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 菜单管理
  *
@@ -61,12 +63,13 @@ public class SysMenuEntity extends SimpleEntity {
     /**
      * 领域
      */
-    private Integer scope;
+    @TableField(typeHandler = JacksonTypeHandler.class)
+    private List<Integer> scope;
     /**
      * 业务领域
      */
-    @TableField(updateStrategy = FieldStrategy.NOT_NULL)
-    private Integer domain;
+    @TableField(typeHandler = JacksonTypeHandler.class, updateStrategy = FieldStrategy.NOT_NULL)
+    private List<Integer> domain;
     /**
      * 样式
      */

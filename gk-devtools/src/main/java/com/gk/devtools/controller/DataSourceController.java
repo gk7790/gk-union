@@ -1,7 +1,7 @@
 package com.gk.devtools.controller;
 
-import com.gk.common.page.PageData;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.R;
 import com.gk.devtools.config.DataSourceInfo;
 import com.gk.devtools.entity.DataSourceEntity;
 import com.gk.devtools.service.DataSourceService;

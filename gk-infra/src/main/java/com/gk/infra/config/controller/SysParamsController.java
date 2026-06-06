@@ -3,9 +3,9 @@ package com.gk.infra.config.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.config.dto.SysParamsDTO;
 import com.gk.infra.config.service.SysParamsService;

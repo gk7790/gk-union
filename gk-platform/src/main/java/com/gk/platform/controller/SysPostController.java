@@ -6,9 +6,9 @@ package com.gk.platform.controller;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.platform.dto.SysPostDTO;
 import com.gk.platform.service.SysPostService;
@@ -43,7 +43,7 @@ public class SysPostController {
         @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY) ,
         @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("sys:post:page")
+    // @RequiresPermission("sys:post:page")
     public R<?> page(@Parameter(hidden = true)  @RequestMap DynMap params){
         PageData<SysPostDTO> page = sysPostService.page(params);
         return R.ok(page);

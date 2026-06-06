@@ -4,6 +4,8 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.map.MapUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
+import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 
@@ -91,6 +93,14 @@ public class AssertUtils {
 
         if(MapUtil.isEmpty(map)){
             throw new GkException(code, params);
+        }
+    }
+
+    public static void isReserved(Long id) {
+        //效验数据
+        AssertUtils.isNull(id, "id");
+        if (!ReqContextHolder.isSAdmin() && id <= Constant.MAX_RESERVED_ID) {
+            throw new GkException(ErrorCode.FORBIDDEN);
         }
     }
 }

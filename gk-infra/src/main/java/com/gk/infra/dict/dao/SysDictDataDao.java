@@ -22,5 +22,5 @@ public interface SysDictDataDao extends BaseDao<SysDictDataEntity> {
     /**
      * 字典数据列表
      */
-    List<DictData> getDictDataList(@Param("dictType") String dictType, @Param("language") String language);
+    List<DictData> getDictDataList(@Param("dictType") String dictType);
 }

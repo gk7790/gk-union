@@ -5,11 +5,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+import java.util.Set;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReqContext {
+
+    /**
+     * 模块
+     */
+    private String model;
     /**
      * 用户ID
      */
@@ -27,6 +35,11 @@ public class ReqContext {
      * 部门ID
      */
     private Long deptId;
+
+    /**
+     * 子集部门id
+     */
+    private Set<Long> deptIdList;
 
     /**
      * 是否超级管理员
@@ -55,9 +68,59 @@ public class ReqContext {
     /**
      * 领域
      */
-    private String scope;
+    private Integer scope;
     /**
      * 业务领域
      */
-    private String domain;
+    private Integer domain;
+
+    /**
+     * IP
+     */
+    private String ip;
+
+    /**
+     * 国家
+     */
+    private String country;
+
+    /**
+     * 城市
+     */
+    private String city;
+
+    /**
+     * UserAgent
+     */
+    private String userAgent;
+
+    /**
+     * 设备
+     */
+    private String device;
+
+    /**
+     * 浏览器
+     */
+    private String browser;
+
+    /**
+     * 操作系统
+     */
+    private String os;
+
+    /**
+     * URI
+     */
+    private String uri;
+
+    /**
+     * Method
+     */
+    private String method;
+
+    /**
+     * Header
+     */
+    private Map<String, String> headers;
 }

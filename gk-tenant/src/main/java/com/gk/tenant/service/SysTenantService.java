@@ -3,7 +3,7 @@ package com.gk.tenant.service;
 
 import com.gk.common.core.service.CrudService;
 import com.gk.common.dto.LabelDTO;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 import com.gk.tenant.dto.SysTenantDTO;
 import com.gk.tenant.entity.SysTenantEntity;
 

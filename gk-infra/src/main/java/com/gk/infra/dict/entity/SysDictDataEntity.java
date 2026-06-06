@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.gk.common.core.entity.BaseEntity;
+import com.gk.common.core.entity.SimpleEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -17,7 +18,7 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper=false)
 @TableName("sys_dict_data")
-public class SysDictDataEntity extends BaseEntity {
+public class SysDictDataEntity extends SimpleEntity {
 	/**
 	 * 字典类型ID
 	 */
@@ -30,6 +31,10 @@ public class SysDictDataEntity extends BaseEntity {
 	 * 字典值
 	 */
 	private String dictValue;
+    /**
+     * 国际化字段
+     */
+    private String i18nKey;
 	/**
 	 * 回显样式
 	 */
@@ -42,14 +47,4 @@ public class SysDictDataEntity extends BaseEntity {
 	 * 排序
 	 */
 	private Integer sort;
-	/**
-	 * 更新者
-	 */
-	@TableField(fill = FieldFill.INSERT_UPDATE)
-	private Long updatedBy;
-	/**
-	 * 更新时间
-	 */
-	@TableField(fill = FieldFill.INSERT_UPDATE)
-	private LocalDateTime updatedAt;
 }

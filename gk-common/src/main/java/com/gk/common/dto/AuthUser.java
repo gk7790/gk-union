@@ -1,7 +1,7 @@
 package com.gk.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 
 import java.io.Serial;
 import java.util.List;
@@ -79,15 +79,11 @@ public class AuthUser extends DynMap {
     public void setSAdmin(Integer sadmin) {put("sAdmin", sadmin);}
     public boolean isSAdmin() { return getSAdmin() == 1; }
 
-    /**
-     * 当前登入用户角色
-     */
-    public List<String> getRoles() { return getList("roles", String.class);}
-    public void setRoles(Set<String> roles) {put("roles", roles);}
+    public List<String> getRoleList() { return getList("roleList", String.class);}
+    public void setRoleList(Set<String> roleAuthList) {put("roleList", roleAuthList);}
 
-    public List<String> getRoleAuthList() { return getList("roleAuthList", String.class);}
-    public void setRoleAuthList(Set<String> roleAuthList) {put("roleAuthList", roleAuthList);}
-
+    public List<String> getAuthList() { return getList("authList", String.class);}
+    public void setAuthList(Set<String> roleAuthList) {put("authList", roleAuthList);}
 
     /**
      * 当前登入用户授权

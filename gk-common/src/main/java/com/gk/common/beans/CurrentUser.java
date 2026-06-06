@@ -33,4 +33,16 @@ public interface CurrentUser {
      * 登入用户信息
      */
     AuthUser getAuthUser();
+
+    /**
+     * 检查是否有权限
+     */
+    boolean hasAllAuth(String... auths);
+    boolean hasAnyAuth(String... auths);
+
+    /**
+     * 检查是否有角色
+     */
+    boolean hasAnyRole(String... roles);
+    boolean hasAllRole(String... roles);
 }

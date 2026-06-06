@@ -4,9 +4,10 @@ import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.dto.LabelDTO;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.R;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.config.service.SysParamsService;
 import com.gk.platform.dto.SysI18nDTO;
@@ -109,6 +110,9 @@ public class SysI18nController {
     public R<?> delete(@RequestParam Long id){
         //效验数据
         AssertUtils.isNull(id, "id");
+        if(id <= 100){
+            return R.error(ErrorCode.FORBIDDEN);
+        }
         sysI18nService.deleteById(id);
         return R.ok();
     }

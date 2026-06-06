@@ -25,19 +25,15 @@ public interface SysMenuService extends BaseService<SysMenuEntity> {
 	void delete(Long id);
 
 	/**
-	 * 菜单列表
-	 *
-	 * @param typeList 菜单类型
-	 */
-	List<SysMenuDTO> getAllMenuList(List<Integer> typeList);
-
-	/**
 	 * 用户菜单列表
-	 *
-	 * @param user  用户
 	 * @param typeList 菜单类型
 	 */
-	List<SysMenuDTO> getUserMenuList(AuthUser user, List<Integer> typeList);
+	List<SysMenuDTO> getUserMenuList(List<Integer> typeList, long minId);
+
+    /**
+     * 获取默认的工作台菜单
+     */
+    SysMenuDTO defaultNav();
 
 	/**
 	 * 根据父菜单，查询子菜单

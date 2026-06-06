@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.devtools.dao.DataSourceDao;
 import com.gk.devtools.entity.DataSourceEntity;
 import com.gk.devtools.service.DataSourceService;

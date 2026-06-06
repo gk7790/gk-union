@@ -1,8 +1,8 @@
 package com.gk.common.core.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
 
 import java.util.List;
 

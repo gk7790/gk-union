@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 import com.gk.tenant.dao.SysTenantDao;
 import com.gk.tenant.dto.SysTenantDTO;
 import com.gk.tenant.entity.SysTenantEntity;

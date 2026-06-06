@@ -7,8 +7,9 @@
         SELECT
             d.id,
             d.dict_type_id,
-            COALESCE(l.field_value, d.dict_label) as 'dictLabel',
+            d.dict_label,
             d.dict_value,
+            d.i18n_key,
             d.attr_type,
             d.remark,
             d.sort,
@@ -16,11 +17,7 @@
             d.updated_at,
             d.created_by,
             d.created_at
-        FROM sys_dict_data d LEFT JOIN sys_language l
-        ON l.table_name = 'sys_dict_data' and l.field_name = 'label' and d.id = l.table_id AND l.`language` = #{language}
-        <if test="dictLabel != null and dictLabel.trim() != ''">
-            AND l.field_value like concat("%", #{dictLabel}, "%")
-        </if>
+        FROM sys_dict_data d
         <where>
             d.dict_type_id = #{dictTypeId}
             <if test="dictLabel != null and dictLabel.trim() != ''">
@@ -34,9 +31,8 @@
     </select>
 
     <select id="getDictDataList" resultType="com.gk.infra.dict.entity.DictData">
-        SELECT d.dict_type_id, COALESCE(l.field_value, d.dict_label) as 'dictLabel', d.dict_value, d.attr_type
-        FROM sys_dict_data d LEFT JOIN sys_language l
-        ON l.table_name = 'sys_dict_data' and l.field_name = 'label' and d.id = l.table_id AND l.`language` = #{language}
+        SELECT d.dict_type_id, d.dict_label as 'dictLabel', d.dict_value, d.attr_type, d.i18n_key
+        FROM sys_dict_data d
         <if test="dictType != null and dictType != ''">
             LEFT JOIN sys_dict_type t ON d.dict_type_id = t.id
             WHERE t.dict_type = #{dictType}

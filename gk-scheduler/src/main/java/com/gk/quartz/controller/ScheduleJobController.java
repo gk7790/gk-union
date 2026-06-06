@@ -3,8 +3,8 @@ package com.gk.quartz.controller;
 
 import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.R;
+import com.gk.common.model.PageData;
+import com.gk.common.model.R;
 import com.gk.quartz.dto.ScheduleJobDTO;
 import com.gk.quartz.service.ScheduleJobService;
 import io.swagger.v3.oas.annotations.Operation;

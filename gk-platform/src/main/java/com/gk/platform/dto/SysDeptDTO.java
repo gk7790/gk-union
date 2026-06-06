@@ -1,7 +1,7 @@
 package com.gk.platform.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.gk.common.tools.TreeNode;
+import com.gk.common.model.TreeNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = true)
 @Schema(title = "部门管理")
 public class SysDeptDTO extends TreeNode implements Serializable {
+
+    @Schema(title = "租户ID")
+    private Long tenantId;
 
 	@Schema(title = "id")
 	private Long id;

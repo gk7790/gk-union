@@ -1,6 +1,6 @@
 package com.gk.common.utils;
 
-import com.gk.common.tools.TreeNode;
+import com.gk.common.model.TreeNode;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

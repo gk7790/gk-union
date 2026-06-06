@@ -1,5 +1,7 @@
 package com.gk.common.tools;
 
+import com.gk.common.model.R;
+import com.gk.common.model.SseResult;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;

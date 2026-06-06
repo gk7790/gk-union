@@ -1,9 +1,9 @@
 package com.gk.platform.service;
 
 import com.gk.common.core.service.CrudService;
-import com.gk.common.page.PageData;
-import com.gk.common.tools.DynMap;
-import com.gk.common.tools.Result;
+import com.gk.common.model.PageData;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.Result;
 import com.gk.infra.i18n.entity.SysI18nEntity;
 import com.gk.platform.dto.SysI18nDTO;
 

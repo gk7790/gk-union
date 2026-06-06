@@ -10,6 +10,7 @@ import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.utils.IpUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -18,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,8 +27,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -38,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException {
         try {
             // 获取 Token
             String jwt = getJwtFromRequest(request);
@@ -57,9 +58,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                         context.setSAdmin(userDetails.isSuperAdmin());
 
+                        if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {
+                            Set<Long> subDeptIdList = userDetailsService.getSubDeptIdList(userDetails.getDeptId());
+                            context.setDeptIdList(subDeptIdList);
+                        }
+
+                        Set<String> authList = Optional.of(userDetails).map(SysUser::getAuthList).orElse(Set.of());
+                        Set<String> roleList = Optional.of(userDetails).map(SysUser::getRoleList).orElse(Set.of());
+
+                        List<SimpleGrantedAuthority> authorities = new ArrayList<>(roleList.size() + authList.size());
+                        for (String auth : roleList) {
+                            authorities.add(new SimpleGrantedAuthority("ROLE_" + auth));
+                        }
+                        for (String permission : authList) {
+                            authorities.add(new SimpleGrantedAuthority(permission));
+                        }
+
                         // 创建认证对象
                         UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
 
                         // 设置认证详情
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -84,7 +101,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception e) {
             log.error("JWT 认证失败: {}", e.getMessage());
             SecurityContextHolder.clearContext();
-            throw new GkException(ErrorCode.FORBIDDEN);
         } finally {
             // ========== 4. 清理上下文（必须） ==========
             ReqContextHolder.clear();
@@ -134,7 +150,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Long tenantId = claims.get(JwtUtils.TENANT_ID, Long.class);
         Long deptId = claims.get(JwtUtils.DEPT_ID, Long.class);
         String username = claims.get(JwtUtils.UNAME, String.class);
-        String domain = claims.get(JwtUtils.DOMAIN, String.class);
+        Integer scope = claims.get(JwtUtils.SCOPE, Integer.class);
+        Integer domain = claims.get(JwtUtils.DOMAIN, Integer.class);
 
         if (ObjUtil.isEmpty(userId)) {
             userId = 0L;
@@ -142,14 +159,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String lang = request.getHeader("Accept-Language");
         String timezone = request.getHeader("X-Timezone");
-
         String traceId = request.getHeader("X-Trace-Id");
         if (StringUtils.isBlank(traceId)) {
             traceId = UUID.fastUUID().toString();
         }
 
-        return ReqContext.builder().scope(claims.getSubject()).domain(domain)
+        return ReqContext.builder().model(claims.getSubject())
+                // 用户信息
                 .userId(userId).username(username).tenantId(tenantId).deptId(deptId)
+                // 账户领域和业务员领域
+                .scope(scope).domain(domain)
+                // 请求信息
+                .ip(IpUtils.getIpAddr(request))
+                .uri(request.getRequestURI())
+                .method(request.getMethod())
+                .userAgent(request.getHeader(HttpHeaders.USER_AGENT))
                 .lang(lang).timezone(timezone).traceId(traceId).build();
     }
 

@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.quartz.enums.ScheduleStatusEnum;
-import com.gk.common.page.PageData;
+import com.gk.common.model.PageData;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.quartz.dao.ScheduleJobDao;
 import com.gk.quartz.dto.ScheduleJobDTO;

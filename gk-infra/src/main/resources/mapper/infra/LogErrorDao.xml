@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.infra.log.dao.LogErrorDao">
+
+    <resultMap type="com.gk.infra.log.entity.LogErrorEntity" id="logErrorMap">
+        <result property="id" column="id"/>
+        <result property="traceId" column="trace_id"/>
+        <result property="tenantId" column="tenant_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="username" column="username"/>
+        <result property="module" column="module"/>
+        <result property="serviceName" column="service_name"/>
+        <result property="errorType" column="error_type"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="stackTrace" column="stack_trace"/>
+        <result property="stackHash" column="stack_hash"/>
+        <result property="requestUri" column="request_uri"/>
+        <result property="requestMethod" column="request_method"/>
+        <result property="requestParams" column="request_params"/>
+        <result property="requestBody" column="request_body"/>
+        <result property="requestHeaders" column="request_headers"/>
+        <result property="ip" column="ip"/>
+        <result property="country" column="country"/>
+        <result property="province" column="province"/>
+        <result property="city" column="city"/>
+        <result property="userAgent" column="user_agent"/>
+        <result property="deviceType" column="device_type"/>
+        <result property="os" column="os"/>
+        <result property="browser" column="browser"/>
+        <result property="httpStatus" column="http_status"/>
+        <result property="level" column="level"/>
+        <result property="resolved" column="resolved"/>
+        <result property="alarmed" column="alarmed"/>
+        <result property="env" column="env"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+</mapper>

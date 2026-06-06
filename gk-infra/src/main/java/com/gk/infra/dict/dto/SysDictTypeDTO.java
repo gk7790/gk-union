@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 字典类型
@@ -33,9 +33,9 @@ public class SysDictTypeDTO implements Serializable {
 
 	@Schema(title = "创建时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 
 	@Schema(title = "更新时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private LocalDateTime updatedAt;
+	private Instant updatedAt;
 }

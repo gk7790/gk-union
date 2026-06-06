@@ -1,7 +1,7 @@
 package com.gk.auth.oauth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gk.common.tools.DynMap;
+import com.gk.common.model.DynMap;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;

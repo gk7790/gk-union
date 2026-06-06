@@ -1,11 +1,13 @@
 package com.gk.infra.dict.dto;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * 字典数据
@@ -28,6 +30,10 @@ public class SysDictDataDTO implements Serializable {
 	@Schema(title = "字典值")
 	private String dictValue;
 
+    @Schema(title = "国际化")
+    @TableField(updateStrategy = FieldStrategy.NOT_NULL)
+    private String i18nKey;
+
 	@Schema(title = "回显样式")
 	private String attrType;
 
@@ -39,9 +45,9 @@ public class SysDictDataDTO implements Serializable {
 
 	@Schema(title = "创建时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 
 	@Schema(title = "更新时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private LocalDateTime updatedAt;
+	private Instant updatedAt;
 }

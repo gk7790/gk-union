@@ -1,0 +1,73 @@
+-- Merchant foundation schema for V1.
+-- sys_tenant already exists in gk-tenant/src/main/resources/sql/sys_tenant.sql.
+-- Tenant is only the SaaS isolation scope. Merchant API credentials belong to merchant_app.
+
+SET NAMES utf8mb4;
+
+CREATE TABLE IF NOT EXISTS merchant (
+    id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    tenant_id bigint NOT NULL COMMENT '租户ID',
+    merchant_no varchar(64) NOT NULL COMMENT '商户号',
+    merchant_name varchar(128) NOT NULL COMMENT '商户名称',
+    merchant_short_name varchar(64) NULL DEFAULT NULL COMMENT '商户简称',
+    merchant_type varchar(32) NOT NULL DEFAULT 'COMPANY' COMMENT '商户类型: COMPANY/PERSON',
+    status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
+    risk_status varchar(32) NOT NULL DEFAULT 'NORMAL' COMMENT '风控状态: NORMAL/FROZEN/BLOCKED',
+    country_code varchar(8) NOT NULL COMMENT '国家编码',
+    default_currency varchar(16) NOT NULL COMMENT '默认币种',
+    timezone varchar(64) NOT NULL DEFAULT 'Asia/Shanghai' COMMENT '商户时区',
+    lang varchar(16) NOT NULL DEFAULT 'zh-CN' COMMENT '商户语言',
+    contact_name varchar(64) NULL DEFAULT NULL COMMENT '联系人',
+    contact_email varchar(128) NULL DEFAULT NULL COMMENT '联系邮箱',
+    contact_phone varchar(32) NULL DEFAULT NULL COMMENT '联系电话',
+    business_license_no varchar(128) NULL DEFAULT NULL COMMENT '营业执照/注册编号',
+    settle_mode varchar(32) NOT NULL DEFAULT 'MANUAL' COMMENT '结算模式: MANUAL/AUTO',
+    settle_cycle varchar(32) NOT NULL DEFAULT 'T1' COMMENT '结算周期: T0/T1/TN',
+    min_settle_amount decimal(24,8) NULL DEFAULT NULL COMMENT '最小结算金额',
+    config_json json NULL COMMENT '商户扩展配置JSON',
+    remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
+    created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
+    created_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_by bigint NULL DEFAULT NULL COMMENT '更新人ID',
+    updated_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_merchant_no (merchant_no),
+    UNIQUE KEY uk_merchant_tenant_name (tenant_id, merchant_name),
+    KEY idx_merchant_tenant_status (tenant_id, status),
+    KEY idx_merchant_country_currency (tenant_id, country_code, default_currency),
+    KEY idx_merchant_risk_status (tenant_id, risk_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付商户主体';
+
+CREATE TABLE IF NOT EXISTS merchant_app (
+    id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    tenant_id bigint NOT NULL COMMENT '租户ID',
+    merchant_id bigint NOT NULL COMMENT '商户ID',
+    app_id varchar(64) NOT NULL COMMENT '商户应用ID，对外API身份标识',
+    app_name varchar(128) NOT NULL COMMENT '应用名称',
+    app_type varchar(32) NOT NULL DEFAULT 'API' COMMENT '应用类型: API/ADMIN/SYSTEM',
+    status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
+    sign_type varchar(32) NOT NULL DEFAULT 'HMAC_SHA256' COMMENT '签名类型: HMAC_SHA256/RSA2',
+    encrypt_type varchar(32) NOT NULL DEFAULT 'NONE' COMMENT '加密类型: NONE/AES/RSA',
+    api_secret varchar(512) NULL DEFAULT NULL COMMENT 'API密钥密文或密钥引用，HMAC模式使用',
+    secret_version int NOT NULL DEFAULT 1 COMMENT '密钥版本号',
+    secret_updated_at datetime(3) NULL DEFAULT NULL COMMENT '密钥更新时间',
+    merchant_public_key text NULL COMMENT '商户公钥，RSA2模式使用',
+    platform_public_key text NULL COMMENT '平台公钥快照，提供给商户验签',
+    notify_url varchar(512) NULL DEFAULT NULL COMMENT '默认异步通知地址',
+    return_url varchar(512) NULL DEFAULT NULL COMMENT '默认同步跳转地址',
+    ip_whitelist_json json NULL COMMENT 'IP白名单JSON数组',
+    allowed_currency_json json NULL COMMENT '允许币种JSON数组',
+    allowed_method_json json NULL COMMENT '允许支付方式JSON数组',
+    rate_limit_qps int NOT NULL DEFAULT 50 COMMENT '接口限流QPS',
+    nonce_ttl_seconds int NOT NULL DEFAULT 300 COMMENT 'nonce防重放有效秒数',
+    config_json json NULL COMMENT '应用扩展配置JSON',
+    remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
+    created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
+    created_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_by bigint NULL DEFAULT NULL COMMENT '更新人ID',
+    updated_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_merchant_app_id (app_id),
+    KEY idx_merchant_app_merchant_status (tenant_id, merchant_id, status),
+    KEY idx_merchant_app_tenant_status (tenant_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商户API接入应用';

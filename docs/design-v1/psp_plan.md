@@ -1,15 +1,15 @@
-这 6 张表可以理解成 PSP 模块的 3 层：
+﻿杩?6 寮犺〃鍙互鐞嗚В鎴?PSP 妯″潡鐨?3 灞傦細
 
 ```text
-配置层：psp_provider / psp_method / psp_merchant / psp_route_rule
-日志层：psp_request_log / psp_callback_log
-业务层：pay_order / payout_order / ledger_* 后面承接
+閰嶇疆灞傦細psp_provider / psp_method / psp_account / psp_route_rule
+鏃ュ織灞傦細psp_request_log / psp_callback_log
+涓氬姟灞傦細pay_order / payout_order / ledger_* 鍚庨潰鎵挎帴
 ```
 
 **psp_provider**
-表示“上游三方支付公司”。
+琛ㄧず鈥滀笂娓镐笁鏂规敮浠樺叕鍙糕€濄€?
 
-比如：
+姣斿锛?
 
 ```text
 GCASH_PSP
@@ -18,24 +18,24 @@ XENDIT
 PAYMONGO
 ```
 
-它记录 PSP 的基础资料：
+瀹冭褰?PSP 鐨勫熀纭€璧勬枡锛?
 
 ```text
 psp_code
 psp_name
 base_url
 api_version
-是否支持代收
-是否支持代付
-状态
+鏄惁鏀寔浠ｆ敹
+鏄惁鏀寔浠ｄ粯
+鐘舵€?
 ```
 
-作用：告诉系统“有哪些 PSP 可以接”。
+浣滅敤锛氬憡璇夌郴缁熲€滄湁鍝簺 PSP 鍙互鎺モ€濄€?
 
 **psp_method**
-表示“某个 PSP 支持的平台支付方式映射”。
+琛ㄧず鈥滄煇涓?PSP 鏀寔鐨勫钩鍙版敮浠樻柟寮忔槧灏勨€濄€?
 
-比如平台统一支付方式叫：
+姣斿骞冲彴缁熶竴鏀粯鏂瑰紡鍙細
 
 ```text
 GCASH
@@ -43,7 +43,7 @@ MAYA
 BANK_TRANSFER
 ```
 
-但 PSP 那边可能叫：
+浣?PSP 閭ｈ竟鍙兘鍙細
 
 ```text
 GCASH_WALLET
@@ -51,48 +51,48 @@ PH_GCASH
 ewallet_gcash
 ```
 
-所以要映射：
+鎵€浠ヨ鏄犲皠锛?
 
 ```text
-平台 method_code = GCASH
+骞冲彴 method_code = GCASH
 PSP psp_method_code = GCASH_WALLET
 country = PH
 currency = PHP
 direction = PAYIN
 ```
 
-作用：把平台统一 API 的支付方式翻译成 PSP 自己的编码。
+浣滅敤锛氭妸骞冲彴缁熶竴 API 鐨勬敮浠樻柟寮忕炕璇戞垚 PSP 鑷繁鐨勭紪鐮併€?
 
-**psp_merchant**
-表示“平台在 PSP 那边开的商户号/密钥配置”。
+**psp_account**
+琛ㄧず鈥滃钩鍙板湪 PSP 閭ｈ竟寮€鐨勫晢鎴峰彿/瀵嗛挜閰嶇疆鈥濄€?
 
-一个 PSP 公司下面，你可能有不同商户号：
+涓€涓?PSP 鍏徃涓嬮潰锛屼綘鍙兘鏈変笉鍚屽晢鎴峰彿锛?
 
 ```text
-租户级 PSP 商户号
-某个商户独立 PSP 商户号
-不同国家/业务线 PSP 商户号
+绉熸埛绾?PSP 鍟嗘埛鍙?
+鏌愪釜鍟嗘埛鐙珛 PSP 鍟嗘埛鍙?
+涓嶅悓鍥藉/涓氬姟绾?PSP 鍟嗘埛鍙?
 ```
 
-这里放：
+杩欓噷鏀撅細
 
 ```text
-psp_merchant_no
+psp_account_no
 api_key
 api_secret
 psp_public_key
 callback_secret
 ```
 
-作用：调用 PSP 接口时知道用哪个 PSP 商户号、哪套密钥。
+浣滅敤锛氳皟鐢?PSP 鎺ュ彛鏃剁煡閬撶敤鍝釜 PSP 鍟嗘埛鍙枫€佸摢濂楀瘑閽ャ€?
 
 **psp_route_rule**
-表示“这笔订单应该走哪个 PSP”。
+琛ㄧず鈥滆繖绗旇鍗曞簲璇ヨ蛋鍝釜 PSP鈥濄€?
 
-比如：
+姣斿锛?
 
 ```text
-tenant_id = 菲律宾租户
+tenant_id = 鑿插緥瀹剧鎴?
 country = PH
 currency = PHP
 method_code = GCASH
@@ -100,17 +100,17 @@ direction = PAYIN
 amount = 100
 ```
 
-系统根据路由规则选出：
+绯荤粺鏍规嵁璺敱瑙勫垯閫夊嚭锛?
 
 ```text
 psp_provider
 psp_method
-psp_merchant
+psp_account
 ```
 
-作用：把订单从“平台统一支付方式”路由到具体 PSP。
+浣滅敤锛氭妸璁㈠崟浠庘€滃钩鍙扮粺涓€鏀粯鏂瑰紡鈥濊矾鐢卞埌鍏蜂綋 PSP銆?
 
-V1 可以简单按：
+V1 鍙互绠€鍗曟寜锛?
 
 ```text
 tenant_id
@@ -119,165 +119,165 @@ currency
 method_code
 direction
 status = 1
-amount 在 min/max 之间
-priority 最小
+amount 鍦?min/max 涔嬮棿
+priority 鏈€灏?
 ```
 
-取第一条。
+鍙栫涓€鏉°€?
 
 **psp_request_log**
-记录“平台请求 PSP”的完整日志。
+璁板綍鈥滃钩鍙拌姹?PSP鈥濈殑瀹屾暣鏃ュ織銆?
 
-比如：
-
-```text
-创建代收订单
-创建代付订单
-查询订单状态
-退款请求
-```
-
-会记录：
+姣斿锛?
 
 ```text
-请求URL
-请求头
-请求体
-响应状态码
-响应体
-耗时
-是否成功
-错误码
-PSP订单号
+鍒涘缓浠ｆ敹璁㈠崟
+鍒涘缓浠ｄ粯璁㈠崟
+鏌ヨ璁㈠崟鐘舵€?
+閫€娆捐姹?
 ```
 
-作用：排查 PSP 接口问题、对账、追踪订单。
+浼氳褰曪細
 
-注意：请求体和响应体里的密钥、银行卡、手机号等敏感信息要脱敏。
+```text
+璇锋眰URL
+璇锋眰澶?
+璇锋眰浣?
+鍝嶅簲鐘舵€佺爜
+鍝嶅簲浣?
+鑰楁椂
+鏄惁鎴愬姛
+閿欒鐮?
+PSP璁㈠崟鍙?
+```
+
+浣滅敤锛氭帓鏌?PSP 鎺ュ彛闂銆佸璐︺€佽拷韪鍗曘€?
+
+娉ㄦ剰锛氳姹備綋鍜屽搷搴斾綋閲岀殑瀵嗛挜銆侀摱琛屽崱銆佹墜鏈哄彿绛夋晱鎰熶俊鎭鑴辨晱銆?
 
 **psp_callback_log**
-记录“PSP 回调平台”的日志。
+璁板綍鈥淧SP 鍥炶皟骞冲彴鈥濈殑鏃ュ織銆?
 
-PSP 回调可能会：
+PSP 鍥炶皟鍙兘浼氾細
 
 ```text
-重复回调
-乱序回调
-签名失败
-订单不存在
-状态冲突
+閲嶅鍥炶皟
+涔卞簭鍥炶皟
+绛惧悕澶辫触
+璁㈠崟涓嶅瓨鍦?
+鐘舵€佸啿绐?
 ```
 
-所以必须保存：
+鎵€浠ュ繀椤讳繚瀛橈細
 
 ```text
 headers
 body
 signature
-验签状态
-处理状态
-PSP订单号
+楠岀鐘舵€?
+澶勭悊鐘舵€?
+PSP璁㈠崟鍙?
 callback_id
 body_hash
-错误信息
+閿欒淇℃伅
 ```
 
-作用：幂等、验签追踪、排错、审计。
+浣滅敤锛氬箓绛夈€侀獙绛捐拷韪€佹帓閿欍€佸璁°€?
 
-**代收业务流程**
+**浠ｆ敹涓氬姟娴佺▼**
 
 ```text
-1. 商户调用统一 API 创建代收订单
-   ↓
-2. 平台创建 pay_order
-   ↓
-3. 根据订单信息匹配 psp_route_rule
-   ↓
-4. 找到 psp_provider
-   ↓
-5. 找到 psp_method，把平台 method_code 转成 PSP method_code
-   ↓
-6. 找到 psp_merchant，拿 PSP 商户号和密钥
-   ↓
-7. 调用 PSP 下单接口
-   ↓
-8. 写 psp_request_log
-   ↓
-9. PSP 返回收银台链接 / 支付参数 / PSP订单号
-   ↓
-10. 更新 pay_order 为 PROCESSING
-   ↓
-11. PSP 支付成功后回调平台
-   ↓
-12. 写 psp_callback_log
-   ↓
-13. 验签、幂等、校验金额和订单
-   ↓
-14. 更新 pay_order 为 SUCCESS
-   ↓
-15. 调用 ledger 入账
-   ↓
-16. 写 mq_outbox
-   ↓
-17. 通知商户
+1. 鍟嗘埛璋冪敤缁熶竴 API 鍒涘缓浠ｆ敹璁㈠崟
+   鈫?
+2. 骞冲彴鍒涘缓 pay_order
+   鈫?
+3. 鏍规嵁璁㈠崟淇℃伅鍖归厤 psp_route_rule
+   鈫?
+4. 鎵惧埌 psp_provider
+   鈫?
+5. 鎵惧埌 psp_method锛屾妸骞冲彴 method_code 杞垚 PSP method_code
+   鈫?
+6. 鎵惧埌 psp_account锛屾嬁 PSP 鍟嗘埛鍙峰拰瀵嗛挜
+   鈫?
+7. 璋冪敤 PSP 涓嬪崟鎺ュ彛
+   鈫?
+8. 鍐?psp_request_log
+   鈫?
+9. PSP 杩斿洖鏀堕摱鍙伴摼鎺?/ 鏀粯鍙傛暟 / PSP璁㈠崟鍙?
+   鈫?
+10. 鏇存柊 pay_order 涓?PROCESSING
+   鈫?
+11. PSP 鏀粯鎴愬姛鍚庡洖璋冨钩鍙?
+   鈫?
+12. 鍐?psp_callback_log
+   鈫?
+13. 楠岀銆佸箓绛夈€佹牎楠岄噾棰濆拰璁㈠崟
+   鈫?
+14. 鏇存柊 pay_order 涓?SUCCESS
+   鈫?
+15. 璋冪敤 ledger 鍏ヨ处
+   鈫?
+16. 鍐?mq_outbox
+   鈫?
+17. 閫氱煡鍟嗘埛
 ```
 
-**代付业务流程**
+**浠ｄ粯涓氬姟娴佺▼**
 
 ```text
-1. 商户调用统一 API 创建代付订单
-   ↓
-2. 平台创建 payout_order
-   ↓
-3. 校验商户余额
-   ↓
-4. ledger 冻结余额，生成 ledger_hold
-   ↓
-5. 匹配 psp_route_rule
-   ↓
-6. 找到 psp_provider / psp_method / psp_merchant
-   ↓
-7. 调用 PSP 代付接口
-   ↓
-8. 写 psp_request_log
-   ↓
-9. 更新 payout_order 为 PROCESSING
-   ↓
-10. PSP 回调或定时查询结果
-   ↓
-11. 写 psp_callback_log 或 psp_request_log
-   ↓
-12. 成功：payout_order = SUCCESS，ledger 消耗冻结
-   ↓
-13. 失败：payout_order = FAILED，ledger 解冻
-   ↓
-14. 写 mq_outbox
-   ↓
-15. 通知商户
+1. 鍟嗘埛璋冪敤缁熶竴 API 鍒涘缓浠ｄ粯璁㈠崟
+   鈫?
+2. 骞冲彴鍒涘缓 payout_order
+   鈫?
+3. 鏍￠獙鍟嗘埛浣欓
+   鈫?
+4. ledger 鍐荤粨浣欓锛岀敓鎴?ledger_hold
+   鈫?
+5. 鍖归厤 psp_route_rule
+   鈫?
+6. 鎵惧埌 psp_provider / psp_method / psp_account
+   鈫?
+7. 璋冪敤 PSP 浠ｄ粯鎺ュ彛
+   鈫?
+8. 鍐?psp_request_log
+   鈫?
+9. 鏇存柊 payout_order 涓?PROCESSING
+   鈫?
+10. PSP 鍥炶皟鎴栧畾鏃舵煡璇㈢粨鏋?
+   鈫?
+11. 鍐?psp_callback_log 鎴?psp_request_log
+   鈫?
+12. 鎴愬姛锛歱ayout_order = SUCCESS锛宭edger 娑堣€楀喕缁?
+   鈫?
+13. 澶辫触锛歱ayout_order = FAILED锛宭edger 瑙ｅ喕
+   鈫?
+14. 鍐?mq_outbox
+   鈫?
+15. 閫氱煡鍟嗘埛
 ```
 
-**这几张表之间的关系**
+**杩欏嚑寮犺〃涔嬮棿鐨勫叧绯?*
 
 ```text
 psp_provider
-  ↓
+  鈫?
 psp_method
-  ↓
+  鈫?
 psp_route_rule
-  ↑
-psp_merchant
+  鈫?
+psp_account
 ```
 
-可以理解成：
+鍙互鐞嗚В鎴愶細
 
 ```text
-psp_provider：这是谁
-psp_method：它支持什么支付方式
-psp_merchant：我用什么账号和密钥调用它
-psp_route_rule：什么订单走它
-psp_request_log：我请求它发生了什么
-psp_callback_log：它回调我发生了什么
+psp_provider锛氳繖鏄皝
+psp_method锛氬畠鏀寔浠€涔堟敮浠樻柟寮?
+psp_account锛氭垜鐢ㄤ粈涔堣处鍙峰拰瀵嗛挜璋冪敤瀹?
+psp_route_rule锛氫粈涔堣鍗曡蛋瀹?
+psp_request_log锛氭垜璇锋眰瀹冨彂鐢熶簡浠€涔?
+psp_callback_log锛氬畠鍥炶皟鎴戝彂鐢熶簡浠€涔?
 ```
 
-PSP 模块只负责连接上游和记录交互。  
-真正的钱账变化必须走 `ledger_journal / ledger_entry / ledger_balance`，不要让 PSP 模块直接改余额。
+PSP 妯″潡鍙礋璐ｈ繛鎺ヤ笂娓稿拰璁板綍浜や簰銆? 
+鐪熸鐨勯挶璐﹀彉鍖栧繀椤昏蛋 `ledger_journal / ledger_entry / ledger_balance`锛屼笉瑕佽 PSP 妯″潡鐩存帴鏀逛綑棰濄€

@@ -96,6 +96,22 @@ public class RedisKeys {
         return "sys:request:" + key;
     }
 
+
+    /**
+     * 验证码Key
+     */
+    public static String getApiNonceKey(String module, String key){
+        return "openapi:nonce:" + module + ":" + key;
+    }
+
+    /**
+     * 验证码Key
+     */
+    public static String getApiLimitQpsKey(String module, long key){
+        return "openapi:rate:" + module + ":" + key;
+    }
+
+
     /**
      * redis 会员用户有效时间
      * 过期时长为24小时，单位：秒

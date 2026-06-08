@@ -8,12 +8,9 @@ import com.gk.auth.utils.JwtUtils;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.exception.ErrorCode;
-import com.gk.common.exception.GkException;
 import com.gk.common.utils.IpUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +33,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public JwtAuthenticationFilter(JpaUserDetailsService userDetailsService) {
         this.userDetailsService = userDetailsService;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && uri.startsWith("/api/v1/");
     }
 
     @Override

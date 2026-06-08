@@ -22,10 +22,6 @@ public class SysTenantDTO {
     private String timezone;
     @Schema(title = "语言")
     private String lang;
-    @Schema(title = "租户key")
-    private String apiKey;
-    @Schema(title = "私密密钥")
-    private String apiSecret;
     @Schema(title = "备注")
     private String remark;
     @Schema(title = "创建者")

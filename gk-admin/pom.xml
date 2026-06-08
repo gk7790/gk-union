@@ -45,11 +45,6 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-tenant</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
             <artifactId>gk-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>

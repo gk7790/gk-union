@@ -24,7 +24,6 @@
         <module>gk-auth</module>
         <module>gk-devtools</module>
         <module>gk-platform</module>
-        <module>gk-tenant</module>
         <module>gk-cloak</module>
         <module>gk-notify</module>
         <module>gk-ledger</module>

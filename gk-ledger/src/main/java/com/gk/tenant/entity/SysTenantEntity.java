@@ -45,14 +45,6 @@ public class SysTenantEntity extends SimpleEntity {
 	* 语言
 	*/
 	private String lang;
-	/**
-	* 租户key
-	*/
-	private String apiKey;
-	/**
-	* 私密密钥
-	*/
-	private String apiSecret;
     /**
      * 备注
      */

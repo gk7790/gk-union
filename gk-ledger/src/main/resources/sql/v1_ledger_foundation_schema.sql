@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS ledger_account (
     account_type varchar(64) NOT NULL COMMENT '账户类型: MERCHANT_AVAILABLE/MERCHANT_FROZEN/PSP_AVAILABLE/PSP_CLEARING等',
     currency varchar(16) NOT NULL COMMENT '币种: USD/CNY/BRL/INR等',
     normal_side varchar(16) NOT NULL COMMENT '账户余额方向: DEBIT/CREDIT',
+    allow_negative tinyint NOT NULL DEFAULT 0 COMMENT '是否允许负余额: 0否 1是',
     status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
     remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
     created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
@@ -64,6 +65,8 @@ CREATE TABLE IF NOT EXISTS ledger_journal (
     status varchar(32) NOT NULL DEFAULT 'POSTED' COMMENT '状态: POSTED/REVERSED',
     reverse_of_journal_no varchar(64) NULL DEFAULT NULL COMMENT '冲正来源凭证号; 当前凭证为冲正凭证时填写',
     reversed_by_journal_no varchar(64) NULL DEFAULT NULL COMMENT '冲正凭证号; 当前凭证被冲正后填写',
+    source_type varchar(32) NOT NULL DEFAULT 'SYSTEM' COMMENT '记账来源: ORDER/SETTLE/RECON/MANUAL/SYSTEM',
+    trace_id varchar(128) NULL DEFAULT NULL COMMENT '链路追踪ID',
     posted_at datetime(3) NULL DEFAULT NULL COMMENT '过账时间',
     remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
     created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
@@ -75,6 +78,7 @@ CREATE TABLE IF NOT EXISTS ledger_journal (
     UNIQUE KEY uk_ledger_journal_idempotency (tenant_id, idempotency_key),
     UNIQUE KEY uk_ledger_journal_biz_event (tenant_id, biz_type, biz_no, event_type),
     KEY idx_ledger_journal_biz (tenant_id, biz_type, biz_no),
+    KEY idx_ledger_journal_source (tenant_id, source_type, created_at),
     KEY idx_ledger_journal_status_created (tenant_id, status, created_at),
     KEY idx_ledger_journal_posted (tenant_id, posted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账务记账凭证';
@@ -112,6 +116,7 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
     KEY idx_ledger_entry_journal (tenant_id, journal_no),
     KEY idx_ledger_entry_account_created (tenant_id, account_id, created_at),
     KEY idx_ledger_entry_owner_created (tenant_id, owner_type, owner_id, currency, created_at),
+    KEY idx_ledger_entry_account_type_created (tenant_id, account_type, currency, created_at),
     KEY idx_ledger_entry_biz (tenant_id, biz_type, biz_no, event_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账务账变流水/会计分录';
 
@@ -130,6 +135,7 @@ CREATE TABLE IF NOT EXISTS ledger_hold (
     biz_id bigint NULL DEFAULT NULL COMMENT '业务ID',
     biz_no varchar(128) NOT NULL COMMENT '业务编号',
     hold_reason varchar(64) NOT NULL COMMENT '冻结原因',
+    hold_scope varchar(64) NOT NULL DEFAULT 'ORDER' COMMENT '冻结作用域: ORDER/RISK/DEPOSIT/MANUAL',
     hold_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '冻结总金额',
     released_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '已释放金额',
     consumed_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '已消耗金额',
@@ -148,6 +154,7 @@ CREATE TABLE IF NOT EXISTS ledger_hold (
     PRIMARY KEY (id),
     UNIQUE KEY uk_ledger_hold_no (tenant_id, hold_no),
     KEY idx_ledger_hold_biz (tenant_id, biz_type, biz_no),
+    KEY idx_ledger_hold_scope (tenant_id, hold_scope, status, created_at),
     KEY idx_ledger_hold_owner_status (tenant_id, owner_type, owner_id, currency, status),
     KEY idx_ledger_hold_expired (tenant_id, status, expired_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账务冻结明细';

@@ -92,6 +92,7 @@ public class SecurityConfig {
                         "/auth/**", // 认证相关端点
                         "/internal/**", // 内部接口使用
                         "/public/**",
+                        "/api/v1/**",
                         "/static/**",
                         "/.well-known/**", // OIDC发现端点
                         "/favicon.ico",

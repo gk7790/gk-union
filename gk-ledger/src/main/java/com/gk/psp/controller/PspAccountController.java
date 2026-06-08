@@ -7,8 +7,8 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
-import com.gk.psp.dto.PspMerchantDTO;
-import com.gk.psp.service.PspMerchantService;
+import com.gk.psp.dto.PspAccountDTO;
+import com.gk.psp.service.PspAccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -17,12 +17,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "PSP商户号")
+@Tag(name = "PSP账户")
 @RestController
-@RequestMapping("/psp/merchant")
+@RequestMapping("/psp/account")
 @RequiredArgsConstructor
-public class PspMerchantController {
-    private final PspMerchantService pspMerchantService;
+public class PspAccountController {
+    private final PspAccountService pspAccountService;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -32,43 +32,43 @@ public class PspMerchantController {
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("psp:merchant:page")
+    @RequiresPermission("psp:account:page")
     public R<?> page(@RequestMap DynMap params) {
-        PageData<PspMerchantDTO> page = pspMerchantService.page(params);
+        PageData<PspAccountDTO> page = pspAccountService.page(params);
         return R.ok(page);
     }
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("psp:merchant:info")
+    @RequiresPermission("psp:account:info")
     public R<?> get(@PathVariable("id") Long id) {
-        return R.ok(pspMerchantService.get(id));
+        return R.ok(pspAccountService.get(id));
     }
 
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("psp:merchant:save")
-    public R<?> save(@RequestBody PspMerchantDTO dto) {
-        pspMerchantService.save(dto);
+    @RequiresPermission("psp:account:save")
+    public R<?> save(@RequestBody PspAccountDTO dto) {
+        pspAccountService.save(dto);
         return R.ok();
     }
 
     @PutMapping("{id}")
     @Operation(summary = "修改")
-    @RequiresPermission("psp:merchant:update")
-    public R<?> update(@PathVariable("id") Long id, @RequestBody PspMerchantDTO dto) {
+    @RequiresPermission("psp:account:update")
+    public R<?> update(@PathVariable("id") Long id, @RequestBody PspAccountDTO dto) {
         AssertUtils.isReserved(id);
         dto.setId(id);
-        pspMerchantService.update(dto);
+        pspAccountService.update(dto);
         return R.ok();
     }
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("psp:merchant:delete")
+    @RequiresPermission("psp:account:delete")
     public R<?> delete(@RequestParam Long[] ids) {
         AssertUtils.isArrayEmpty(ids, "id");
-        pspMerchantService.delete(ids);
+        pspAccountService.delete(ids);
         return R.ok();
     }
 }

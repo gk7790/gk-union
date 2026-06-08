@@ -21,7 +21,7 @@ public class PspRouteRuleEntity extends SimpleEntity {
     private String direction;
     private Long pspId;
     private Long pspMethodId;
-    private Long pspMerchantId;
+    private Long pspAccountId;
     private Integer priority;
     private Integer weight;
     private BigDecimal minAmount;

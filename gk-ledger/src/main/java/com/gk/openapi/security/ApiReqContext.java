@@ -7,13 +7,12 @@ import lombok.Data;
 
 @Data
 @Builder
-public class OpenApiRequestContext {
+public class ApiReqContext {
     private Long tenantId;
     private Long merchantId;
     private String merchantNo;
     private Long merchantAppId;
     private String appId;
-    private String requestId;
     private String traceId;
     private String clientIp;
     private MerchantEntity merchant;

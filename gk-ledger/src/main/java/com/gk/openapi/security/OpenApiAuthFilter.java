@@ -1,19 +1,21 @@
 package com.gk.openapi.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.openapi.dto.ApiR;
+import com.gk.openapi.tools.ApiR;
 import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.OpenApiException;
+import com.gk.openapi.error.ApiException;
 import com.gk.openapi.util.IpWhitelistUtils;
-import com.gk.openapi.util.OpenApiSignatureUtils;
+import com.gk.openapi.util.ApiSignUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,24 +27,29 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Order(20)
 @Component
 @RequiredArgsConstructor
 public class OpenApiAuthFilter extends OncePerRequestFilter {
-    public static final String HEADER_APP_ID = "X-App-Id";
-    public static final String HEADER_TIMESTAMP = "X-Timestamp";
-    public static final String HEADER_NONCE = "X-Nonce";
-    public static final String HEADER_SIGN_TYPE = "X-Sign-Type";
-    public static final String HEADER_SIGNATURE = "X-Signature";
-    public static final String HEADER_REQUEST_ID = "X-Request-Id";
+    public static final String ATTR_SIGN_PARAMS = OpenApiAuthFilter.class.getName() + ".SIGN_PARAMS";
+
+    public static final String PARAM_APP_ID = "app_id";
+    public static final String PARAM_TIMESTAMP = "timestamp";
+    public static final String PARAM_NONCE = "nonce";
+    public static final String PARAM_SIGN_TYPE = "sign_type";
+    public static final String PARAM_SIGN = "sign";
 
     private static final long DEFAULT_TIMESTAMP_WINDOW_SECONDS = 300L;
     private static final String SIGN_TYPE_HMAC_SHA256 = "HMAC_SHA256";
+    private static final String SIGN_TYPE_MD5 = "MD5";
 
     private final MerchantAppDao merchantAppDao;
     private final MerchantDao merchantDao;
@@ -51,93 +58,80 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/v1/");
+        String uri = request.getRequestURI();
+        return uri == null || (!uri.startsWith("/api/v1/") && !uri.startsWith("/open-api/"));
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+            throws IOException {
         CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
-        String requestId = header(cachedRequest, HEADER_REQUEST_ID);
-        if (StringUtils.isBlank(requestId)) {
-            requestId = UUID.randomUUID().toString();
-        }
+        String traceId = UUID.randomUUID().toString();
 
         try {
-            OpenApiRequestContext context = authenticate(cachedRequest, requestId);
-            OpenApiRequestContextHolder.set(context);
-            ReqContextHolder.set(ReqContext.builder()
-                    .model("openapi")
-                    .tenantId(context.getTenantId())
-                    .traceId(context.getTraceId())
-                    .requestId(requestId)
-                    .ip(context.getClientIp())
-                    .uri(cachedRequest.getRequestURI())
-                    .method(cachedRequest.getMethod())
-                    .lang(context.getMerchant().getLang())
-                    .timezone(context.getMerchant().getTimezone())
-                    .sAdmin(false)
-                    .build());
+            ApiReqContext context = authenticate(cachedRequest, traceId);
+            ApiReqContextHolder.set(context);
             filterChain.doFilter(cachedRequest, response);
-        } catch (OpenApiException ex) {
-            writeError(response, ex.getErrorCode().name(), ex.getMessage(), requestId);
+        } catch (ApiException ex) {
+            writeError(response, ex.getErrorCode().name(), ex.getMessage());
         } catch (Exception ex) {
-            writeError(response, ApiErrorCode.SYSTEM_ERROR.name(), ApiErrorCode.SYSTEM_ERROR.getMessage(), requestId);
+            writeError(response, ApiErrorCode.SYSTEM_ERROR.name(), ApiErrorCode.SYSTEM_ERROR.getMessage());
         } finally {
-            OpenApiRequestContextHolder.clear();
-            ReqContextHolder.clear();
+            ApiReqContextHolder.clear();
         }
     }
 
-    private OpenApiRequestContext authenticate(CachedBodyHttpServletRequest request, String requestId) {
-        String appId = requireHeader(request, HEADER_APP_ID);
-        String timestamp = requireHeader(request, HEADER_TIMESTAMP);
-        String nonce = requireHeader(request, HEADER_NONCE);
-        String signType = StringUtils.defaultIfBlank(header(request, HEADER_SIGN_TYPE), SIGN_TYPE_HMAC_SHA256);
-        String signature = requireHeader(request, HEADER_SIGNATURE);
+    private ApiReqContext authenticate(CachedBodyHttpServletRequest request, String traceId) {
+        Map<String, Object> signParams = extractSignParams(request);
+        request.setAttribute(ATTR_SIGN_PARAMS, signParams);
+        String appId = requireParam(signParams, PARAM_APP_ID);
+        String timestamp = requireParam(signParams, PARAM_TIMESTAMP);
+        String nonce = getParam(signParams, PARAM_NONCE);
+        String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SIGN_TYPE_MD5);
+        String signature = requireParam(signParams, PARAM_SIGN);
 
         MerchantAppEntity app = merchantAppDao.selectOne(
                 new QueryWrapper<MerchantAppEntity>().eq("app_id", appId).last("limit 1")
         );
         if (app == null) {
-            throw new OpenApiException(ApiErrorCode.INVALID_APP);
+            throw new ApiException(ApiErrorCode.INVALID_APP);
         }
         if (!Integer.valueOf(1).equals(app.getStatus())) {
-            throw new OpenApiException(ApiErrorCode.APP_DISABLED);
+            throw new ApiException(ApiErrorCode.APP_DISABLED);
         }
-        if (!SIGN_TYPE_HMAC_SHA256.equalsIgnoreCase(signType) || !SIGN_TYPE_HMAC_SHA256.equalsIgnoreCase(app.getSignType())) {
-            throw new OpenApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
+        String appSignType = StringUtils.defaultIfBlank(app.getSignType(), SIGN_TYPE_MD5);
+        if (!supportedSignType(signType) || !signType.equalsIgnoreCase(appSignType)) {
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
         }
         if (StringUtils.isBlank(app.getApiSecret())) {
-            throw new OpenApiException(ApiErrorCode.INVALID_APP, "App secret is empty");
-        }
-
-        MerchantEntity merchant = merchantDao.selectById(app.getMerchantId());
-        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) {
-            throw new OpenApiException(ApiErrorCode.MERCHANT_DISABLED);
-        }
-        if (!"NORMAL".equalsIgnoreCase(merchant.getRiskStatus())) {
-            throw new OpenApiException(ApiErrorCode.MERCHANT_DISABLED, "Merchant risk status is not normal");
+            throw new ApiException(ApiErrorCode.INVALID_APP, "App secret is empty");
         }
 
         String clientIp = getClientIp(request);
         if (!IpWhitelistUtils.allowed(clientIp, app.getIpWhitelistJson())) {
-            throw new OpenApiException(ApiErrorCode.INVALID_IP);
+            throw new ApiException(ApiErrorCode.INVALID_IP);
+        }
+
+        MerchantEntity merchant = merchantDao.selectById(app.getMerchantId());
+        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) {
+            throw new ApiException(ApiErrorCode.MERCHANT_DISABLED);
+        }
+        if (!"NORMAL".equalsIgnoreCase(merchant.getRiskStatus())) {
+            throw new ApiException(ApiErrorCode.MERCHANT_DISABLED, "Merchant risk status is not normal");
         }
 
         validateTimestamp(timestamp);
         validateNonce(appId, nonce, app.getNonceTtlSeconds());
         validateRateLimit(appId, app.getRateLimitQps());
-        validateSignature(request, timestamp, nonce, signature, app.getApiSecret());
+        validateSortedParamSignature(signParams, signature, app.getApiSecret(), signType);
 
-        return OpenApiRequestContext.builder()
+        return ApiReqContext.builder()
                 .tenantId(app.getTenantId())
                 .merchantId(app.getMerchantId())
                 .merchantNo(merchant.getMerchantNo())
                 .merchantAppId(app.getId())
                 .appId(app.getAppId())
-                .requestId(requestId)
-                .traceId(requestId)
+                .traceId(traceId)
                 .clientIp(clientIp)
                 .merchant(merchant)
                 .merchantApp(app)
@@ -149,47 +143,125 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
             long requestMillis = Long.parseLong(timestamp);
             long diffMillis = Math.abs(Instant.now().toEpochMilli() - requestMillis);
             if (diffMillis > DEFAULT_TIMESTAMP_WINDOW_SECONDS * 1000) {
-                throw new OpenApiException(ApiErrorCode.INVALID_TIMESTAMP);
+                throw new ApiException(ApiErrorCode.INVALID_TIMESTAMP);
             }
         } catch (NumberFormatException e) {
-            throw new OpenApiException(ApiErrorCode.INVALID_TIMESTAMP);
+            throw new ApiException(ApiErrorCode.INVALID_TIMESTAMP);
         }
     }
 
     private void validateNonce(String appId, String nonce, Integer nonceTtlSeconds) {
+        if (StringUtils.isBlank(nonce)) {
+            return;
+        }
         int ttl = nonceTtlSeconds == null || nonceTtlSeconds <= 0 ? 300 : nonceTtlSeconds;
-        boolean locked = redisUtils.tryLock("openapi:nonce:" + appId + ":" + nonce, ttl);
+        String nonceKey = RedisKeys.getApiNonceKey(appId, nonce);
+        boolean locked = redisUtils.tryLock(nonceKey, ttl);
         if (!locked) {
-            throw new OpenApiException(ApiErrorCode.REPLAY_REQUEST);
+            throw new ApiException(ApiErrorCode.REPLAY_REQUEST);
         }
     }
 
     private void validateRateLimit(String appId, Integer rateLimitQps) {
         int qps = rateLimitQps == null || rateLimitQps <= 0 ? 50 : rateLimitQps;
-        long count = redisUtils.getIncrement("openapi:rate:" + appId + ":" + Instant.now().getEpochSecond(), 2);
+        String limitQpsKey = RedisKeys.getApiLimitQpsKey(appId, Instant.now().getEpochSecond());
+        long count = redisUtils.getIncrement(limitQpsKey, 2);
         if (count > qps) {
-            throw new OpenApiException(ApiErrorCode.INVALID_REQUEST, "Rate limit exceeded");
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Rate limit exceeded");
         }
     }
 
-    private void validateSignature(CachedBodyHttpServletRequest request, String timestamp, String nonce, String signature, String apiSecret) {
-        String signText = OpenApiSignatureUtils.buildSignText(request, request.getBody(), timestamp, nonce);
-        String expected = OpenApiSignatureUtils.hmacSha256Hex(signText, apiSecret).toLowerCase(Locale.ROOT);
-        if (!OpenApiSignatureUtils.secureEquals(expected, signature.toLowerCase(Locale.ROOT))) {
-            throw new OpenApiException(ApiErrorCode.INVALID_SIGNATURE);
+    private boolean supportedSignType(String signType) {
+        return SIGN_TYPE_HMAC_SHA256.equalsIgnoreCase(signType) || SIGN_TYPE_MD5.equalsIgnoreCase(signType);
+    }
+
+    private void validateSortedParamSignature(Map<String, Object> params, String signature, String apiSecret, String signType) {
+        try {
+            boolean valid = SIGN_TYPE_MD5.equalsIgnoreCase(signType)
+                    ? ApiSignUtils.verifyMd5Sign(params, apiSecret, signature)
+                    : ApiSignUtils.verifyHmacSha256Sign(params, apiSecret, signature);
+            if (!valid) {
+                throw new ApiException(ApiErrorCode.INVALID_SIGNATURE);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, e.getMessage());
         }
     }
 
-    private String requireHeader(HttpServletRequest request, String name) {
-        String value = header(request, name);
+    private Map<String, Object> extractSignParams(CachedBodyHttpServletRequest request) {
+        String contentType = StringUtils.defaultString(request.getContentType()).toLowerCase(Locale.ROOT);
+        String body = new String(request.getBody(), StandardCharsets.UTF_8);
+        if (StringUtils.isBlank(body)) {
+            return Map.of();
+        }
+        if (contentType.contains("application/x-www-form-urlencoded")) {
+            return parseFormBody(body);
+        }
+        if (contentType.contains("application/json")) {
+            return parseJsonBody(body);
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> parseJsonBody(String body) {
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            if (root == null || !root.isObject()) {
+                return Map.of();
+            }
+            Map<String, Object> params = new LinkedHashMap<>();
+            root.fields().forEachRemaining(entry -> params.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
+            return params;
+        } catch (Exception e) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON body");
+        }
+    }
+
+    private Object jsonNodeToSignValue(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isTextual()) {
+            return node.asText();
+        }
+        if (node.isNumber()) {
+            return node.decimalValue();
+        }
+        if (node.isBoolean()) {
+            return node.asBoolean();
+        }
+        return node.toString();
+    }
+
+    private Map<String, Object> parseFormBody(String body) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        for (String pair : body.split("&")) {
+            if (StringUtils.isBlank(pair)) {
+                continue;
+            }
+            int idx = pair.indexOf('=');
+            String key = decodeFormValue(idx >= 0 ? pair.substring(0, idx) : pair);
+            String value = decodeFormValue(idx >= 0 ? pair.substring(idx + 1) : "");
+            params.put(key, value);
+        }
+        return params;
+    }
+
+    private String decodeFormValue(String value) {
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+    }
+
+    private String requireParam(Map<String, Object> params, String name) {
+        String value = getParam(params, name);
         if (StringUtils.isBlank(value)) {
-            throw new OpenApiException(ApiErrorCode.INVALID_REQUEST, "Missing header: " + name);
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "request parameters '" + name + "' is empty");
         }
         return value;
     }
 
-    private String header(HttpServletRequest request, String name) {
-        return StringUtils.trimToNull(request.getHeader(name));
+    private String getParam(Map<String, Object> params, String name) {
+        Object value = params.get(name);
+        return value == null ? null : StringUtils.trimToNull(String.valueOf(value));
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -204,10 +276,10 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 
-    private void writeError(HttpServletResponse response, String code, String message, String requestId) throws IOException {
+    private void writeError(HttpServletResponse response, String code, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("application/json;charset=UTF-8");
-        String body = objectMapper.writeValueAsString(ApiR.error(code, message, requestId));
+        String body = objectMapper.writeValueAsString(ApiR.error(code, message));
         response.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
     }
 }

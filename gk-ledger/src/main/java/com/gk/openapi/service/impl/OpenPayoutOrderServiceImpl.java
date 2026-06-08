@@ -4,13 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.OpenApiException;
-import com.gk.openapi.security.OpenApiRequestContextHolder;
+import com.gk.openapi.error.ApiException;
+import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,11 +18,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
 
     @Override
-    public PayoutOrderResponse create(PayoutOrderCreateRequest request, String idempotencyKey) {
-        if (StringUtils.isBlank(idempotencyKey)) {
-            throw new OpenApiException(ApiErrorCode.INVALID_REQUEST, "Missing header: X-Idempotency-Key");
-        }
-        throw new OpenApiException(ApiErrorCode.SERVICE_NOT_READY, "Payout order creation flow is not wired yet");
+    public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
+        throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payout order creation flow is not wired yet");
     }
 
     @Override
@@ -40,13 +36,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
 
     private QueryWrapper<PayoutOrderEntity> baseWrapper() {
         return new QueryWrapper<PayoutOrderEntity>()
-                .eq("tenant_id", OpenApiRequestContextHolder.getTenantId())
-                .eq("merchant_id", OpenApiRequestContextHolder.getMerchantId());
+                .eq("tenant_id", ApiReqContextHolder.getTenantId())
+                .eq("merchant_id", ApiReqContextHolder.getMerchantId());
     }
 
     private PayoutOrderResponse toResponse(PayoutOrderEntity entity) {
         if (entity == null) {
-            throw new OpenApiException(ApiErrorCode.ORDER_NOT_FOUND);
+            throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
         PayoutOrderResponse response = new PayoutOrderResponse();
         response.setPayoutOrderNo(entity.getPayoutOrderNo());

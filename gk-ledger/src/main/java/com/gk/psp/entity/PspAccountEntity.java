@@ -7,15 +7,15 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-@TableName("psp_merchant")
-public class PspMerchantEntity extends SimpleEntity {
+@TableName("psp_account")
+public class PspAccountEntity extends SimpleEntity {
     private Long tenantId;
     private Long merchantId;
     private Long merchantScopeId;
     private Long pspId;
     private String pspCode;
-    private String pspMerchantNo;
-    private String pspMerchantName;
+    private String pspAccountNo;
+    private String pspAccountName;
     private Integer status;
     private String secretType;
     private String apiKey;

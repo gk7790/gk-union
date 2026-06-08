@@ -28,8 +28,8 @@ public class PspRouteRuleDTO {
     private Long pspId;
     @Schema(title = "PSP支付方式ID")
     private Long pspMethodId;
-    @Schema(title = "PSP商户号配置ID")
-    private Long pspMerchantId;
+    @Schema(title = "PSP账户配置ID")
+    private Long pspAccountId;
     @Schema(title = "优先级")
     private Integer priority;
     @Schema(title = "权重")

@@ -51,47 +51,47 @@ CREATE TABLE IF NOT EXISTS psp_method (
     KEY idx_psp_method_psp (psp_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP支付方式映射';
 
-CREATE TABLE IF NOT EXISTS psp_merchant (
+CREATE TABLE IF NOT EXISTS psp_account (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     tenant_id bigint NOT NULL COMMENT '租户ID',
-    merchant_id bigint NULL DEFAULT NULL COMMENT '商户ID，NULL表示租户级默认PSP商户号',
-    merchant_scope_id bigint NOT NULL DEFAULT 0 COMMENT '商户作用域ID，租户级默认配置为0，商户独立配置为merchant_id',
+    merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID，NULL表示租户级默认PSP账户',
+    merchant_scope_id bigint NOT NULL DEFAULT 0 COMMENT '商户作用域ID，租户级默认配置为0，商户专属配置为merchant_id',
     psp_id bigint NOT NULL COMMENT 'PSP ID',
     psp_code varchar(64) NOT NULL COMMENT 'PSP编码快照',
-    psp_merchant_no varchar(128) NOT NULL COMMENT 'PSP商户号',
-    psp_merchant_name varchar(128) NULL DEFAULT NULL COMMENT 'PSP商户名称',
+    psp_account_no varchar(128) NOT NULL COMMENT 'PSP账户号/商户号',
+    psp_account_name varchar(128) NULL DEFAULT NULL COMMENT 'PSP账户名称',
     status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
     secret_type varchar(32) NOT NULL DEFAULT 'HMAC' COMMENT '密钥类型: HMAC/RSA/BASIC/TOKEN',
     api_key varchar(256) NULL DEFAULT NULL COMMENT 'PSP API Key或Key引用',
     api_secret varchar(512) NULL DEFAULT NULL COMMENT 'PSP API Secret密文或密钥引用',
-    merchant_private_key_ref varchar(256) NULL DEFAULT NULL COMMENT '平台侧商户私钥引用',
+    merchant_private_key_ref varchar(256) NULL DEFAULT NULL COMMENT '平台侧私钥引用',
     psp_public_key text NULL COMMENT 'PSP公钥',
     callback_secret varchar(512) NULL DEFAULT NULL COMMENT '回调验签密钥密文或密钥引用',
-    config_json json NULL COMMENT 'PSP商户扩展配置JSON',
+    config_json json NULL COMMENT 'PSP账户扩展配置JSON',
     remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
     created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
     created_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     updated_by bigint NULL DEFAULT NULL COMMENT '更新人ID',
     updated_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_psp_merchant_scope (tenant_id, merchant_scope_id, psp_id, psp_merchant_no),
-    KEY idx_psp_merchant_tenant (tenant_id, psp_id, status),
-    KEY idx_psp_merchant_merchant (tenant_id, merchant_id, status),
-    KEY idx_psp_merchant_no (psp_id, psp_merchant_no)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP商户号配置';
+    UNIQUE KEY uk_psp_account_scope (tenant_id, merchant_scope_id, psp_id, psp_account_no),
+    KEY idx_psp_account_tenant (tenant_id, psp_id, status),
+    KEY idx_psp_account_merchant (tenant_id, merchant_id, status),
+    KEY idx_psp_account_no (psp_id, psp_account_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP账户配置';
 
 CREATE TABLE IF NOT EXISTS psp_route_rule (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     tenant_id bigint NOT NULL COMMENT '租户ID',
-    merchant_id bigint NULL DEFAULT NULL COMMENT '商户ID，NULL表示租户级规则',
-    merchant_app_id bigint NULL DEFAULT NULL COMMENT '商户应用ID，NULL表示不限制应用',
+    merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID，NULL表示租户级规则',
+    merchant_app_id bigint NULL DEFAULT NULL COMMENT '商户应用ID，NULL表示不限应用',
     country_code varchar(8) NOT NULL COMMENT '国家编码',
     currency varchar(16) NOT NULL COMMENT '币种',
     method_code varchar(64) NOT NULL COMMENT '平台统一支付方式编码',
     direction varchar(16) NOT NULL COMMENT '方向: PAYIN/PAYOUT',
     psp_id bigint NOT NULL COMMENT 'PSP ID',
     psp_method_id bigint NOT NULL COMMENT 'PSP支付方式ID',
-    psp_merchant_id bigint NOT NULL COMMENT 'PSP商户号配置ID',
+    psp_account_id bigint NOT NULL COMMENT 'PSP账户配置ID',
     priority int NOT NULL DEFAULT 100 COMMENT '优先级，数值越小越优先',
     weight int NOT NULL DEFAULT 100 COMMENT '权重，V1可暂不使用',
     min_amount decimal(24,8) NULL DEFAULT NULL COMMENT '最小金额',
@@ -107,13 +107,13 @@ CREATE TABLE IF NOT EXISTS psp_route_rule (
     PRIMARY KEY (id),
     KEY idx_psp_route_match (tenant_id, country_code, currency, method_code, direction, status, priority),
     KEY idx_psp_route_merchant (tenant_id, merchant_id, merchant_app_id, status),
-    KEY idx_psp_route_psp (psp_id, psp_method_id, psp_merchant_id)
+    KEY idx_psp_route_psp (psp_id, psp_method_id, psp_account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP路由规则';
 
 CREATE TABLE IF NOT EXISTS psp_request_log (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     tenant_id bigint NOT NULL COMMENT '租户ID',
-    merchant_id bigint NULL DEFAULT NULL COMMENT '商户ID',
+    merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID',
     psp_id bigint NOT NULL COMMENT 'PSP ID',
     psp_code varchar(64) NOT NULL COMMENT 'PSP编码快照',
     biz_type varchar(64) NOT NULL COMMENT '业务类型: PAY_ORDER/PAYOUT_ORDER/QUERY/REFUND等',
@@ -124,10 +124,10 @@ CREATE TABLE IF NOT EXISTS psp_request_log (
     psp_order_no varchar(128) NULL DEFAULT NULL COMMENT 'PSP订单号',
     request_url varchar(1024) NULL DEFAULT NULL COMMENT '请求URL',
     http_method varchar(16) NULL DEFAULT NULL COMMENT 'HTTP方法',
-    request_headers_json json NULL COMMENT '请求头JSON，敏感字段需脱敏',
-    request_body text NULL COMMENT '请求体，敏感字段需脱敏',
+    request_headers_json json NULL COMMENT '请求头JSON，敏感字段需要脱敏',
+    request_body text NULL COMMENT '请求体，敏感字段需要脱敏',
     response_status int NULL DEFAULT NULL COMMENT 'HTTP响应状态码',
-    response_body text NULL COMMENT '响应体，敏感字段需脱敏',
+    response_body text NULL COMMENT '响应体，敏感字段需要脱敏',
     success tinyint NULL DEFAULT NULL COMMENT '是否成功: 0否 1是',
     error_code varchar(128) NULL DEFAULT NULL COMMENT '错误码',
     error_msg varchar(1024) NULL DEFAULT NULL COMMENT '错误信息',
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS psp_request_log (
 CREATE TABLE IF NOT EXISTS psp_callback_log (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     tenant_id bigint NOT NULL COMMENT '租户ID',
-    merchant_id bigint NULL DEFAULT NULL COMMENT '商户ID',
+    merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID',
     psp_id bigint NOT NULL COMMENT 'PSP ID',
     psp_code varchar(64) NOT NULL COMMENT 'PSP编码快照',
     biz_type varchar(64) NULL DEFAULT NULL COMMENT '业务类型: PAY_ORDER/PAYOUT_ORDER/REFUND等',

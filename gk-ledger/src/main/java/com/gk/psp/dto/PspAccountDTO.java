@@ -6,11 +6,11 @@ import lombok.Data;
 import java.time.Instant;
 
 @Data
-public class PspMerchantDTO {
+public class PspAccountDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "商户ID")
+    @Schema(title = "平台商户ID")
     private Long merchantId;
     @Schema(title = "商户作用域ID")
     private Long merchantScopeId;
@@ -18,10 +18,10 @@ public class PspMerchantDTO {
     private Long pspId;
     @Schema(title = "PSP编码")
     private String pspCode;
-    @Schema(title = "PSP商户号")
-    private String pspMerchantNo;
-    @Schema(title = "PSP商户名称")
-    private String pspMerchantName;
+    @Schema(title = "PSP账户号")
+    private String pspAccountNo;
+    @Schema(title = "PSP账户名称")
+    private String pspAccountName;
     @Schema(title = "状态")
     private Integer status;
     @Schema(title = "密钥类型")

@@ -21,7 +21,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         Long merchantAppId = params.getLong("merchantAppId", null);
         Long pspId = params.getLong("pspId", null);
         Long pspMethodId = params.getLong("pspMethodId", null);
-        Long pspMerchantId = params.getLong("pspMerchantId", null);
+        Long pspAccountId = params.getLong("pspAccountId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
@@ -33,7 +33,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
-        wrapper.eq(pspMerchantId != null, "psp_merchant_id", pspMerchantId);
+        wrapper.eq(pspAccountId != null, "psp_account_id", pspAccountId);
         wrapper.eq(status != null, "status", status);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);

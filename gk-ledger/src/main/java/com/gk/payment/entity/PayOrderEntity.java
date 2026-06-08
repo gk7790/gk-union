@@ -50,8 +50,8 @@ public class PayOrderEntity extends SimpleEntity {
     private String pspCode;
     private Long pspMethodId;
     private String pspMethodCode;
-    private Long pspMerchantId;
-    private String pspMerchantNo;
+    private Long pspAccountId;
+    private String pspAccountNo;
     private String pspRequestNo;
     private String pspOrderNo;
     private String pspStatus;

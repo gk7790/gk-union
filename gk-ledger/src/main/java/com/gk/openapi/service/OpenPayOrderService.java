@@ -4,7 +4,7 @@ import com.gk.openapi.dto.PayOrderCreateRequest;
 import com.gk.openapi.dto.PayOrderResponse;
 
 public interface OpenPayOrderService {
-    PayOrderResponse create(PayOrderCreateRequest request, String idempotencyKey);
+    PayOrderResponse create(PayOrderCreateRequest request);
 
     PayOrderResponse getByPayOrderNo(String payOrderNo);
 

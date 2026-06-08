@@ -29,6 +29,8 @@ public class PayOrderEntity extends SimpleEntity {
     private BigDecimal paidAmount;
     private BigDecimal merchantFeeAmount;
     private BigDecimal pspFeeAmount;
+    private Long pspFeeRuleId;
+    private String pspFeeSnapshotJson;
     private BigDecimal settleAmount;
     private Long feeRuleId;
     private String feeSnapshotJson;

@@ -12,6 +12,8 @@ public class PayOrderResponse {
     private String statusReason;
     private BigDecimal amount;
     private BigDecimal paidAmount;
+    private BigDecimal merchantFeeAmount;
+    private BigDecimal settleAmount;
     private String currency;
     private String countryCode;
     private String methodCode;

@@ -16,6 +16,10 @@ public class PspRouteRuleDTO {
     private Long merchantId;
     @Schema(title = "商户应用ID")
     private Long merchantAppId;
+    @Schema(title = "路由规则名称")
+    private String routeName;
+    @Schema(title = "路由模式: PRIORITY/WEIGHT")
+    private String routeMode;
     @Schema(title = "国家编码")
     private String countryCode;
     @Schema(title = "币种")

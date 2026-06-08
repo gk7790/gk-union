@@ -25,6 +25,8 @@ public class PayOrderDTO {
     private BigDecimal paidAmount;
     private BigDecimal merchantFeeAmount;
     private BigDecimal pspFeeAmount;
+    private Long pspFeeRuleId;
+    private String pspFeeSnapshotJson;
     private BigDecimal settleAmount;
     private Long feeRuleId;
     private String feeSnapshotJson;

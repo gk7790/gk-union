@@ -20,6 +20,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         Long merchantId = params.getLong("merchantId", null);
         Long merchantAppId = params.getLong("merchantAppId", null);
         Long pspId = params.getLong("pspId", null);
+        Long pspFeeRuleId = params.getLong("pspFeeRuleId", null);
         String payOrderNo = params.getStr("payOrderNo");
         String merchantOrderNo = params.getStr("merchantOrderNo");
         String idempotencyKey = params.getStr("idempotencyKey");
@@ -38,6 +39,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
         wrapper.eq(pspId != null, "psp_id", pspId);
+        wrapper.eq(pspFeeRuleId != null, "psp_fee_rule_id", pspFeeRuleId);
         wrapper.eq(StrUtil.isNotBlank(payOrderNo), "pay_order_no", payOrderNo);
         wrapper.eq(StrUtil.isNotBlank(merchantOrderNo), "merchant_order_no", merchantOrderNo);
         wrapper.eq(StrUtil.isNotBlank(idempotencyKey), "idempotency_key", idempotencyKey);

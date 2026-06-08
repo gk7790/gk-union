@@ -23,6 +23,8 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         Long pspMethodId = params.getLong("pspMethodId", null);
         Long pspAccountId = params.getLong("pspAccountId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        String routeName = params.getStr("routeName");
+        String routeMode = params.getStr("routeMode");
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String methodCode = params.getStr("methodCode");
@@ -35,6 +37,8 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
         wrapper.eq(pspAccountId != null, "psp_account_id", pspAccountId);
         wrapper.eq(status != null, "status", status);
+        wrapper.like(StrUtil.isNotBlank(routeName), "route_name", routeName);
+        wrapper.eq(StrUtil.isNotBlank(routeMode), "route_mode", routeMode);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", methodCode);

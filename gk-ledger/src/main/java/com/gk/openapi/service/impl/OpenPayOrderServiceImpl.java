@@ -13,10 +13,14 @@ import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayOrderService;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayDispatchService;
+import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.route.PspRouteResult;
 import com.gk.psp.route.PspRouteSelector;
+import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -36,7 +40,9 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private static final String SETTLE_STATUS_PENDING = "PENDING";
 
     private final PayOrderDao payOrderDao;
+    private final MerchantFeeRuleService merchantFeeRuleService;
     private final PspRouteSelector pspRouteSelector;
+    private final PspFeeRuleService pspFeeRuleService;
     private final PspPayDispatchService pspPayDispatchService;
     private final ObjectMapper objectMapper;
 
@@ -80,9 +86,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setMethodCode(request.getMethodCode().toUpperCase(Locale.ROOT));
         entity.setAmount(request.getAmount());
         entity.setPaidAmount(BigDecimal.ZERO);
-        entity.setMerchantFeeAmount(BigDecimal.ZERO);
         entity.setPspFeeAmount(BigDecimal.ZERO);
-        entity.setSettleAmount(BigDecimal.ZERO);
         entity.setSubject(request.getSubject());
         entity.setDescription(request.getDescription());
         entity.setClientIp(context.getClientIp());
@@ -93,6 +97,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setSettleStatus(SETTLE_STATUS_PENDING);
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
+
+        applyMerchantFee(entity);
 
         boolean created = insertOrder(entity);
         if (!created) {
@@ -124,6 +130,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         try {
             PspRouteResult route = pspRouteSelector.selectPayin(entity);
             applyRoute(entity, route);
+            applyPspFee(entity);
 
             PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(entity, route);
             applyDispatchResult(entity, dispatchResult);
@@ -192,6 +199,13 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         target.setStatusReason(source.getStatusReason());
         target.setAmount(source.getAmount());
         target.setPaidAmount(source.getPaidAmount());
+        target.setMerchantFeeAmount(source.getMerchantFeeAmount());
+        target.setPspFeeAmount(source.getPspFeeAmount());
+        target.setPspFeeRuleId(source.getPspFeeRuleId());
+        target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
+        target.setSettleAmount(source.getSettleAmount());
+        target.setFeeRuleId(source.getFeeRuleId());
+        target.setFeeSnapshotJson(source.getFeeSnapshotJson());
         target.setCurrency(source.getCurrency());
         target.setCountryCode(source.getCountryCode());
         target.setMethodCode(source.getMethodCode());
@@ -217,6 +231,21 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
                 .eq("merchant_id", ApiReqContextHolder.getMerchantId());
     }
 
+    private void applyMerchantFee(PayOrderEntity entity) {
+        MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayin(entity);
+        entity.setMerchantFeeAmount(feeResult.getMerchantFeeAmount());
+        entity.setSettleAmount(feeResult.getSettleAmount());
+        entity.setFeeRuleId(feeResult.getRule().getId());
+        entity.setFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    private void applyPspFee(PayOrderEntity entity) {
+        PspFeeResult feeResult = pspFeeRuleService.calculatePayin(entity);
+        entity.setPspFeeAmount(feeResult.getPspFeeAmount());
+        entity.setPspFeeRuleId(feeResult.getRule().getId());
+        entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
     private PayOrderResponse toResponse(PayOrderEntity entity) {
         if (entity == null) {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
@@ -228,6 +257,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         response.setStatusReason(entity.getStatusReason());
         response.setAmount(entity.getAmount());
         response.setPaidAmount(entity.getPaidAmount());
+        response.setMerchantFeeAmount(entity.getMerchantFeeAmount());
+        response.setSettleAmount(entity.getSettleAmount());
         response.setCurrency(entity.getCurrency());
         response.setCountryCode(entity.getCountryCode());
         response.setMethodCode(entity.getMethodCode());

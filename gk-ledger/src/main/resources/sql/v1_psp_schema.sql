@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS psp_route_rule (
     tenant_id bigint NOT NULL COMMENT '租户ID',
     merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID，NULL表示租户级规则',
     merchant_app_id bigint NULL DEFAULT NULL COMMENT '商户应用ID，NULL表示不限应用',
+    route_name varchar(128) NOT NULL COMMENT '路由规则名称',
+    route_mode varchar(32) NOT NULL DEFAULT 'PRIORITY' COMMENT '路由模式: PRIORITY/WEIGHT',
     country_code varchar(8) NOT NULL COMMENT '国家编码',
     currency varchar(16) NOT NULL COMMENT '币种',
     method_code varchar(64) NOT NULL COMMENT '平台统一支付方式编码',
@@ -109,6 +111,41 @@ CREATE TABLE IF NOT EXISTS psp_route_rule (
     KEY idx_psp_route_merchant (tenant_id, merchant_id, merchant_app_id, status),
     KEY idx_psp_route_psp (psp_id, psp_method_id, psp_account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP路由规则';
+
+CREATE TABLE IF NOT EXISTS psp_fee_rule (
+    id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    tenant_id bigint NOT NULL COMMENT '租户ID',
+    psp_id bigint NOT NULL COMMENT 'PSP ID',
+    psp_account_id bigint NULL DEFAULT NULL COMMENT 'PSP账户配置ID，NULL表示不限账户',
+    psp_method_id bigint NULL DEFAULT NULL COMMENT 'PSP支付方式ID，NULL表示不限PSP支付方式',
+    rule_name varchar(128) NOT NULL COMMENT '规则名称',
+    direction varchar(16) NOT NULL COMMENT '方向: PAYIN/PAYOUT',
+    country_code varchar(8) NULL DEFAULT NULL COMMENT '国家编码，NULL表示不限国家',
+    currency varchar(16) NOT NULL COMMENT '币种',
+    method_code varchar(64) NULL DEFAULT NULL COMMENT '平台统一支付方式编码，NULL表示不限支付方式',
+    min_amount decimal(24,8) NULL DEFAULT NULL COMMENT '订单最小金额',
+    max_amount decimal(24,8) NULL DEFAULT NULL COMMENT '订单最大金额',
+    fee_mode varchar(32) NOT NULL COMMENT '手续费模式: RATE/FIXED/RATE_FIXED',
+    fee_rate decimal(18,8) NOT NULL DEFAULT 0.00000000 COMMENT '比例费率，例如0.012表示1.2%',
+    fee_fixed decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '固定手续费',
+    min_fee decimal(24,8) NULL DEFAULT NULL COMMENT '最低手续费',
+    max_fee decimal(24,8) NULL DEFAULT NULL COMMENT '最高手续费',
+    priority int NOT NULL DEFAULT 100 COMMENT '优先级，数字越小越优先',
+    effective_at datetime(3) NULL DEFAULT NULL COMMENT '生效时间',
+    expire_at datetime(3) NULL DEFAULT NULL COMMENT '失效时间',
+    status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
+    remark varchar(512) NULL DEFAULT NULL COMMENT '备注',
+    created_by bigint NULL DEFAULT NULL COMMENT '创建人ID',
+    created_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_by bigint NULL DEFAULT NULL COMMENT '更新人ID',
+    updated_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_psp_fee_rule_psp (tenant_id, psp_id, direction, currency, status),
+    KEY idx_psp_fee_rule_account (tenant_id, psp_account_id, direction, currency, status),
+    KEY idx_psp_fee_rule_method (tenant_id, psp_method_id, direction, currency, status),
+    KEY idx_psp_fee_rule_match (tenant_id, psp_id, psp_account_id, psp_method_id, country_code, currency, method_code, direction, status, priority),
+    KEY idx_psp_fee_rule_effective (tenant_id, status, effective_at, expire_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP成本手续费规则';
 
 CREATE TABLE IF NOT EXISTS psp_request_log (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',

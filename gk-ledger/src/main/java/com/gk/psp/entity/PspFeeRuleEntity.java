@@ -6,30 +6,31 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
-import java.time.LocalTime;
+import java.time.Instant;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-@TableName("psp_route_rule")
-public class PspRouteRuleEntity extends SimpleEntity {
+@TableName("psp_fee_rule")
+public class PspFeeRuleEntity extends SimpleEntity {
     private Long tenantId;
-    private Long merchantId;
-    private Long merchantAppId;
-    private String routeName;
-    private String routeMode;
+    private Long pspId;
+    private Long pspAccountId;
+    private Long pspMethodId;
+    private String ruleName;
+    private String direction;
     private String countryCode;
     private String currency;
     private String methodCode;
-    private String direction;
-    private Long pspId;
-    private Long pspMethodId;
-    private Long pspAccountId;
-    private Integer priority;
-    private Integer weight;
     private BigDecimal minAmount;
     private BigDecimal maxAmount;
-    private LocalTime startTime;
-    private LocalTime endTime;
+    private String feeMode;
+    private BigDecimal feeRate;
+    private BigDecimal feeFixed;
+    private BigDecimal minFee;
+    private BigDecimal maxFee;
+    private Integer priority;
+    private Instant effectiveAt;
+    private Instant expireAt;
     private Integer status;
     private String remark;
 }

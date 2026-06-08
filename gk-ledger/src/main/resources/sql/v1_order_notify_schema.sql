@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS pay_order (
     paid_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '实际支付金额',
     merchant_fee_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '商户手续费',
     psp_fee_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT 'PSP成本手续费',
+    psp_fee_rule_id bigint NULL DEFAULT NULL COMMENT 'PSP成本费用规则ID',
+    psp_fee_snapshot_json json NULL COMMENT 'PSP成本费用规则快照JSON',
     settle_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '商户待结算金额',
     fee_rule_id bigint NULL DEFAULT NULL COMMENT '费用规则ID',
     fee_snapshot_json json NULL COMMENT '费用规则快照JSON',
@@ -73,6 +75,7 @@ CREATE TABLE IF NOT EXISTS pay_order (
     KEY idx_pay_order_merchant (tenant_id, merchant_id, created_at),
     KEY idx_pay_order_psp (psp_id, psp_order_no),
     KEY idx_pay_order_psp_request (tenant_id, psp_request_no),
+    KEY idx_pay_order_psp_fee_rule (tenant_id, psp_fee_rule_id, created_at),
     KEY idx_pay_order_method (tenant_id, country_code, currency, method_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='代收订单';
 
@@ -95,6 +98,8 @@ CREATE TABLE IF NOT EXISTS payout_order (
     merchant_fee_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT '商户手续费',
     total_debit_amount decimal(24,8) NOT NULL COMMENT '商户扣减总额，通常为amount+fee',
     psp_fee_amount decimal(24,8) NOT NULL DEFAULT 0.00000000 COMMENT 'PSP成本手续费',
+    psp_fee_rule_id bigint NULL DEFAULT NULL COMMENT 'PSP成本费用规则ID',
+    psp_fee_snapshot_json json NULL COMMENT 'PSP成本费用规则快照JSON',
     fee_rule_id bigint NULL DEFAULT NULL COMMENT '费用规则ID',
     fee_snapshot_json json NULL COMMENT '费用规则快照JSON',
     payee_name varchar(128) NULL DEFAULT NULL COMMENT '收款人姓名',
@@ -155,6 +160,7 @@ CREATE TABLE IF NOT EXISTS payout_order (
     KEY idx_payout_order_merchant (tenant_id, merchant_id, created_at),
     KEY idx_payout_order_psp (psp_id, psp_order_no),
     KEY idx_payout_order_psp_request (tenant_id, psp_request_no),
+    KEY idx_payout_order_psp_fee_rule (tenant_id, psp_fee_rule_id, created_at),
     KEY idx_payout_order_hold (tenant_id, hold_no),
     KEY idx_payout_payee_account_hash (tenant_id, payee_account_hash),
     KEY idx_payout_order_method (tenant_id, country_code, currency, method_code)

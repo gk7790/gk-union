@@ -1,0 +1,39 @@
+package com.gk.merchant.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.gk.common.core.entity.SimpleEntity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import java.time.Instant;
+
+/**
+ * 商户API接入应用
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@TableName("merchant_app")
+public class MerchantAppEntity extends SimpleEntity {
+    private Long tenantId;
+    private Long merchantId;
+    private String appId;
+    private String appName;
+    private String appType;
+    private Integer status;
+    private String signType;
+    private String encryptType;
+    private String apiSecret;
+    private Integer secretVersion;
+    private Instant secretUpdatedAt;
+    private String merchantPublicKey;
+    private String platformPublicKey;
+    private String notifyUrl;
+    private String returnUrl;
+    private String ipWhitelistJson;
+    private String allowedCurrencyJson;
+    private String allowedMethodJson;
+    private Integer rateLimitQps;
+    private Integer nonceTtlSeconds;
+    private String configJson;
+    private String remark;
+}

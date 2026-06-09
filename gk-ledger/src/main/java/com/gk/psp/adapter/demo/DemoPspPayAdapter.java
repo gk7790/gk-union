@@ -30,9 +30,19 @@ public class DemoPspPayAdapter implements PspPayAdapter {
         PspPayDispatchResult result = new PspPayDispatchResult();
         result.setSuccess(true);
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
+        result.setRequestUrl(baseUrl + "/open-api/create-pay-order");
+        result.setHttpMethod("POST");
+        result.setRequestHeadersJson("{\"Content-Type\":\"application/json\"}");
+        result.setRequestBody("{\"merchant_order_id\":\"" + order.getPayOrderNo() + "\",\"amount\":\""
+                + order.getAmount() + "\",\"currency\":\"" + order.getCurrency() + "\"}");
+        result.setResponseStatus(200);
         result.setPspOrderNo("PSP" + order.getPayOrderNo());
+        result.setPspMerchantOrderNo(order.getPayOrderNo());
         result.setPayUrl(baseUrl + "/pay/" + order.getPayOrderNo());
         result.setRawStatus("PROCESSING");
+        result.setResponseCode("200");
+        result.setResponseMessage("success");
+        result.setRawResponseJson("{\"code\":200,\"message\":\"success\"}");
         return result;
     }
 }

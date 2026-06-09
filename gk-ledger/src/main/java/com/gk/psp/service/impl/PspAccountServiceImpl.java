@@ -21,7 +21,6 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         Long merchantScopeId = params.getLong("merchantScopeId", null);
         Long pspId = params.getLong("pspId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
-        String pspCode = params.getStr("pspCode");
         String pspAccountNo = params.getStr("pspAccountNo");
         String pspAccountName = params.getStr("pspAccountName");
         String secretType = params.getStr("secretType");
@@ -31,7 +30,6 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         wrapper.eq(merchantScopeId != null, "merchant_scope_id", merchantScopeId);
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(status != null, "status", status);
-        wrapper.eq(StrUtil.isNotBlank(pspCode), "psp_code", pspCode);
         wrapper.eq(StrUtil.isNotBlank(pspAccountNo), "psp_account_no", pspAccountNo);
         wrapper.like(StrUtil.isNotBlank(pspAccountName), "psp_account_name", pspAccountName);
         wrapper.eq(StrUtil.isNotBlank(secretType), "secret_type", secretType);

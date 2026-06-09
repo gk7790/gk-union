@@ -13,7 +13,6 @@ public class PspAccountEntity extends SimpleEntity {
     private Long merchantId;
     private Long merchantScopeId;
     private Long pspId;
-    private String pspCode;
     private String pspAccountNo;
     private String pspAccountName;
     private Integer status;

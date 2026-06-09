@@ -94,6 +94,7 @@ public class SecurityConfig {
                         "/public/**",
                         "/api/v1/**",
                         "/open-api/**",
+                        "/psp/callback/**",
                         "/static/**",
                         "/.well-known/**", // OIDC发现端点
                         "/favicon.ico",

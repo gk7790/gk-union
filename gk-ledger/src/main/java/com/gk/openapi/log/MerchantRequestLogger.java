@@ -1,0 +1,317 @@
+package com.gk.openapi.log;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.utils.BizKeyUtils;
+import com.gk.openapi.dto.BalanceQueryRequest;
+import com.gk.openapi.dto.BalanceResponse;
+import com.gk.openapi.dto.PayOrderCreateRequest;
+import com.gk.openapi.dto.PayOrderQueryRequest;
+import com.gk.openapi.dto.PayOrderResponse;
+import com.gk.openapi.dto.PayoutOrderCreateRequest;
+import com.gk.openapi.dto.PayoutOrderQueryRequest;
+import com.gk.openapi.dto.PayoutOrderResponse;
+import com.gk.openapi.error.ApiErrorCode;
+import com.gk.openapi.error.ApiException;
+import com.gk.openapi.security.ApiReqContext;
+import com.gk.openapi.security.ApiReqContextHolder;
+import com.gk.openapi.security.OpenApiAuthFilter;
+import com.gk.openapi.tools.ApiR;
+import com.gk.payment.entity.MerchantRequestLogEntity;
+import com.gk.payment.service.MerchantRequestLogService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+
+@Slf4j
+@Component
+public class MerchantRequestLogger {
+    private final MerchantRequestLogService merchantRequestLogService;
+    private final ObjectMapper objectMapper;
+    private final Executor merchantRequestLogExecutor;
+
+    public MerchantRequestLogger(
+            MerchantRequestLogService merchantRequestLogService,
+            ObjectMapper objectMapper,
+            @Qualifier("merchantRequestLogExecutor") Executor merchantRequestLogExecutor
+    ) {
+        this.merchantRequestLogService = merchantRequestLogService;
+        this.objectMapper = objectMapper;
+        this.merchantRequestLogExecutor = merchantRequestLogExecutor;
+    }
+
+    public void balanceSuccess(HttpServletRequest request, BalanceQueryRequest body, List<BalanceResponse> data, long startMs) {
+        record(request, "查询余额", "BALANCE", null, null, balanceResponseSummary(body, data), null, startMs);
+    }
+
+    public void balanceFailed(HttpServletRequest request, Throwable throwable, long startMs) {
+        record(request, "查询余额", "BALANCE", null, null, null, throwable, startMs);
+    }
+
+    public void payCreateSuccess(HttpServletRequest request, PayOrderCreateRequest body, PayOrderResponse orderResp, ApiR<PayOrderResponse> response, long startMs) {
+        record(
+                request,
+                "创建代收订单",
+                "PAY_ORDER",
+                body == null ? null : body.getMerchantOrderNo(),
+                orderResp == null ? null : orderResp.getPayOrderNo(),
+                response,
+                null,
+                startMs
+        );
+    }
+
+    public void payCreateFailed(HttpServletRequest request, PayOrderCreateRequest body, Throwable throwable, long startMs) {
+        record(
+                request,
+                "创建代收订单",
+                "PAY_ORDER",
+                body == null ? getSignParam(request, "merchant_order_id") : body.getMerchantOrderNo(),
+                null,
+                null,
+                throwable,
+                startMs
+        );
+    }
+
+    public void payQuerySuccess(HttpServletRequest request, PayOrderQueryRequest body, PayOrderResponse orderResp, ApiR<PayOrderResponse> response, long startMs) {
+        record(
+                request,
+                "查询代收订单",
+                "PAY_ORDER",
+                firstNotBlank(body == null ? null : body.getMerchantOrderNo(), orderResp == null ? null : orderResp.getMerchantOrderNo()),
+                firstNotBlank(orderResp == null ? null : orderResp.getPayOrderNo(), body == null ? null : body.getPayOrderNo()),
+                response,
+                null,
+                startMs
+        );
+    }
+
+    public void payQueryFailed(HttpServletRequest request, PayOrderQueryRequest body, Throwable throwable, long startMs) {
+        record(
+                request,
+                "查询代收订单",
+                "PAY_ORDER",
+                firstNotBlank(body == null ? null : body.getMerchantOrderNo(), getSignParam(request, "merchant_order_id")),
+                firstNotBlank(body == null ? null : body.getPayOrderNo(), getSignParam(request, "system_order_id"), getSignParam(request, "pay_order_no")),
+                null,
+                throwable,
+                startMs
+        );
+    }
+
+    public void payoutCreateSuccess(HttpServletRequest request, PayoutOrderCreateRequest body, PayoutOrderResponse orderResp, ApiR<PayoutOrderResponse> response, long startMs) {
+        record(
+                request,
+                "创建代付订单",
+                "PAYOUT_ORDER",
+                body == null ? null : body.getMerchantOrderNo(),
+                orderResp == null ? null : orderResp.getPayoutOrderNo(),
+                response,
+                null,
+                startMs
+        );
+    }
+
+    public void payoutCreateFailed(HttpServletRequest request, PayoutOrderCreateRequest body, Throwable throwable, long startMs) {
+        record(
+                request,
+                "创建代付订单",
+                "PAYOUT_ORDER",
+                body == null ? getSignParam(request, "merchant_order_id") : body.getMerchantOrderNo(),
+                null,
+                null,
+                throwable,
+                startMs
+        );
+    }
+
+    public void payoutQuerySuccess(HttpServletRequest request, PayoutOrderQueryRequest body, PayoutOrderResponse orderResp, ApiR<PayoutOrderResponse> response, long startMs) {
+        record(
+                request,
+                "查询代付订单",
+                "PAYOUT_ORDER",
+                firstNotBlank(body == null ? null : body.getMerchantOrderNo(), orderResp == null ? null : orderResp.getMerchantOrderNo()),
+                firstNotBlank(orderResp == null ? null : orderResp.getPayoutOrderNo(), body == null ? null : body.getPayoutOrderNo()),
+                response,
+                null,
+                startMs
+        );
+    }
+
+    public void payoutQueryFailed(HttpServletRequest request, PayoutOrderQueryRequest body, Throwable throwable, long startMs) {
+        record(
+                request,
+                "查询代付订单",
+                "PAYOUT_ORDER",
+                firstNotBlank(body == null ? null : body.getMerchantOrderNo(), getSignParam(request, "merchant_order_id")),
+                firstNotBlank(body == null ? null : body.getPayoutOrderNo(), getSignParam(request, "system_order_id"), getSignParam(request, "payout_order_no")),
+                null,
+                throwable,
+                startMs
+        );
+    }
+
+    public void authRejected(HttpServletRequest request, String traceId, String rawBody, String code, String message) {
+        Map<String, Object> params = getSignParams(request);
+        MerchantRequestLogEntity entity = baseEntity(request, params, null);
+        entity.setAppId(getParam(params, OpenApiAuthFilter.PARAM_APP_ID));
+        entity.setApiName("OpenAPI鉴权");
+        entity.setClientIp(getClientIp(request));
+        entity.setRequestBodyHash(MerchantRequestLogUtils.sha256Hex(rawBody));
+        entity.setRequestBodyJson(toJson(MerchantRequestLogUtils.sanitizeParams(params)));
+        entity.setRequestParamsJson(entity.getRequestBodyJson());
+        entity.setSignType(getParam(params, OpenApiAuthFilter.PARAM_SIGN_TYPE));
+        entity.setSignValue(MerchantRequestLogUtils.maskSignature(getParam(params, OpenApiAuthFilter.PARAM_SIGN)));
+        entity.setSignValid(0);
+        entity.setTimestampValue(getParam(params, OpenApiAuthFilter.PARAM_TIMESTAMP));
+        entity.setNonceValue(getParam(params, OpenApiAuthFilter.PARAM_NONCE));
+        entity.setResponseCode(code);
+        entity.setResponseMessage(StringUtils.left(message, 512));
+        entity.setResponseBodyJson(toJson(ApiR.error(code, message)));
+        entity.setStatus("REJECTED");
+        entity.setErrorCode(code);
+        entity.setErrorMessage(StringUtils.left(message, 512));
+        entity.setTraceId(traceId);
+        submit(entity);
+    }
+
+    private void record(
+            HttpServletRequest request,
+            String apiName,
+            String bizType,
+            String merchantOrderNo,
+            String bizNo,
+            Object responseBody,
+            Throwable throwable,
+            long startMs
+    ) {
+        Map<String, Object> params = getSignParams(request);
+        ApiReqContext context = ApiReqContextHolder.get();
+        MerchantRequestLogEntity entity = baseEntity(request, params, context);
+        entity.setApiName(apiName);
+        String rawRequestJson = toJson(params);
+        entity.setRequestBodyHash(MerchantRequestLogUtils.sha256Hex(rawRequestJson));
+        entity.setRequestBodyJson(toJson(MerchantRequestLogUtils.sanitizeParams(params)));
+        entity.setRequestParamsJson(entity.getRequestBodyJson());
+        entity.setSignType(getParam(params, OpenApiAuthFilter.PARAM_SIGN_TYPE));
+        entity.setSignValue(MerchantRequestLogUtils.maskSignature(getParam(params, OpenApiAuthFilter.PARAM_SIGN)));
+        entity.setSignValid(context == null ? null : 1);
+        entity.setTimestampValue(getParam(params, OpenApiAuthFilter.PARAM_TIMESTAMP));
+        entity.setNonceValue(getParam(params, OpenApiAuthFilter.PARAM_NONCE));
+        entity.setBizType(bizType);
+        entity.setBizNo(bizNo);
+        entity.setMerchantOrderNo(merchantOrderNo);
+        entity.setCostMs(Math.max(0, System.currentTimeMillis() - startMs));
+        entity.setTraceId(context == null ? null : context.getTraceId());
+
+        if (throwable == null) {
+            entity.setStatus("SUCCESS");
+            entity.setResponseCode("SUCCESS");
+            entity.setResponseMessage("success");
+            entity.setResponseBodyJson(toJson(responseBody));
+        } else {
+            entity.setStatus("FAILED");
+            if (throwable instanceof ApiException apiException) {
+                entity.setResponseCode(apiException.getErrorCode().name());
+                entity.setErrorCode(apiException.getErrorCode().name());
+            } else {
+                entity.setResponseCode(ApiErrorCode.SYSTEM_ERROR.name());
+                entity.setErrorCode(ApiErrorCode.SYSTEM_ERROR.name());
+            }
+            entity.setResponseMessage(StringUtils.left(throwable.getMessage(), 512));
+            entity.setErrorMessage(StringUtils.left(throwable.getMessage(), 512));
+            entity.setResponseBodyJson(toJson(ApiR.error(entity.getResponseCode(), entity.getResponseMessage())));
+        }
+        submit(entity);
+    }
+
+    private MerchantRequestLogEntity baseEntity(HttpServletRequest request, Map<String, Object> params, ApiReqContext context) {
+        MerchantRequestLogEntity entity = new MerchantRequestLogEntity();
+        entity.setTenantId(context == null ? null : context.getTenantId());
+        entity.setMerchantId(context == null ? null : context.getMerchantId());
+        entity.setMerchantNo(context == null ? null : context.getMerchantNo());
+        entity.setMerchantAppId(context == null ? null : context.getMerchantAppId());
+        entity.setAppId(context == null ? getParam(params, OpenApiAuthFilter.PARAM_APP_ID) : context.getAppId());
+        entity.setRequestNo(BizKeyUtils.genMerchantRequestNo());
+        entity.setApiPath(request.getRequestURI());
+        entity.setHttpMethod(request.getMethod());
+        entity.setClientIp(context == null ? getClientIp(request) : context.getClientIp());
+        entity.setUserAgent(StringUtils.left(request.getHeader("User-Agent"), 512));
+        return entity;
+    }
+
+    private void submit(MerchantRequestLogEntity entity) {
+        try {
+            merchantRequestLogExecutor.execute(() -> merchantRequestLogService.record(entity));
+        } catch (Exception ex) {
+            log.warn("Submit merchant request log failed: {}", ex.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getSignParams(HttpServletRequest request) {
+        Object value = request.getAttribute(OpenApiAuthFilter.ATTR_SIGN_PARAMS);
+        if (value instanceof Map<?, ?> params) {
+            return (Map<String, Object>) params;
+        }
+        return Map.of();
+    }
+
+    private String getSignParam(HttpServletRequest request, String name) {
+        return getParam(getSignParams(request), name);
+    }
+
+    private String firstNotBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.isNotBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String getParam(Map<String, Object> params, String name) {
+        Object value = params.get(name);
+        return value == null ? null : StringUtils.trimToNull(String.valueOf(value));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (StringUtils.isNotBlank(forwarded)) {
+            return forwarded.split(",")[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (StringUtils.isNotBlank(realIp)) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private Map<String, Object> balanceResponseSummary(BalanceQueryRequest body, List<BalanceResponse> data) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("currency", body == null ? null : body.getCurrency());
+        summary.put("count", data == null ? 0 : data.size());
+        return summary;
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+}

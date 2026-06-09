@@ -37,7 +37,7 @@ public class ApiSignUtilsTest {
     public static void createsTraditionalMd5Signature() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("sign", "should-not-join");
-        params.put("merchant_order_id", "M202606080001");
+        params.put("merchant_order_id", "M2026060844001");
         params.put("amount", "100.00");
         params.put("pay_channel", "GCASH");
         params.put("notify_url", "https://merchant.example.com/notify");
@@ -49,8 +49,8 @@ public class ApiSignUtilsTest {
 
         params.put("sign", sign);
 
-        System.out.println(JSONObject.toJSONString(params));
-        System.out.println(ApiSignUtils.verifyMd5Sign(params, "94K-hU41SvABlROfdMDd-VpAi5SyZVDFjKecJzqmFj8", sign));
+        System.out.println("创建订单: " + JSONObject.toJSONString(params));
+        System.out.println("创建订单: " + ApiSignUtils.verifyMd5Sign(params, "94K-hU41SvABlROfdMDd-VpAi5SyZVDFjKecJzqmFj8", sign));
     }
 
     public static void yueMd5Signature() {
@@ -66,6 +66,7 @@ public class ApiSignUtilsTest {
     }
 
     public static void main(String[] args) {
+        createsTraditionalMd5Signature();
         yueMd5Signature();
         System.out.println(IdWorker.getId());
     }

@@ -38,7 +38,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        return uri != null && (uri.startsWith("/api/v1/") || uri.startsWith("/open-api/"));
+        return uri != null && (uri.startsWith("/api/v1/")
+                || uri.startsWith("/open-api/")
+                || uri.startsWith("/psp/callback/"));
     }
 
     @Override

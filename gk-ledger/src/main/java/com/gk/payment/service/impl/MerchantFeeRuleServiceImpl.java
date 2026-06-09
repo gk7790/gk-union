@@ -11,6 +11,7 @@ import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
 import com.gk.payment.fee.MerchantFeeCalculator;
 import com.gk.payment.fee.MerchantFeeResult;
@@ -31,6 +32,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleDao, MerchantFeeRuleEntity, MerchantFeeRuleDTO> implements MerchantFeeRuleService {
     private static final String ORDER_TYPE_PAYIN = "PAYIN";
+    private static final String ORDER_TYPE_PAYOUT = "PAYOUT";
     private static final int STATUS_ENABLED = 1;
 
     private final ObjectMapper objectMapper;
@@ -66,10 +68,46 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
 
     @Override
     public MerchantFeeResult calculatePayin(PayOrderEntity order) {
-        MerchantFeeRuleEntity rule = selectPayinRule(order);
+        return calculate(
+                order.getTenantId(),
+                order.getMerchantId(),
+                order.getMerchantAppId(),
+                order.getCountryCode(),
+                order.getCurrency(),
+                order.getMethodCode(),
+                order.getAmount(),
+                ORDER_TYPE_PAYIN
+        );
+    }
+
+    @Override
+    public MerchantFeeResult calculatePayout(PayoutOrderEntity order) {
+        return calculate(
+                order.getTenantId(),
+                order.getMerchantId(),
+                order.getMerchantAppId(),
+                order.getCountryCode(),
+                order.getCurrency(),
+                order.getMethodCode(),
+                order.getAmount(),
+                ORDER_TYPE_PAYOUT
+        );
+    }
+
+    private MerchantFeeResult calculate(
+            Long tenantId,
+            Long merchantId,
+            Long merchantAppId,
+            String countryCode,
+            String currency,
+            String methodCode,
+            BigDecimal orderAmount,
+            String orderType
+    ) {
+        MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, orderType);
         MerchantFeeAmount amount;
         try {
-            amount = MerchantFeeCalculator.calculate(order.getAmount(), rule);
+            amount = MerchantFeeCalculator.calculate(orderAmount, rule);
         } catch (IllegalArgumentException ex) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, ex.getMessage());
         }
@@ -82,39 +120,48 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         return result;
     }
 
-    private MerchantFeeRuleEntity selectPayinRule(PayOrderEntity order) {
+    private MerchantFeeRuleEntity selectRule(
+            Long tenantId,
+            Long merchantId,
+            Long merchantAppId,
+            String countryCode,
+            String currency,
+            String methodCode,
+            BigDecimal orderAmount,
+            String orderType
+    ) {
         Instant now = Instant.now();
         QueryWrapper<MerchantFeeRuleEntity> wrapper = new QueryWrapper<MerchantFeeRuleEntity>()
-                .eq("tenant_id", order.getTenantId())
-                .eq("merchant_id", order.getMerchantId())
-                .eq("order_type", ORDER_TYPE_PAYIN)
-                .eq("currency", normalize(order.getCurrency()))
+                .eq("tenant_id", tenantId)
+                .eq("merchant_id", merchantId)
+                .eq("order_type", orderType)
+                .eq("currency", normalize(currency))
                 .eq("status", STATUS_ENABLED)
-                .and(w -> w.eq("merchant_app_id", order.getMerchantAppId()).or().isNull("merchant_app_id"))
-                .and(w -> w.eq("country_code", normalize(order.getCountryCode())).or().isNull("country_code"))
-                .and(w -> w.eq("pay_channel", normalize(order.getMethodCode())).or().isNull("pay_channel"))
-                .and(w -> w.le("min_amount", order.getAmount()).or().isNull("min_amount"))
-                .and(w -> w.ge("max_amount", order.getAmount()).or().isNull("max_amount"))
+                .and(w -> w.eq("merchant_app_id", merchantAppId).or().isNull("merchant_app_id"))
+                .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
+                .and(w -> w.eq("pay_channel", normalize(methodCode)).or().isNull("pay_channel"))
+                .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
+                .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
                 .and(w -> w.le("effective_at", now).or().isNull("effective_at"))
                 .and(w -> w.gt("expire_at", now).or().isNull("expire_at"));
 
         List<MerchantFeeRuleEntity> rules = baseDao.selectList(wrapper);
         return rules.stream()
                 .max(Comparator
-                        .comparingInt((MerchantFeeRuleEntity rule) -> matchScore(rule, order))
+                        .comparingInt((MerchantFeeRuleEntity rule) -> matchScore(rule, merchantAppId, countryCode, methodCode))
                         .thenComparing(rule -> -defaultPriority(rule.getPriority())))
                 .orElseThrow(() -> new ApiException(ApiErrorCode.INVALID_REQUEST, "Merchant fee rule is not configured"));
     }
 
-    private int matchScore(MerchantFeeRuleEntity rule, PayOrderEntity order) {
+    private int matchScore(MerchantFeeRuleEntity rule, Long merchantAppId, String countryCode, String methodCode) {
         int score = 0;
-        if (rule.getMerchantAppId() != null && rule.getMerchantAppId().equals(order.getMerchantAppId())) {
+        if (rule.getMerchantAppId() != null && rule.getMerchantAppId().equals(merchantAppId)) {
             score += 8;
         }
-        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), order.getCountryCode())) {
+        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), countryCode)) {
             score += 4;
         }
-        if (StringUtils.equalsIgnoreCase(rule.getPayChannel(), order.getMethodCode())) {
+        if (StringUtils.equalsIgnoreCase(rule.getPayChannel(), methodCode)) {
             score += 2;
         }
         if (rule.getMinAmount() != null || rule.getMaxAmount() != null) {

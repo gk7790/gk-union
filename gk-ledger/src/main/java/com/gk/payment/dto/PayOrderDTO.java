@@ -24,12 +24,12 @@ public class PayOrderDTO {
     private BigDecimal amount;
     private BigDecimal paidAmount;
     private BigDecimal merchantFeeAmount;
+    private Long merchantFeeRuleId;
+    private String merchantFeeSnapshotJson;
     private BigDecimal pspFeeAmount;
     private Long pspFeeRuleId;
     private String pspFeeSnapshotJson;
     private BigDecimal settleAmount;
-    private Long feeRuleId;
-    private String feeSnapshotJson;
     private String subject;
     private String description;
     private String clientIp;

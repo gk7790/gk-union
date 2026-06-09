@@ -36,8 +36,28 @@ public class BizKeyUtils {
         return "PAY" + toBase32(IdWorker.getId());
     }
 
+    public static String genPayoutOrderNo() {
+        return "PAYOUT" + toBase32(IdWorker.getId());
+    }
+
     public static String genPspRequestNo() {
         return "PRQ" + toBase32(IdWorker.getId());
+    }
+
+    public static String genMerchantRequestNo() {
+        return "MRQ" + toBase32(IdWorker.getId());
+    }
+
+    public static String genMerchantNotifyTaskNo() {
+        return "MNT" + toBase32(IdWorker.getId());
+    }
+
+    public static String genLedgerJournalNo() {
+        return "LJ" + toBase32(IdWorker.getId());
+    }
+
+    public static String genLedgerHoldNo() {
+        return "LH" + toBase32(IdWorker.getId());
     }
 
     public static String genShortCode() {

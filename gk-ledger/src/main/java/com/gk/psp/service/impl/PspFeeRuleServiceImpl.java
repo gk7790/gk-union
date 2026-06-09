@@ -8,6 +8,7 @@ import com.gk.common.model.DynMap;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dto.PspFeeRuleDTO;
 import com.gk.psp.entity.PspFeeRuleEntity;
@@ -30,6 +31,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
     private static final String DIRECTION_PAYIN = "PAYIN";
+    private static final String DIRECTION_PAYOUT = "PAYOUT";
     private static final int STATUS_ENABLED = 1;
 
     private final ObjectMapper objectMapper;
@@ -65,10 +67,49 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     @Override
     public PspFeeResult calculatePayin(PayOrderEntity order) {
-        PspFeeRuleEntity rule = selectPayinRule(order);
+        return calculate(
+                order.getTenantId(),
+                order.getPspId(),
+                order.getPspAccountId(),
+                order.getPspMethodId(),
+                order.getCountryCode(),
+                order.getCurrency(),
+                order.getMethodCode(),
+                order.getAmount(),
+                DIRECTION_PAYIN
+        );
+    }
+
+    @Override
+    public PspFeeResult calculatePayout(PayoutOrderEntity order) {
+        return calculate(
+                order.getTenantId(),
+                order.getPspId(),
+                order.getPspAccountId(),
+                order.getPspMethodId(),
+                order.getCountryCode(),
+                order.getCurrency(),
+                order.getMethodCode(),
+                order.getAmount(),
+                DIRECTION_PAYOUT
+        );
+    }
+
+    private PspFeeResult calculate(
+            Long tenantId,
+            Long pspId,
+            Long pspAccountId,
+            Long pspMethodId,
+            String countryCode,
+            String currency,
+            String methodCode,
+            BigDecimal orderAmount,
+            String direction
+    ) {
+        PspFeeRuleEntity rule = selectRule(tenantId, pspId, pspAccountId, pspMethodId, countryCode, currency, methodCode, orderAmount, direction);
         BigDecimal feeAmount;
         try {
-            feeAmount = PspFeeCalculator.calculate(order.getAmount(), rule);
+            feeAmount = PspFeeCalculator.calculate(orderAmount, rule);
         } catch (IllegalArgumentException ex) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, ex.getMessage());
         }
@@ -80,43 +121,53 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         return result;
     }
 
-    private PspFeeRuleEntity selectPayinRule(PayOrderEntity order) {
+    private PspFeeRuleEntity selectRule(
+            Long tenantId,
+            Long pspId,
+            Long pspAccountId,
+            Long pspMethodId,
+            String countryCode,
+            String currency,
+            String methodCode,
+            BigDecimal orderAmount,
+            String direction
+    ) {
         Instant now = Instant.now();
         QueryWrapper<PspFeeRuleEntity> wrapper = new QueryWrapper<PspFeeRuleEntity>()
-                .eq("tenant_id", order.getTenantId())
-                .eq("psp_id", order.getPspId())
-                .eq("direction", DIRECTION_PAYIN)
-                .eq("currency", normalize(order.getCurrency()))
+                .eq("tenant_id", tenantId)
+                .eq("psp_id", pspId)
+                .eq("direction", direction)
+                .eq("currency", normalize(currency))
                 .eq("status", STATUS_ENABLED)
-                .and(w -> w.eq("psp_account_id", order.getPspAccountId()).or().isNull("psp_account_id"))
-                .and(w -> w.eq("psp_method_id", order.getPspMethodId()).or().isNull("psp_method_id"))
-                .and(w -> w.eq("country_code", normalize(order.getCountryCode())).or().isNull("country_code"))
-                .and(w -> w.eq("method_code", normalize(order.getMethodCode())).or().isNull("method_code"))
-                .and(w -> w.le("min_amount", order.getAmount()).or().isNull("min_amount"))
-                .and(w -> w.ge("max_amount", order.getAmount()).or().isNull("max_amount"))
+                .and(w -> w.eq("psp_account_id", pspAccountId).or().isNull("psp_account_id"))
+                .and(w -> w.eq("psp_method_id", pspMethodId).or().isNull("psp_method_id"))
+                .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
+                .and(w -> w.eq("method_code", normalize(methodCode)).or().isNull("method_code"))
+                .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
+                .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
                 .and(w -> w.le("effective_at", now).or().isNull("effective_at"))
                 .and(w -> w.gt("expire_at", now).or().isNull("expire_at"));
 
         List<PspFeeRuleEntity> rules = baseDao.selectList(wrapper);
         return rules.stream()
                 .max(Comparator
-                        .comparingInt((PspFeeRuleEntity rule) -> matchScore(rule, order))
+                        .comparingInt((PspFeeRuleEntity rule) -> matchScore(rule, pspAccountId, pspMethodId, countryCode, methodCode))
                         .thenComparing(rule -> -defaultPriority(rule.getPriority())))
                 .orElseThrow(() -> new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured"));
     }
 
-    private int matchScore(PspFeeRuleEntity rule, PayOrderEntity order) {
+    private int matchScore(PspFeeRuleEntity rule, Long pspAccountId, Long pspMethodId, String countryCode, String methodCode) {
         int score = 0;
-        if (rule.getPspAccountId() != null && rule.getPspAccountId().equals(order.getPspAccountId())) {
+        if (rule.getPspAccountId() != null && rule.getPspAccountId().equals(pspAccountId)) {
             score += 16;
         }
-        if (rule.getPspMethodId() != null && rule.getPspMethodId().equals(order.getPspMethodId())) {
+        if (rule.getPspMethodId() != null && rule.getPspMethodId().equals(pspMethodId)) {
             score += 8;
         }
-        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), order.getCountryCode())) {
+        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), countryCode)) {
             score += 4;
         }
-        if (StringUtils.equalsIgnoreCase(rule.getMethodCode(), order.getMethodCode())) {
+        if (StringUtils.equalsIgnoreCase(rule.getMethodCode(), methodCode)) {
             score += 2;
         }
         if (rule.getMinAmount() != null || rule.getMaxAmount() != null) {

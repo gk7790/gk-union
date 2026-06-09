@@ -11,6 +11,7 @@ import com.gk.openapi.error.ApiException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayOrderService;
+import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.fee.MerchantFeeResult;
@@ -126,24 +127,38 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         }
     }
 
-    private void submitToPsp(PayOrderEntity entity) {
+    /**
+     * 提交到三方路由
+     * @param order 订单
+     */
+    private void submitToPsp(PayOrderEntity order) {
         try {
-            PspRouteResult route = pspRouteSelector.selectPayin(entity);
-            applyRoute(entity, route);
-            applyPspFee(entity);
+            PspRouteResult route = pspRouteSelector.selectPayin(order);
+            // 路由PSP
+            applyRoute(order, route);
 
-            PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(entity, route);
-            applyDispatchResult(entity, dispatchResult);
-            payOrderDao.updateById(entity);
+            // 设置psp手续费
+            applyPspFee(order);
+
+            PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(order, route);
+
+            applyDispatchResult(order, dispatchResult);
+
+            payOrderDao.updateById(order);
         } catch (ApiException ex) {
-            markFailed(entity, ex.getMessage());
+            markFailed(order, ex.getMessage());
             throw ex;
         } catch (Exception ex) {
-            markFailed(entity, ApiErrorCode.SYSTEM_ERROR.getMessage());
+            markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage());
             throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
         }
     }
 
+    /**
+     * 为订单路由三方PSP
+     * @param entity 订单
+     * @param route 路由
+     */
     private void applyRoute(PayOrderEntity entity, PspRouteResult route) {
         entity.setRouteRuleId(route.getRouteRuleId());
         entity.setPspId(route.getPspId());
@@ -154,10 +169,16 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPspAccountNo(route.getPspAccountNo());
     }
 
+    /**
+     * PSP 发送请求成功
+     * @param entity 订单
+     * @param result 请求结果
+     */
     private void applyDispatchResult(PayOrderEntity entity, PspPayDispatchResult result) {
         entity.setPspRequestNo(result.getPspRequestNo());
         entity.setPspOrderNo(result.getPspOrderNo());
         entity.setPspPayUrl(result.getPayUrl());
+        entity.setPspPayParamsJson(result.getPayParamsJson());
         entity.setPspRawStatus(result.getRawStatus());
         if (result.isSuccess()) {
             entity.setStatus(STATUS_PROCESSING);
@@ -166,9 +187,17 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         }
         entity.setStatus(STATUS_FAILED);
         entity.setPspStatus(STATUS_FAILED);
-        entity.setStatusReason(StringUtils.defaultIfBlank(result.getErrorMessage(), "PSP submit failed"));
+        entity.setStatusReason(StringUtils.defaultIfBlank(
+                result.getErrorMessage(),
+                StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
+        ));
     }
 
+    /**
+     * 标记失败状态和失败原因
+     * @param entity 订单
+     * @param reason 失败原因
+     */
     private void markFailed(PayOrderEntity entity, String reason) {
         entity.setStatus(STATUS_FAILED);
         entity.setStatusReason(StringUtils.defaultIfBlank(reason, "Pay order failed"));
@@ -200,12 +229,12 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         target.setAmount(source.getAmount());
         target.setPaidAmount(source.getPaidAmount());
         target.setMerchantFeeAmount(source.getMerchantFeeAmount());
+        target.setMerchantFeeRuleId(source.getMerchantFeeRuleId());
+        target.setMerchantFeeSnapshotJson(source.getMerchantFeeSnapshotJson());
         target.setPspFeeAmount(source.getPspFeeAmount());
         target.setPspFeeRuleId(source.getPspFeeRuleId());
         target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
         target.setSettleAmount(source.getSettleAmount());
-        target.setFeeRuleId(source.getFeeRuleId());
-        target.setFeeSnapshotJson(source.getFeeSnapshotJson());
         target.setCurrency(source.getCurrency());
         target.setCountryCode(source.getCountryCode());
         target.setMethodCode(source.getMethodCode());
@@ -215,30 +244,42 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
     @Override
     public PayOrderResponse getByPayOrderNo(String payOrderNo) {
-        PayOrderEntity entity = payOrderDao.selectOne(baseWrapper().eq("pay_order_no", payOrderNo).last("limit 1"));
+        PayOrderEntity entity = payOrderDao.selectOne(baseWrapper().eq("pay_order_no", StringUtils.trim(payOrderNo)).last("limit 1"));
         return toResponse(entity);
     }
 
     @Override
     public PayOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
-        PayOrderEntity entity = payOrderDao.selectOne(baseWrapper().eq("merchant_order_no", merchantOrderNo).last("limit 1"));
+        PayOrderEntity entity = payOrderDao.selectOne(baseWrapper().eq("merchant_order_no", StringUtils.trim(merchantOrderNo)).last("limit 1"));
         return toResponse(entity);
     }
 
+    /**
+     * 必带有参数
+     * @return 返回筛选条件
+     */
     private QueryWrapper<PayOrderEntity> baseWrapper() {
         return new QueryWrapper<PayOrderEntity>()
                 .eq("tenant_id", ApiReqContextHolder.getTenantId())
                 .eq("merchant_id", ApiReqContextHolder.getMerchantId());
     }
 
+    /**
+     * 天啊及 商户手续费, 并计算结算金额, 路由Id, 路由快照
+     * @param entity 订单
+     */
     private void applyMerchantFee(PayOrderEntity entity) {
         MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayin(entity);
         entity.setMerchantFeeAmount(feeResult.getMerchantFeeAmount());
         entity.setSettleAmount(feeResult.getSettleAmount());
-        entity.setFeeRuleId(feeResult.getRule().getId());
-        entity.setFeeSnapshotJson(feeResult.getSnapshotJson());
+        entity.setMerchantFeeRuleId(feeResult.getRule().getId());
+        entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
     }
 
+    /**
+     * 添加 PSP手续费, 路由Id, 路由快照
+     * @param entity 订单
+     */
     private void applyPspFee(PayOrderEntity entity) {
         PspFeeResult feeResult = pspFeeRuleService.calculatePayin(entity);
         entity.setPspFeeAmount(feeResult.getPspFeeAmount());
@@ -255,15 +296,16 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         response.setMerchantOrderNo(entity.getMerchantOrderNo());
         response.setStatus(entity.getStatus());
         response.setStatusReason(entity.getStatusReason());
-        response.setAmount(entity.getAmount());
-        response.setPaidAmount(entity.getPaidAmount());
-        response.setMerchantFeeAmount(entity.getMerchantFeeAmount());
-        response.setSettleAmount(entity.getSettleAmount());
+        response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));
         response.setCurrency(entity.getCurrency());
         response.setCountryCode(entity.getCountryCode());
         response.setMethodCode(entity.getMethodCode());
         response.setPayUrl(entity.getPspPayUrl());
         response.setPspOrderNo(entity.getPspOrderNo());
         return response;
+    }
+
+    private String formatMoney(BigDecimal value, String currency) {
+        return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
     }
 }

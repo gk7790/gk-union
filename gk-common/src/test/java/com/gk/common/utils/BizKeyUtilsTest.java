@@ -39,10 +39,37 @@ class BizKeyUtilsTest {
     }
 
     @Test
+    void generatesPayoutOrderNo() {
+        String value = BizKeyUtils.genPayoutOrderNo();
+
+        assertTrue(value.matches("PAYOUT[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+    }
+
+    @Test
     void generatesPspRequestNo() {
         String value = BizKeyUtils.genPspRequestNo();
 
         assertTrue(value.matches("PRQ[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+    }
+
+    @Test
+    void generatesMerchantRequestNo() {
+        String value = BizKeyUtils.genMerchantRequestNo();
+
+        assertTrue(value.matches("MRQ[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+    }
+
+    @Test
+    void generatesMerchantNotifyTaskNo() {
+        String value = BizKeyUtils.genMerchantNotifyTaskNo();
+
+        assertTrue(value.matches("MNT[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+    }
+
+    @Test
+    void generatesLedgerJournalAndHoldNo() {
+        assertTrue(BizKeyUtils.genLedgerJournalNo().matches("LJ[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+        assertTrue(BizKeyUtils.genLedgerHoldNo().matches("LH[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
     }
 
     @Test

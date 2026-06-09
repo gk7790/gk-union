@@ -7,6 +7,7 @@ import java.time.Instant;
 
 @Data
 public class PspAccountDTO {
+    @Schema(title = "主键ID")
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
@@ -16,21 +17,19 @@ public class PspAccountDTO {
     private Long merchantScopeId;
     @Schema(title = "PSP ID")
     private Long pspId;
-    @Schema(title = "PSP编码")
-    private String pspCode;
-    @Schema(title = "PSP账户号")
+    @Schema(title = "PSP账户号/商户号")
     private String pspAccountNo;
     @Schema(title = "PSP账户名称")
     private String pspAccountName;
-    @Schema(title = "状态")
+    @Schema(title = "状态: 0禁用 1启用")
     private Integer status;
-    @Schema(title = "密钥类型")
+    @Schema(title = "密钥类型: HMAC/RSA/BASIC/TOKEN")
     private String secretType;
     @Schema(title = "PSP API Key")
     private String apiKey;
     @Schema(title = "PSP API Secret")
     private String apiSecret;
-    @Schema(title = "平台侧商户私钥引用")
+    @Schema(title = "平台侧私钥引用")
     private String merchantPrivateKeyRef;
     @Schema(title = "PSP公钥")
     private String pspPublicKey;
@@ -40,8 +39,12 @@ public class PspAccountDTO {
     private String configJson;
     @Schema(title = "备注")
     private String remark;
+    @Schema(title = "创建人")
     private Long createdBy;
+    @Schema(title = "创建时间")
     private Instant createdAt;
+    @Schema(title = "更新人")
     private Long updatedBy;
+    @Schema(title = "更新时间")
     private Instant updatedAt;
 }

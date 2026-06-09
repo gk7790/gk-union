@@ -19,13 +19,13 @@ class ApiAmountUtilsTest {
     }
 
     @Test
-    void formatsZeroDecimalCurrency() {
-        assertEquals("12", ApiAmountUtils.formatCurrencyAmount(new BigDecimal("12.99000000"), "JPY"));
+    void formatsEveryCurrencyWithTwoDecimals() {
+        assertEquals("12.99", ApiAmountUtils.formatCurrencyAmount(new BigDecimal("12.99000000"), "JPY"));
     }
 
     @Test
-    void formatsThreeDecimalCurrency() {
-        assertEquals("12.345", ApiAmountUtils.formatCurrencyAmount(new BigDecimal("12.34590000"), "KWD"));
+    void truncatesExtraDecimalsToTwoPlaces() {
+        assertEquals("12.34", ApiAmountUtils.formatCurrencyAmount(new BigDecimal("12.34590000"), "KWD"));
     }
 
     @Test

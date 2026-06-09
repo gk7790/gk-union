@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.openapi.dto.*;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.openapi.log.MerchantRequestLogger;
 import com.gk.openapi.security.OpenApiAuthFilter;
 import com.gk.openapi.service.OpenBalanceService;
 import com.gk.openapi.service.OpenPayOrderService;
@@ -31,6 +32,7 @@ public class OpenApiV1Controller {
     private final OpenPaymentMethodService openPaymentMethodService;
     private final OpenPayOrderService openPayOrderService;
     private final OpenPayoutOrderService openPayoutOrderService;
+    private final MerchantRequestLogger merchantRequestLogger;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
@@ -40,49 +42,97 @@ public class OpenApiV1Controller {
      */
     @PostMapping("balance")
     public ApiR<List<BalanceResponse>> balance(HttpServletRequest request) {
-        BalanceQueryRequest body = bindSignParams(request, BalanceQueryRequest.class, false);
-        return ApiR.success(openBalanceService.list(body.getCurrency()));
+        long startMs = System.currentTimeMillis();
+        BalanceQueryRequest body = null;
+        try {
+            body = bindSignParams(request, BalanceQueryRequest.class, false);
+            List<BalanceResponse> data = openBalanceService.list(body.getCurrency());
+            ApiR<List<BalanceResponse>> response = ApiR.success(data);
+            merchantRequestLogger.balanceSuccess(request, body, data, startMs);
+            return response;
+        } catch (ApiException ex) {
+            merchantRequestLogger.balanceFailed(request, ex, startMs);
+            throw ex;
+        } catch (Exception ex) {
+            merchantRequestLogger.balanceFailed(request, ex, startMs);
+            throw toRuntimeException(ex);
+        }
     }
 
     @PostMapping( "pay/create")
     public ApiR<PayOrderResponse> createPay(HttpServletRequest request) {
-        PayOrderCreateRequest body = bindSignParams(request, PayOrderCreateRequest.class, true);
-        PayOrderResponse orderResp = openPayOrderService.create(body);
-        return ApiR.success(orderResp);
+        long startMs = System.currentTimeMillis();
+        PayOrderCreateRequest body = null;
+        try {
+            body = bindSignParams(request, PayOrderCreateRequest.class, true);
+            PayOrderResponse orderResp = openPayOrderService.create(body);
+            ApiR<PayOrderResponse> response = ApiR.success(orderResp);
+            merchantRequestLogger.payCreateSuccess(request, body, orderResp, response, startMs);
+            return response;
+        } catch (ApiException ex) {
+            merchantRequestLogger.payCreateFailed(request, body, ex, startMs);
+            throw ex;
+        } catch (Exception ex) {
+            merchantRequestLogger.payCreateFailed(request, body, ex, startMs);
+            throw toRuntimeException(ex);
+        }
     }
 
     @PostMapping( "pay/query")
     public ApiR<PayOrderResponse> queryPay(HttpServletRequest request) {
-        PayOrderQueryRequest body = bindSignParams(request, PayOrderQueryRequest.class, false);
-        PayOrderResponse response;
-        if (StringUtils.isNotBlank(body.getPayOrderNo())) {
-            response = openPayOrderService.getByPayOrderNo(body.getPayOrderNo());
-        } else if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
-            response = openPayOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
-        } else {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
+        long startMs = System.currentTimeMillis();
+        PayOrderQueryRequest body = null;
+        try {
+            body = bindSignParams(request, PayOrderQueryRequest.class, false);
+            PayOrderResponse orderResp = queryPayOrder(body);
+            ApiR<PayOrderResponse> response = ApiR.success(orderResp);
+            merchantRequestLogger.payQuerySuccess(request, body, orderResp, response, startMs);
+            return response;
+        } catch (ApiException ex) {
+            merchantRequestLogger.payQueryFailed(request, body, ex, startMs);
+            throw ex;
+        } catch (Exception ex) {
+            merchantRequestLogger.payQueryFailed(request, body, ex, startMs);
+            throw toRuntimeException(ex);
         }
-        return ApiR.success(response);
     }
 
     @PostMapping( "payout/create")
     public ApiR<PayoutOrderResponse> createPayout(HttpServletRequest request) {
-        PayoutOrderCreateRequest body = bindSignParams(request, PayoutOrderCreateRequest.class, true);
-        return ApiR.success(openPayoutOrderService.create(body));
+        long startMs = System.currentTimeMillis();
+        PayoutOrderCreateRequest body = null;
+        try {
+            body = bindSignParams(request, PayoutOrderCreateRequest.class, true);
+            PayoutOrderResponse orderResp = openPayoutOrderService.create(body);
+            ApiR<PayoutOrderResponse> response = ApiR.success(orderResp);
+            merchantRequestLogger.payoutCreateSuccess(request, body, orderResp, response, startMs);
+            return response;
+        } catch (ApiException ex) {
+            merchantRequestLogger.payoutCreateFailed(request, body, ex, startMs);
+            throw ex;
+        } catch (Exception ex) {
+            merchantRequestLogger.payoutCreateFailed(request, body, ex, startMs);
+            throw toRuntimeException(ex);
+        }
     }
 
     @PostMapping("payout/query")
     public ApiR<PayoutOrderResponse> queryPayout(HttpServletRequest request) {
-        PayoutOrderQueryRequest body = bindSignParams(request, PayoutOrderQueryRequest.class, false);
-        PayoutOrderResponse response;
-        if (StringUtils.isNotBlank(body.getPayoutOrderNo())) {
-            response = openPayoutOrderService.getByPayoutOrderNo(body.getPayoutOrderNo());
-        } else if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
-            response = openPayoutOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
-        } else {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
+        long startMs = System.currentTimeMillis();
+        PayoutOrderQueryRequest body = null;
+        try {
+            body = bindSignParams(request, PayoutOrderQueryRequest.class, false);
+            PayoutOrderResponse orderResp = queryPayoutOrder(body);
+            ApiR<PayoutOrderResponse> response = ApiR.success(orderResp);
+            merchantRequestLogger.payoutQuerySuccess(request, body, orderResp, response, startMs);
+            return response;
+        } catch (ApiException ex) {
+            merchantRequestLogger.payoutQueryFailed(request, body, ex, startMs);
+            throw ex;
+        } catch (Exception ex) {
+            merchantRequestLogger.payoutQueryFailed(request, body, ex, startMs);
+            throw toRuntimeException(ex);
         }
-        return ApiR.success(response);
     }
 
     @PostMapping("methods")
@@ -105,5 +155,32 @@ public class OpenApiV1Controller {
             }
         }
         return body;
+    }
+
+    private RuntimeException toRuntimeException(Exception ex) {
+        if (ex instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new ApiException(ApiErrorCode.SYSTEM_ERROR);
+    }
+
+    private PayOrderResponse queryPayOrder(PayOrderQueryRequest body) {
+        if (StringUtils.isNotBlank(body.getPayOrderNo())) {
+            return openPayOrderService.getByPayOrderNo(body.getPayOrderNo());
+        }
+        if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
+            return openPayOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
+        }
+        throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
+    }
+
+    private PayoutOrderResponse queryPayoutOrder(PayoutOrderQueryRequest body) {
+        if (StringUtils.isNotBlank(body.getPayoutOrderNo())) {
+            return openPayoutOrderService.getByPayoutOrderNo(body.getPayoutOrderNo());
+        }
+        if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
+            return openPayoutOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
+        }
+        throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
     }
 }

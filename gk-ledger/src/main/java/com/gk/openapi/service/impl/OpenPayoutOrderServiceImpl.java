@@ -1,43 +1,341 @@
 package com.gk.openapi.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.utils.BizKeyUtils;
+import com.gk.ledger.posting.LedgerPostingResult;
+import com.gk.ledger.posting.PayoutPostingRequest;
+import com.gk.ledger.service.LedgerPostingService;
+import com.gk.merchant.entity.MerchantEntity;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayoutOrderService;
+import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.service.MerchantFeeRuleService;
+import com.gk.psp.dispatch.PspPayoutDispatchResult;
+import com.gk.psp.dispatch.PspPayoutDispatchService;
+import com.gk.psp.fee.PspFeeResult;
+import com.gk.psp.route.PspRouteResult;
+import com.gk.psp.route.PspRouteSelector;
+import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
+    private static final String ORDER_SOURCE_API = "API";
+    private static final String STATUS_CREATED = "CREATED";
+    private static final String STATUS_PROCESSING = "PROCESSING";
+    private static final String STATUS_FAILED = "FAILED";
+
     private final PayoutOrderDao payoutOrderDao;
+    private final MerchantFeeRuleService merchantFeeRuleService;
+    private final PspRouteSelector pspRouteSelector;
+    private final PspFeeRuleService pspFeeRuleService;
+    private final PspPayoutDispatchService pspPayoutDispatchService;
+    private final LedgerPostingService ledgerPostingService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
-        throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payout order creation flow is not wired yet");
+        PayoutOrderEntity existed = payoutOrderDao.selectOne(
+                baseWrapper()
+                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderNo()))
+                        .last("limit 1")
+        );
+        if (existed != null) {
+            return toResponse(existed);
+        }
+
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ApiException(ApiErrorCode.INVALID_AMOUNT);
+        }
+
+        ApiReqContext context = ApiReqContextHolder.get();
+        MerchantEntity merchant = context.getMerchant();
+        String currency = StringUtils.defaultIfBlank(request.getCurrency(), merchant.getDefaultCurrency());
+        String countryCode = StringUtils.defaultIfBlank(request.getCountryCode(), merchant.getCountryCode());
+        if (StringUtils.isBlank(currency) || StringUtils.isBlank(countryCode)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency and country_code is required");
+        }
+
+        PayoutOrderEntity entity = new PayoutOrderEntity();
+        entity.setTenantId(context.getTenantId());
+        entity.setMerchantId(context.getMerchantId());
+        entity.setMerchantNo(context.getMerchantNo());
+        entity.setMerchantAppId(context.getMerchantAppId());
+        entity.setAppId(context.getAppId());
+        entity.setPayoutOrderNo(BizKeyUtils.genPayoutOrderNo());
+        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderNo()));
+        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderNo()));
+        entity.setOrderSource(ORDER_SOURCE_API);
+        entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
+        entity.setCurrency(currency.toUpperCase(Locale.ROOT));
+        entity.setMethodCode(request.getMethodCode().toUpperCase(Locale.ROOT));
+        entity.setAmount(request.getAmount());
+        entity.setMerchantFeeAmount(BigDecimal.ZERO);
+        entity.setTotalDebitAmount(request.getAmount());
+        entity.setPspFeeAmount(BigDecimal.ZERO);
+        entity.setPurpose(StringUtils.trimToNull(request.getPurpose()));
+        entity.setNotifyUrl(StringUtils.trimToNull(request.getNotifyUrl()));
+        entity.setStatus(STATUS_CREATED);
+        entity.setQueryCount(0);
+        entity.setExtraJson(toJson(request.getExtra()));
+        entity.setVersion(0);
+
+        applyPayee(entity, request);
+        applyMerchantFee(entity);
+
+        boolean created = insertOrder(entity);
+        if (!created) {
+            return toResponse(entity);
+        }
+        freezePayout(entity);
+        submitToPsp(entity);
+        return toResponse(entity);
     }
 
     @Override
     public PayoutOrderResponse getByPayoutOrderNo(String payoutOrderNo) {
-        PayoutOrderEntity entity = payoutOrderDao.selectOne(baseWrapper().eq("payout_order_no", payoutOrderNo).last("limit 1"));
+        PayoutOrderEntity entity = payoutOrderDao.selectOne(
+                baseWrapper()
+                        .eq("payout_order_no", StringUtils.trim(payoutOrderNo))
+                        .last("limit 1")
+        );
         return toResponse(entity);
     }
 
     @Override
     public PayoutOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
-        PayoutOrderEntity entity = payoutOrderDao.selectOne(baseWrapper().eq("merchant_order_no", merchantOrderNo).last("limit 1"));
+        PayoutOrderEntity entity = payoutOrderDao.selectOne(
+                baseWrapper()
+                        .eq("merchant_order_no", StringUtils.trim(merchantOrderNo))
+                        .last("limit 1")
+        );
         return toResponse(entity);
+    }
+
+    private boolean insertOrder(PayoutOrderEntity entity) {
+        try {
+            payoutOrderDao.insert(entity);
+            return true;
+        } catch (DuplicateKeyException ex) {
+            PayoutOrderEntity existed = payoutOrderDao.selectOne(
+                    baseWrapper()
+                            .eq("merchant_order_no", entity.getMerchantOrderNo())
+                            .last("limit 1")
+            );
+            if (existed != null) {
+                copyOrder(existed, entity);
+                return false;
+            }
+            throw ex;
+        }
+    }
+
+    private void submitToPsp(PayoutOrderEntity order) {
+        try {
+            PspRouteResult route = pspRouteSelector.selectPayout(order);
+            applyRoute(order, route);
+            applyPspFee(order);
+
+            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(order, route);
+            applyDispatchResult(order, dispatchResult);
+            if (!dispatchResult.isSuccess()) {
+                releasePayout(order);
+            }
+            payoutOrderDao.updateById(order);
+        } catch (ApiException ex) {
+            releasePayout(order);
+            markFailed(order, ex.getMessage(), ex.getErrorCode().name());
+            throw ex;
+        } catch (Exception ex) {
+            releasePayout(order);
+            markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    private void applyRoute(PayoutOrderEntity entity, PspRouteResult route) {
+        entity.setRouteRuleId(route.getRouteRuleId());
+        entity.setRouteSnapshotJson(routeSnapshotJson(route));
+        entity.setPspId(route.getPspId());
+        entity.setPspCode(route.getPspCode());
+        entity.setPspMethodId(route.getPspMethodId());
+        entity.setPspMethodCode(route.getPspMethodCode());
+        entity.setPspAccountId(route.getPspAccountId());
+        entity.setPspAccountNo(route.getPspAccountNo());
+    }
+
+    private void applyDispatchResult(PayoutOrderEntity entity, PspPayoutDispatchResult result) {
+        entity.setPspRequestNo(result.getPspRequestNo());
+        entity.setPspOrderNo(result.getPspOrderNo());
+        entity.setPspRawStatus(result.getRawStatus());
+        if (result.isSuccess()) {
+            entity.setStatus(STATUS_PROCESSING);
+            entity.setPspStatus(STATUS_PROCESSING);
+            entity.setSubmittedAt(Instant.now());
+            return;
+        }
+        entity.setStatus(STATUS_FAILED);
+        entity.setPspStatus(STATUS_FAILED);
+        entity.setFailCode(result.getErrorCode());
+        entity.setFailMsg(StringUtils.left(result.getErrorMessage(), 512));
+        entity.setStatusReason(StringUtils.defaultIfBlank(
+                result.getErrorMessage(),
+                StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP payout submit failed")
+        ));
+        entity.setFailedAt(Instant.now());
+    }
+
+    private void markFailed(PayoutOrderEntity entity, String reason, String failCode) {
+        entity.setStatus(STATUS_FAILED);
+        entity.setStatusReason(StringUtils.defaultIfBlank(reason, "Payout order failed"));
+        entity.setFailCode(failCode);
+        entity.setFailMsg(StringUtils.left(reason, 512));
+        entity.setFailedAt(Instant.now());
+        payoutOrderDao.updateById(entity);
+    }
+
+    private void applyMerchantFee(PayoutOrderEntity entity) {
+        MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayout(entity);
+        BigDecimal feeAmount = defaultZero(feeResult.getMerchantFeeAmount());
+        entity.setMerchantFeeAmount(feeAmount);
+        entity.setTotalDebitAmount(entity.getAmount().add(feeAmount));
+        entity.setMerchantFeeRuleId(feeResult.getRule().getId());
+        entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    private void freezePayout(PayoutOrderEntity entity) {
+        LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(entity));
+        entity.setHoldNo(result.getHoldNo());
+        entity.setFreezeJournalNo(result.getJournalNo());
+        payoutOrderDao.updateById(entity);
+    }
+
+    private void releasePayout(PayoutOrderEntity entity) {
+        if (StringUtils.isBlank(entity.getHoldNo())) {
+            return;
+        }
+        try {
+            LedgerPostingResult result = ledgerPostingService.releasePayout(payoutPostingRequest(entity));
+            entity.setReleaseJournalNo(result.getJournalNo());
+        } catch (Exception ignored) {
+            // Keep the original PSP error visible; ledger retry/release can be handled by operations.
+        }
+    }
+
+    private PayoutPostingRequest payoutPostingRequest(PayoutOrderEntity entity) {
+        PayoutPostingRequest request = new PayoutPostingRequest();
+        request.setTenantId(entity.getTenantId());
+        request.setMerchantId(entity.getMerchantId());
+        request.setBizId(entity.getId());
+        request.setPayoutOrderNo(entity.getPayoutOrderNo());
+        request.setCurrency(entity.getCurrency());
+        request.setAmount(entity.getAmount());
+        request.setMerchantFeeAmount(entity.getMerchantFeeAmount());
+        request.setTotalDebitAmount(entity.getTotalDebitAmount());
+        return request;
+    }
+
+    private void applyPspFee(PayoutOrderEntity entity) {
+        PspFeeResult feeResult = pspFeeRuleService.calculatePayout(entity);
+        entity.setPspFeeAmount(feeResult.getPspFeeAmount());
+        entity.setPspFeeRuleId(feeResult.getRule().getId());
+        entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    private void applyPayee(PayoutOrderEntity entity, PayoutOrderCreateRequest request) {
+        PayoutOrderCreateRequest.Payee payee = request.getPayee();
+        String payeeName = firstNotBlank(payee == null ? null : payee.getName(), request.getCustomerName());
+        String accountNo = firstNotBlank(payee == null ? null : payee.getAccountNo(), request.getCustomerAccountNo());
+        String bankCode = firstNotBlank(payee == null ? null : payee.getBankCode(), request.getCustomerAccountBankCci());
+        String walletType = firstNotBlank(payee == null ? null : payee.getWalletType(), request.getCustomerAccountType());
+        String phone = payee == null ? null : payee.getPhone();
+        String email = payee == null ? null : payee.getEmail();
+
+        entity.setPayeeName(payeeName);
+        entity.setPayeeAccountMask(mask(accountNo, 4, 4));
+        entity.setPayeeAccountHash(sha256Hex(accountNo));
+        entity.setPayeeBankCode(bankCode);
+        entity.setPayeeWalletType(walletType);
+        entity.setPayeePhoneMask(mask(phone, 3, 4));
+        entity.setPayeePhoneHash(sha256Hex(phone));
+        entity.setPayeeEmailMask(maskEmail(email));
+        entity.setPayeeEmailHash(sha256Hex(email));
+        entity.setPayeeJson(toJson(payeeSnapshot(payeeName, accountNo, bankCode, walletType, phone, email)));
+    }
+
+    private Map<String, Object> payeeSnapshot(String name, String accountNo, String bankCode, String walletType, String phone, String email) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("name", name);
+        snapshot.put("account_mask", mask(accountNo, 4, 4));
+        snapshot.put("bank_code", bankCode);
+        snapshot.put("wallet_type", walletType);
+        snapshot.put("phone_mask", mask(phone, 3, 4));
+        snapshot.put("email_mask", maskEmail(email));
+        return snapshot;
+    }
+
+    private String routeSnapshotJson(PspRouteResult route) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("routeRuleId", route.getRouteRuleId());
+        snapshot.put("pspId", route.getPspId());
+        snapshot.put("pspCode", route.getPspCode());
+        snapshot.put("pspMethodId", route.getPspMethodId());
+        snapshot.put("pspMethodCode", route.getPspMethodCode());
+        snapshot.put("pspAccountId", route.getPspAccountId());
+        snapshot.put("pspAccountNo", route.getPspAccountNo());
+        return toJson(snapshot);
     }
 
     private QueryWrapper<PayoutOrderEntity> baseWrapper() {
         return new QueryWrapper<PayoutOrderEntity>()
                 .eq("tenant_id", ApiReqContextHolder.getTenantId())
                 .eq("merchant_id", ApiReqContextHolder.getMerchantId());
+    }
+
+    private void copyOrder(PayoutOrderEntity source, PayoutOrderEntity target) {
+        target.setId(source.getId());
+        target.setTenantId(source.getTenantId());
+        target.setMerchantId(source.getMerchantId());
+        target.setMerchantNo(source.getMerchantNo());
+        target.setMerchantAppId(source.getMerchantAppId());
+        target.setAppId(source.getAppId());
+        target.setPayoutOrderNo(source.getPayoutOrderNo());
+        target.setMerchantOrderNo(source.getMerchantOrderNo());
+        target.setStatus(source.getStatus());
+        target.setStatusReason(source.getStatusReason());
+        target.setAmount(source.getAmount());
+        target.setMerchantFeeAmount(source.getMerchantFeeAmount());
+        target.setMerchantFeeRuleId(source.getMerchantFeeRuleId());
+        target.setMerchantFeeSnapshotJson(source.getMerchantFeeSnapshotJson());
+        target.setTotalDebitAmount(source.getTotalDebitAmount());
+        target.setPspFeeAmount(source.getPspFeeAmount());
+        target.setPspFeeRuleId(source.getPspFeeRuleId());
+        target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
+        target.setCurrency(source.getCurrency());
+        target.setCountryCode(source.getCountryCode());
+        target.setMethodCode(source.getMethodCode());
+        target.setPspOrderNo(source.getPspOrderNo());
     }
 
     private PayoutOrderResponse toResponse(PayoutOrderEntity entity) {
@@ -49,11 +347,81 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         response.setMerchantOrderNo(entity.getMerchantOrderNo());
         response.setStatus(entity.getStatus());
         response.setStatusReason(entity.getStatusReason());
-        response.setAmount(entity.getAmount());
+        response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));
         response.setCurrency(entity.getCurrency());
         response.setCountryCode(entity.getCountryCode());
         response.setMethodCode(entity.getMethodCode());
         response.setPspOrderNo(entity.getPspOrderNo());
         return response;
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> map && map.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception ex) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON field");
+        }
+    }
+
+    private String formatMoney(BigDecimal value, String currency) {
+        return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
+    }
+
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String firstNotBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.isNotBlank(value)) {
+                return StringUtils.trim(value);
+            }
+        }
+        return null;
+    }
+
+    private String mask(String value, int prefix, int suffix) {
+        String text = StringUtils.trimToNull(value);
+        if (text == null) {
+            return null;
+        }
+        if (text.length() <= prefix + suffix) {
+            return "*".repeat(Math.min(text.length(), 6));
+        }
+        return text.substring(0, prefix) + "****" + text.substring(text.length() - suffix);
+    }
+
+    private String maskEmail(String value) {
+        String email = StringUtils.trimToNull(value);
+        if (email == null) {
+            return null;
+        }
+        int atIndex = email.indexOf('@');
+        if (atIndex <= 1) {
+            return mask(email, 1, 0);
+        }
+        return email.charAt(0) + "****" + email.substring(atIndex);
+    }
+
+    private String sha256Hex(String value) {
+        String text = StringUtils.trimToNull(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
+        }
     }
 }

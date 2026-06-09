@@ -20,6 +20,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         Long merchantId = params.getLong("merchantId", null);
         Long merchantAppId = params.getLong("merchantAppId", null);
         Long pspId = params.getLong("pspId", null);
+        Long merchantFeeRuleId = params.getLong("merchantFeeRuleId", null);
         Long pspFeeRuleId = params.getLong("pspFeeRuleId", null);
         String payoutOrderNo = params.getStr("payoutOrderNo");
         String merchantOrderNo = params.getStr("merchantOrderNo");
@@ -39,6 +40,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
         wrapper.eq(pspId != null, "psp_id", pspId);
+        wrapper.eq(merchantFeeRuleId != null, "merchant_fee_rule_id", merchantFeeRuleId);
         wrapper.eq(pspFeeRuleId != null, "psp_fee_rule_id", pspFeeRuleId);
         wrapper.eq(StrUtil.isNotBlank(payoutOrderNo), "payout_order_no", payoutOrderNo);
         wrapper.eq(StrUtil.isNotBlank(merchantOrderNo), "merchant_order_no", merchantOrderNo);

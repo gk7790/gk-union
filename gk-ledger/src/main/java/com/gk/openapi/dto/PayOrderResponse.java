@@ -1,19 +1,16 @@
 package com.gk.openapi.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
-import java.math.BigDecimal;
-
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PayOrderResponse {
     private String payOrderNo;
     private String merchantOrderNo;
     private String status;
     private String statusReason;
-    private BigDecimal amount;
-    private BigDecimal paidAmount;
-    private BigDecimal merchantFeeAmount;
-    private BigDecimal settleAmount;
+    private String amount;
     private String currency;
     private String countryCode;
     private String methodCode;

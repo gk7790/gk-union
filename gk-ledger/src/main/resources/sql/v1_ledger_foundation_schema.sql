@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS ledger_hold (
     updated_at datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_ledger_hold_no (tenant_id, hold_no),
-    KEY idx_ledger_hold_biz (tenant_id, biz_type, biz_no),
+    UNIQUE KEY uk_ledger_hold_biz_scope (tenant_id, biz_type, biz_no, hold_scope),
     KEY idx_ledger_hold_scope (tenant_id, hold_scope, status, created_at),
     KEY idx_ledger_hold_owner_status (tenant_id, owner_type, owner_id, currency, status),
     KEY idx_ledger_hold_expired (tenant_id, status, expired_at)

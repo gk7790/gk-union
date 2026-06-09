@@ -57,7 +57,6 @@ CREATE TABLE IF NOT EXISTS psp_account (
     merchant_id bigint NULL DEFAULT NULL COMMENT '平台商户ID，NULL表示租户级默认PSP账户',
     merchant_scope_id bigint NOT NULL DEFAULT 0 COMMENT '商户作用域ID，租户级默认配置为0，商户专属配置为merchant_id',
     psp_id bigint NOT NULL COMMENT 'PSP ID',
-    psp_code varchar(64) NOT NULL COMMENT 'PSP编码快照',
     psp_account_no varchar(128) NOT NULL COMMENT 'PSP账户号/商户号',
     psp_account_name varchar(128) NULL DEFAULT NULL COMMENT 'PSP账户名称',
     status tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
@@ -177,7 +176,10 @@ CREATE TABLE IF NOT EXISTS psp_request_log (
     PRIMARY KEY (id),
     UNIQUE KEY uk_psp_request_no (request_no),
     KEY idx_psp_request_biz (tenant_id, biz_type, biz_no),
+    KEY idx_psp_request_psp (tenant_id, psp_id, created_at),
+    KEY idx_psp_request_psp_request_no (tenant_id, psp_request_no),
     KEY idx_psp_request_psp_order (psp_id, psp_order_no),
+    KEY idx_psp_request_success (tenant_id, success, created_at),
     KEY idx_psp_request_created (tenant_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='PSP请求响应日志';
 

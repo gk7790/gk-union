@@ -12,11 +12,11 @@ import lombok.EqualsAndHashCode;
 public class SysUserEntity extends SimpleEntity {
 
     /**
-     * 部门ID
+     * 部门ID （旧模型字段，后续迁移到 sys_user_tenant.dept_id）
      */
     private Long deptId;
     /**
-     * 租户id
+     * 租户id （旧模型字段，后续迁移到 sys_user_tenant.tenant_id）
      */
     private Long tenantId;
     /**

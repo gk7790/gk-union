@@ -1,0 +1,224 @@
+/*
+ Navicat Premium Dump SQL
+
+ Source Server         : 个人数据库(HK)
+ Source Server Type    : MySQL
+ Source Server Version : 80036 (8.0.36)
+ Source Host           : rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306
+ Source Schema         : gk-union
+
+ Target Server Type    : MySQL
+ Target Server Version : 80036 (8.0.36)
+ File Encoding         : 65001
+
+ Date: 10/06/2026 12:31:23
+*/
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+
+-- ----------------------------
+-- Table structure for pay_order
+-- ----------------------------
+DROP TABLE IF EXISTS `pay_order`;
+CREATE TABLE `pay_order`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `merchant_id` bigint NOT NULL COMMENT '平台商户ID',
+  `merchant_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台商户号快照',
+  `merchant_app_id` bigint NOT NULL COMMENT '商户应用ID',
+  `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户应用ID快照',
+  `pay_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台代收订单号',
+  `merchant_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户订单号',
+  `idempotency_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户请求幂等键',
+  `request_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求ID/链路请求号',
+  `order_source` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'API' COMMENT '订单来源: API/ADMIN/SYSTEM',
+  `country_code` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '国家编码',
+  `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
+  `method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台统一支付方式编码',
+  `amount` decimal(24, 8) NOT NULL COMMENT '订单金额',
+  `paid_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '实际支付金额',
+  `merchant_fee_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '商户手续费',
+  `merchant_fee_rule_id` bigint NULL DEFAULT NULL COMMENT '商户手续费规则ID',
+  `merchant_fee_snapshot_json` json NULL COMMENT '商户手续费规则快照JSON',
+  `psp_fee_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT 'PSP成本手续费',
+  `psp_fee_rule_id` bigint NULL DEFAULT NULL COMMENT 'PSP成本手续费规则ID',
+  `psp_fee_snapshot_json` json NULL COMMENT 'PSP成本手续费规则快照JSON',
+  `settle_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '商户待结算金额',
+  `subject` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订单标题',
+  `description` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订单描述',
+  `client_ip` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户侧用户IP',
+  `payer_json` json NULL COMMENT '付款人扩展信息JSON，敏感信息需要脱敏或加密',
+  `notify_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户异步通知地址',
+  `return_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户同步跳转地址',
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/PROCESSING/SUCCESS/FAILED/CLOSED',
+  `status_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '当前状态原因',
+  `expire_at` datetime(3) NULL DEFAULT NULL COMMENT '订单过期时间',
+  `paid_at` datetime(3) NULL DEFAULT NULL COMMENT '支付成功时间',
+  `closed_at` datetime(3) NULL DEFAULT NULL COMMENT '关闭时间',
+  `failed_at` datetime(3) NULL DEFAULT NULL COMMENT '失败时间',
+  `route_rule_id` bigint NULL DEFAULT NULL COMMENT '命中的PSP路由规则ID',
+  `route_snapshot_json` json NULL COMMENT 'PSP路由快照JSON',
+  `psp_id` bigint NULL DEFAULT NULL COMMENT 'PSP ID',
+  `psp_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP编码快照',
+  `psp_method_id` bigint NULL DEFAULT NULL COMMENT 'PSP支付方式ID',
+  `psp_method_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP支付方式编码',
+  `psp_account_id` bigint NULL DEFAULT NULL COMMENT 'PSP账户配置ID',
+  `psp_account_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP账户号快照',
+  `psp_request_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求PSP的平台请求编号',
+  `psp_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP订单号',
+  `psp_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP状态',
+  `psp_raw_status` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP原始状态',
+  `psp_pay_url` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP收银台/支付链接',
+  `psp_pay_params_json` json NULL COMMENT 'PSP支付参数JSON',
+  `ledger_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '入账凭证号',
+  `settle_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING' COMMENT '结算状态: PENDING/RELEASED/HELD/CANCELLED',
+  `settle_at` datetime(3) NULL DEFAULT NULL COMMENT '结算释放时间',
+  `settle_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '结算释放凭证号',
+  `outbox_event_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订单成功事件ID',
+  `extra_json` json NULL COMMENT '订单扩展JSON',
+  `version` int NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
+  `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_pay_order_no`(`tenant_id` ASC, `pay_order_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_pay_merchant_order`(`tenant_id` ASC, `merchant_id` ASC, `merchant_order_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_pay_idempotency`(`tenant_id` ASC, `merchant_id` ASC, `idempotency_key` ASC) USING BTREE,
+  INDEX `idx_pay_order_status`(`tenant_id` ASC, `status` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_expire`(`tenant_id` ASC, `status` ASC, `expire_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_settle`(`tenant_id` ASC, `settle_status` ASC, `paid_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_merchant`(`tenant_id` ASC, `merchant_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_psp`(`psp_id` ASC, `psp_order_no` ASC) USING BTREE,
+  INDEX `idx_pay_order_psp_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE,
+  INDEX `idx_pay_order_merchant_fee_rule`(`tenant_id` ASC, `merchant_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_pay_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 2064284667210047491 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代收订单' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for payout_order
+-- ----------------------------
+DROP TABLE IF EXISTS `payout_order`;
+CREATE TABLE `payout_order`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `merchant_id` bigint NOT NULL COMMENT '平台商户ID',
+  `merchant_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台商户号快照',
+  `merchant_app_id` bigint NOT NULL COMMENT '商户应用ID',
+  `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户应用ID快照',
+  `payout_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台代付订单号',
+  `merchant_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户订单号',
+  `idempotency_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户请求幂等键',
+  `request_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求ID/链路请求号',
+  `order_source` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'API' COMMENT '订单来源: API/ADMIN/SYSTEM',
+  `country_code` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '国家编码',
+  `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
+  `method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台统一代付方式编码',
+  `amount` decimal(24, 8) NOT NULL COMMENT '代付金额',
+  `merchant_fee_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '商户手续费',
+  `merchant_fee_rule_id` bigint NULL DEFAULT NULL COMMENT '商户手续费规则ID',
+  `merchant_fee_snapshot_json` json NULL COMMENT '商户手续费规则快照JSON',
+  `total_debit_amount` decimal(24, 8) NOT NULL COMMENT '商户扣减总额，通常为amount+fee',
+  `psp_fee_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT 'PSP成本手续费',
+  `psp_fee_rule_id` bigint NULL DEFAULT NULL COMMENT 'PSP成本手续费规则ID',
+  `psp_fee_snapshot_json` json NULL COMMENT 'PSP成本手续费规则快照JSON',
+  `payee_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人姓名',
+  `payee_account_cipher` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款账号/钱包号密文',
+  `payee_account_mask` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款账号/钱包号掩码',
+  `payee_account_hash` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款账号/钱包号哈希',
+  `payee_bank_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款银行编码',
+  `payee_wallet_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款钱包类型',
+  `payee_phone_cipher` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人手机号密文',
+  `payee_phone_mask` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人手机号掩码',
+  `payee_phone_hash` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人手机号哈希',
+  `payee_email_cipher` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人邮箱密文',
+  `payee_email_mask` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人邮箱掩码',
+  `payee_email_hash` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '收款人邮箱哈希',
+  `payee_json` json NULL COMMENT '收款人扩展JSON',
+  `purpose` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '代付用途',
+  `notify_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户异步通知地址',
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/FROZEN/PROCESSING/SUCCESS/FAILED/CANCELLED',
+  `status_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '当前状态原因',
+  `submitted_at` datetime(3) NULL DEFAULT NULL COMMENT '提交PSP时间',
+  `completed_at` datetime(3) NULL DEFAULT NULL COMMENT '完成时间',
+  `failed_at` datetime(3) NULL DEFAULT NULL COMMENT '失败时间',
+  `cancelled_at` datetime(3) NULL DEFAULT NULL COMMENT '取消时间',
+  `fail_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '失败码',
+  `fail_msg` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '失败原因',
+  `hold_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '冻结编号',
+  `freeze_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '冻结凭证号',
+  `success_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '成功扣款凭证号',
+  `release_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '失败解冻凭证号',
+  `route_rule_id` bigint NULL DEFAULT NULL COMMENT '命中的PSP路由规则ID',
+  `route_snapshot_json` json NULL COMMENT 'PSP路由快照JSON',
+  `psp_id` bigint NULL DEFAULT NULL COMMENT 'PSP ID',
+  `psp_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP编码快照',
+  `psp_method_id` bigint NULL DEFAULT NULL COMMENT 'PSP支付方式ID',
+  `psp_method_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP支付方式编码',
+  `psp_account_id` bigint NULL DEFAULT NULL COMMENT 'PSP账户配置ID',
+  `psp_account_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP账户号快照',
+  `psp_request_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求PSP的平台请求编号',
+  `psp_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP订单号',
+  `psp_status` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP状态',
+  `psp_raw_status` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP原始状态',
+  `next_query_at` datetime(3) NULL DEFAULT NULL COMMENT '下一次主动查询PSP状态时间',
+  `query_count` int NOT NULL DEFAULT 0 COMMENT '主动查询次数',
+  `outbox_event_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订单终态事件ID',
+  `extra_json` json NULL COMMENT '订单扩展JSON',
+  `version` int NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
+  `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
+  `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_payout_order_no`(`tenant_id` ASC, `payout_order_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_payout_merchant_order`(`tenant_id` ASC, `merchant_id` ASC, `merchant_order_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_payout_idempotency`(`tenant_id` ASC, `merchant_id` ASC, `idempotency_key` ASC) USING BTREE,
+  INDEX `idx_payout_order_status`(`tenant_id` ASC, `status` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_order_query`(`tenant_id` ASC, `status` ASC, `next_query_at` ASC) USING BTREE,
+  INDEX `idx_payout_order_merchant`(`tenant_id` ASC, `merchant_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_order_psp`(`psp_id` ASC, `psp_order_no` ASC) USING BTREE,
+  INDEX `idx_payout_order_psp_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE,
+  INDEX `idx_payout_order_merchant_fee_rule`(`tenant_id` ASC, `merchant_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_order_hold`(`tenant_id` ASC, `hold_no` ASC) USING BTREE,
+  INDEX `idx_payout_payee_account_hash`(`tenant_id` ASC, `payee_account_hash` ASC) USING BTREE,
+  INDEX `idx_payout_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代付订单' ROW_FORMAT = Dynamic;
+
+
+-- ----------------------------
+-- Table structure for order_status_log
+-- ----------------------------
+DROP TABLE IF EXISTS `order_status_log`;
+CREATE TABLE `order_status_log`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `merchant_id` bigint NULL DEFAULT NULL COMMENT '平台商户ID',
+  `log_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态日志编号',
+  `order_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单类型: PAY/PAYOUT',
+  `order_id` bigint NOT NULL COMMENT '订单ID',
+  `order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单号',
+  `from_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '变更前状态',
+  `to_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '变更后状态',
+  `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '触发事件',
+  `reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '变更原因',
+  `operator_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'SYSTEM' COMMENT '操作方: SYSTEM/MERCHANT/PSP/ADMIN/SCHEDULER',
+  `operator_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '操作方ID',
+  `request_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求ID/链路请求号',
+  `trace_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '链路追踪ID',
+  `metadata_json` json NULL COMMENT '状态变更上下文JSON',
+  `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_order_status_log_no`(`tenant_id` ASC, `log_no` ASC) USING BTREE,
+  INDEX `idx_order_status_order`(`tenant_id` ASC, `order_type` ASC, `order_no` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_order_status_event`(`tenant_id` ASC, `event_type` ASC, `created_at` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单状态流转日志' ROW_FORMAT = Dynamic;

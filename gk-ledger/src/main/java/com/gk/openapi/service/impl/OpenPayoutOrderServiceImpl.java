@@ -6,6 +6,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
+import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
@@ -35,6 +36,7 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -61,13 +63,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                         .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderNo()))
                         .last("limit 1")
         );
-        if (existed != null) {
-            return toResponse(existed);
-        }
-
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(ApiErrorCode.INVALID_AMOUNT);
         }
+        validateAmountScale(request.getAmount());
 
         ApiReqContext context = ApiReqContextHolder.get();
         MerchantEntity merchant = context.getMerchant();
@@ -75,6 +74,14 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String countryCode = StringUtils.defaultIfBlank(request.getCountryCode(), merchant.getCountryCode());
         if (StringUtils.isBlank(currency) || StringUtils.isBlank(countryCode)) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency and country_code is required");
+        }
+        String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
+        String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
+        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
+
+        if (existed != null) {
+            validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
+            return toResponse(existed);
         }
 
         PayoutOrderEntity entity = new PayoutOrderEntity();
@@ -88,8 +95,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderNo()));
         entity.setOrderSource(ORDER_SOURCE_API);
         entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
-        entity.setCurrency(currency.toUpperCase(Locale.ROOT));
-        entity.setMethodCode(request.getMethodCode().toUpperCase(Locale.ROOT));
+        entity.setCurrency(normalizedCurrency);
+        entity.setMethodCode(normalizedMethod);
         entity.setAmount(request.getAmount());
         entity.setMerchantFeeAmount(BigDecimal.ZERO);
         entity.setTotalDebitAmount(request.getAmount());
@@ -108,8 +115,23 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         if (!created) {
             return toResponse(entity);
         }
-        freezePayout(entity);
+        try {
+            // 冻结账户金额
+            freezePayout(entity);
+        } catch (ApiException ex) {
+            markFailed(entity, ex.getMessage(), ex.getErrorCode().name());
+            throw ex;
+        } catch (Exception ex) {
+            ApiErrorCode errorCode = StringUtils.containsIgnoreCase(ex.getMessage(), "Insufficient ledger balance")
+                    ? ApiErrorCode.INSUFFICIENT_BALANCE
+                    : ApiErrorCode.SYSTEM_ERROR;
+            markFailed(entity, errorCode.getMessage(), errorCode.name());
+            throw new ApiException(errorCode);
+        }
+
+        // 提交代付到PSP
         submitToPsp(entity);
+
         return toResponse(entity);
     }
 
@@ -144,6 +166,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                             .last("limit 1")
             );
             if (existed != null) {
+                validateIdempotentEntity(existed, entity);
                 copyOrder(existed, entity);
                 return false;
             }
@@ -224,20 +247,28 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
     }
 
-    private void freezePayout(PayoutOrderEntity entity) {
-        LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(entity));
-        entity.setHoldNo(result.getHoldNo());
-        entity.setFreezeJournalNo(result.getJournalNo());
-        payoutOrderDao.updateById(entity);
+    /**
+     * TODO 账务冻结核心
+     * @param order 订单信息
+     */
+    private void freezePayout(PayoutOrderEntity order) {
+        LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(order));
+        order.setHoldNo(result.getHoldNo());
+        order.setFreezeJournalNo(result.getJournalNo());
+        payoutOrderDao.updateById(order);
     }
 
-    private void releasePayout(PayoutOrderEntity entity) {
-        if (StringUtils.isBlank(entity.getHoldNo())) {
+    /**
+     * TODO 账务冻结核心
+     * @param order 订单信息
+     */
+    private void releasePayout(PayoutOrderEntity order) {
+        if (StringUtils.isBlank(order.getHoldNo())) {
             return;
         }
         try {
-            LedgerPostingResult result = ledgerPostingService.releasePayout(payoutPostingRequest(entity));
-            entity.setReleaseJournalNo(result.getJournalNo());
+            LedgerPostingResult result = ledgerPostingService.releasePayout(payoutPostingRequest(order));
+            order.setReleaseJournalNo(result.getJournalNo());
         } catch (Exception ignored) {
             // Keep the original PSP error visible; ledger retry/release can be handled by operations.
         }
@@ -261,6 +292,55 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setPspFeeAmount(feeResult.getPspFeeAmount());
         entity.setPspFeeRuleId(feeResult.getRule().getId());
         entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    private void validateIdempotentRequest(PayoutOrderEntity existed, PayoutOrderCreateRequest request, String currency, String methodCode) {
+        if (existed.getAmount() == null || request.getAmount() == null
+                || existed.getAmount().compareTo(request.getAmount()) != 0
+                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
+                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), sha256Hex(request.getCustomerAccountNo()))) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    private void validateIdempotentEntity(PayoutOrderEntity existed, PayoutOrderEntity entity) {
+        if (existed.getAmount() == null || entity.getAmount() == null
+                || existed.getAmount().compareTo(entity.getAmount()) != 0
+                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
+                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), StringUtils.trimToEmpty(entity.getPayeeAccountHash()))) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
+        if (!allowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is not allowed for app");
+        }
+        if (!allowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
+        }
+    }
+
+    private boolean allowed(String jsonArray, String value) {
+        if (StringUtils.isBlank(jsonArray)) {
+            return true;
+        }
+        try {
+            List<String> allowedValues = objectMapper.readValue(jsonArray, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            return allowedValues.stream().anyMatch(item -> StringUtils.equalsIgnoreCase(item, value));
+        } catch (Exception ex) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
+        }
+    }
+
+    private void validateAmountScale(BigDecimal amount) {
+        if (amount.scale() > 8) {
+            throw new ApiException(ApiErrorCode.INVALID_AMOUNT, "amount scale must be less than or equal to 8");
+        }
     }
 
     private void applyPayee(PayoutOrderEntity entity, PayoutOrderCreateRequest request) {

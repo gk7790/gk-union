@@ -32,7 +32,7 @@ import java.util.List;
 public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntity> implements SysRoleService {
 	private final SysRoleMenuService sysRoleMenuService;
 	private final SysRoleDataScopeService sysRoleDataScopeService;
-	private final SysRoleUserService sysRoleUserService;
+	private final SysUserSubjectService sysUserSubjectService;
 	private final SysDeptService sysDeptService;
 
     @Override
@@ -125,8 +125,8 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		//删除角色
 		baseDao.deleteBatchIds(Arrays.asList(ids));
 
-		//删除角色用户关系
-		sysRoleUserService.deleteByRoleIds(ids);
+		//删除用户主体角色关系
+		sysUserSubjectService.deleteByRoleIds(ids);
 
 		//删除角色菜单关系
 		sysRoleMenuService.deleteByRoleIds(ids);

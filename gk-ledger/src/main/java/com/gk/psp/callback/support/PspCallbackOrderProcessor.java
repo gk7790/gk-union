@@ -37,6 +37,26 @@ public class PspCallbackOrderProcessor {
         return update(bizType, order.id(), wrapper -> applyTerminal(bizType, wrapper, result, order, targetStatus, postingResult));
     }
 
+    public void attachPostingResult(String bizType, Long orderId, String targetStatus, LedgerPostingResult postingResult) {
+        String journalNo = postingResult == null ? null : postingResult.getJournalNo();
+        if (StringUtils.isBlank(journalNo)) {
+            return;
+        }
+        String normalizedStatus = PspCallbackUtils.normalizeStatus(targetStatus);
+        boolean updated = updateJournalNo(bizType, orderId, wrapper -> {
+            if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+                wrapper.set("ledger_journal_no", journalNo);
+            } else if (PspCallbackConstants.STATUS_SUCCESS.equals(normalizedStatus)) {
+                wrapper.set("success_journal_no", journalNo);
+            } else if (PspCallbackConstants.STATUS_FAILED.equals(normalizedStatus)) {
+                wrapper.set("release_journal_no", journalNo);
+            }
+        });
+        if (!updated) {
+            throw new IllegalStateException("Attach ledger journal to callback order failed");
+        }
+    }
+
     private void applyTerminal(String bizType, UpdateWrapper<?> wrapper, PspCallbackResult result,
                                PspCallbackOrder order, String targetStatus, LedgerPostingResult postingResult) {
         applyCommon(wrapper, targetStatus, result, order);
@@ -85,6 +105,19 @@ public class PspCallbackOrderProcessor {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
                 .in("status", PspCallbackConstants.STATUS_CREATED, PspCallbackConstants.STATUS_PROCESSING);
+        setter.accept(wrapper);
+        return dao.update(null, wrapper) > 0;
+    }
+
+    private boolean updateJournalNo(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
+        return PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)
+                ? updateJournalNo(payOrderDao, id, setter)
+                : updateJournalNo(payoutOrderDao, id, setter);
+    }
+
+    private <T> boolean updateJournalNo(BaseMapper<T> dao, Long id, Consumer<UpdateWrapper<?>> setter) {
+        UpdateWrapper<T> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", id);
         setter.accept(wrapper);
         return dao.update(null, wrapper) > 0;
     }

@@ -167,11 +167,13 @@ public class SecurityConfig {
             Map<String, Object> claims = new HashMap<>();
             claims.put(JwtUtils.USER_ID, user.getId());
             claims.put(JwtUtils.TENANT_ID, user.getTenantId());
+            claims.put(JwtUtils.MERCHANT_ID, user.getMerchantId());
             claims.put(JwtUtils.DEPT_ID, user.getDeptId());
+            claims.put(JwtUtils.ROLE_ID, user.getRoleId());
+            claims.put(JwtUtils.SUBJECT_TYPE, user.getSubjectType());
+            claims.put(JwtUtils.RELATION_TYPE, user.getRelationType());
             claims.put(JwtUtils.UNAME, user.getUsername());
             claims.put(JwtUtils.SUPER_Admin, user.isSuperAdmin());
-            claims.put(JwtUtils.SCOPE, user.getScope());
-            claims.put(JwtUtils.DOMAIN, user.getDomain());
             claims.put("email", user.getEmail());
             claims.put("realName", user.getRealName());
             claims.put("roles", user.getRoleList());
@@ -181,6 +183,12 @@ public class SecurityConfig {
             userMap.put("id", user.getId());
             userMap.put("username", user.getUsername());
             userMap.put("realName", user.getNickName());
+            userMap.put("subjectType", user.getSubjectType());
+            userMap.put("tenantId", user.getTenantId());
+            userMap.put("merchantId", user.getMerchantId());
+            userMap.put("deptId", user.getDeptId());
+            userMap.put("roleId", user.getRoleId());
+            userMap.put("relationType", user.getRelationType());
             userMap.put("roles", user.getRoleList());
             userMap.put("accessToken", token);
             userMap.put("tokenType", "Bearer");

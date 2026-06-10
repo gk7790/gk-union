@@ -13,6 +13,9 @@ import com.gk.psp.entity.PspCallbackLogEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -29,11 +32,14 @@ public class PspCallbackService {
     private final PspCallbackLogRecorder logRecorder;
     private final PspCallbackNotifyCreator notifyCreator;
     private final LedgerPostingService ledgerPostingService;
+    private final PspCallbackValidator callbackValidator;
 
+    @Transactional(rollbackFor = Exception.class)
     public String handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
         return handle(pspCode, PspCallbackConstants.BIZ_TYPE_PAY_ORDER, request, rawBody);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public String handlePayoutCallback(String pspCode, HttpServletRequest request, String rawBody) {
         return handle(pspCode, PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER, request, rawBody);
     }
@@ -46,6 +52,7 @@ public class PspCallbackService {
 
         PspCallbackRequest request = requestFactory.create(pspCode, bizType, servletRequest, rawBody);
         PspCallbackLogEntity logEntity = null;
+        boolean orderChanged = false;
         try {
             PspCallbackResult result = parse(adapter, bizType, request);
             PspCallbackOrder order = orderResolver.resolve(bizType, result);
@@ -57,23 +64,34 @@ public class PspCallbackService {
                 return result.getFailResponse();
             }
 
-            LedgerPostingResult postingResult = null;
-            if (PspCallbackUtils.isTerminal(result.getOrderStatus())) {
-                postingResult = postLedger(bizType, result, order);
+            boolean terminal = PspCallbackUtils.isTerminal(result.getOrderStatus());
+            if (terminal) {
+                callbackValidator.validateTerminalCallback(bizType, result, order);
             }
-            boolean changed = orderProcessor.process(bizType, result, order, postingResult);
-            if (changed && PspCallbackUtils.isTerminal(result.getOrderStatus())) {
+            orderChanged = orderProcessor.process(bizType, result, order, null);
+            if (orderChanged && terminal) {
+                LedgerPostingResult postingResult = postLedger(bizType, result, order);
+                orderProcessor.attachPostingResult(bizType, order.id(), result.getOrderStatus(), postingResult);
                 notifyCreator.create(bizType, result, order, logEntity);
             }
 
-            logRecorder.finish(logEntity, "SUCCESS", changed ? PspCallbackConstants.PROCESS_SUCCESS : PspCallbackConstants.PROCESS_IGNORED, null);
+            logRecorder.finish(logEntity, "SUCCESS", orderChanged ? PspCallbackConstants.PROCESS_SUCCESS : PspCallbackConstants.PROCESS_IGNORED, null);
             return result.getSuccessResponse();
         } catch (Exception ex) {
+            if (orderChanged) {
+                rollbackIfActive();
+            }
             if (logEntity == null) {
                 logEntity = logRecorder.failed(pspCode, bizType, request, ex);
             }
             logRecorder.finish(logEntity, "FAILED", PspCallbackConstants.PROCESS_FAILED, ex.getMessage());
             return "fail";
+        }
+    }
+
+    private void rollbackIfActive() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
         }
     }
 

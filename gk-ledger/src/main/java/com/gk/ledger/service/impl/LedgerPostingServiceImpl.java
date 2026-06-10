@@ -189,21 +189,29 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
         LedgerHoldEntity hold = requireHoldingHold(request.getTenantId(), request.getPayoutOrderNo());
 
-        BigDecimal amount = scale(hold.getRemainingAmount());
+        BigDecimal totalDebitAmount = scale(hold.getRemainingAmount());
+        BigDecimal payoutAmount = scale(request.getAmount());
+        BigDecimal feeAmount = defaultZero(request.getMerchantFeeAmount());
+        if (payoutAmount.add(feeAmount).compareTo(totalDebitAmount) != 0) {
+            throw new IllegalStateException("Payout posting amount does not match hold amount: " + request.getPayoutOrderNo());
+        }
         LedgerAccountEntity merchantFrozen = account(hold.getFrozenAccountId());
         LedgerAccountEntity systemClearing = account(request.getTenantId(), OWNER_SYSTEM, 0L, ACCOUNT_SYSTEM_CLEARING, request.getCurrency());
-        List<PostingLine> lines = List.of(
-                new PostingLine(merchantFrozen, DIRECTION_DEBIT, amount, "Payout consume frozen amount"),
-                new PostingLine(systemClearing, DIRECTION_CREDIT, amount, "Payout consume frozen amount")
-        );
+        List<PostingLine> lines = new ArrayList<>();
+        lines.add(new PostingLine(merchantFrozen, DIRECTION_DEBIT, totalDebitAmount, "Payout consume frozen amount"));
+        lines.add(new PostingLine(systemClearing, DIRECTION_CREDIT, payoutAmount, "Payout principal clearing"));
+        if (positive(feeAmount)) {
+            LedgerAccountEntity platformFee = account(request.getTenantId(), OWNER_PLATFORM, 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
+            lines.add(new PostingLine(platformFee, DIRECTION_CREDIT, feeAmount, "Payout merchant fee income"));
+        }
         LedgerJournalEntity journal = createJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getBizId(), request.getPayoutOrderNo(), eventType,
-                request.getCurrency(), amount, lines.size(), request.getTraceId(), "Payout success posting");
+                request.getCurrency(), totalDebitAmount, lines.size(), request.getTraceId(), "Payout success posting");
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType, true);
         }
         postEntries(journal, lines);
 
-        hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(amount)));
+        hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
         hold.setRemainingAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         hold.setStatus(HOLD_STATUS_CONSUMED);
         hold.setConsumeJournalNo(journal.getJournalNo());

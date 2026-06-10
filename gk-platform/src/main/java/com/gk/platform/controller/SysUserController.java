@@ -17,7 +17,6 @@ import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dto.PasswordDTO;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
-import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,7 +43,6 @@ public class SysUserController {
     private final CurrentUser currentUser;
 	private final SysUserService sysUserService;
 	private final SysUserPostService sysUserPostService;
-	private final SysRoleUserService sysRoleUserService;
 
     /**
      * 分页
@@ -72,9 +70,9 @@ public class SysUserController {
 	public R<?> get(@PathVariable("id") Long id){
 		SysUserDTO data = sysUserService.getById(id);
 
-		//用户角色列表
-		List<Long> roleIdList = sysRoleUserService.getRoleIdList(id);
-		data.setRoleIdList(roleIdList);
+		if (data.getRoleId() != null) {
+			data.setRoleIdList(List.of(data.getRoleId()));
+		}
 
 		//用户岗位列表
 		List<Long> postIdList = sysUserPostService.getPostIdList(id);

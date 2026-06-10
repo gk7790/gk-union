@@ -32,6 +32,22 @@ public class ReqContext {
      */
     private Long tenantId;
     /**
+     * 商户ID
+     */
+    private Long merchantId;
+    /**
+     * 当前主体角色ID
+     */
+    private Long roleId;
+    /**
+     * 主体类型：PLATFORM/TENANT/MERCHANT
+     */
+    private String subjectType;
+    /**
+     * 主体关系：SUPER_ADMIN/ADMIN/MEMBER/OWNER
+     */
+    private String relationType;
+    /**
      * 部门ID
      */
     private Long deptId;

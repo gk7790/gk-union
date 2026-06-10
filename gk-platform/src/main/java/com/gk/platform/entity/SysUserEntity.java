@@ -12,14 +12,6 @@ import lombok.EqualsAndHashCode;
 public class SysUserEntity extends SimpleEntity {
 
     /**
-     * 部门ID （旧模型字段，后续迁移到 sys_user_tenant.dept_id）
-     */
-    private Long deptId;
-    /**
-     * 租户id （旧模型字段，后续迁移到 sys_user_tenant.tenant_id）
-     */
-    private Long tenantId;
-    /**
      * 用户名
      */
     private String username;
@@ -52,10 +44,6 @@ public class SysUserEntity extends SimpleEntity {
      */
     private String mobile;
     /**
-     * 超级管理员   0：否   1：是
-     */
-    private Integer superAdmin;
-    /**
      * 状态  0：停用   1：正常
      */
     private Integer status;
@@ -77,5 +65,26 @@ public class SysUserEntity extends SimpleEntity {
      */
     @TableField(exist=false)
     private String tenantName;
+
+    @TableField(exist=false)
+    private String subjectType;
+
+    @TableField(exist=false)
+    private Long tenantId;
+
+    @TableField(exist=false)
+    private Long merchantId;
+
+    @TableField(exist=false)
+    private Long deptId;
+
+    @TableField(exist=false)
+    private Long roleId;
+
+    @TableField(exist=false)
+    private String relationType;
+
+    @TableField(exist=false)
+    private Integer isPrimary;
 
 }

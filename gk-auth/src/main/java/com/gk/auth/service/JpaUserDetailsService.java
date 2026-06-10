@@ -40,13 +40,7 @@ public class JpaUserDetailsService implements UserDetailsService {
 
         SysUser user = getByUid(model, uid);
         validateUser(user);
-
-        Set<String> roleAuth = getRoleAuthList(user.getId());
-        user.setRoleList(roleAuth);
-
-        // TODO 后期数据多了单独缓存
-        Set<String> permissions = getUserPermissions(user.getId(), user.isSuperAdmin());
-        user.setAuthList(permissions);
+        populateAuthorizations(user);
 
         redisUtils.set(redisKey, user, TimeUnit.HOURS.toSeconds(5));
         return user;
@@ -60,6 +54,7 @@ public class JpaUserDetailsService implements UserDetailsService {
         }
         SysUser user = userOpt.get();
         validateUser(user);
+        populateAuthorizations(user);
         return user;
     }
 
@@ -139,5 +134,19 @@ public class JpaUserDetailsService implements UserDetailsService {
             redisUtils.addSet(redisKey, subDeptIdList, TimeUnit.HOURS.toSeconds(5));
         }
         return securityDao.getSubDeptIdList(deptId);
+    }
+
+    private void populateAuthorizations(SysUser user) {
+        Set<String> roleAuth = getRoleAuthList(user.getId());
+        user.setRoleList(roleAuth);
+
+        // TODO 后期数据多了单独缓存
+        Set<String> permissions = getUserPermissions(user.getId(), user.isSuperAdmin());
+        user.setAuthList(permissions);
+
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        roleAuth.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+        permissions.forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
+        user.setAuthorities(authorities);
     }
 }

@@ -4,28 +4,35 @@
 <mapper namespace="com.gk.auth.dao.SecurityDao">
 
     <select id="getUserByUserId" resultType="com.gk.auth.entity.SysUser">
-        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
-        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
-        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender',
-        u.scope, u.domain
-        FROM sys_user AS u WHERE u.id = #{uId}
+        SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
+        s.is_primary AS 'isPrimary', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
+        u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
+        FROM sys_user AS u
+        INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
+        WHERE u.id = #{uId}
     </select>
 
     <select id="findByUsername" resultType="com.gk.auth.entity.SysUser">
-        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
-        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
-        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender',
-        u.scope, u.domain
+        SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
+        s.is_primary AS 'isPrimary', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
+        u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
         FROM sys_user AS u
+        INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
         WHERE u.username = #{username}
     </select>
 
     <select id="findByEmail" resultType="com.gk.auth.entity.SysUser">
-        SELECT u.id AS id, u.dept_id AS 'deptId', u.tenant_id AS 'tenantId', u.username AS 'username',
-        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickname', u.email as 'email',
-        u.avatar AS 'avatar', u.super_admin AS 'superAdmin', u.`status` AS 'status', u.gender AS 'gender',
-        u.scope, u.domain
+        SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
+        s.is_primary AS 'isPrimary', u.username AS 'username',
+        u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
+        u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
         FROM sys_user AS u
+        INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
         WHERE u.email = #{email}
     </select>
 
@@ -38,8 +45,9 @@
     </select>
 
     <select id="getRoleAuthList" resultType="string">
-        SELECT r.auth from sys_role r LEFT JOIN sys_role_user u ON r.id = u.role_id
-        WHERE u.user_id = #{userId}
+        SELECT r.auth from sys_role r
+        INNER JOIN sys_user_subject s ON r.id = s.role_id
+        WHERE s.user_id = #{userId}
     </select>
 
     <select id="getPermissionsList" resultType="string">
@@ -53,7 +61,7 @@
     </select>
 
     <select id="getUserPermissionsList" resultType="string">
-        select t3.auth_code from sys_role_user t1 left join sys_role_menu t2 on t1.role_id = t2.role_id
+        select t3.auth_code from sys_user_subject t1 left join sys_role_menu t2 on t1.role_id = t2.role_id
         left join sys_menu t3 on t2.menu_id = t3.id
         where t1.user_id = #{userId} AND auth_code IS NOT NULL AND auth_code != ''
         <if test="typeList != null">
@@ -66,7 +74,7 @@
     </select>
 
     <select id="getDataScopeList" resultType="java.lang.Long">
-        select t2.dept_id from sys_role_user t1, sys_role_data_scope t2
+        select t2.dept_id from sys_user_subject t1, sys_role_data_scope t2
         where t1.user_id = #{value} and t1.role_id = t2.role_id
     </select>
 

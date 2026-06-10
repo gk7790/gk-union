@@ -4,17 +4,27 @@
 <mapper namespace="com.gk.platform.dao.SysUserDao">
 
 	<select id="getList" resultType="com.gk.platform.entity.SysUserEntity">
-		select t1.*, (select t2.name from sys_dept t2 where t2.id=t1.dept_id) deptName,
-        (SELECT t3.NAME FROM sys_tenant t3 WHERE t3.id = t1.tenant_id) tenantName
-			from sys_user t1 where t1.super_admin = 0
+		select t1.*,
+			   s.subject_type as subjectType,
+			   s.tenant_id as tenantId,
+			   s.merchant_id as merchantId,
+			   s.dept_id as deptId,
+			   s.role_id as roleId,
+			   s.relation_type as relationType,
+			   s.is_primary as isPrimary,
+			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName,
+        	   (SELECT t3.NAME FROM sys_tenant t3 WHERE t3.id = s.tenant_id) tenantName
+			from sys_user t1
+			left join sys_user_subject s on s.user_id = t1.id
+			where 1 = 1
 		<if test="username != null and username.trim() != ''">
 			and t1.username like #{username}
 		</if>
 		<if test="deptId != null and deptId.trim() != ''">
-			and t1.dept_id = #{deptId}
+			and s.dept_id = #{deptId}
 		</if>
         <if test="tenantId != null and tenantId.trim() != ''">
-            and t1.tenant_id = #{tenantId}
+            and s.tenant_id = #{tenantId}
         </if>
 		<if test="gender != null and gender.trim() != ''">
 			and t1.gender = #{gender}
@@ -23,13 +33,13 @@
 			and t1.id != #{selfId}
 		</if>
 		<if test="deptIdList != null">
-			and t1.dept_id in
+			and s.dept_id in
 			<foreach item="id" collection="deptIdList" open="(" separator="," close=")">
 				#{id}
 			</foreach>
 		</if>
         <if test="tenantIdList != null">
-            and t1.tenant_id in
+            and s.tenant_id in
             <foreach item="id" collection="tenantIdList" open="(" separator="," close=")">
                 #{id}
             </foreach>
@@ -37,7 +47,17 @@
 	</select>
 
 	<select id="getById" resultType="com.gk.platform.entity.SysUserEntity">
-		select t1.*, (select t2.name from sys_dept t2 where t2.id=t1.dept_id) deptName from sys_user t1
+		select t1.*,
+			   s.subject_type as subjectType,
+			   s.tenant_id as tenantId,
+			   s.merchant_id as merchantId,
+			   s.dept_id as deptId,
+			   s.role_id as roleId,
+			   s.relation_type as relationType,
+			   s.is_primary as isPrimary,
+			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName
+			from sys_user t1
+			left join sys_user_subject s on s.user_id = t1.id
 			where t1.id = #{id}
 	</select>
 
@@ -50,11 +70,11 @@
 	</update>
 
 	<select id="getCountByDeptId" resultType="int">
-		select count(*) from sys_user where dept_id = #{value}
+		select count(*) from sys_user_subject where dept_id = #{value}
 	</select>
 
 	<select id="getUserIdListByDeptId" resultType="Long">
-		select id from sys_user where dept_id in
+		select user_id from sys_user_subject where dept_id in
 			<foreach item="deptId" collection="list" open="(" separator="," close=")">
 				#{deptId}
 			</foreach>

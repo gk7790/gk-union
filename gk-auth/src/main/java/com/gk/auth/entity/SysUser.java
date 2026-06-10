@@ -16,18 +16,20 @@ public class SysUser implements UserDetails {
 
     private Long  id;
     private Long tenantId;
+    private Long merchantId;
     private Long deptId;
+    private Long roleId;
+    private String subjectType;
+    private String relationType;
+    private Integer isPrimary;
     private String username;
     private String nickName;
     private String password;
     private String email;
     private String avatar;
-    private Integer superAdmin;
     private Integer status;
     private String realName;
     private Integer gender;
-    private Integer scope;
-    private Integer domain;
 
     /**
      * 模块: admin(管理后台用户), zap(内网穿透用户), relay(节点客户端用户)
@@ -68,21 +70,30 @@ public class SysUser implements UserDetails {
     }
 
     public boolean isSuperAdmin() {
-        return superAdmin == 1;
+        return "PLATFORM".equalsIgnoreCase(subjectType) && "SUPER_ADMIN".equalsIgnoreCase(relationType);
     }
 
     public AuthUser toAuthUser() {
         AuthUser authUser = new AuthUser();
         authUser.setId(this.id);
         authUser.setTenantId(this.tenantId);
+        authUser.setMerchantId(this.merchantId);
         authUser.setDeptId(this.deptId);
+        authUser.setRoleId(this.roleId);
+        authUser.setSubjectType(this.subjectType);
+        authUser.setRelationType(this.relationType);
         authUser.setUName(this.username);
         authUser.setNickName(nickName);
         authUser.setEmail(email);
-        authUser.setSAdmin(this.superAdmin);
+        authUser.setSAdmin(this.isSuperAdmin());
         authUser.setDeptIdList(deptIdList);
         authUser.setRoleList(roleList);
         authUser.setAuthList(authList);
         return authUser;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return status == null || status == 1;
     }
 }

@@ -277,12 +277,12 @@ CREATE TABLE `sys_region`  (
 DROP TABLE IF EXISTS `sys_role`;
 CREATE TABLE `sys_role`  (
   `id` bigint NOT NULL COMMENT 'id',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户id',
+  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID；平台角色为空，租户/商户角色填写所属租户',
   `dept_id` bigint NULL DEFAULT NULL COMMENT '部门ID',
   `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '角色名称',
   `auth` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '角色标识',
-  `data_scope` tinyint NULL DEFAULT NULL COMMENT '数据范围: ALL/TENANT_ALL/SELF_AND_CHILDREN/SELF',
-  `role_scope` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '角色作用域: PLATFORM/TENANT/MERCHANT',
+  `role_scope` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'TENANT' COMMENT '角色作用域: PLATFORM/TENANT/MERCHANT',
+  `data_scope` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'SELF' COMMENT '数据范围: ALL/TENANT_ALL/SELF_AND_CHILDREN/SELF',
   `status` tinyint NULL DEFAULT 1 COMMENT '状态',
   `remark` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建者',
@@ -290,8 +290,11 @@ CREATE TABLE `sys_role`  (
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新者',
   `updated_at` datetime NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `unq_auth`(`tenant_id` ASC, `auth` ASC) USING BTREE,
-  INDEX `idx_dept_id`(`dept_id` ASC) USING BTREE
+  UNIQUE INDEX `uk_sys_role_scope_auth`(`tenant_id` ASC, `role_scope` ASC, `auth` ASC) USING BTREE,
+  INDEX `idx_dept_id`(`dept_id` ASC) USING BTREE,
+  INDEX `idx_sys_role_scope_status`(`role_scope` ASC, `status` ASC) USING BTREE,
+  CONSTRAINT `chk_sys_role_scope` CHECK (`role_scope` in ('PLATFORM','TENANT','MERCHANT')),
+  CONSTRAINT `chk_sys_role_data_scope` CHECK (`data_scope` in ('ALL','TENANT_ALL','SELF_AND_CHILDREN','SELF'))
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '角色管理' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -366,21 +369,16 @@ CREATE TABLE `sys_tenant`  (
 DROP TABLE IF EXISTS `sys_user`;
 CREATE TABLE `sys_user`  (
   `id` bigint NOT NULL COMMENT 'id',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户id',
-  `dept_id` bigint NULL DEFAULT NULL COMMENT '部门ID',
   `nickname` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '昵称',
   `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '用户名',
-  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '密码',
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '密码哈希',
   `real_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '姓名',
   `avatar` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '头像',
   `gender` tinyint UNSIGNED NULL DEFAULT NULL COMMENT '性别   0：男   1：女    2：保密',
   `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '邮箱',
   `mobile` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '手机号',
-  `scope` tinyint NULL DEFAULT NULL COMMENT '用户范围',
-  `domain` tinyint NULL DEFAULT NULL COMMENT '领域',
-  `status` tinyint NULL DEFAULT NULL COMMENT '状态  0：停用   1：正常',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态  0：停用   1：正常',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
-  `super_admin` tinyint UNSIGNED NULL DEFAULT NULL COMMENT '超级管理员   0：否   1：是',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建者',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新者',
@@ -389,6 +387,8 @@ CREATE TABLE `sys_user`  (
   `auth_secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '验证器秘钥',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_username`(`username` ASC) USING BTREE,
+  UNIQUE INDEX `uk_sys_user_mobile`(`mobile` ASC) USING BTREE,
+  UNIQUE INDEX `uk_sys_user_email`(`email` ASC) USING BTREE,
   INDEX `idx_created_at`(`created_at` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统用户' ROW_FORMAT = Dynamic;
 
@@ -419,7 +419,7 @@ CREATE TABLE `sys_user_subject`  (
   `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID；MERCHANT主体必填',
   `dept_id` bigint NULL DEFAULT NULL COMMENT '租户内部门ID；TENANT主体可填',
   `role_id` bigint NOT NULL COMMENT '角色ID，关联sys_role.id',
-  `relation_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体身份: SUPER_ADMIN/ADMIN/OWNER/FINANCE/OPERATOR/STAFF',
+  `relation_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主体身份: SUPER_ADMIN/ADMIN/DEVELOPER/OWNER/FINANCE/OPERATOR/STAFF',
   `is_primary` tinyint NOT NULL DEFAULT 0 COMMENT '是否主负责人: 0否 1是；商户OWNER可用',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
   `primary_owner_merchant_id` bigint GENERATED ALWAYS AS ((case when ((`subject_type` = _utf8mb4'MERCHANT') and (`status` = 1) and (`is_primary` = 1) and (`relation_type` = _utf8mb4'OWNER')) then `merchant_id` else NULL end)) STORED COMMENT '主负责人唯一约束辅助列' NULL,
@@ -434,7 +434,13 @@ CREATE TABLE `sys_user_subject`  (
   INDEX `idx_sys_user_subject_type`(`subject_type` ASC, `status` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_tenant`(`tenant_id` ASC, `status` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_merchant`(`tenant_id` ASC, `merchant_id` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_sys_user_subject_role`(`role_id` ASC) USING BTREE
+  INDEX `idx_sys_user_subject_role`(`role_id` ASC) USING BTREE,
+  CONSTRAINT `chk_sys_user_subject_type` CHECK (`subject_type` in ('PLATFORM','TENANT','MERCHANT')),
+  CONSTRAINT `chk_sys_user_subject_status` CHECK (`status` in (0,1)),
+  CONSTRAINT `chk_sys_user_subject_primary` CHECK (`is_primary` in (0,1)),
+  CONSTRAINT `chk_sys_user_subject_platform` CHECK (`subject_type` <> 'PLATFORM' OR (`tenant_id` is null AND `merchant_id` is null)),
+  CONSTRAINT `chk_sys_user_subject_tenant` CHECK (`subject_type` <> 'TENANT' OR (`tenant_id` is not null AND `merchant_id` is null)),
+  CONSTRAINT `chk_sys_user_subject_merchant` CHECK (`subject_type` <> 'MERCHANT' OR (`tenant_id` is not null AND `merchant_id` is not null))
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户唯一主体身份表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------

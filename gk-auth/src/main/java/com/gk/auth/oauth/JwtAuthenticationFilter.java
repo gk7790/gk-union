@@ -153,7 +153,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public ReqContext formContext(Claims claims, HttpServletRequest request) {
         Long userId = claims.get(JwtUtils.USER_ID, Long.class);
         Long tenantId = claims.get(JwtUtils.TENANT_ID, Long.class);
+        Long merchantId = claims.get(JwtUtils.MERCHANT_ID, Long.class);
         Long deptId = claims.get(JwtUtils.DEPT_ID, Long.class);
+        Long roleId = claims.get(JwtUtils.ROLE_ID, Long.class);
+        String subjectType = claims.get(JwtUtils.SUBJECT_TYPE, String.class);
+        String relationType = claims.get(JwtUtils.RELATION_TYPE, String.class);
         String username = claims.get(JwtUtils.UNAME, String.class);
         Integer scope = claims.get(JwtUtils.SCOPE, Integer.class);
         Integer domain = claims.get(JwtUtils.DOMAIN, Integer.class);
@@ -171,7 +175,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return ReqContext.builder().model(claims.getSubject())
                 // 用户信息
-                .userId(userId).username(username).tenantId(tenantId).deptId(deptId)
+                .userId(userId).username(username)
+                .tenantId(tenantId).merchantId(merchantId).deptId(deptId)
+                .roleId(roleId).subjectType(subjectType).relationType(relationType)
                 // 账户领域和业务员领域
                 .scope(scope).domain(domain)
                 // 请求信息

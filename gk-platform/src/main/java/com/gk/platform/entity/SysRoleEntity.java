@@ -35,6 +35,14 @@ public class SysRoleEntity extends BaseEntity {
 	 * 备注
 	 */
 	private String remark;
+	/**
+	 * 角色适用主体范围：PLATFORM/TENANT/MERCHANT
+	 */
+	private String roleScope;
+	/**
+	 * 数据权限范围
+	 */
+	private String dataScope;
     /**
      * 状态
      */

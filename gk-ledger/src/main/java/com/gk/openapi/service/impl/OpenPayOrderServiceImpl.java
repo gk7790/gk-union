@@ -3,6 +3,7 @@ package com.gk.openapi.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.openapi.dto.PayOrderCreateRequest;
 import com.gk.openapi.dto.PayOrderResponse;
@@ -28,6 +29,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -51,17 +53,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     public PayOrderResponse create(PayOrderCreateRequest request) {
         PayOrderEntity existed = payOrderDao.selectOne(
                 baseWrapper()
-                        .eq("merchant_order_no", request.getMerchantOrderNo())
+                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderNo()))
                         .last("limit 1")
         );
-
-        if (existed != null) {
-            return toResponse(existed);
-        }
 
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(ApiErrorCode.INVALID_AMOUNT);
         }
+        validateAmountScale(request.getAmount());
 
         ApiReqContext context = ApiReqContextHolder.get();
         MerchantEntity merchant = context.getMerchant();
@@ -71,6 +70,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         if (StringUtils.isBlank(currency) || StringUtils.isBlank(countryCode)) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency and country_code is required");
         }
+        String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
+        String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
+        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
+
+        if (existed != null) {
+            validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
+            return toResponse(existed);
+        }
 
         PayOrderEntity entity = new PayOrderEntity();
         entity.setTenantId(context.getTenantId());
@@ -79,12 +86,12 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setMerchantAppId(context.getMerchantAppId());
         entity.setAppId(context.getAppId());
         entity.setPayOrderNo(BizKeyUtils.genPayOrderNo());
-        entity.setMerchantOrderNo(request.getMerchantOrderNo());
-        entity.setIdempotencyKey(request.getMerchantOrderNo());
+        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderNo()));
+        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderNo()));
         entity.setOrderSource(ORDER_SOURCE_API);
         entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
-        entity.setCurrency(currency.toUpperCase(Locale.ROOT));
-        entity.setMethodCode(request.getMethodCode().toUpperCase(Locale.ROOT));
+        entity.setCurrency(normalizedCurrency);
+        entity.setMethodCode(normalizedMethod);
         entity.setAmount(request.getAmount());
         entity.setPaidAmount(BigDecimal.ZERO);
         entity.setPspFeeAmount(BigDecimal.ZERO);
@@ -120,6 +127,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
                             .last("limit 1")
             );
             if (existed != null) {
+                validateIdempotentEntity(existed, entity);
                 copyOrder(existed, entity);
                 return false;
             }
@@ -285,6 +293,53 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPspFeeAmount(feeResult.getPspFeeAmount());
         entity.setPspFeeRuleId(feeResult.getRule().getId());
         entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    private void validateIdempotentRequest(PayOrderEntity existed, PayOrderCreateRequest request, String currency, String methodCode) {
+        if (existed.getAmount() == null || request.getAmount() == null
+                || existed.getAmount().compareTo(request.getAmount()) != 0
+                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
+                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    private void validateIdempotentEntity(PayOrderEntity existed, PayOrderEntity entity) {
+        if (existed.getAmount() == null || entity.getAmount() == null
+                || existed.getAmount().compareTo(entity.getAmount()) != 0
+                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
+                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
+        if (!allowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is not allowed for app");
+        }
+        if (!allowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
+        }
+    }
+
+    private boolean allowed(String jsonArray, String value) {
+        if (StringUtils.isBlank(jsonArray)) {
+            return true;
+        }
+        try {
+            List<String> allowedValues = objectMapper.readValue(jsonArray, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            return allowedValues.stream().anyMatch(item -> StringUtils.equalsIgnoreCase(item, value));
+        } catch (Exception ex) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
+        }
+    }
+
+    private void validateAmountScale(BigDecimal amount) {
+        if (amount.scale() > 8) {
+            throw new ApiException(ApiErrorCode.INVALID_AMOUNT, "amount scale must be less than or equal to 8");
+        }
     }
 
     private PayOrderResponse toResponse(PayOrderEntity entity) {

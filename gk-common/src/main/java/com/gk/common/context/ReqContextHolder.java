@@ -68,6 +68,34 @@ public class ReqContextHolder {
     }
 
     /**
+     * 商户ID
+     */
+    public static Long getMerchantId() {
+        return get().getMerchantId();
+    }
+
+    /**
+     * 当前主体角色ID
+     */
+    public static Long getRoleId() {
+        return get().getRoleId();
+    }
+
+    /**
+     * 主体类型
+     */
+    public static String getSubjectType() {
+        return get().getSubjectType();
+    }
+
+    /**
+     * 主体关系
+     */
+    public static String getRelationType() {
+        return get().getRelationType();
+    }
+
+    /**
      * 部门ID
      */
     public static Long getDeptId() {

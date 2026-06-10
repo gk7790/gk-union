@@ -20,7 +20,12 @@ public class SysUserDTO implements Serializable {
 
 	private Long id;
     private Long tenantId;
+    private Long merchantId;
     private Long deptId;
+    private String subjectType;
+    private String relationType;
+    private Integer isPrimary;
+    private Long roleId;
     private String username;
     private String nickname;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
@@ -33,8 +38,6 @@ public class SysUserDTO implements Serializable {
 	private Integer status;
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
 	private LocalDateTime createdAt;
-	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private Integer superAdmin;
 	private List<Long> roleIdList;
 	private List<Long> postIdList;
 	private String deptName;

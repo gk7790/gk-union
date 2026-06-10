@@ -1,20 +1,17 @@
 package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.gk.common.beans.CurrentUser;
-import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
-import com.gk.common.dto.AuthUser;
-import com.gk.common.enums.AdminEnum;
 import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.common.validator.AssertUtils;
 import com.gk.platform.dao.SysUserDao;
 import com.gk.platform.dto.SysUserDTO;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.entity.SysUserEntity;
-import com.gk.platform.service.SysDeptService;
-import com.gk.platform.service.SysRoleUserService;
+import com.gk.platform.service.SysUserSubjectService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +32,8 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntity> implements SysUserService {
-	private final SysDeptService sysDeptService;
     private final SysUserPostService sysUserPostService;
-    private final SysRoleUserService sysRoleUserService;
+    private final SysUserSubjectService sysUserSubjectService;
 
     @Override
 	public PageData<SysUserDTO> page(Map<String, Object> params) {
@@ -95,11 +91,10 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		entity.setPassword(password);
 
 		//保存用户
-		entity.setSuperAdmin(AdminEnum.NO.code());
 		insert(entity);
 
-		// 角色用户 保存角色用户关系
-		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
+		// 保存用户主体关系
+		sysUserSubjectService.saveOrUpdate(entity.getId(), buildSubject(dto));
 
 		//保存用户岗位关系
 		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
@@ -121,8 +116,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		//更新用户
 		updateById(entity);
 
-		// 角色用户 更新角色用户关系
-		sysRoleUserService.saveOrUpdate(entity.getId(), dto.getRoleIdList());
+		// 更新用户主体关系
+		sysUserSubjectService.saveOrUpdate(entity.getId(), buildSubject(dto));
 
 		//保存用户岗位关系
 		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
@@ -147,8 +142,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		//删除用户
 		baseDao.deleteBatchIds(Arrays.asList(ids));
 
-		// 角色用户 删除角色用户关系
-		sysRoleUserService.deleteByUserIds(ids);
+		// 删除用户主体关系
+		sysUserSubjectService.deleteByUserIds(ids);
 
 		//删除用户岗位关系
 		sysUserPostService.deleteByUserIds(ids);
@@ -170,6 +165,24 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 	@Override
 	public List<Long> getUserIdListByDeptId(List<Long> deptIdList) {
 		return baseDao.getUserIdListByDeptId(deptIdList);
+	}
+
+	private SysUserSubjectEntity buildSubject(SysUserDTO dto) {
+		Long roleId = dto.getRoleId();
+		if (roleId == null && dto.getRoleIdList() != null && !dto.getRoleIdList().isEmpty()) {
+			roleId = dto.getRoleIdList().get(0);
+		}
+		AssertUtils.isNull(roleId, "roleId");
+		SysUserSubjectEntity subject = new SysUserSubjectEntity();
+		subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), "PLATFORM"));
+		subject.setTenantId(dto.getTenantId());
+		subject.setMerchantId(dto.getMerchantId());
+		subject.setDeptId(dto.getDeptId());
+		subject.setRoleId(roleId);
+		subject.setRelationType(StringUtils.defaultIfBlank(dto.getRelationType(), "ADMIN"));
+		subject.setIsPrimary(dto.getIsPrimary() == null ? 0 : dto.getIsPrimary());
+		subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+		return subject;
 	}
 
 }

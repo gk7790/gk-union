@@ -39,6 +39,12 @@ public class SysRoleDTO implements Serializable {
 	@Schema(title = "备注")
 	private String remark;
 
+	@Schema(title = "角色适用主体范围")
+	private String roleScope;
+
+	@Schema(title = "数据权限范围")
+	private String dataScope;
+
 	@Schema(title = "创建时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
 	private Instant createdAt;

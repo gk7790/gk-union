@@ -93,7 +93,7 @@ public class SecurityUtils implements CurrentUser {
      */
     public void setDeptAndTenant(Map<String, Object> params) {
         AuthUser user = getAuthUser();
-        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == AdminEnum.NO.code()) {
+        if (ObjectUtil.isNotEmpty(params) && !user.getSAdmin()) {
             Optional<Long> dept = Optional.of(user).map(AuthUser::getDeptId);
             dept.ifPresent(aLong -> params.put("deptId", aLong));
             Optional<Long> tenant = Optional.of(user).map(AuthUser::getTenantId);
@@ -106,7 +106,7 @@ public class SecurityUtils implements CurrentUser {
      */
     public void setDept(Map<String, Object> params) {
         AuthUser user = getAuthUser();
-        if (ObjectUtil.isNotEmpty(params) && user.getSAdmin() == AdminEnum.NO.code()) {
+        if (ObjectUtil.isNotEmpty(params) && !user.getSAdmin()) {
             Optional<Long> dept = Optional.of(user).map(AuthUser::getDeptId);
             dept.ifPresent(aLong -> params.put("deptId", aLong));
         }
@@ -117,7 +117,7 @@ public class SecurityUtils implements CurrentUser {
      */
     public boolean isAdmin() {
         AuthUser user = getAuthUser();
-        return user.isSAdmin();
+        return user.getSAdmin();
     }
 
     /**

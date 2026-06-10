@@ -92,6 +92,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
 		//保存用户
 		insert(entity);
+		dto.setId(entity.getId());
 
 		// 保存用户主体关系
 		sysUserSubjectService.saveOrUpdate(entity.getId(), buildSubject(dto));

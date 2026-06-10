@@ -5,7 +5,13 @@
 	<select id="getList" resultType="com.gk.platform.entity.SysDeptEntity">
 		select t1.* from sys_dept t1
 		<where>
+			<if test="tenantId != null">
+				t1.tenant_id = #{tenantId}
+			</if>
 			<if test="deptIdList != null">
+				<if test="tenantId != null">
+					and
+				</if>
 				t1.id in
 				<foreach item="id" collection="deptIdList" open="(" separator="," close=")">
 					#{id}

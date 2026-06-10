@@ -67,6 +67,7 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
         }
 		entity.setPids(getPidList(entity.getPid()));
 		insert(entity);
+		dto.setId(entity.getId());
 	}
 
 	@Override

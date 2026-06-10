@@ -54,13 +54,21 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 
 	private QueryWrapper<SysRoleEntity> getWrapper(DynMap params){
 		String name = (String)params.get("name");
+		String roleScope = params.getStr("roleScope");
+		Long tenantId = params.getLong("tenantId", null);
+		List<Integer> statusList = params.getList("status", Integer.class, null);
+		Boolean templateOnly = params.getBool("templateOnly", false);
 
 		QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
 		wrapper.like(StringUtils.isNotBlank(name), "name", name);
+		wrapper.eq(StringUtils.isNotBlank(roleScope), "role_scope", roleScope);
+		wrapper.eq(tenantId != null, "tenant_id", tenantId);
+		wrapper.isNull(Boolean.TRUE.equals(templateOnly), "tenant_id");
+		wrapper.in(statusList != null && !statusList.isEmpty(), "status", statusList);
 
 		//普通管理员，只能查询所属部门及子部门的数据
 		if(!ReqContextHolder.isSAdmin()) {
-			wrapper.in("dept_id", ReqContextHolder.getSubDeptIdsWithSelf());
+			wrapper.eq("tenant_id", ReqContextHolder.getTenantId());
 		}
 
 		return wrapper;
@@ -79,9 +87,15 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 
         QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");
-        //普通管理员，只能查询所属部门及子部门的数据
+		String roleScope = params.getStr("roleScope");
+		Long tenantId = params.getLong("tenantId", null);
+		Boolean templateOnly = params.getBool("templateOnly", false);
+		wrapper.eq(StringUtils.isNotBlank(roleScope), "role_scope", roleScope);
+		wrapper.eq(tenantId != null, "tenant_id", tenantId);
+		wrapper.isNull(Boolean.TRUE.equals(templateOnly), "tenant_id");
+        //普通管理员，只能查询所属租户数据
         if(!ReqContextHolder.isSAdmin()) {
-            wrapper.in("dept_id", ReqContextHolder.getSubDeptIdsWithSelf());
+            wrapper.eq("tenant_id", ReqContextHolder.getTenantId());
         }
         wrapper.in("status", list);
         List<SysRoleEntity> result = baseDao.selectList(wrapper);
@@ -96,6 +110,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 
 		//保存角色
 		insert(entity);
+		dto.setId(entity.getId());
 
 		//保存角色菜单关系
 		sysRoleMenuService.saveOrUpdate(entity.getId(), dto.getMenuIdList());

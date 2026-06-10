@@ -44,10 +44,6 @@ public class ReqContext {
      */
     private String subjectType;
     /**
-     * 主体关系：SUPER_ADMIN/ADMIN/MEMBER/OWNER
-     */
-    private String relationType;
-    /**
      * 部门ID
      */
     private Long deptId;

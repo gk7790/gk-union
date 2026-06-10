@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.platform.dao.SysUserSubjectDao">
+    <select id="getByUserId" resultType="com.gk.platform.entity.SysUserSubjectEntity">
+        SELECT s.*,
+               r.auth AS roleAuth,
+               r.name AS roleName
+        FROM sys_user_subject s
+        LEFT JOIN sys_role r ON r.id = s.role_id
+        WHERE s.user_id = #{userId}
+        LIMIT 1
+    </select>
+</mapper>

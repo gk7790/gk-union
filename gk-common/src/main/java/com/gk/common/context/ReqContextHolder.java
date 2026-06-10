@@ -89,13 +89,6 @@ public class ReqContextHolder {
     }
 
     /**
-     * 主体关系
-     */
-    public static String getRelationType() {
-        return get().getRelationType();
-    }
-
-    /**
      * 部门ID
      */
     public static Long getDeptId() {

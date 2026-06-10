@@ -23,8 +23,6 @@ public class SysUserDTO implements Serializable {
     private Long merchantId;
     private Long deptId;
     private String subjectType;
-    private String relationType;
-    private Integer isPrimary;
     private Long roleId;
     private String username;
     private String nickname;

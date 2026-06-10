@@ -5,34 +5,34 @@
 
     <select id="getUserByUserId" resultType="com.gk.auth.entity.SysUser">
         SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
-        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
-        s.is_primary AS 'isPrimary', u.username AS 'username',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', r.auth AS 'roleAuth', u.username AS 'username',
         u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
         u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
         FROM sys_user AS u
         INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
+        INNER JOIN sys_role r ON r.id = s.role_id
         WHERE u.id = #{uId}
     </select>
 
     <select id="findByUsername" resultType="com.gk.auth.entity.SysUser">
         SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
-        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
-        s.is_primary AS 'isPrimary', u.username AS 'username',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', r.auth AS 'roleAuth', u.username AS 'username',
         u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
         u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
         FROM sys_user AS u
         INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
+        INNER JOIN sys_role r ON r.id = s.role_id
         WHERE u.username = #{username}
     </select>
 
     <select id="findByEmail" resultType="com.gk.auth.entity.SysUser">
         SELECT u.id AS id, s.dept_id AS 'deptId', s.tenant_id AS 'tenantId', s.merchant_id AS 'merchantId',
-        s.role_id AS 'roleId', s.subject_type AS 'subjectType', s.relation_type AS 'relationType',
-        s.is_primary AS 'isPrimary', u.username AS 'username',
+        s.role_id AS 'roleId', s.subject_type AS 'subjectType', r.auth AS 'roleAuth', u.username AS 'username',
         u.`password` AS 'password', u.real_name AS 'realName', u.nickname AS 'nickName', u.email as 'email',
         u.avatar AS 'avatar', u.`status` AS 'status', u.gender AS 'gender'
         FROM sys_user AS u
         INNER JOIN sys_user_subject s ON s.user_id = u.id AND s.status = 1
+        INNER JOIN sys_role r ON r.id = s.role_id
         WHERE u.email = #{email}
     </select>
 

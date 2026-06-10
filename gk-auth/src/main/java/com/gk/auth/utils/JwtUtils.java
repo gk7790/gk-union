@@ -31,7 +31,6 @@ public class JwtUtils {
     public static final String DEPT_ID = "deptId";
     public static final String ROLE_ID = "roleId";
     public static final String SUBJECT_TYPE = "subjectType";
-    public static final String RELATION_TYPE = "relationType";
     public static final String UNAME = "uname";
     public static final String SUPER_Admin = "sAdmin";
     public static final String SCOPE = "scope";

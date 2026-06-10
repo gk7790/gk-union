@@ -54,7 +54,6 @@ public class JpaUserDetailsService implements UserDetailsService {
         }
         SysUser user = userOpt.get();
         validateUser(user);
-        populateAuthorizations(user);
         return user;
     }
 

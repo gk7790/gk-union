@@ -20,8 +20,7 @@ public class SysUser implements UserDetails {
     private Long deptId;
     private Long roleId;
     private String subjectType;
-    private String relationType;
-    private Integer isPrimary;
+    private String roleAuth;
     private String username;
     private String nickName;
     private String password;
@@ -70,7 +69,9 @@ public class SysUser implements UserDetails {
     }
 
     public boolean isSuperAdmin() {
-        return "PLATFORM".equalsIgnoreCase(subjectType) && "SUPER_ADMIN".equalsIgnoreCase(relationType);
+        return "PLATFORM".equalsIgnoreCase(subjectType)
+                && ("SUPER_ADMIN".equalsIgnoreCase(roleAuth)
+                || (roleList != null && roleList.stream().anyMatch("SUPER_ADMIN"::equalsIgnoreCase)));
     }
 
     public AuthUser toAuthUser() {
@@ -81,7 +82,6 @@ public class SysUser implements UserDetails {
         authUser.setDeptId(this.deptId);
         authUser.setRoleId(this.roleId);
         authUser.setSubjectType(this.subjectType);
-        authUser.setRelationType(this.relationType);
         authUser.setUName(this.username);
         authUser.setNickName(nickName);
         authUser.setEmail(email);

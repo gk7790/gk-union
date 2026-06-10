@@ -49,9 +49,6 @@ public class AuthUser extends DynMap {
     public String getSubjectType() { return getStr("subjectType"); }
     public void setSubjectType(String subjectType) {put("subjectType", subjectType);}
 
-    public String getRelationType() { return getStr("relationType"); }
-    public void setRelationType(String relationType) {put("relationType", relationType);}
-
     /**
      * 当前登入用户登入标识
      */

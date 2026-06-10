@@ -81,10 +81,4 @@ public class SysUserEntity extends SimpleEntity {
     @TableField(exist=false)
     private Long roleId;
 
-    @TableField(exist=false)
-    private String relationType;
-
-    @TableField(exist=false)
-    private Integer isPrimary;
-
 }

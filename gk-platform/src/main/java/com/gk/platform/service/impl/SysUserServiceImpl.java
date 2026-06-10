@@ -179,8 +179,6 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		subject.setMerchantId(dto.getMerchantId());
 		subject.setDeptId(dto.getDeptId());
 		subject.setRoleId(roleId);
-		subject.setRelationType(StringUtils.defaultIfBlank(dto.getRelationType(), "ADMIN"));
-		subject.setIsPrimary(dto.getIsPrimary() == null ? 0 : dto.getIsPrimary());
 		subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
 		return subject;
 	}

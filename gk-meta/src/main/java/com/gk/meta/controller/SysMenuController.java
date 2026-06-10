@@ -3,7 +3,6 @@ package com.gk.meta.controller;
 
 import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.utils.EnumUtils;
@@ -24,6 +23,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -61,7 +61,7 @@ public class SysMenuController {
 
 	@GetMapping("{id}")
 	@Operation(summary = "信息")
-	@RequiresPermission("sys:menu:info")
+	@PreAuthorize("hasAuthority('sys:menu:info')")
 	public R<?> get(@PathVariable("id") Long id){
 		SysMenuDTO data = sysMenuService.get(id);
 		return R.ok(data);
@@ -69,7 +69,7 @@ public class SysMenuController {
 
     @PutMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("sys:menu:info")
+    @PreAuthorize("hasAuthority('sys:menu:info')")
     public R<?> updateById(@PathVariable("id") Long id, @RequestBody SysMenuDTO dto){
         dto.setId(id);
         // 不是菜单组件为空
@@ -105,7 +105,7 @@ public class SysMenuController {
 
 	@PostMapping
 	@Operation(summary = "保存")
-	@RequiresPermission("sys:menu:save")
+	@PreAuthorize("hasAuthority('sys:menu:save')")
 	public R<?> save(@RequestBody SysMenuDTO dto){
         SysMenuEntity entity = ConvertUtils.sourceToTarget(dto, SysMenuEntity.class);
         // 不是菜单组件为空
@@ -119,7 +119,7 @@ public class SysMenuController {
 
 	@PutMapping
 	@Operation(summary = "修改")
-	@RequiresPermission("sys:menu:update")
+	@PreAuthorize("hasAuthority('sys:menu:update')")
 	public R<?> update(@RequestBody SysMenuDTO dto){
         // 不是菜单组件为空
         if (ObjUtil.notEqual(MenuTypeEnum.MENU.code(), dto.getType())) {
@@ -131,7 +131,7 @@ public class SysMenuController {
 
 	@DeleteMapping("{id}")
 	@Operation(summary = "删除")
-	@RequiresPermission("sys:menu:delete")
+	@PreAuthorize("hasAuthority('sys:menu:delete')")
 	public R<?> delete(@PathVariable("id") Long id){
 		//效验数据
 		AssertUtils.isNull(id, "id");
@@ -146,7 +146,7 @@ public class SysMenuController {
 
 	@GetMapping("select")
 	@Operation(summary = "角色菜单权限")
-	@RequiresPermission("sys:menu:select")
+	@PreAuthorize("hasAuthority('sys:menu:select')")
 	public R<?> select(){
 		List<SysMenuDTO> list = sysMenuService.getUserMenuList(null, Constant.MIN_SYS_ID);
 		return R.ok(list);

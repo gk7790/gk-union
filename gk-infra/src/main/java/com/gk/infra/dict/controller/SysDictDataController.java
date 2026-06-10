@@ -2,7 +2,6 @@ package com.gk.infra.dict.controller;
 
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
@@ -16,6 +15,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -40,7 +40,7 @@ public class SysDictDataController {
             @Parameter(name = "dictLabel", description = "字典标签", in = ParameterIn.QUERY),
             @Parameter(name = "dictValue", description = "字典值", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("sys:dict:page")
+    @PreAuthorize("hasAuthority('sys:dict:page')")
     public R<?> page(@RequestMap DynMap params){
         //字典类型
         PageData<SysDictDataDTO> page = sysDictDataService.getPage(params);
@@ -49,14 +49,14 @@ public class SysDictDataController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("sys:dict:info")
+    @PreAuthorize("hasAuthority('sys:dict:info')")
     public R<?> get(@PathVariable("id") Long id){
         SysDictDataDTO data = sysDictDataService.get(id);
         return R.ok(data);
     }
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("sys:dict:save")
+    @PreAuthorize("hasAuthority('sys:dict:save')")
     public R<?> save(@RequestBody SysDictDataDTO dto){
         //效验数据
         sysDictDataService.save(dto);
@@ -65,7 +65,7 @@ public class SysDictDataController {
 
     @PutMapping
     @Operation(summary = "修改")
-    @RequiresPermission("sys:dict:update")
+    @PreAuthorize("hasAuthority('sys:dict:update')")
     public R<?> update(@RequestBody SysDictDataDTO dto){
         //效验数据
         sysDictDataService.update(dto);
@@ -74,7 +74,7 @@ public class SysDictDataController {
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("sys:dict:delete")
+    @PreAuthorize("hasAuthority('sys:dict:delete')")
     public R<?> delete(@RequestParam Long[] ids){
         //效验数据
         AssertUtils.isArrayEmpty(ids, "id");

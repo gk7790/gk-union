@@ -1,6 +1,5 @@
 package com.gk.infra.controller;
 
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.model.R;
 import com.gk.common.utils.EnumUtils;
 import com.gk.infra.enums.DomainEnum;

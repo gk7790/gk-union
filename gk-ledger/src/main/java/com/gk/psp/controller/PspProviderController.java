@@ -1,7 +1,6 @@
 package com.gk.psp.controller;
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
@@ -15,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "PSP管理")
@@ -32,7 +32,7 @@ public class PspProviderController {
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("psp:provider:page")
+    @PreAuthorize("hasAuthority('psp:provider:page')")
     public R<?> page(@RequestMap DynMap params) {
         PageData<PspProviderDTO> page = pspProviderService.page(params);
         return R.ok(page);
@@ -40,14 +40,14 @@ public class PspProviderController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("psp:provider:info")
+    @PreAuthorize("hasAuthority('psp:provider:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(pspProviderService.get(id));
     }
 
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("psp:provider:save")
+    @PreAuthorize("hasAuthority('psp:provider:save')")
     public R<?> save(@RequestBody PspProviderDTO dto) {
         pspProviderService.save(dto);
         return R.ok();
@@ -55,7 +55,7 @@ public class PspProviderController {
 
     @PutMapping("{id}")
     @Operation(summary = "修改")
-    @RequiresPermission("psp:provider:update")
+    @PreAuthorize("hasAuthority('psp:provider:update')")
     public R<?> update(@PathVariable("id") Long id, @RequestBody PspProviderDTO dto) {
         AssertUtils.isReserved(id);
         dto.setId(id);
@@ -65,7 +65,7 @@ public class PspProviderController {
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("psp:provider:delete")
+    @PreAuthorize("hasAuthority('psp:provider:delete')")
     public R<?> delete(@RequestParam Long[] ids) {
         AssertUtils.isArrayEmpty(ids, "id");
         pspProviderService.delete(ids);

@@ -3,7 +3,6 @@ package com.gk.platform.controller;
 
 import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
@@ -23,8 +22,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -35,7 +36,8 @@ import java.util.List;
  * 
  * @author Lowen
  */
-@Tag(name = "用户管理")
+@Tag(name = "系统-用户管理", description = "维护后台登录账号，并通过 sys_user_subject 绑定平台、租户或商户主体")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/sys/user")
 @RequiredArgsConstructor
@@ -48,7 +50,7 @@ public class SysUserController {
      * 分页
      */
 	@GetMapping("page")
-    @Operation(summary = "分页")
+    @Operation(summary = "用户分页", description = "分页查询后台用户。非平台主体只能看到自身数据范围内的用户。权限码：sys:user:page。")
     @Parameters({
             @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true) ,
             @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY,required = true) ,
@@ -58,15 +60,15 @@ public class SysUserController {
             @Parameter(name = "gender", description = "性别", in = ParameterIn.QUERY),
             @Parameter(name = "deptId", description = "部门ID", in = ParameterIn.QUERY)
     })
-	@RequiresPermission("sys:user:page")
+	@PreAuthorize("hasAuthority('sys:user:page')")
 	public R<?> page(@RequestMap DynMap params){
 		PageData<SysUserDTO> page = sysUserService.page(params);
 		return R.ok(page);
 	}
 
 	@GetMapping("{id}")
-	@Operation(summary = "信息")
-	@RequiresPermission("sys:user:info")
+	@Operation(summary = "用户详情", description = "查询用户基础信息、主体绑定角色和岗位。权限码：sys:user:info。")
+	@PreAuthorize("hasAuthority('sys:user:info')")
 	public R<?> get(@PathVariable("id") Long id){
 		SysUserDTO data = sysUserService.getById(id);
 
@@ -82,7 +84,7 @@ public class SysUserController {
 	}
 
 	@GetMapping("info")
-	@Operation(summary = "登录用户信息")
+	@Operation(summary = "当前登录用户信息", description = "查询当前登录用户的基础资料和主体上下文。需要登录。")
 	public R<?> info(){
         Long userId = currentUser.getUserId();
 
@@ -91,7 +93,8 @@ public class SysUserController {
 	}
 
     @PutMapping("reset-password/{id}")
-    @Operation(summary = "修改密码")
+    @Operation(summary = "重置用户密码", description = "管理员为指定用户重置密码。权限码：sys:user:update。")
+	@PreAuthorize("hasAuthority('sys:user:update')")
     public R<?> resetPassword(@PathVariable("id") Long id, @RequestBody SysUserDTO dto){
         //效验数据
         AssertUtils.isNull(id, "id");
@@ -102,7 +105,7 @@ public class SysUserController {
     }
 
     @PutMapping("password")
-	@Operation(summary = "修改密码")
+	@Operation(summary = "修改当前用户密码", description = "当前登录用户修改自己的密码，需要提供原密码和新密码。")
 	public R<?> password(@RequestBody PasswordDTO dto){
         SysUserEntity user = sysUserService.selectById(currentUser.getUserId());
 		//原密码不正确
@@ -116,8 +119,8 @@ public class SysUserController {
 	}
 
 	@PostMapping
-	@Operation(summary = "保存")
-	@RequiresPermission("sys:user:add")
+	@Operation(summary = "新增用户", description = "创建登录账号并绑定主体、部门和角色。平台可创建租户/商户用户；租户只能创建本租户用户。权限码：sys:user:add。")
+	@PreAuthorize("hasAuthority('sys:user:add')")
 	public R<?> save(@RequestBody SysUserDTO dto){
         if (!ReqContextHolder.isSAdmin()) {
             dto.setTenantId(ReqContextHolder.getTenantId());
@@ -130,8 +133,8 @@ public class SysUserController {
 	}
 
 	@PutMapping
-	@Operation(summary = "修改")
-	@RequiresPermission("sys:user:update")
+	@Operation(summary = "修改用户", description = "修改用户资料和主体绑定信息。权限码：sys:user:update。")
+	@PreAuthorize("hasAuthority('sys:user:update')")
 	public R<?> update(@RequestBody SysUserDTO dto){
         dto.setTenantId(null);
         boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
@@ -143,14 +146,15 @@ public class SysUserController {
 	}
 
 	@PutMapping("app")
+	@Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、姓名、手机号、邮箱等个人资料。")
 	public R<?> updateUserInfo(@RequestBody SysUserDTO dto){
 		sysUserService.updateUserInfo(dto);
 		return R.ok();
 	}
 
 	@DeleteMapping
-	@Operation(summary = "删除")
-	@RequiresPermission("sys:user:delete")
+	@Operation(summary = "删除用户", description = "删除用户账号。禁止删除当前登录用户自身。权限码：sys:user:delete。")
+	@PreAuthorize("hasAuthority('sys:user:delete')")
 	public R<?> delete(@RequestParam Long[] ids){
 		//效验数据
 		AssertUtils.isArrayEmpty(ids, "id");

@@ -1,7 +1,6 @@
 package com.gk.quartz.controller;
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
@@ -14,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,7 +40,7 @@ public class ScheduleJobLogController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY),
             @Parameter(name = "jobId", description = "jobId", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("sys:schedule:log")
+    @PreAuthorize("hasAuthority('sys:schedule:log')")
     public R page(@Parameter(hidden = true) @RequestMap DynMap params) {
         PageData<ScheduleJobLogDTO> page = scheduleJobLogService.page(params);
         return R.ok(page);
@@ -48,7 +48,7 @@ public class ScheduleJobLogController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("sys:schedule:log")
+    @PreAuthorize("hasAuthority('sys:schedule:log')")
     public R info(@PathVariable("id") Long id) {
         ScheduleJobLogDTO log = scheduleJobLogService.get(id);
         return R.ok(log);

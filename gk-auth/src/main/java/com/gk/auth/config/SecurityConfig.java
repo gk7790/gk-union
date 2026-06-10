@@ -93,11 +93,15 @@ public class SecurityConfig {
                         "/internal/**", // 内部接口使用
                         "/public/**",
                         "/api/v1/**",
-                        "/open-api/**",
-                        "/psp/callback/**",
+                        "/open-api/**", // 商户Api
+                        "/psp/callback/**", // PSP回调
                         "/static/**",
                         "/.well-known/**", // OIDC发现端点
                         "/favicon.ico",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/v3/api-docs/**",
+                        "/webjars/**",
                         "/error"  // 错误端点
                         ).permitAll().anyRequest().authenticated()
                 )

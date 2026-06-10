@@ -1,7 +1,6 @@
 package com.gk.quartz.controller;
 
 
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
@@ -15,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -40,7 +40,7 @@ public class ScheduleJobController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY),
             @Parameter(name = "beanName", description = "beanName", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("sys:schedule:page")
+    @PreAuthorize("hasAuthority('sys:schedule:page')")
     public R page(@Parameter(hidden = true) @RequestParam Map<String, Object> params) {
         PageData<ScheduleJobDTO> page = scheduleJobService.page(params);
         return R.ok(page);
@@ -48,7 +48,7 @@ public class ScheduleJobController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("sys:schedule:info")
+    @PreAuthorize("hasAuthority('sys:schedule:info')")
     public R info(@PathVariable("id") Long id) {
         ScheduleJobDTO schedule = scheduleJobService.get(id);
         return R.ok(schedule);
@@ -56,7 +56,7 @@ public class ScheduleJobController {
 
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("sys:schedule:save")
+    @PreAuthorize("hasAuthority('sys:schedule:save')")
     public R<?> save(@RequestBody ScheduleJobDTO dto) {
         if (StringUtils.isNotBlank(dto.getParams())) {
             dto.setParams(StringEscapeUtils.escapeHtml4(dto.getParams()));
@@ -67,7 +67,7 @@ public class ScheduleJobController {
 
     @PutMapping
     @Operation(summary = "修改")
-    @RequiresPermission("sys:schedule:update")
+    @PreAuthorize("hasAuthority('sys:schedule:update')")
     public R update(@RequestBody ScheduleJobDTO dto) {
         if (StringUtils.isNotBlank(dto.getParams())) {
             dto.setParams(StringEscapeUtils.escapeHtml4(dto.getParams()));
@@ -78,7 +78,7 @@ public class ScheduleJobController {
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("sys:schedule:delete")
+    @PreAuthorize("hasAuthority('sys:schedule:delete')")
     public R delete(@RequestParam Long[] ids) {
         scheduleJobService.deleteBatch(ids);
         return R.ok();
@@ -86,7 +86,7 @@ public class ScheduleJobController {
 
     @PutMapping("/run")
     @Operation(summary = "立即执行")
-    @RequiresPermission("sys:schedule:run")
+    @PreAuthorize("hasAuthority('sys:schedule:run')")
     public R run(@RequestBody Long[] ids) {
         scheduleJobService.run(ids);
         return R.ok();
@@ -94,7 +94,7 @@ public class ScheduleJobController {
 
     @PutMapping("/pause")
     @Operation(summary = "暂停")
-    @RequiresPermission("sys:schedule:pause")
+    @PreAuthorize("hasAuthority('sys:schedule:pause')")
     public R pause(@RequestBody Long[] ids) {
         scheduleJobService.pause(ids);
         return R.ok();
@@ -102,7 +102,7 @@ public class ScheduleJobController {
 
     @PutMapping("/resume")
     @Operation(summary = "恢复")
-    @RequiresPermission("sys:schedule:resume")
+    @PreAuthorize("hasAuthority('sys:schedule:resume')")
     public R resume(@RequestBody Long[] ids) {
         scheduleJobService.resume(ids);
         return R.ok();

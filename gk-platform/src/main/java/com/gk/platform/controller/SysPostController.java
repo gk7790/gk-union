@@ -4,7 +4,6 @@ package com.gk.platform.controller;
 
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
@@ -18,6 +17,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -43,7 +43,7 @@ public class SysPostController {
         @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY) ,
         @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
-    // @RequiresPermission("sys:post:page")
+    @PreAuthorize("hasAuthority('sys:post:page')")
     public R<?> page(@Parameter(hidden = true)  @RequestMap DynMap params){
         PageData<SysPostDTO> page = sysPostService.page(params);
         return R.ok(page);
@@ -61,7 +61,7 @@ public class SysPostController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @RequiresPermission("sys:post:info")
+    @PreAuthorize("hasAuthority('sys:post:info')")
     public R<?> get(@PathVariable("id") Long id){
         SysPostDTO data = sysPostService.get(id);
         return R.ok(data);
@@ -69,7 +69,7 @@ public class SysPostController {
 
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("sys:post:save")
+    @PreAuthorize("hasAuthority('sys:post:save')")
     public R<?> save(@RequestBody SysPostDTO dto){
         sysPostService.save(dto);
         return R.ok();
@@ -77,7 +77,7 @@ public class SysPostController {
 
     @PutMapping
     @Operation(summary = "修改")
-    @RequiresPermission("sys:post:update")
+    @PreAuthorize("hasAuthority('sys:post:update')")
     public R<?> update(@RequestBody SysPostDTO dto){
         sysPostService.update(dto);
         return R.ok();
@@ -85,7 +85,7 @@ public class SysPostController {
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("sys:post:delete")
+    @PreAuthorize("hasAuthority('sys:post:delete')")
     public R<?> delete(@RequestParam Long[] ids){
         //效验数据
         AssertUtils.isArrayEmpty(ids, "id");

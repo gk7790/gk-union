@@ -2,7 +2,6 @@ package com.gk.infra.dict.controller;
 
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.annotation.RequiresPermission;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.PageData;
@@ -18,6 +17,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,7 +44,7 @@ public class SysDictTypeController {
             @Parameter(name = "dictType", description = "字典类型", in = ParameterIn.QUERY),
             @Parameter(name = "dictName", description = "字典名称", in = ParameterIn.QUERY)
     })
-    @RequiresPermission("sys:dict:page")
+    @PreAuthorize("hasAuthority('sys:dict:page')")
     public R<PageData<SysDictTypeDTO>> page(@Parameter(hidden = true) @RequestMap DynMap params){
         //字典类型
         PageData<SysDictTypeDTO> page = sysDictTypeService.page(params);
@@ -65,7 +65,7 @@ public class SysDictTypeController {
 
     @PostMapping
     @Operation(summary = "保存")
-    @RequiresPermission("sys:dict:save")
+    @PreAuthorize("hasAuthority('sys:dict:save')")
     public R<?> save(@RequestBody SysDictTypeDTO dto){
         sysDictTypeService.save(dto);
         return R.ok();
@@ -73,7 +73,7 @@ public class SysDictTypeController {
 
     @PutMapping
     @Operation(summary = "修改")
-    @RequiresPermission("sys:dict:update")
+    @PreAuthorize("hasAuthority('sys:dict:update')")
     public R<?> update(@RequestBody SysDictTypeDTO dto){
         sysDictTypeService.update(dto);
         return R.ok();
@@ -81,7 +81,7 @@ public class SysDictTypeController {
 
     @DeleteMapping
     @Operation(summary = "删除")
-    @RequiresPermission("sys:dict:delete")
+    @PreAuthorize("hasAuthority('sys:dict:delete')")
     public R<?> delete(@RequestParam Long[] ids){
         //效验数据
         AssertUtils.isArrayEmpty(ids, "id");

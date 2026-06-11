@@ -2,6 +2,7 @@ package com.gk.common.utils;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -87,5 +88,21 @@ class BizKeyUtilsTest {
             assertTrue(value.matches("[A-Za-z0-9_-]{43}"));
             assertTrue(value.matches("[A-Za-z0-9].*"));
         }
+    }
+
+    @Test
+    void encodesAndDecodesSnowflakeId() {
+        long id = 1990654600050675703L;
+        String code = BizKeyUtils.encodeId(id);
+        assertEquals(id, BizKeyUtils.decodeId(code));
+        assertEquals(id, BizKeyUtils.decodeId(code.toLowerCase()));
+        assertTrue(code.matches("[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{10,13}"));
+    }
+
+    @Test
+    void payOrderNoSuffixMatchesEncodeId() {
+        String payOrderNo = BizKeyUtils.genPayOrderNo();
+        String suffix = payOrderNo.substring(3);
+        assertDoesNotThrow(() -> BizKeyUtils.decodeId(suffix));
     }
 }

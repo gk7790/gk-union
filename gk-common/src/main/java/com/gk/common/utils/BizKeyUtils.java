@@ -33,31 +33,31 @@ public class BizKeyUtils {
     }
 
     public static String genPayOrderNo() {
-        return "PAY" + toBase32(IdWorker.getId());
+        return "PAY" + encodeId(IdWorker.getId());
     }
 
     public static String genPayoutOrderNo() {
-        return "PAYOUT" + toBase32(IdWorker.getId());
+        return "PAYOUT" + encodeId(IdWorker.getId());
     }
 
     public static String genPspRequestNo() {
-        return "PRQ" + toBase32(IdWorker.getId());
+        return "PRQ" + encodeId(IdWorker.getId());
     }
 
     public static String genMerchantRequestNo() {
-        return "MRQ" + toBase32(IdWorker.getId());
+        return "MRQ" + encodeId(IdWorker.getId());
     }
 
     public static String genMerchantNotifyTaskNo() {
-        return "MNT" + toBase32(IdWorker.getId());
+        return "MNT" + encodeId(IdWorker.getId());
     }
 
     public static String genLedgerJournalNo() {
-        return "LJ" + toBase32(IdWorker.getId());
+        return "LJ" + encodeId(IdWorker.getId());
     }
 
     public static String genLedgerHoldNo() {
-        return "LH" + toBase32(IdWorker.getId());
+        return "LH" + encodeId(IdWorker.getId());
     }
 
     public static String genShortCode() {
@@ -78,6 +78,55 @@ public class BizKeyUtils {
         return secret;
     }
 
+    /**
+     * 雪花 ID 转 Base32 短码（与单号后缀同一套字母表）。
+     */
+    public static String encodeId(long id) {
+        if (id <= 0) {
+            throw new IllegalArgumentException("id must be positive");
+        }
+        StringBuilder result = new StringBuilder(13);
+        long current = id;
+        while (current > 0) {
+            result.append(BASE32_CHARS[(int) (current & 31)]);
+            current >>>= 5;
+        }
+        return result.reverse().toString();
+    }
+
+    /**
+     * Base32 短码还原为雪花 ID。
+     */
+    public static long decodeId(String code) {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("code must not be blank");
+        }
+        long result = 0;
+        for (int i = 0; i < code.length(); i++) {
+            int digit = base32CharValue(code.charAt(i));
+            if (digit < 0) {
+                throw new IllegalArgumentException("invalid base32 character: " + code.charAt(i));
+            }
+            result = (result << 5) | digit;
+        }
+        if (result <= 0) {
+            throw new IllegalArgumentException("code must decode to a positive id");
+        }
+        return result;
+    }
+
+    private static int base32CharValue(char c) {
+        if (c >= 'a' && c <= 'z') {
+            c = Character.toUpperCase(c);
+        }
+        for (int i = 0; i < BASE32_CHARS.length; i++) {
+            if (BASE32_CHARS[i] == c) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private static String randomUpperCode(int length) {
         StringBuilder code = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
@@ -86,16 +135,4 @@ public class BizKeyUtils {
         return code.toString();
     }
 
-    private static String toBase32(long value) {
-        if (value <= 0) {
-            throw new IllegalArgumentException("value must be positive");
-        }
-        StringBuilder result = new StringBuilder(13);
-        long current = value;
-        while (current > 0) {
-            result.append(BASE32_CHARS[(int) (current & 31)]);
-            current >>>= 5;
-        }
-        return result.reverse().toString();
-    }
 }

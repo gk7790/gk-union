@@ -5,6 +5,7 @@ import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
+import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.merchant.dto.MerchantDTO;
 import com.gk.merchant.service.MerchantService;
@@ -43,6 +44,9 @@ public class MerchantController {
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> get(@PathVariable("id") Long id) {
         MerchantDTO data = merchantService.get(id);
+        if (data != null && data.getId() != null) {
+            data.setTgBindCode(BizKeyUtils.encodeId(data.getId()));
+        }
         return R.ok(data);
     }
 

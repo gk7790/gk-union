@@ -39,6 +39,8 @@ public class MerchantDTO {
     private String contactPhone;
     @Schema(title = "Telegram 用户ID")
     private Long tgUserId;
+    @Schema(title = "Telegram 绑定码(商户ID Base32，只读)")
+    private String tgBindCode;
     @Schema(title = "营业执照/注册编号")
     private String businessLicenseNo;
     @Schema(title = "结算模式")

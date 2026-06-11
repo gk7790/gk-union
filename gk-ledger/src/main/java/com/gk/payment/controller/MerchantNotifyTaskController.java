@@ -6,6 +6,7 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.payment.dto.MerchantNotifyTaskDTO;
+import com.gk.payment.notify.MerchantNotifyExecutor;
 import com.gk.payment.service.MerchantNotifyTaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MerchantNotifyTaskController {
     private final MerchantNotifyTaskService merchantNotifyTaskService;
+    private final MerchantNotifyExecutor merchantNotifyExecutor;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -42,5 +44,13 @@ public class MerchantNotifyTaskController {
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(merchantNotifyTaskService.get(id));
+    }
+
+    @PostMapping("{id}/resend")
+    @Operation(summary = "手动重发", description = "立即同步重发该商户通知一次, 返回本次是否被商户成功接收(响应 success/ok)")
+    @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
+    public R<?> resend(@PathVariable("id") Long id) {
+        boolean success = merchantNotifyExecutor.resend(id);
+        return R.ok(success);
     }
 }

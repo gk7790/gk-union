@@ -1,6 +1,6 @@
 package com.gk.psp.callback.support;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson2.JSON;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,7 +21,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PspCallbackNotifyCreator {
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
-    private final ObjectMapper objectMapper;
 
     public void create(String bizType, PspCallbackResult result, PspCallbackOrder order, PspCallbackLogEntity logEntity) {
         if (StringUtils.isBlank(order.notifyUrl())) {
@@ -59,15 +59,29 @@ public class PspCallbackNotifyCreator {
     }
 
     private Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
+        String orderStatus = eventType(bizType, result.getOrderStatus());
+        BigDecimal accountAmount = order.settleAmount() != null && order.settleAmount().signum() > 0
+                ? order.settleAmount()
+                : PspCallbackUtils.defaultAmount(result.getAmount(), order.amount());
+
+        // 通知报文(不含 sign): 发送时按商户密钥对以下字段排序签名后注入 sign 字段
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("merchant_order_id", order.merchantOrderNo());
+        payload.put("merchant_id", order.merchantNo());
+        payload.put("app_id", order.appId());
         payload.put("system_order_id", order.orderNo());
-        payload.put("order_type", bizType);
-        payload.put("status", PspCallbackUtils.normalizeStatus(result.getOrderStatus()));
-        payload.put("amount", PspCallbackUtils.decimalText(PspCallbackUtils.defaultAmount(result.getAmount(), order.amount())));
-        payload.put("currency", StringUtils.defaultIfBlank(result.getCurrency(), order.currency()));
-        payload.put("psp_order_no", StringUtils.defaultIfBlank(result.getPspOrderNo(), order.pspOrderNo()));
+        payload.put("merchant_order_id", order.merchantOrderNo());
+        payload.put("amount", PspCallbackUtils.decimalText(order.amount()));
+        payload.put("account_amount", PspCallbackUtils.decimalText(accountAmount));
+        payload.put("order_status", orderStatus);
+        payload.put("msg", message(orderStatus, result));
         return payload;
+    }
+
+    private String message(String orderStatus, PspCallbackResult result) {
+        if (orderStatus.endsWith("_SUCCESS")) {
+            return "Transaction success";
+        }
+        return StringUtils.defaultIfBlank(result.getErrorMessage(), "Transaction failed");
     }
 
     private String eventType(String bizType, String status) {
@@ -76,10 +90,6 @@ public class PspCallbackNotifyCreator {
     }
 
     private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            throw new IllegalStateException("Build merchant notify payload failed", ex);
-        }
+        return JSON.toJSONString(value);
     }
 }

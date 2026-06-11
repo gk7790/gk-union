@@ -65,6 +65,7 @@ class PspCallbackValidatorTest {
                 1L,
                 10L,
                 20L,
+                "SMERCHANT001",
                 30L,
                 "app",
                 40L,

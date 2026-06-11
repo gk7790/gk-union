@@ -100,10 +100,12 @@ public class SysRoleController {
 	@Operation(summary = "新增角色", description = "创建角色并绑定菜单权限、部门数据权限。平台角色、租户角色、商户角色通过 roleScope 区分。权限码：sys:role:add。")
 	@PreAuthorize("hasAuthority('sys:role:add')")
 	public R<?> save(@RequestBody SysRoleDTO dto){
-        if (!currentUser.hasAllAuth("sys:role:add") || "sadmin".equals(dto.getAuth())) {
+        if (!currentUser.hasAllRole("sadmin") && !currentUser.hasAllAuth("sys:role:add")) {
             return R.error(ErrorCode.FORBIDDEN);
         }
-
+        if (!currentUser.hasAllRole("sadmin") && "sadmin".equals(dto.getAuth())) {
+            return R.error(ErrorCode.FORBIDDEN);
+        }
         boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
         if (!allowed) {
             dto.setTenantId(ReqContextHolder.getTenantId());
@@ -116,7 +118,10 @@ public class SysRoleController {
 	@Operation(summary = "修改角色", description = "修改角色基础信息、菜单权限和数据权限。权限码：sys:role:update。")
 	@PreAuthorize("hasAuthority('sys:role:update')")
 	public R<?> update(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id, @RequestBody SysRoleDTO dto){
-        if (!currentUser.hasAllAuth("sys:role:update") || "sadmin".equals(dto.getAuth())) {
+        if (!currentUser.hasAllRole("sadmin") && !currentUser.hasAllAuth("sys:role:update")) {
+            return R.error(ErrorCode.FORBIDDEN);
+        }
+        if (!currentUser.hasAllRole("sadmin") && "sadmin".equals(dto.getAuth())) {
             return R.error(ErrorCode.FORBIDDEN);
         }
         dto.setId(id);

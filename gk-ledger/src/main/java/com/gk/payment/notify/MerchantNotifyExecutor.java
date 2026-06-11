@@ -1,6 +1,5 @@
 package com.gk.payment.notify;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
@@ -24,9 +23,9 @@ import java.util.UUID;
 /**
  * 商户异步通知发送/重试引擎。
  * <p>
- * 职责: 抢占到期任务 → 组装带签名的请求 → HTTP POST 商户 notify_url → 记录每次尝试 →
+ * 职责: 抢占到期任务 → 对报文签名(sign 写入 body) → HTTP POST 商户 notify_url → 记录每次尝试 →
  * 按指数退避重试, 超过最大次数进入死信(DEAD)。
- * HTTP 调用在事务外执行, 仅落库阶段使用事务, 避免长事务占用连接。
+ * 触发方式见 {@link MerchantNotifyTask}(由 gk-scheduler 的 Quartz 定时任务驱动)。
  */
 @Slf4j
 @Component
@@ -35,21 +34,33 @@ public class MerchantNotifyExecutor {
     private static final String STATUS_SUCCESS = "SUCCESS";
     private static final String STATUS_FAILED = "FAILED";
     private static final String STATUS_DEAD = "DEAD";
+    private static final String DEFAULT_SIGN_TYPE = "MD5";
 
-    private final MerchantNotifyProperties properties;
+    /** 单批抢占任务数 */
+    private static final int BATCH_SIZE = 100;
+    /** 一次触发最多连续处理的批次数(防止单次触发占用过久) */
+    private static final int MAX_DRAIN_LOOPS = 20;
+    /** 任务锁定时长(秒): 抢占后多久未完成视为可被其他节点重新抢占 */
+    private static final int LOCK_SECONDS = 120;
+    /** HTTP 连接超时(毫秒) */
+    private static final int CONNECT_TIMEOUT_MS = 3000;
+    /** 任务未配置 timeoutMs 时的默认读取超时(毫秒) */
+    private static final int DEFAULT_READ_TIMEOUT_MS = 5000;
+    /** 落库的响应体/错误信息最大长度 */
+    private static final int MAX_STORE_LEN = 2000;
+    /** 视为成功的响应体标识(忽略大小写, 命中其一即成功) */
+    private static final List<String> SUCCESS_TOKENS = List.of("success", "ok");
+    /** 重试退避秒数(按已失败次数取下标, 超出取最后一个) */
+    private static final long[] BACKOFF_SECONDS = {15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 21600};
+
     private final MerchantNotifyRepository repository;
     private final MerchantNotifySigner signer;
     private final MerchantAppDao merchantAppDao;
-    private final ObjectMapper objectMapper;
 
     private String workerId;
 
     @PostConstruct
     public void init() {
-        if (StringUtils.isNotBlank(properties.getWorkerId())) {
-            this.workerId = properties.getWorkerId();
-            return;
-        }
         String host;
         try {
             host = InetAddress.getLocalHost().getHostName();
@@ -60,16 +71,33 @@ public class MerchantNotifyExecutor {
     }
 
     /**
+     * 排空式处理: 连续处理多批直到没有到期任务或达到上限。供定时任务一次触发调用。
+     *
+     * @return 本次累计处理的任务数
+     */
+    public int drain() {
+        int total = 0;
+        for (int loop = 0; loop < MAX_DRAIN_LOOPS; loop++) {
+            int handled = dispatchBatch();
+            total += handled;
+            if (handled < BATCH_SIZE) {
+                break;
+            }
+        }
+        return total;
+    }
+
+    /**
      * 扫描并处理一批到期任务。
      *
      * @return 实际处理(抢占成功并尝试发送)的任务数
      */
     public int dispatchBatch() {
         Instant now = Instant.now();
-        List<MerchantNotifyTaskEntity> candidates = repository.findClaimable(now, properties.getBatchSize());
+        List<MerchantNotifyTaskEntity> candidates = repository.findClaimable(now, BATCH_SIZE);
         int handled = 0;
         for (MerchantNotifyTaskEntity task : candidates) {
-            Instant lockUntil = Instant.now().plusSeconds(properties.getLockSeconds());
+            Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
             if (!repository.claim(task, workerId, Instant.now(), lockUntil)) {
                 // 已被其他节点抢占, 跳过
                 continue;
@@ -89,7 +117,7 @@ public class MerchantNotifyExecutor {
      * 即使任务已 DEAD 也可重发(会自动再放开重试次数)。
      */
     public boolean resend(Long taskId) {
-        Instant lockUntil = Instant.now().plusSeconds(properties.getLockSeconds());
+        Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
         MerchantNotifyTaskEntity task = repository.forceClaim(taskId, workerId, Instant.now(), lockUntil);
         if (task == null) {
             return false;
@@ -121,16 +149,18 @@ public class MerchantNotifyExecutor {
         record.setStartedAt(startedAt);
         record.setTraceId(task.getTraceId());
 
-        String apiSecret = loadApiSecret(task);
+        MerchantAppEntity app = loadApp(task);
+        String apiSecret = app == null ? null : app.getApiSecret();
         HttpOutcome outcome;
         if (StringUtils.isBlank(apiSecret)) {
             outcome = HttpOutcome.transportError("merchant app api secret missing, merchantAppId=" + task.getMerchantAppId());
         } else {
-            MerchantNotifySignature signature = signer.sign(task, apiSecret, payloadJson);
-            record.setRequestSignature(signature.signature());
-            record.setRequestHeadersJson(toJson(signature.headers()));
-            task.setSignature(signature.signature());
-            outcome = doPost(task, signature, payloadJson);
+            MerchantNotifySigned signed = signer.sign(payloadJson, apiSecret, resolveSignType(app, task));
+            record.setRequestSignature(signed.sign());
+            // 最终发送的报文(含 sign), 覆盖原始 payload
+            record.setRequestBody(signed.body());
+            task.setSignature(signed.sign());
+            outcome = doPost(task, signed.body());
         }
 
         long costMs = System.currentTimeMillis() - startedAt.toEpochMilli();
@@ -182,21 +212,20 @@ public class MerchantNotifyExecutor {
             task.setMaxRetryCount(attemptNo + 1);
         }
         task.setStatus(STATUS_FAILED);
-        task.setNextRetryAt(now.plusSeconds(properties.backoffSeconds(attemptNo)));
+        task.setNextRetryAt(now.plusSeconds(backoffSeconds(attemptNo)));
     }
 
-    private HttpOutcome doPost(MerchantNotifyTaskEntity task, MerchantNotifySignature signature, String payloadJson) {
-        int readTimeout = task.getTimeoutMs() == null ? properties.getDefaultTimeoutMs() : task.getTimeoutMs();
+    private HttpOutcome doPost(MerchantNotifyTaskEntity task, String bodyJson) {
+        int readTimeout = task.getTimeoutMs() == null ? DEFAULT_READ_TIMEOUT_MS : task.getTimeoutMs();
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getConnectTimeoutMs());
+        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
         factory.setReadTimeout(readTimeout);
         RestClient client = RestClient.builder().requestFactory(factory).build();
         try {
             return client.post()
                     .uri(URI.create(task.getNotifyUrl()))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .headers(h -> signature.headers().forEach(h::set))
-                    .body(payloadJson)
+                    .body(bodyJson)
                     .exchange((request, response) -> {
                         int status = response.getStatusCode().value();
                         String body = response.bodyTo(String.class);
@@ -215,21 +244,12 @@ public class MerchantNotifyExecutor {
         if (!httpOk) {
             return false;
         }
-        if (!properties.isRequireSuccessBody()) {
-            return true;
-        }
         String body = outcome.body();
         if (StringUtils.isBlank(body)) {
             return false;
         }
         String normalized = body.trim().toLowerCase(Locale.ROOT);
-        List<String> tokens = properties.getSuccessBodyTokens();
-        if (tokens == null || tokens.isEmpty()) {
-            return true;
-        }
-        return tokens.stream()
-                .filter(StringUtils::isNotBlank)
-                .anyMatch(token -> normalized.contains(token.toLowerCase(Locale.ROOT)));
+        return SUCCESS_TOKENS.stream().anyMatch(normalized::contains);
     }
 
     private String failReason(HttpOutcome outcome) {
@@ -242,25 +262,32 @@ public class MerchantNotifyExecutor {
         return "response body not acknowledged";
     }
 
-    private String loadApiSecret(MerchantNotifyTaskEntity task) {
+    private MerchantAppEntity loadApp(MerchantNotifyTaskEntity task) {
         if (task.getMerchantAppId() == null) {
             return null;
         }
-        MerchantAppEntity app = merchantAppDao.selectById(task.getMerchantAppId());
         // TODO: 若后续 api_secret 改为加密存储, 这里需先解密
-        return app == null ? null : app.getApiSecret();
+        return merchantAppDao.selectById(task.getMerchantAppId());
     }
 
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception e) {
-            return null;
+    private String resolveSignType(MerchantAppEntity app, MerchantNotifyTaskEntity task) {
+        String signType = app == null ? null : app.getSignType();
+        if (StringUtils.isBlank(signType)) {
+            signType = task.getSignType();
         }
+        return StringUtils.defaultIfBlank(signType, DEFAULT_SIGN_TYPE);
+    }
+
+    private long backoffSeconds(int failedTimes) {
+        int index = Math.max(0, failedTimes - 1);
+        if (index >= BACKOFF_SECONDS.length) {
+            index = BACKOFF_SECONDS.length - 1;
+        }
+        return BACKOFF_SECONDS[index];
     }
 
     private String truncate(String value) {
-        return StringUtils.abbreviate(value, properties.getMaxStoreBodyLength());
+        return StringUtils.abbreviate(value, MAX_STORE_LEN);
     }
 
     private int safeInt(Integer value) {

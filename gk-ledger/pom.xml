@@ -23,6 +23,11 @@
             <artifactId>gk-platform</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-scheduler</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>

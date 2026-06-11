@@ -24,7 +24,7 @@ public class MerchantAppDTO {
     private String signType;
     @Schema(title = "加密类型")
     private String encryptType;
-    @Schema(title = "API密钥密文或密钥引用")
+    @Schema(title = "API密钥；创建/重置时返回明文，其余场景脱敏")
     private String apiSecret;
     @Schema(title = "密钥版本号")
     private Integer secretVersion;

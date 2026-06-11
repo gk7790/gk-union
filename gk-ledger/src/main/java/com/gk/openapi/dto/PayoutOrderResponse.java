@@ -15,5 +15,4 @@ public class PayoutOrderResponse {
     private String currency;
     private String countryCode;
     private String methodCode;
-    private String pspOrderNo;
 }

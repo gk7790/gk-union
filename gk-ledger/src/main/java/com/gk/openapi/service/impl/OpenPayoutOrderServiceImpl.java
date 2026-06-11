@@ -431,7 +431,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         response.setCurrency(entity.getCurrency());
         response.setCountryCode(entity.getCountryCode());
         response.setMethodCode(entity.getMethodCode());
-        response.setPspOrderNo(entity.getPspOrderNo());
         return response;
     }
 

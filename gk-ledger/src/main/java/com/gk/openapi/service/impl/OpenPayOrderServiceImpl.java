@@ -356,7 +356,6 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         response.setCountryCode(entity.getCountryCode());
         response.setMethodCode(entity.getMethodCode());
         response.setPayUrl(entity.getPspPayUrl());
-        response.setPspOrderNo(entity.getPspOrderNo());
         return response;
     }
 

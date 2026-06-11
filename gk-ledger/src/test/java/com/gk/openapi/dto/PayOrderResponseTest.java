@@ -1,8 +1,10 @@
 package com.gk.openapi.dto;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.openapi.config.OpenApiJacksonConfig;
 import com.gk.openapi.tools.ApiR;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -11,7 +13,9 @@ class PayOrderResponseTest {
 
     @Test
     void serializesPublicPayOrderFieldsAndOmitsAccountingFields() throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
+        Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder();
+        OpenApiJacksonConfig.applySnakeCaseMixIns(builder);
+        ObjectMapper mapper = builder.build();
         PayOrderResponse response = new PayOrderResponse();
         response.setSystemOrderId("PAY202606090001");
         response.setMerchantOrderId("M20260680001");
@@ -28,6 +32,7 @@ class PayOrderResponseTest {
         assertFalse(json.contains("merchantFeeAmount"));
         assertFalse(json.contains("settleAmount"));
         assertFalse(json.contains("payUrl"));
+        assertFalse(json.contains("psp_order_no"));
         assertFalse(json.contains("pspOrderNo"));
     }
 }

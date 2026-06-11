@@ -14,6 +14,16 @@ V1 接口统一使用：
 
 所有接口都需要通过商户应用鉴权。商户不能传 `tenant_id`，平台会根据 `app_id` 自动识别租户、商户和应用。
 
+### 1.1 字段命名规范
+
+Open API 请求、响应及异步通知的 JSON 字段**统一使用 snake_case（下划线）**，例如：
+
+- `app_id`、`merchant_order_id`、`system_order_id`
+- `country_code`、`method_code`、`notify_url`、`return_url`
+- `pay_url`、`account_no`
+
+不支持 camelCase 别名（如 `merchantOrderId`）。签名时以 JSON 中的实际字段名参与排序拼接。
+
 ## 2. 公共参数
 
 所有接口请求参数中都需要包含以下公共参数：
@@ -58,16 +68,16 @@ Content-Type: application/json
   "timestamp": "1780800000000",
   "merchant_order_id": "M202606080001",
   "amount": "100.00",
-  "pay_channel": "GCASH",
+  "method_code": "GCASH",
   "notify_url": "https://merchant.example.com/notify",
-  "page_return_url": "https://merchant.example.com/return"
+  "return_url": "https://merchant.example.com/return"
 }
 ```
 
 排序后拼接得到 `stringA`：
 
 ```text
-amount=100.00&app_id=APP_PH_MANILA_001&merchant_order_id=M202606080001&notify_url=https://merchant.example.com/notify&page_return_url=https://merchant.example.com/return&pay_channel=GCASH&timestamp=1780800000000
+amount=100.00&app_id=APP_PH_MANILA_001&merchant_order_id=M202606080001&notify_url=https://merchant.example.com/notify&return_url=https://merchant.example.com/return&method_code=GCASH&timestamp=1780800000000
 ```
 
 计算签名：
@@ -130,11 +140,11 @@ POST /api/v1/pay/create
 | `amount` | 是 | decimal/string | 订单金额 |
 | `currency` | 否 | string | 币种，例如 `PHP`；不传时可由商户或支付方式默认配置决定 |
 | `country_code` | 否 | string | 国家编码，例如 `PH`；不传时可由商户或支付方式默认配置决定 |
-| `pay_channel` | 是 | string | 支付方式，例如 `GCASH`、`MAYA` |
+| `method_code` | 是 | string | 支付方式，例如 `GCASH`、`MAYA` |
 | `subject` | 否 | string | 订单标题 |
 | `description` | 否 | string | 订单描述 |
 | `notify_url` | 是 | string | 商户异步通知地址 |
-| `page_return_url` | 是 | string | 支付完成后的前端跳转地址 |
+| `return_url` | 是 | string | 支付完成后的前端跳转地址 |
 | `payer` | 否 | object | 付款人扩展信息 |
 | `extra` | 否 | object | 商户扩展参数 |
 
@@ -144,9 +154,9 @@ POST /api/v1/pay/create
 {
   "merchant_order_id": "M202606080001",
   "amount": "100.00",
-  "pay_channel": "GCASH",
+  "method_code": "GCASH",
   "notify_url": "https://merchant.example.com/notify",
-  "page_return_url": "https://merchant.example.com/return",
+  "return_url": "https://merchant.example.com/return",
   "app_id": "APP_PH_MANILA_001",
   "timestamp": "1780800000000",
   "sign": "7c1a..."
@@ -157,17 +167,15 @@ POST /api/v1/pay/create
 
 | 参数名 | 类型 | 说明 |
 |---|---|---|
-| `payOrderNo` | string | 平台代收订单号 |
-| `merchantOrderNo` | string | 商户订单号 |
+| `system_order_id` | string | 平台代收订单号 |
+| `merchant_order_id` | string | 商户订单号 |
 | `status` | string | 订单状态 |
-| `statusReason` | string | 状态原因 |
+| `status_reason` | string | 状态原因 |
 | `amount` | decimal | 订单金额 |
-| `paidAmount` | decimal | 实际支付金额 |
 | `currency` | string | 币种 |
-| `countryCode` | string | 国家编码 |
-| `methodCode` | string | 支付方式 |
-| `payUrl` | string | 收银台/支付链接 |
-| `pspOrderNo` | string | PSP 订单号 |
+| `country_code` | string | 国家编码 |
+| `method_code` | string | 支付方式 |
+| `pay_url` | string | 收银台/支付链接 |
 
 ### 响应示例
 
@@ -179,16 +187,14 @@ POST /api/v1/pay/create
   "message": "success",
   "timestamp": 1780800000000,
   "data": {
-    "payOrderNo": "PAY202606080001",
-    "merchantOrderNo": "M202606080001",
+    "system_order_id": "PAY202606080001",
+    "merchant_order_id": "M202606080001",
     "status": "PROCESSING",
     "amount": "100.00",
-    "paidAmount": "0.00",
     "currency": "PHP",
-    "countryCode": "PH",
-    "methodCode": "GCASH",
-    "payUrl": "https://psp.example.com/pay/xxx",
-    "pspOrderNo": null
+    "country_code": "PH",
+    "method_code": "GCASH",
+    "pay_url": "https://psp.example.com/pay/xxx"
   }
 }
 ```
@@ -207,8 +213,7 @@ POST /api/v1/pay/query
 
 | 参数名 | 必填 | 类型 | 说明 |
 |---|---:|---|---|
-| `pay_order_no` | 否 | string | 平台代收订单号 |
-| `system_order_id` | 否 | string | 平台订单号别名，等同 `pay_order_no` |
+| `system_order_id` | 否 | string | 平台代收订单号 |
 | `merchant_order_id` | 否 | string | 商户订单号 |
 
 ### 请求示例
@@ -240,7 +245,7 @@ POST /api/v1/payout/create
 | `amount` | 是 | decimal/string | 代付金额 |
 | `currency` | 是 | string | 币种，例如 `PHP` |
 | `country_code` | 是 | string | 国家编码，例如 `PH` |
-| `pay_channel` | 是 | string | 代付方式，例如 `GCASH`、`MAYA` |
+| `method_code` | 是 | string | 代付方式，例如 `GCASH`、`MAYA` |
 | `purpose` | 否 | string | 代付用途 |
 | `notify_url` | 否 | string | 商户异步通知地址 |
 | `payee` | 是 | object | 收款人信息 |
@@ -265,7 +270,7 @@ POST /api/v1/payout/create
   "amount": "100.00",
   "currency": "PHP",
   "country_code": "PH",
-  "pay_channel": "GCASH",
+  "method_code": "GCASH",
   "purpose": "withdraw",
   "notify_url": "https://merchant.example.com/notify",
   "app_id": "APP_PH_MANILA_001",
@@ -284,15 +289,14 @@ POST /api/v1/payout/create
 
 | 参数名 | 类型 | 说明 |
 |---|---|---|
-| `payoutOrderNo` | string | 平台代付订单号 |
-| `merchantOrderNo` | string | 商户订单号 |
+| `system_order_id` | string | 平台代付订单号 |
+| `merchant_order_id` | string | 商户订单号 |
 | `status` | string | 订单状态 |
-| `statusReason` | string | 状态原因 |
+| `status_reason` | string | 状态原因 |
 | `amount` | decimal | 代付金额 |
 | `currency` | string | 币种 |
-| `countryCode` | string | 国家编码 |
-| `methodCode` | string | 代付方式 |
-| `pspOrderNo` | string | PSP 订单号 |
+| `country_code` | string | 国家编码 |
+| `method_code` | string | 代付方式 |
 
 ## 8. 查询代付订单
 
@@ -308,8 +312,7 @@ POST /api/v1/payout/query
 
 | 参数名 | 必填 | 类型 | 说明 |
 |---|---:|---|---|
-| `payout_order_no` | 否 | string | 平台代付订单号 |
-| `system_order_id` | 否 | string | 平台订单号别名，等同 `payout_order_no` |
+| `system_order_id` | 否 | string | 平台代付订单号 |
 | `merchant_order_id` | 否 | string | 商户订单号 |
 
 ### 请求示例
@@ -359,7 +362,7 @@ POST /api/v1/balance
   "timestamp": 1780800000000,
   "data": [
     {
-      "accountNo": "ACC_MERCHANT_PHP_001",
+      "account_no": "ACC_MERCHANT_PHP_001",
       "currency": "PHP",
       "balance": "1000.00"
     }
@@ -372,7 +375,7 @@ POST /api/v1/balance
 ### 请求信息
 
 ```http
-POST /api/v1/payment/methods
+POST /api/v1/methods
 ```
 
 ### 请求参数
@@ -405,13 +408,13 @@ POST /api/v1/payment/methods
   "timestamp": 1780800000000,
   "data": [
     {
-      "methodCode": "GCASH",
-      "methodName": "GCash",
-      "countryCode": "PH",
+      "method_code": "GCASH",
+      "method_name": "GCash",
+      "country_code": "PH",
       "currency": "PHP",
       "direction": "PAYIN",
-      "minAmount": "10.00",
-      "maxAmount": "50000.00"
+      "min_amount": "10.00",
+      "max_amount": "50000.00"
     }
   ]
 }
@@ -463,7 +466,30 @@ POST /api/v1/payment/methods
 | `FAILED` | 代付失败 |
 | `CANCELLED` | 已取消 |
 
-## 13. 对接建议
+## 13. 异步通知
+
+订单终态（成功/失败）后，平台向创建订单时传入的 `notify_url` 发送 POST JSON 通知。字段同样使用 snake_case，与 Open API 保持一致。
+
+| 参数名 | 说明 |
+|---|---|
+| `merchant_id` | 商户号 |
+| `app_id` | 应用 ID |
+| `order_type` | `PAY` / `PAYOUT` |
+| `system_order_id` | 平台订单号 |
+| `merchant_order_id` | 商户订单号 |
+| `currency` | 币种 |
+| `amount` | 订单金额 |
+| `order_status` | 订单状态 |
+| `msg` | 状态说明 |
+| `paid_amount` | 代收实付金额（代收） |
+| `settle_amount` | 结算金额（代收，可选） |
+| `debit_amount` | 扣款金额（代付） |
+| `fee_amount` | 手续费（可选） |
+| `sign` | 签名，发送时注入 |
+
+商户收到通知后应返回 HTTP 200 且 body 为 `success`（大小写不敏感）。
+
+## 14. 对接建议
 
 - V1 默认不要求传 `nonce`；如果商户传入 `nonce`，每次请求应生成新的值。
 - 创建订单时，`merchant_order_id` 在同一商户下必须唯一，并承担幂等职责。

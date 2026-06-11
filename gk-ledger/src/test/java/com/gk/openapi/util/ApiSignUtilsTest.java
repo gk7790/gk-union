@@ -19,9 +19,9 @@ public class ApiSignUtilsTest {
         params.put("merchant_order_id", "M202606080001");
         params.put("amount", "100.00");
         params.put("empty", "");
-        params.put("pay_channel", "GCASH");
+        params.put("method_code", "GCASH");
         params.put("notify_url", "https://merchant.example.com/notify");
-        params.put("page_return_url", "https://merchant.example.com/return");
+        params.put("return_url", "https://merchant.example.com/return");
         params.put("app_id", "APP_PH_MANILA_001");
         params.put("timestamp", "1780800000000");
         params.put("nonce", "9f8a7c6d");
@@ -29,8 +29,8 @@ public class ApiSignUtilsTest {
         String signText = ApiSignUtils.buildSortedParamString(params);
         String sign = ApiSignUtils.createHmacSha256Sign(params, "secret_123456");
 
-        assertEquals("amount=100.00&app_id=APP_PH_MANILA_001&merchant_order_id=M202606080001&nonce=9f8a7c6d&notify_url=https://merchant.example.com/notify&page_return_url=https://merchant.example.com/return&pay_channel=GCASH&timestamp=1780800000000", signText);
-        assertEquals("11bbe9c4568bd75008b1d03436ed3dafb271deabc851a38e5598ba5d6b8cda8b", sign);
+        assertEquals("amount=100.00&app_id=APP_PH_MANILA_001&merchant_order_id=M202606080001&nonce=9f8a7c6d&notify_url=https://merchant.example.com/notify&return_url=https://merchant.example.com/return&method_code=GCASH&timestamp=1780800000000", signText);
+        assertEquals("a26698865c2283e0cd652eb67df572f9e2927c12e3e49b56ef77fcfc77a554d7", sign);
         assertTrue(ApiSignUtils.verifyHmacSha256Sign(params, "secret_123456", sign));
     }
 
@@ -39,9 +39,9 @@ public class ApiSignUtilsTest {
         params.put("sign", "should-not-join");
         params.put("merchant_order_id", "M2026060844001");
         params.put("amount", "100.00");
-        params.put("pay_channel", "GCASH");
+        params.put("method_code", "GCASH");
         params.put("notify_url", "https://merchant.example.com/notify");
-        params.put("page_return_url", "https://merchant.example.com/return");
+        params.put("return_url", "https://merchant.example.com/return");
         params.put("app_id", "G87QQS3WPWQ7EKTXE79FG57N3CX");
         params.put("timestamp", Instant.now().toEpochMilli());
 

@@ -16,5 +16,4 @@ public class PayOrderResponse {
     private String countryCode;
     private String methodCode;
     private String payUrl;
-    private String pspOrderNo;
 }

@@ -1,5 +1,6 @@
 package com.gk.openapi.dto;
 
+import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
@@ -15,6 +16,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+@JacksonAnnotationsInside
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public @interface OpenApiModel {
 }

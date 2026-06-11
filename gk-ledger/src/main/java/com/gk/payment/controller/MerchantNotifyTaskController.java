@@ -47,10 +47,9 @@ public class MerchantNotifyTaskController {
     }
 
     @PostMapping("{id}/resend")
-    @Operation(summary = "手动重发", description = "立即同步重发该商户通知一次, 返回本次是否被商户成功接收(响应 success/ok)")
+    @Operation(summary = "手动重发", description = "立即同步重发该商户通知一次; 成功提示通知成功, 失败返回 msg, 详情见通知记录")
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
-    public R<?> resend(@PathVariable("id") Long id) {
-        boolean success = merchantNotifyExecutor.resend(id);
-        return R.ok(success);
+    public R<Void> resend(@PathVariable("id") Long id) {
+        return R.fromResult(merchantNotifyExecutor.resend(id));
     }
 }

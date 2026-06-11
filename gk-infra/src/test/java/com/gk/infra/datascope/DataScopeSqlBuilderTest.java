@@ -1,5 +1,6 @@
 package com.gk.infra.datascope;
 
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.annotation.DataScope;
 import com.gk.common.context.ReqContext;
 import com.gk.common.enums.DataScopeType;
@@ -19,7 +20,7 @@ class DataScopeSqlBuilderTest {
     void autoTenantScopeAddsTenantPredicate() throws Exception {
         DataScope dataScope = annotation("autoTenant");
         ReqContext context = ReqContext.builder()
-                .subjectType("TENANT")
+                .subjectType(SubjectTypeEnum.TENANT.code())
                 .tenantId(10L)
                 .build();
 
@@ -33,7 +34,7 @@ class DataScopeSqlBuilderTest {
     void autoMerchantScopeAddsTenantAndMerchantPredicates() throws Exception {
         DataScope dataScope = annotation("autoMerchant");
         ReqContext context = ReqContext.builder()
-                .subjectType("MERCHANT")
+                .subjectType(SubjectTypeEnum.MERCHANT.code())
                 .tenantId(10L)
                 .merchantId(20L)
                 .build();
@@ -48,7 +49,7 @@ class DataScopeSqlBuilderTest {
     void platformAutoScopeBypassesByDefault() throws Exception {
         DataScope dataScope = annotation("autoPlatform");
         ReqContext context = ReqContext.builder()
-                .subjectType("PLATFORM")
+                .subjectType(SubjectTypeEnum.PLATFORM.code())
                 .sAdmin(true)
                 .build();
 
@@ -61,7 +62,7 @@ class DataScopeSqlBuilderTest {
     void merchantScopeThrowsWhenMerchantContextMissing() throws Exception {
         DataScope dataScope = annotation("merchantStrict");
         ReqContext context = ReqContext.builder()
-                .subjectType("TENANT")
+                .subjectType(SubjectTypeEnum.TENANT.code())
                 .tenantId(10L)
                 .build();
 

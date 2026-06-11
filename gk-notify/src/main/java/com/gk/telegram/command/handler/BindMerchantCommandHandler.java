@@ -1,6 +1,7 @@
 package com.gk.telegram.command.handler;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.merchant.dao.MerchantDao;
@@ -101,7 +102,7 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
     }
 
     private void validateBotScope(MerchantEntity merchant, Long botTenantId, String botOwnerScope) {
-        if (!"TENANT".equalsIgnoreCase(botOwnerScope)) {
+        if (!SubjectTypeEnum.TENANT.matches(botOwnerScope)) {
             return;
         }
         if (botTenantId == null || !botTenantId.equals(merchant.getTenantId())) {

@@ -5,7 +5,9 @@ import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
+import com.gk.common.validator.AssertUtils;
 import com.gk.payment.dto.PayOrderDTO;
+import com.gk.payment.notify.MerchantNotifyExecutor;
 import com.gk.payment.service.PayOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PayOrderController {
     private final PayOrderService payOrderService;
+    private final MerchantNotifyExecutor merchantNotifyExecutor;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -42,5 +45,13 @@ public class PayOrderController {
     @PreAuthorize("hasAuthority('payment:pay-order:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(payOrderService.get(id));
+    }
+
+    @PostMapping("{id}/notify")
+    @Operation(summary = "手动通知商户", description = "立即同步重发; 成功提示通知成功, 失败返回 msg, 详情见通知记录")
+    @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
+    public R<Void> notifyMerchant(@PathVariable("id") Long id) {
+        AssertUtils.isNull(id, "id");
+        return R.fromResult(merchantNotifyExecutor.resendPayOrder(id));
     }
 }

@@ -3,6 +3,7 @@ package com.gk.telegram.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
@@ -64,7 +65,7 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         entity.setTokenCipher(tokenCipher.encrypt(dto.getToken()));
         entity.setTokenHash(tokenCipher.hash(dto.getToken()));
         entity.setSecretToken(BizKeyUtils.genApiSecret());
-        entity.setOwnerScope(StrUtil.isNotBlank(dto.getOwnerScope()) ? dto.getOwnerScope() : "PLATFORM");
+        entity.setOwnerScope(StrUtil.isNotBlank(dto.getOwnerScope()) ? dto.getOwnerScope() : SubjectTypeEnum.PLATFORM.code());
         entity.setMode(StrUtil.isNotBlank(dto.getMode()) ? dto.getMode() : "WEBHOOK");
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
 

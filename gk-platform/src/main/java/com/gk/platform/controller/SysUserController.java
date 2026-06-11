@@ -6,6 +6,7 @@ import com.gk.common.annotation.RequestMap;
 import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.PageData;
@@ -129,12 +130,10 @@ public class SysUserController {
     }
 
     @PostMapping
-    @Operation(summary = "新增用户", description = "创建登录账号并绑定主体、部门和角色。平台可创建租户/商户用户；租户只能创建本租户用户。权限码：sys:user:add。")
+    @Operation(summary = "新增用户", description = "创建登录账号并绑定主体、部门和角色。平台可指定租户/商户；租户使用当前租户；商户使用当前租户和商户。权限码：sys:user:add。")
     @PreAuthorize("hasAuthority('sys:user:add')")
     public R<?> save(@RequestBody SysUserDTO dto) {
-        if (!ReqContextHolder.isSAdmin()) {
-            dto.setTenantId(ReqContextHolder.getTenantId());
-        }
+        applySubjectContext(dto);
         if (ObjUtil.isEmpty(dto.getDeptId())) {
             dto.setDeptId(ReqContextHolder.getDeptId());
         }
@@ -143,10 +142,10 @@ public class SysUserController {
     }
 
     @PutMapping
-    @Operation(summary = "修改用户", description = "修改用户资料和主体绑定信息。权限码：sys:user:update。")
+    @Operation(summary = "修改用户", description = "修改用户资料和主体绑定信息。租户/商户主体不可变更租户与商户归属范围。权限码：sys:user:update。")
     @PreAuthorize("hasAuthority('sys:user:update')")
     public R<?> update(@RequestBody SysUserDTO dto) {
-        dto.setTenantId(null);
+        applySubjectContext(dto);
         boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
         if (!allowed) {
             dto.setDeptId(null);
@@ -175,5 +174,25 @@ public class SysUserController {
         }
         sysUserService.deleteBatchIds(idList);
         return R.ok();
+    }
+
+    /**
+     * 按当前登录主体范围约束 tenantId / merchantId。
+     * <ul>
+     *     <li>平台：以前端传入为准</li>
+     *     <li>租户：tenantId 固定为当前租户，merchantId 以前端传入为准</li>
+     *     <li>商户：tenantId、merchantId 均固定为当前登录主体</li>
+     * </ul>
+     */
+    private void applySubjectContext(SysUserDTO dto) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            dto.setTenantId(ReqContextHolder.getTenantId());
+            dto.setMerchantId(ReqContextHolder.getMerchantId());
+            return;
+        }
+        dto.setTenantId(ReqContextHolder.getTenantId());
     }
 }

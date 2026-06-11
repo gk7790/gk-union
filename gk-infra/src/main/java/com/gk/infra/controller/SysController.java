@@ -1,6 +1,7 @@
 package com.gk.infra.controller;
 
 import com.gk.common.model.R;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.EnumUtils;
 import com.gk.infra.enums.DomainEnum;
 import com.gk.infra.enums.ScopeEnum;
@@ -40,6 +41,8 @@ public class SysController {
             return R.ok(EnumUtils.toDictList(ScopeEnum.class));
         } else if ("domain".equalsIgnoreCase(key)) {
             return R.ok(EnumUtils.toDictList(DomainEnum.class));
+        } else if ("subjectType".equalsIgnoreCase(key)) {
+            return R.ok(EnumUtils.toDictList(SubjectTypeEnum.class));
         }
         return R.ok();
     }

@@ -36,6 +36,9 @@ public class PayOrderDTO {
     private String payerJson;
     private String notifyUrl;
     private String returnUrl;
+    private String merchantNotifyStatus;
+    private Instant merchantNotifyAt;
+    private Long merchantNotifyTaskId;
     private String status;
     private String statusReason;
     private Instant expireAt;

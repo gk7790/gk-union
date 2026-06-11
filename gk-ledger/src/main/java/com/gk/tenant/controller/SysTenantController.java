@@ -3,6 +3,7 @@ package com.gk.tenant.controller;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.dto.LabelDTO;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
@@ -96,7 +97,7 @@ public class SysTenantController {
     public R<?> roles(@Parameter(description = "租户ID", required = true) @PathVariable Long tenantId) {
         DynMap params = new DynMap();
         params.put("tenantId", tenantId);
-        params.put("roleScope", "TENANT");
+        params.put("roleScope", SubjectTypeEnum.TENANT.code());
         params.put("status", List.of(StatusEnum.NORMAL.code()));
         List<SysRoleDTO> list = sysRoleService.list(params);
         return R.ok(list);
@@ -107,7 +108,7 @@ public class SysTenantController {
     @PreAuthorize("hasAuthority('sys:tenant:view')")
     public R<?> roleTemplates() {
         DynMap params = new DynMap();
-        params.put("roleScope", "TENANT");
+        params.put("roleScope", SubjectTypeEnum.TENANT.code());
         params.put("templateOnly", true);
         params.put("status", List.of(StatusEnum.NORMAL.code()));
         List<SysRoleDTO> list = sysRoleService.list(params);

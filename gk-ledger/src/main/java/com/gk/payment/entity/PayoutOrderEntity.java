@@ -48,6 +48,9 @@ public class PayoutOrderEntity extends SimpleEntity {
     private String payeeJson;
     private String purpose;
     private String notifyUrl;
+    private String merchantNotifyStatus;
+    private Instant merchantNotifyAt;
+    private Long merchantNotifyTaskId;
     private String status;
     private String statusReason;
     private Instant submittedAt;

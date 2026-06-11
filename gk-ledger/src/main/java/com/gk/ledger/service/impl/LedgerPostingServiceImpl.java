@@ -1,6 +1,7 @@
 package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
@@ -35,9 +36,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
     private static final int STATUS_ENABLED = 1;
 
-    private static final String OWNER_MERCHANT = "MERCHANT";
     private static final String OWNER_SYSTEM = "SYSTEM";
-    private static final String OWNER_PLATFORM = "PLATFORM";
 
     private static final String ACCOUNT_MERCHANT_AVAILABLE = "MERCHANT_AVAILABLE";
     private static final String ACCOUNT_MERCHANT_FROZEN = "MERCHANT_FROZEN";
@@ -83,13 +82,13 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         requireNonNegative(feeAmount, "merchantFeeAmount");
         List<PostingLine> lines = new ArrayList<>();
         LedgerAccountEntity systemClearing = account(request.getTenantId(), OWNER_SYSTEM, 0L, ACCOUNT_SYSTEM_CLEARING, request.getCurrency());
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), OWNER_MERCHANT, request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
         if (positive(settleAmount)) {
             lines.add(new PostingLine(systemClearing, DIRECTION_DEBIT, settleAmount, "Pay success settlement"));
             lines.add(new PostingLine(merchantAvailable, DIRECTION_CREDIT, settleAmount, "Pay success settlement"));
         }
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), OWNER_PLATFORM, 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
+            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
             lines.add(new PostingLine(systemClearing, DIRECTION_DEBIT, feeAmount, "Pay success merchant fee"));
             lines.add(new PostingLine(platformFee, DIRECTION_CREDIT, feeAmount, "Pay success merchant fee"));
         }
@@ -128,8 +127,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (totalDebitAmount.compareTo(scale(request.getAmount())) < 0) {
             throw new IllegalArgumentException("Invalid payout posting request: totalDebitAmount must be greater than or equal to amount");
         }
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), OWNER_MERCHANT, request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
-        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), OWNER_MERCHANT, request.getMerchantId(), ACCOUNT_MERCHANT_FROZEN, request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
+        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_FROZEN, request.getCurrency());
         List<PostingLine> lines = List.of(
                 new PostingLine(merchantAvailable, DIRECTION_DEBIT, totalDebitAmount, "Payout freeze"),
                 new PostingLine(merchantFrozen, DIRECTION_CREDIT, totalDebitAmount, "Payout freeze")
@@ -155,7 +154,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         LedgerHoldEntity hold = new LedgerHoldEntity();
         hold.setTenantId(request.getTenantId());
         hold.setHoldNo(BizKeyUtils.genLedgerHoldNo());
-        hold.setOwnerType(OWNER_MERCHANT);
+        hold.setOwnerType(SubjectTypeEnum.MERCHANT.code());
         hold.setOwnerId(request.getMerchantId());
         hold.setCurrency(normalize(request.getCurrency()));
         hold.setAvailableAccountId(merchantAvailable.getId());
@@ -201,7 +200,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         lines.add(new PostingLine(merchantFrozen, DIRECTION_DEBIT, totalDebitAmount, "Payout consume frozen amount"));
         lines.add(new PostingLine(systemClearing, DIRECTION_CREDIT, payoutAmount, "Payout principal clearing"));
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), OWNER_PLATFORM, 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
+            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
             lines.add(new PostingLine(platformFee, DIRECTION_CREDIT, feeAmount, "Payout merchant fee income"));
         }
         LedgerJournalEntity journal = createJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getBizId(), request.getPayoutOrderNo(), eventType,

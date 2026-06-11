@@ -1,6 +1,7 @@
 package com.gk.openapi.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.entity.LedgerAccountEntity;
@@ -23,7 +24,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OpenBalanceServiceImpl implements OpenBalanceService {
-    private static final String OWNER_TYPE_MERCHANT = "MERCHANT";
     private static final String ACCOUNT_TYPE_MERCHANT_AVAILABLE = "MERCHANT_AVAILABLE";
 
     private final LedgerAccountDao ledgerAccountDao;
@@ -33,7 +33,7 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
     public List<BalanceResponse> list(String currency) {
         QueryWrapper<LedgerAccountEntity> accountWrapper = new QueryWrapper<LedgerAccountEntity>()
                 .eq("tenant_id", ApiReqContextHolder.getTenantId())
-                .eq("owner_type", OWNER_TYPE_MERCHANT)
+                .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
                 .eq("owner_id", ApiReqContextHolder.getMerchantId())
                 .eq("account_type", ACCOUNT_TYPE_MERCHANT_AVAILABLE)
                 .eq("status", 1);

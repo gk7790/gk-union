@@ -1,6 +1,7 @@
 package com.gk.common.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.gk.common.enums.SubjectTypeEnum;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
@@ -170,6 +171,13 @@ public class ReqContextHolder {
         return Boolean.TRUE.equals(
                 get().getSAdmin()
         );
+    }
+
+    /**
+     * 判断是否是平台级用户
+     */
+    public static boolean isPlatform() {
+        return isSAdmin() || SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType());
     }
 
     /**

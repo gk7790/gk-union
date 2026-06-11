@@ -16,6 +16,7 @@ import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayDispatchService;
@@ -48,6 +49,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final PspFeeRuleService pspFeeRuleService;
     private final PspPayDispatchService pspPayDispatchService;
     private final ObjectMapper objectMapper;
+    private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
 
     @Override
     public PayOrderResponse create(PayOrderCreateRequest request) {
@@ -101,6 +103,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPayerJson(toJson(request.getPayer()));
         entity.setNotifyUrl(request.getNotifyUrl());
         entity.setReturnUrl(request.getReturnUrl());
+        entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
         entity.setStatus(STATUS_CREATED);
         entity.setSettleStatus(SETTLE_STATUS_PENDING);
         entity.setExtraJson(toJson(request.getExtra()));

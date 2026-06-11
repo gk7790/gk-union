@@ -28,6 +28,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         String requestId = params.getStr("requestId");
         String status = params.getStr("status");
         String settleStatus = params.getStr("settleStatus");
+        String merchantNotifyStatus = params.getStr("merchantNotifyStatus");
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String methodCode = params.getStr("methodCode");
@@ -48,6 +49,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         wrapper.eq(StrUtil.isNotBlank(requestId), "request_id", requestId);
         wrapper.eq(StrUtil.isNotBlank(status), "status", status);
         wrapper.eq(StrUtil.isNotBlank(settleStatus), "settle_status", settleStatus);
+        wrapper.eq(StrUtil.isNotBlank(merchantNotifyStatus), "merchant_notify_status", merchantNotifyStatus);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", methodCode);

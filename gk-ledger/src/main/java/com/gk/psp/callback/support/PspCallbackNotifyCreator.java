@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
+import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.entity.PspCallbackLogEntity;
@@ -26,6 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PspCallbackNotifyCreator {
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
+    private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
 
     public void create(String bizType, PspCallbackResult result, PspCallbackOrder order, PspCallbackLogEntity logEntity) {
         if (StringUtils.isBlank(order.notifyUrl())) {
@@ -58,6 +60,7 @@ public class PspCallbackNotifyCreator {
         task.setTraceId(logEntity == null ? null : logEntity.getTraceId());
         try {
             merchantNotifyTaskDao.insert(task);
+            merchantOrderNotifyStatusService.onTaskCreated(bizType, order.id(), task.getId());
         } catch (DuplicateKeyException ignored) {
             // Duplicate terminal callbacks may attempt to create the same notification task.
         }

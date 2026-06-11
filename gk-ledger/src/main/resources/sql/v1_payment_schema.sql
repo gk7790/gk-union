@@ -52,6 +52,9 @@ CREATE TABLE `pay_order`  (
   `payer_json` json NULL COMMENT '付款人扩展信息JSON，敏感信息需要脱敏或加密',
   `notify_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户异步通知地址',
   `return_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户同步跳转地址',
+  `merchant_notify_status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '下游商户通知状态: NONE/PENDING/SUCCESS/FAILED',
+  `merchant_notify_at` datetime(3) NULL DEFAULT NULL COMMENT '下游商户通知完成/最近尝试时间',
+  `merchant_notify_task_id` bigint NULL DEFAULT NULL COMMENT '关联商户通知任务ID',
   `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/PROCESSING/SUCCESS/FAILED/CLOSED',
   `status_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '当前状态原因',
   `expire_at` datetime(3) NULL DEFAULT NULL COMMENT '订单过期时间',
@@ -96,7 +99,8 @@ CREATE TABLE `pay_order`  (
   INDEX `idx_pay_order_psp_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE,
   INDEX `idx_pay_order_merchant_fee_rule`(`tenant_id` ASC, `merchant_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
   INDEX `idx_pay_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE
+  INDEX `idx_pay_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE,
+  INDEX `idx_pay_order_merchant_notify`(`tenant_id` ASC, `merchant_notify_status` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2064284667210047491 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代收订单' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -141,6 +145,9 @@ CREATE TABLE `payout_order`  (
   `payee_json` json NULL COMMENT '收款人扩展JSON',
   `purpose` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '代付用途',
   `notify_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户异步通知地址',
+  `merchant_notify_status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '下游商户通知状态: NONE/PENDING/SUCCESS/FAILED',
+  `merchant_notify_at` datetime(3) NULL DEFAULT NULL COMMENT '下游商户通知完成/最近尝试时间',
+  `merchant_notify_task_id` bigint NULL DEFAULT NULL COMMENT '关联商户通知任务ID',
   `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/FROZEN/PROCESSING/SUCCESS/FAILED/CANCELLED',
   `status_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '当前状态原因',
   `submitted_at` datetime(3) NULL DEFAULT NULL COMMENT '提交PSP时间',
@@ -188,7 +195,8 @@ CREATE TABLE `payout_order`  (
   INDEX `idx_payout_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
   INDEX `idx_payout_order_hold`(`tenant_id` ASC, `hold_no` ASC) USING BTREE,
   INDEX `idx_payout_payee_account_hash`(`tenant_id` ASC, `payee_account_hash` ASC) USING BTREE,
-  INDEX `idx_payout_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE
+  INDEX `idx_payout_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE,
+  INDEX `idx_payout_order_merchant_notify`(`tenant_id` ASC, `merchant_notify_status` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代付订单' ROW_FORMAT = Dynamic;
 
 

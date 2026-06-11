@@ -5,6 +5,7 @@ import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
@@ -40,10 +41,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenantEntity, SysTenantDTO> implements SysTenantService {
-    private static final String SUBJECT_PLATFORM = "PLATFORM";
-    private static final String SUBJECT_TENANT = "TENANT";
-    private static final String ROLE_SCOPE_TENANT = "TENANT";
-
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
     private final SysRoleMenuService sysRoleMenuService;
@@ -87,7 +84,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     }
 
     private void requirePlatformSubject() {
-        if (!SUBJECT_PLATFORM.equalsIgnoreCase(ReqContextHolder.getSubjectType())) {
+        if (!SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType())) {
             throw new GkException(ErrorCode.FORBIDDEN);
         }
     }
@@ -124,7 +121,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     private SysRoleDTO copyTenantRoleTemplate(Long roleTemplateId, Long tenantId) {
         SysRoleEntity template = sysRoleService.selectById(roleTemplateId);
         if (template == null
-                || !ROLE_SCOPE_TENANT.equalsIgnoreCase(template.getRoleScope())
+                || !SubjectTypeEnum.TENANT.matches(template.getRoleScope())
                 || template.getTenantId() != null
                 || !StatusEnum.NORMAL.code().equals(template.getStatus())) {
             throw new GkException(ErrorCode.FORBIDDEN);
@@ -135,7 +132,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         role.setAuth(template.getAuth());
         role.setName(template.getName());
         role.setRemark(template.getRemark());
-        role.setRoleScope(ROLE_SCOPE_TENANT);
+        role.setRoleScope(SubjectTypeEnum.TENANT.code());
         role.setDataScope(template.getDataScope());
         role.setStatus(template.getStatus() == null ? StatusEnum.NORMAL.code() : template.getStatus());
         role.setMenuIdList(sysRoleMenuService.getMenuIdList(roleTemplateId));
@@ -149,7 +146,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         adminUser.setTenantId(tenantId);
         adminUser.setMerchantId(null);
         adminUser.setDeptId(deptId);
-        adminUser.setSubjectType(SUBJECT_TENANT);
+        adminUser.setSubjectType(SubjectTypeEnum.TENANT.code());
         adminUser.setRoleId(roleId);
         adminUser.setRoleIdList(List.of(roleId));
         if (adminUser.getStatus() == null) {

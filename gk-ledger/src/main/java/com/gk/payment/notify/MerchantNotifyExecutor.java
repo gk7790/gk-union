@@ -1,9 +1,16 @@
 package com.gk.payment.notify;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.model.Result;
+import com.gk.common.validator.AssertUtils;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
+import com.gk.payment.dao.MerchantNotifyTaskDao;
+import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
+import com.gk.psp.callback.support.PspCallbackConstants;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +55,8 @@ public class MerchantNotifyExecutor {
     private static final int DEFAULT_READ_TIMEOUT_MS = 5000;
     /** 落库的响应体/错误信息最大长度 */
     private static final int MAX_STORE_LEN = 2000;
+    /** 手动重发失败时返回给前端的错误信息最大长度 */
+    private static final int MAX_FAIL_MSG_LEN = 300;
     /** 视为成功的响应体标识(忽略大小写, 命中其一即成功) */
     private static final List<String> SUCCESS_TOKENS = List.of("success", "ok");
     /** 重试退避秒数(按已失败次数取下标, 超出取最后一个) */
@@ -56,6 +65,10 @@ public class MerchantNotifyExecutor {
     private final MerchantNotifyRepository repository;
     private final MerchantNotifySigner signer;
     private final MerchantAppDao merchantAppDao;
+    private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
+    private final MerchantNotifyTaskDao merchantNotifyTaskDao;
+    private final PayOrderDao payOrderDao;
+    private final PayoutOrderDao payoutOrderDao;
 
     private String workerId;
 
@@ -113,16 +126,56 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 后台手动重发: 强制抢占并立即同步发送一次, 返回本次是否成功。
+     * 后台手动重发: 强制抢占并立即同步发送一次。
      * 即使任务已 DEAD 也可重发(会自动再放开重试次数)。
      */
-    public boolean resend(Long taskId) {
+    public Result<Void> resend(Long taskId) {
+        MerchantNotifyTaskEntity existing = repository.getById(taskId);
+        if (existing == null) {
+            return Result.fail("通知任务不存在");
+        }
+        if (STATUS_SUCCESS.equals(existing.getStatus())) {
+            return Result.fail("通知已成功, 无需重复发送");
+        }
         Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
         MerchantNotifyTaskEntity task = repository.forceClaim(taskId, workerId, Instant.now(), lockUntil);
         if (task == null) {
-            return false;
+            return Result.fail("通知任务正在处理中, 请稍后再试");
         }
-        return attempt(task, true);
+        try {
+            if (attempt(task, true)) {
+                return Result.success(null, "通知成功");
+            }
+            String message = StringUtils.defaultIfBlank(
+                    StringUtils.abbreviate(task.getLastErrorMsg(), MAX_FAIL_MSG_LEN),
+                    "商户未确认通知");
+            return Result.fail(message);
+        } catch (Exception e) {
+            log.error("Merchant notify resend error, taskId={}", taskId, e);
+            return Result.fail("通知发送异常: {}", e.getMessage());
+        }
+    }
+
+    public Result<Void> resendPayOrder(Long orderId) {
+        AssertUtils.isNull(orderId, "id");
+        return resendByBizOrder(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, orderId);
+    }
+
+    public Result<Void> resendPayoutOrder(Long orderId) {
+        AssertUtils.isNull(orderId, "id");
+        return resendByBizOrder(PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER, orderId);
+    }
+
+    private Result<Void> resendByBizOrder(String bizType, Long orderId) {
+        MerchantNotifyTaskEntity task = merchantNotifyTaskDao.selectOne(new QueryWrapper<MerchantNotifyTaskEntity>()
+                .eq("biz_type", bizType)
+                .eq("biz_id", orderId)
+                .orderByDesc("created_at")
+                .last("limit 1"));
+        if (task == null) {
+            return Result.fail("该订单暂无商户通知任务");
+        }
+        return resend(task.getId());
     }
 
     /**
@@ -175,6 +228,7 @@ public class MerchantNotifyExecutor {
 
         applyResultToTask(task, attemptNo, maxRetry, manual, success, outcome);
         repository.persistAttempt(record, task);
+        merchantOrderNotifyStatusService.syncFromTask(task);
 
         if (success) {
             log.info("Merchant notify success, taskNo={}, attempt={}, cost={}ms", task.getTaskNo(), attemptNo, costMs);

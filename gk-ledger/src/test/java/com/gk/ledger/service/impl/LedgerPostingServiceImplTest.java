@@ -1,6 +1,7 @@
 package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
@@ -52,10 +53,10 @@ class LedgerPostingServiceImplTest {
     void postPayoutSuccessSplitsPrincipalAndMerchantFee() {
         when(ledgerJournalDao.selectOne(any(Wrapper.class))).thenReturn(null);
         when(ledgerHoldDao.selectOne(any(Wrapper.class))).thenReturn(holdingHold());
-        when(ledgerAccountDao.selectById(101L)).thenReturn(account(101L, "MERCHANT", 20L, "MERCHANT_FROZEN", "CREDIT"));
+        when(ledgerAccountDao.selectById(101L)).thenReturn(account(101L, SubjectTypeEnum.MERCHANT.code(), 20L, "MERCHANT_FROZEN", "CREDIT"));
         when(ledgerAccountDao.selectOne(any(Wrapper.class)))
                 .thenReturn(account(102L, "SYSTEM", 0L, "SYSTEM_CLEARING", "CREDIT"))
-                .thenReturn(account(103L, "PLATFORM", 0L, "PLATFORM_FEE_INCOME", "CREDIT"));
+                .thenReturn(account(103L, SubjectTypeEnum.PLATFORM.code(), 0L, "PLATFORM_FEE_INCOME", "CREDIT"));
         when(ledgerBalanceDao.selectOne(any(Wrapper.class))).thenAnswer(invocation -> balance());
         when(ledgerBalanceDao.applyEntry(anyLong(), anyLong(), any(BigDecimal.class), any(BigDecimal.class),
                 any(BigDecimal.class), anyLong(), anyString(), any(), anyInt())).thenReturn(1);

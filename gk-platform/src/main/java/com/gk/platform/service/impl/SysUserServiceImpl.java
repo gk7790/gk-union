@@ -2,6 +2,7 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
@@ -175,7 +176,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		}
 		AssertUtils.isNull(roleId, "roleId");
 		SysUserSubjectEntity subject = new SysUserSubjectEntity();
-		subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), "PLATFORM"));
+		subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code()));
 		subject.setTenantId(dto.getTenantId());
 		subject.setMerchantId(dto.getMerchantId());
 		subject.setDeptId(dto.getDeptId());

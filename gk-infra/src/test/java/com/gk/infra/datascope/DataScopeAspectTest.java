@@ -1,5 +1,6 @@
 package com.gk.infra.datascope;
 
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.annotation.DataScope;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContext;
@@ -28,7 +29,7 @@ class DataScopeAspectTest {
     @Test
     void applyDataScopeOverridesExternalSqlFilter() throws Throwable {
         ReqContextHolder.set(ReqContext.builder()
-                .subjectType("TENANT")
+                .subjectType(SubjectTypeEnum.TENANT.code())
                 .tenantId(10L)
                 .build());
         Map<String, Object> params = new HashMap<>();

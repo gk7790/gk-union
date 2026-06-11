@@ -1,5 +1,6 @@
 package com.gk.telegram.command;
 
+import com.gk.telegram.support.TgHtml;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -36,10 +37,10 @@ public class TgCommandDispatcher {
 
         TgCommandHandler handler = handlers.get(command);
         if (handler == null) {
-            return "未识别的指令: " + command + "\n\n" + helpText();
+            return "未识别的指令: " + TgHtml.code(command) + "\n\n" + helpText();
         }
         if (handler.requireBinding() && ctx.getAccount() == null) {
-            return "请先绑定系统账号后再使用该指令。\n在系统中获取绑定码, 然后发送: /bind <绑定码>";
+            return "请先绑定系统账号后再使用该指令。\n在系统中获取绑定码, 然后发送: " + TgHtml.code("/bind <绑定码>");
         }
         try {
             return handler.handle(ctx);
@@ -53,13 +54,16 @@ public class TgCommandDispatcher {
      * 帮助文本
      */
     public String helpText() {
-        StringBuilder sb = new StringBuilder("可用指令:\n");
-        sb.append("/help - 查看帮助\n");
+        StringBuilder sb = new StringBuilder(TgHtml.bold("可用指令")).append("\n");
+        sb.append(TgHtml.code("/help")).append(" - 查看帮助\n");
         for (TgCommandHandler handler : handlers.values()) {
             if ("/help".equalsIgnoreCase(handler.command())) {
                 continue;
             }
-            sb.append(handler.command()).append(" - ").append(handler.description()).append("\n");
+            sb.append(TgHtml.code(handler.command()))
+                    .append(" - ")
+                    .append(TgHtml.escape(handler.description()))
+                    .append("\n");
         }
         return sb.toString().trim();
     }

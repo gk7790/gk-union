@@ -5,6 +5,7 @@ import com.gk.payment.dto.PayOrderDTO;
 import com.gk.payment.service.PayOrderService;
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandHandler;
+import com.gk.telegram.support.TgHtml;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +33,7 @@ public class OrderCommandHandler implements TgCommandHandler {
     public String handle(TgCommandContext ctx) {
         String orderNo = ctx.arg(0);
         if (orderNo == null || orderNo.isBlank()) {
-            return "用法: /order <平台单号或商户单号>";
+            return "用法: " + TgHtml.code("/order <平台单号或商户单号>");
         }
         Long tenantId = ctx.getAccount().getTenantId();
         if (tenantId == null) {
@@ -45,14 +46,14 @@ public class OrderCommandHandler implements TgCommandHandler {
             order = queryOne(tenantId, "merchantOrderNo", orderNo.trim());
         }
         if (order == null) {
-            return "未查询到订单: " + orderNo;
+            return "未查询到订单: " + TgHtml.code(orderNo);
         }
-        return "订单详情:\n"
-                + "平台单号: " + order.getPayOrderNo() + "\n"
-                + "商户单号: " + order.getMerchantOrderNo() + "\n"
-                + "金额: " + order.getAmount() + " " + order.getCurrency() + "\n"
-                + "状态: " + order.getStatus() + "\n"
-                + "创建时间: " + order.getCreatedAt();
+        return TgHtml.bold("订单详情") + "\n"
+                + "平台单号: " + TgHtml.code(order.getPayOrderNo()) + "\n"
+                + "商户单号: " + TgHtml.code(order.getMerchantOrderNo()) + "\n"
+                + "金额: " + TgHtml.bold(order.getAmount() + " " + order.getCurrency()) + "\n"
+                + "状态: " + TgHtml.escape(order.getStatus()) + "\n"
+                + "创建时间: " + TgHtml.escape(order.getCreatedAt());
     }
 
     private PayOrderDTO queryOne(Long tenantId, String field, String value) {

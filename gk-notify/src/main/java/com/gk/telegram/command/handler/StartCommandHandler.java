@@ -2,6 +2,7 @@ package com.gk.telegram.command.handler;
 
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandHandler;
+import com.gk.telegram.support.TgHtml;
 import org.springframework.stereotype.Component;
 
 /**
@@ -28,11 +29,11 @@ public class StartCommandHandler implements TgCommandHandler {
     @Override
     public String handle(TgCommandContext ctx) {
         if (ctx.getAccount() != null) {
-            return "您已绑定系统账号 (userId=" + ctx.getAccount().getUserId() + ")。\n"
-                    + "发送 /help 查看全部指令。";
+            return "您已绑定系统账号 (" + TgHtml.code("userId=" + ctx.getAccount().getUserId()) + ")。\n"
+                    + "发送 " + TgHtml.code("/help") + " 查看全部指令。";
         }
-        return "欢迎使用本机器人。\n"
-                + "请先在系统中获取绑定码, 然后发送: /bind <绑定码> 完成绑定。\n"
-                + "发送 /help 查看全部指令。";
+        return TgHtml.bold("欢迎使用本机器人") + "\n"
+                + "请先在系统中获取绑定码, 然后发送: " + TgHtml.code("/bind <绑定码>") + " 完成绑定。\n"
+                + "发送 " + TgHtml.code("/help") + " 查看全部指令。";
     }
 }

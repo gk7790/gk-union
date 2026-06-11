@@ -10,13 +10,13 @@
 
     <artifactId>gk-notify</artifactId>
     <name>gk-notify</name>
-    <description>gk-notify</description>
+    <description>Notification channels: Telegram bot (inbound commands + outbound push)</description>
 
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-infra</artifactId>
-            <version>1.0.0</version>
+            <artifactId>gk-ledger</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 </project>

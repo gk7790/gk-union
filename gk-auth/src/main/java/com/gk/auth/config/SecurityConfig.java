@@ -84,6 +84,15 @@ public class SecurityConfig {
         return new JwtAuthenticationFilter(userDetailsService);
     }
 
+    /**
+     * 方法安全表达式处理器: 超级管理员跳过所有 @PreAuthorize 权限校验。
+     * <p>必须用 static 方法发布, 以保证早于方法安全配置类初始化。</p>
+     */
+    @Bean
+    static org.springframework.security.access.expression.method.MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new SuperAdminMethodSecurityExpressionHandler();
+    }
+
     @Bean
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
@@ -95,6 +104,7 @@ public class SecurityConfig {
                         "/api/v1/**",
                         "/open-api/**", // 商户Api
                         "/psp/callback/**", // PSP回调
+                        "/tg/webhook/**", // Telegram入站Webhook(自带secret_token校验)
                         "/static/**",
                         "/.well-known/**", // OIDC发现端点
                         "/favicon.ico",

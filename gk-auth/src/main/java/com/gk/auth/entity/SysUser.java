@@ -69,9 +69,7 @@ public class SysUser implements UserDetails {
     }
 
     public boolean isSuperAdmin() {
-        return "PLATFORM".equalsIgnoreCase(subjectType)
-                && ("SUPER_ADMIN".equalsIgnoreCase(roleAuth)
-                || (roleList != null && roleList.stream().anyMatch("SUPER_ADMIN"::equalsIgnoreCase)));
+        return ("sadmin".equalsIgnoreCase(roleAuth) || "SUPER_ADMIN".equalsIgnoreCase(roleAuth) || (roleList != null && roleList.stream().anyMatch("SUPER_ADMIN"::equalsIgnoreCase)));
     }
 
     public AuthUser toAuthUser() {

@@ -40,6 +40,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 	public PageData<SysUserDTO> page(Map<String, Object> params) {
 		//转换成like
 		paramsToLike(params, "username");
+		applySubjectQueryScope(params);
 
 		//分页
 		IPage<SysUserEntity> page = getPage(params, "t1.created_at", false);
@@ -58,6 +59,8 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
 	@Override
 	public List<SysUserDTO> list(Map<String, Object> params) {
+		applySubjectQueryScope(params);
+
 		//普通管理员，只能查询子部门的数据
         if (!ReqContextHolder.isSAdmin()) {
             params.put("deptIdList", ReqContextHolder.getSubDeptIds());
@@ -183,6 +186,32 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 		subject.setRoleId(roleId);
 		subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
 		return subject;
+	}
+
+	/**
+	 * 按登录主体强制注入查询范围。
+	 * <ul>
+	 *     <li>平台：以前端传入的 tenantId / merchantId 等条件为准</li>
+	 *     <li>租户：强制 tenantId = 当前租户</li>
+	 *     <li>商户：强制 tenantId、merchantId = 当前登录主体</li>
+	 * </ul>
+	 */
+	private void applySubjectQueryScope(Map<String, Object> params) {
+		if (ReqContextHolder.isPlatform()) {
+			return;
+		}
+		if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+			Long tenantId = ReqContextHolder.getTenantId();
+			Long merchantId = ReqContextHolder.getMerchantId();
+			AssertUtils.isNull(tenantId, "tenantId");
+			AssertUtils.isNull(merchantId, "merchantId");
+			params.put("tenantId", tenantId);
+			params.put("merchantId", merchantId);
+			return;
+		}
+		Long tenantId = ReqContextHolder.getTenantId();
+		AssertUtils.isNull(tenantId, "tenantId");
+		params.put("tenantId", tenantId);
 	}
 
 }

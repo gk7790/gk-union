@@ -21,8 +21,11 @@
 		<if test="deptId != null and deptId.trim() != ''">
 			and s.dept_id = #{deptId}
 		</if>
-        <if test="tenantId != null and tenantId.trim() != ''">
+        <if test="tenantId != null">
             and s.tenant_id = #{tenantId}
+        </if>
+        <if test="merchantId != null">
+            and s.merchant_id = #{merchantId}
         </if>
 		<if test="gender != null and gender.trim() != ''">
 			and t1.gender = #{gender}

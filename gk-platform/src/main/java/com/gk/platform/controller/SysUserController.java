@@ -60,9 +60,11 @@ public class SysUserController {
             @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY),
-            @Parameter(name = "username", description = "用户名", in = ParameterIn.QUERY),
-            @Parameter(name = "gender", description = "性别", in = ParameterIn.QUERY),
-            @Parameter(name = "deptId", description = "部门ID", in = ParameterIn.QUERY)
+        @Parameter(name = "username", description = "用户名", in = ParameterIn.QUERY),
+        @Parameter(name = "gender", description = "性别", in = ParameterIn.QUERY),
+        @Parameter(name = "deptId", description = "部门ID", in = ParameterIn.QUERY),
+        @Parameter(name = "tenantId", description = "租户ID，仅平台主体可传", in = ParameterIn.QUERY),
+        @Parameter(name = "merchantId", description = "商户ID，仅平台主体可传", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('sys:user:page')")
     public R<?> page(@RequestMap DynMap params) {

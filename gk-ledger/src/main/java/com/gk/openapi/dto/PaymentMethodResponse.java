@@ -5,6 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
+@OpenApiModel
 public class PaymentMethodResponse {
     private String methodCode;
     private String methodName;

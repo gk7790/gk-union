@@ -60,7 +60,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
         PayoutOrderEntity existed = payoutOrderDao.selectOne(
                 baseWrapper()
-                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderNo()))
+                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderId()))
                         .last("limit 1")
         );
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -91,8 +91,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setMerchantAppId(context.getMerchantAppId());
         entity.setAppId(context.getAppId());
         entity.setPayoutOrderNo(BizKeyUtils.genPayoutOrderNo());
-        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderNo()));
-        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderNo()));
+        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
         entity.setOrderSource(ORDER_SOURCE_API);
         entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
         entity.setCurrency(normalizedCurrency);
@@ -423,8 +423,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
         PayoutOrderResponse response = new PayoutOrderResponse();
-        response.setPayoutOrderNo(entity.getPayoutOrderNo());
-        response.setMerchantOrderNo(entity.getMerchantOrderNo());
+        response.setSystemOrderId(entity.getPayoutOrderNo());
+        response.setMerchantOrderId(entity.getMerchantOrderNo());
         response.setStatus(entity.getStatus());
         response.setStatusReason(entity.getStatusReason());
         response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));

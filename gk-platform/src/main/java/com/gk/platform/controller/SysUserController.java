@@ -88,6 +88,7 @@ public class SysUserController {
             data.setDeptId(userSubject.getDeptId());
             data.setTenantId(userSubject.getTenantId());
             data.setMerchantId(userSubject.getMerchantId());
+            data.setRoleId(userSubject.getRoleId());
         }
         return R.ok(data);
     }

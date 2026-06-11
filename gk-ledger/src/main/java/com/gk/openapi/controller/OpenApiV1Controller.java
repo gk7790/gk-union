@@ -165,21 +165,21 @@ public class OpenApiV1Controller {
     }
 
     private PayOrderResponse queryPayOrder(PayOrderQueryRequest body) {
-        if (StringUtils.isNotBlank(body.getPayOrderNo())) {
-            return openPayOrderService.getByPayOrderNo(body.getPayOrderNo());
+        if (StringUtils.isNotBlank(body.getSystemOrderId())) {
+            return openPayOrderService.getByPayOrderNo(body.getSystemOrderId());
         }
-        if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
-            return openPayOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
+        if (StringUtils.isNotBlank(body.getMerchantOrderId())) {
+            return openPayOrderService.getByMerchantOrderNo(body.getMerchantOrderId());
         }
         throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
     }
 
     private PayoutOrderResponse queryPayoutOrder(PayoutOrderQueryRequest body) {
-        if (StringUtils.isNotBlank(body.getPayoutOrderNo())) {
-            return openPayoutOrderService.getByPayoutOrderNo(body.getPayoutOrderNo());
+        if (StringUtils.isNotBlank(body.getSystemOrderId())) {
+            return openPayoutOrderService.getByPayoutOrderNo(body.getSystemOrderId());
         }
-        if (StringUtils.isNotBlank(body.getMerchantOrderNo())) {
-            return openPayoutOrderService.getByMerchantOrderNo(body.getMerchantOrderNo());
+        if (StringUtils.isNotBlank(body.getMerchantOrderId())) {
+            return openPayoutOrderService.getByMerchantOrderNo(body.getMerchantOrderId());
         }
         throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
     }

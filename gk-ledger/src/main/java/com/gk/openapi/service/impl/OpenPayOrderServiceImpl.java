@@ -53,7 +53,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     public PayOrderResponse create(PayOrderCreateRequest request) {
         PayOrderEntity existed = payOrderDao.selectOne(
                 baseWrapper()
-                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderNo()))
+                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderId()))
                         .last("limit 1")
         );
 
@@ -86,8 +86,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setMerchantAppId(context.getMerchantAppId());
         entity.setAppId(context.getAppId());
         entity.setPayOrderNo(BizKeyUtils.genPayOrderNo());
-        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderNo()));
-        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderNo()));
+        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
         entity.setOrderSource(ORDER_SOURCE_API);
         entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
         entity.setCurrency(normalizedCurrency);
@@ -347,8 +347,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
         PayOrderResponse response = new PayOrderResponse();
-        response.setPayOrderNo(entity.getPayOrderNo());
-        response.setMerchantOrderNo(entity.getMerchantOrderNo());
+        response.setSystemOrderId(entity.getPayOrderNo());
+        response.setMerchantOrderId(entity.getMerchantOrderNo());
         response.setStatus(entity.getStatus());
         response.setStatusReason(entity.getStatusReason());
         response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));

@@ -4,10 +4,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 @Data
+@OpenApiModel
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PayOrderResponse {
-    private String payOrderNo;
-    private String merchantOrderNo;
+    private String systemOrderId;
+    private String merchantOrderId;
     private String status;
     private String statusReason;
     private String amount;

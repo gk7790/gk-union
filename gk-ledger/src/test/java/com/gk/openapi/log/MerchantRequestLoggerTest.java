@@ -46,10 +46,10 @@ class MerchantRequestLoggerTest {
                 .build());
 
         PayOrderCreateRequest body = new PayOrderCreateRequest();
-        body.setMerchantOrderNo("MO202606090001");
+        body.setMerchantOrderId("MO202606090001");
         PayOrderResponse orderResp = new PayOrderResponse();
-        orderResp.setPayOrderNo("PAY202606090001");
-        orderResp.setMerchantOrderNo(body.getMerchantOrderNo());
+        orderResp.setSystemOrderId("PAY202606090001");
+        orderResp.setMerchantOrderId(body.getMerchantOrderId());
 
         logger.payCreateSuccess(request, body, orderResp, ApiR.success(orderResp), System.currentTimeMillis());
 
@@ -81,10 +81,10 @@ class MerchantRequestLoggerTest {
                 .build());
 
         PayOrderQueryRequest body = new PayOrderQueryRequest();
-        body.setMerchantOrderNo("MO202606090001");
+        body.setMerchantOrderId("MO202606090001");
         PayOrderResponse orderResp = new PayOrderResponse();
-        orderResp.setPayOrderNo("PAY202606090001");
-        orderResp.setMerchantOrderNo(body.getMerchantOrderNo());
+        orderResp.setSystemOrderId("PAY202606090001");
+        orderResp.setMerchantOrderId(body.getMerchantOrderId());
 
         logger.payQuerySuccess(request, body, orderResp, ApiR.success(orderResp), System.currentTimeMillis());
 

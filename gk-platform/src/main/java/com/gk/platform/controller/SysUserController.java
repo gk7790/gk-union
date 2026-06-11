@@ -16,8 +16,10 @@ import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dto.PasswordDTO;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
+import com.gk.platform.service.SysUserSubjectService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -33,7 +35,7 @@ import java.util.List;
 
 /**
  * 用户管理
- * 
+ *
  * @author Lowen
  */
 @Tag(name = "系统-用户管理", description = "维护后台登录账号，并通过 sys_user_subject 绑定平台、租户或商户主体")
@@ -43,59 +45,66 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SysUserController {
     private final CurrentUser currentUser;
-	private final SysUserService sysUserService;
-	private final SysUserPostService sysUserPostService;
+    private final SysUserService sysUserService;
+    private final SysUserPostService sysUserPostService;
+    private final SysUserSubjectService sysUserSubjectService;
 
     /**
      * 分页
      */
-	@GetMapping("page")
+    @GetMapping("page")
     @Operation(summary = "用户分页", description = "分页查询后台用户。非平台主体只能看到自身数据范围内的用户。权限码：sys:user:page。")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true) ,
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY,required = true) ,
-            @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY) ,
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY) ,
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY),
             @Parameter(name = "username", description = "用户名", in = ParameterIn.QUERY),
             @Parameter(name = "gender", description = "性别", in = ParameterIn.QUERY),
             @Parameter(name = "deptId", description = "部门ID", in = ParameterIn.QUERY)
     })
-	@PreAuthorize("hasAuthority('sys:user:page')")
-	public R<?> page(@RequestMap DynMap params){
-		PageData<SysUserDTO> page = sysUserService.page(params);
-		return R.ok(page);
-	}
+    @PreAuthorize("hasAuthority('sys:user:page')")
+    public R<?> page(@RequestMap DynMap params) {
+        PageData<SysUserDTO> page = sysUserService.page(params);
+        return R.ok(page);
+    }
 
-	@GetMapping("{id}")
-	@Operation(summary = "用户详情", description = "查询用户基础信息、主体绑定角色和岗位。权限码：sys:user:info。")
-	@PreAuthorize("hasAuthority('sys:user:info')")
-	public R<?> get(@PathVariable("id") Long id){
-		SysUserDTO data = sysUserService.getById(id);
+    @GetMapping("{id}")
+    @Operation(summary = "用户详情", description = "查询用户基础信息、主体绑定角色和岗位。权限码：sys:user:info。")
+    @PreAuthorize("hasAuthority('sys:user:info')")
+    public R<?> get(@PathVariable("id") Long id) {
+        SysUserDTO data = sysUserService.getById(id);
 
-		if (data.getRoleId() != null) {
-			data.setRoleIdList(List.of(data.getRoleId()));
-		}
+        if (data.getRoleId() != null) {
+            data.setRoleIdList(List.of(data.getRoleId()));
+        }
 
-		//用户岗位列表
-		List<Long> postIdList = sysUserPostService.getPostIdList(id);
-		data.setPostIdList(postIdList);
+        //用户岗位列表
+        List<Long> postIdList = sysUserPostService.getPostIdList(id);
+        data.setPostIdList(postIdList);
 
-		return R.ok(data);
-	}
+        SysUserSubjectEntity userSubject = sysUserSubjectService.getByUserId(data.getId());
+        if (ObjUtil.isNotEmpty(userSubject)) {
+            data.setDeptId(userSubject.getDeptId());
+            data.setTenantId(userSubject.getTenantId());
+            data.setMerchantId(userSubject.getMerchantId());
+        }
+        return R.ok(data);
+    }
 
-	@GetMapping("info")
-	@Operation(summary = "当前登录用户信息", description = "查询当前登录用户的基础资料和主体上下文。需要登录。")
-	public R<?> info(){
+    @GetMapping("info")
+    @Operation(summary = "当前登录用户信息", description = "查询当前登录用户的基础资料和主体上下文。需要登录。")
+    public R<?> info() {
         Long userId = currentUser.getUserId();
 
         SysUserDTO data = sysUserService.getById(userId);
-		return R.ok(data);
-	}
+        return R.ok(data);
+    }
 
     @PutMapping("reset-password/{id}")
     @Operation(summary = "重置用户密码", description = "管理员为指定用户重置密码。权限码：sys:user:update。")
-	@PreAuthorize("hasAuthority('sys:user:update')")
-    public R<?> resetPassword(@PathVariable("id") Long id, @RequestBody SysUserDTO dto){
+    @PreAuthorize("hasAuthority('sys:user:update')")
+    public R<?> resetPassword(@PathVariable("id") Long id, @RequestBody SysUserDTO dto) {
         //效验数据
         AssertUtils.isNull(id, "id");
         AssertUtils.isBlank(dto.getPassword(), "password");
@@ -105,65 +114,65 @@ public class SysUserController {
     }
 
     @PutMapping("password")
-	@Operation(summary = "修改当前用户密码", description = "当前登录用户修改自己的密码，需要提供原密码和新密码。")
-	public R<?> password(@RequestBody PasswordDTO dto){
+    @Operation(summary = "修改当前用户密码", description = "当前登录用户修改自己的密码，需要提供原密码和新密码。")
+    public R<?> password(@RequestBody PasswordDTO dto) {
         SysUserEntity user = sysUserService.selectById(currentUser.getUserId());
-		//原密码不正确
-		if(!PasswordUtils.matches(dto.getPassword(), user.getPassword())){
-			return R.error(ErrorCode.PASSWORD_ERROR);
-		}
+        //原密码不正确
+        if (!PasswordUtils.matches(dto.getPassword(), user.getPassword())) {
+            return R.error(ErrorCode.PASSWORD_ERROR);
+        }
 
-		sysUserService.updatePassword(user.getId(), dto.getNewPassword());
+        sysUserService.updatePassword(user.getId(), dto.getNewPassword());
 
-		return R.ok();
-	}
+        return R.ok();
+    }
 
-	@PostMapping
-	@Operation(summary = "新增用户", description = "创建登录账号并绑定主体、部门和角色。平台可创建租户/商户用户；租户只能创建本租户用户。权限码：sys:user:add。")
-	@PreAuthorize("hasAuthority('sys:user:add')")
-	public R<?> save(@RequestBody SysUserDTO dto){
+    @PostMapping
+    @Operation(summary = "新增用户", description = "创建登录账号并绑定主体、部门和角色。平台可创建租户/商户用户；租户只能创建本租户用户。权限码：sys:user:add。")
+    @PreAuthorize("hasAuthority('sys:user:add')")
+    public R<?> save(@RequestBody SysUserDTO dto) {
         if (!ReqContextHolder.isSAdmin()) {
             dto.setTenantId(ReqContextHolder.getTenantId());
         }
         if (ObjUtil.isEmpty(dto.getDeptId())) {
             dto.setDeptId(ReqContextHolder.getDeptId());
         }
-		sysUserService.save(dto);
-		return R.ok();
-	}
+        sysUserService.save(dto);
+        return R.ok();
+    }
 
-	@PutMapping
-	@Operation(summary = "修改用户", description = "修改用户资料和主体绑定信息。权限码：sys:user:update。")
-	@PreAuthorize("hasAuthority('sys:user:update')")
-	public R<?> update(@RequestBody SysUserDTO dto){
+    @PutMapping
+    @Operation(summary = "修改用户", description = "修改用户资料和主体绑定信息。权限码：sys:user:update。")
+    @PreAuthorize("hasAuthority('sys:user:update')")
+    public R<?> update(@RequestBody SysUserDTO dto) {
         dto.setTenantId(null);
         boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
         if (!allowed) {
             dto.setDeptId(null);
         }
-		sysUserService.update(dto);
-		return R.ok();
-	}
+        sysUserService.update(dto);
+        return R.ok();
+    }
 
-	@PutMapping("app")
-	@Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、姓名、手机号、邮箱等个人资料。")
-	public R<?> updateUserInfo(@RequestBody SysUserDTO dto){
-		sysUserService.updateUserInfo(dto);
-		return R.ok();
-	}
+    @PutMapping("app")
+    @Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、姓名、手机号、邮箱等个人资料。")
+    public R<?> updateUserInfo(@RequestBody SysUserDTO dto) {
+        sysUserService.updateUserInfo(dto);
+        return R.ok();
+    }
 
-	@DeleteMapping
-	@Operation(summary = "删除用户", description = "删除用户账号。禁止删除当前登录用户自身。权限码：sys:user:delete。")
-	@PreAuthorize("hasAuthority('sys:user:delete')")
-	public R<?> delete(@RequestParam Long[] ids){
-		//效验数据
-		AssertUtils.isArrayEmpty(ids, "id");
+    @DeleteMapping
+    @Operation(summary = "删除用户", description = "删除用户账号。禁止删除当前登录用户自身。权限码：sys:user:delete。")
+    @PreAuthorize("hasAuthority('sys:user:delete')")
+    public R<?> delete(@RequestParam Long[] ids) {
+        //效验数据
+        AssertUtils.isArrayEmpty(ids, "id");
 
-		List<Long> idList = Arrays.asList(ids);
-		if(idList.contains(currentUser.getUserId())){
-			throw new GkException(ErrorCode.DEL_MYSELF_ERROR);
-		}
-		sysUserService.deleteBatchIds(idList);
-		return R.ok();
-	}
+        List<Long> idList = Arrays.asList(ids);
+        if (idList.contains(currentUser.getUserId())) {
+            throw new GkException(ErrorCode.DEL_MYSELF_ERROR);
+        }
+        sysUserService.deleteBatchIds(idList);
+        return R.ok();
+    }
 }

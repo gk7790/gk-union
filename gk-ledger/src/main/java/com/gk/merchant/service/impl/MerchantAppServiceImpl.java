@@ -64,9 +64,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
     @Override
     public MerchantAppDTO get(Long id) {
-        MerchantAppDTO dto = super.get(id);
-        maskSecret(dto);
-        return dto;
+        return super.get(id);
     }
 
     @Override

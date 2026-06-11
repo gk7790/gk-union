@@ -28,6 +28,8 @@ public class MerchantEntity extends SimpleEntity {
     private String contactName;
     private String contactEmail;
     private String contactPhone;
+    /** Telegram 用户 ID */
+    private Long tgUserId;
     private String businessLicenseNo;
     private String settleMode;
     private String settleCycle;

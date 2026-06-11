@@ -11,7 +11,7 @@ public class MerchantDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "商户号")
+    @Schema(title = "商户号；不传则自动生成")
     private String merchantNo;
     @Schema(title = "商户名称")
     private String merchantName;
@@ -37,6 +37,8 @@ public class MerchantDTO {
     private String contactEmail;
     @Schema(title = "联系电话")
     private String contactPhone;
+    @Schema(title = "Telegram 用户ID")
+    private Long tgUserId;
     @Schema(title = "营业执照/注册编号")
     private String businessLicenseNo;
     @Schema(title = "结算模式")
@@ -49,6 +51,8 @@ public class MerchantDTO {
     private String configJson;
     @Schema(title = "备注")
     private String remark;
+    @Schema(title = "创建商户时可选一并创建的 Open API 应用；返回含 app_id / api_secret 明文")
+    private MerchantAppDTO apiApp;
     @Schema(title = "创建人ID")
     private Long createdBy;
     @Schema(title = "创建时间")

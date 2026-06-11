@@ -51,7 +51,7 @@ public class MerchantController {
     @PreAuthorize("hasAuthority('merchant:save')")
     public R<?> save(@RequestBody MerchantDTO dto) {
         merchantService.save(dto);
-        return R.ok();
+        return R.ok(dto);
     }
 
     @PutMapping("{id}")

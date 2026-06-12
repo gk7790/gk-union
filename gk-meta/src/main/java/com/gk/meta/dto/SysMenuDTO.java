@@ -25,9 +25,6 @@ public class SysMenuDTO extends TreeNode<SysMenuDTO> implements Serializable {
 	@Schema(title = "上级ID")
 	private Long pid;
 
-    @Schema(title = "租户id")
-    private Long tenantId;
-
     @Schema(title = "菜单名称")
 	private String name;
 
@@ -58,8 +55,8 @@ public class SysMenuDTO extends TreeNode<SysMenuDTO> implements Serializable {
     @Schema(title = "类型")
     private Integer type;
 
-    @Schema(title = "领域")
-    private List<Integer> scope;
+    @Schema(title = "可见主体")
+    private List<String> subjectTypes;
 
     @Schema(title = "业务领域")
     private List<Integer> domain;

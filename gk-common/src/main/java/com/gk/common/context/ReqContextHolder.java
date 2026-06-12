@@ -137,13 +137,6 @@ public class ReqContextHolder {
     }
 
     /**
-     * 领域
-     */
-    public static Integer getScope() {
-        return get().getScope();
-    }
-
-    /**
      * 业务领域
      */
     public static Integer getDomain() {

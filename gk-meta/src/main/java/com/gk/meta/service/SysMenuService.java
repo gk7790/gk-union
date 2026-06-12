@@ -2,7 +2,6 @@ package com.gk.meta.service;
 
 
 import com.gk.common.core.service.BaseService;
-import com.gk.common.dto.AuthUser;
 import com.gk.meta.dto.SysMenuDTO;
 import com.gk.meta.entity.SysMenuEntity;
 
@@ -11,7 +10,7 @@ import java.util.List;
 
 /**
  * 菜单管理
- * 
+ *
  * @author Lowen
  */
 public interface SysMenuService extends BaseService<SysMenuEntity> {
@@ -25,27 +24,32 @@ public interface SysMenuService extends BaseService<SysMenuEntity> {
 	void delete(Long id);
 
 	/**
-	 * 用户菜单列表
-	 * @param typeList 菜单类型
+	 * 侧边栏导航菜单（当前用户 + 当前角色 + 主体类型）。
 	 */
-	List<SysMenuDTO> getUserMenuList(List<Integer> typeList, long minId);
+	List<SysMenuDTO> getNavMenuList(List<Integer> typeList, long minId);
 
-    /**
-     * 获取默认的工作台菜单
-     */
-    SysMenuDTO defaultNav();
+	/**
+	 * 菜单管理列表（超管看全部目录，其他按当前主体类型过滤）。
+	 */
+	List<SysMenuDTO> getAdminMenuList(List<Integer> typeList, long minId);
+
+	/**
+	 * 角色授权可选菜单树（按 roleScope / subjectType 过滤目录）。
+	 */
+	List<SysMenuDTO> getRoleSelectMenuList(String roleScope, List<Integer> typeList, long minId);
+
+	/**
+	 * 校验角色绑定的菜单均属于该 roleScope 可见范围。
+	 */
+	void assertMenusMatchRoleScope(String roleScope, List<Long> menuIdList);
 
 	/**
 	 * 根据父菜单，查询子菜单
-	 * @param pid  父菜单ID
 	 */
 	List<SysMenuDTO> getListPid(Long pid);
 
-    /**
-     * 校验菜单名称是否存在,
-     * @param id 菜单id
-     * @param name 菜单名称
-     * @return 是否存在
-     */
-    boolean isExistsName(Long id, String name);
+	/**
+	 * 校验菜单名称是否存在
+	 */
+	boolean isExistsName(Long id, String name);
 }

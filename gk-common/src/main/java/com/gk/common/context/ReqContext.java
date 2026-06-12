@@ -77,10 +77,7 @@ public class ReqContext {
      * requestId
      */
     private String requestId;
-    /**
-     * 领域
-     */
-    private Integer scope;
+
     /**
      * 业务领域
      */

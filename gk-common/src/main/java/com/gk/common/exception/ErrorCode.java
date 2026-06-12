@@ -65,5 +65,6 @@ public interface ErrorCode {
     int VARIATE_NOT_EXIST = 10052;
     int REQUEST_FREQUENT = 10053;
     int REQUEST_LIMIT_REACHED = 10054;
+    int ROLE_MENU_SUBJECT_MISMATCH = 10055;
 
 }

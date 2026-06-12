@@ -33,7 +33,6 @@ public class JwtUtils {
     public static final String SUBJECT_TYPE = "subjectType";
     public static final String UNAME = "uname";
     public static final String SUPER_Admin = "sAdmin";
-    public static final String SCOPE = "scope";
     public static final String DOMAIN = "domain";
 
 

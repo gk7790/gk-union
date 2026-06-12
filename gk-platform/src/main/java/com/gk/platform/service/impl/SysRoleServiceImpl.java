@@ -17,6 +17,7 @@ import com.gk.platform.dao.SysRoleDao;
 import com.gk.platform.dto.SysRoleDTO;
 import com.gk.platform.entity.SysRoleEntity;
 import com.gk.platform.service.*;
+import com.gk.meta.service.SysMenuService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	private final SysRoleMenuService sysRoleMenuService;
 	private final SysRoleDataScopeService sysRoleDataScopeService;
 	private final SysUserSubjectService sysUserSubjectService;
+	private final SysMenuService sysMenuService;
 
     @Override
 	public PageData<SysRoleDTO> page(DynMap params) {
@@ -123,6 +125,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void save(SysRoleDTO dto) {
 		SysRoleEntity entity = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
+		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
 		//保存角色
 		insert(entity);
@@ -140,6 +143,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	public void update(SysRoleDTO dto) {
 		assertRoleMutable(dto.getId());
 		SysRoleEntity entity = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
+		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
 		//更新角色
 		updateById(entity);

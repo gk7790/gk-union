@@ -210,7 +210,6 @@ CREATE TABLE `sys_log_operation`  (
 DROP TABLE IF EXISTS `sys_menu`;
 CREATE TABLE `sys_menu`  (
   `id` bigint NOT NULL COMMENT 'id',
-  `tenant_id` bigint NULL DEFAULT 0 COMMENT '租户id',
   `pid` bigint NULL DEFAULT 0 COMMENT '上级ID，一级菜单为0',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '名称',
   `path` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '菜单URL',
@@ -222,7 +221,7 @@ CREATE TABLE `sys_menu`  (
   `meta` json NULL COMMENT '菜单meta',
   `sort` int NULL DEFAULT 0 COMMENT '排序',
   `redirect` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '重定向',
-  `scope` json NULL COMMENT '领域: 1平台, 3租户, 5组织, 7代理',
+  `subject_types` json NULL COMMENT '可见主体: PLATFORM/TENANT/MERCHANT',
   `domain` json NULL COMMENT '业务领域:GAMING / CLOAK',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建者',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',

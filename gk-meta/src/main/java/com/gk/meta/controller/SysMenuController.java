@@ -5,24 +5,24 @@ import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.utils.EnumUtils;
-import com.gk.infra.enums.DomainEnum;
 import com.gk.common.enums.MenuTypeEnum;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.common.utils.EnumUtils;
 import com.gk.common.validator.AssertUtils;
-import com.gk.infra.config.service.SysParamsService;
+import com.gk.infra.enums.DomainEnum;
 import com.gk.meta.dto.SysMenuDTO;
 import com.gk.meta.entity.SysMenuEntity;
-import com.gk.infra.enums.ScopeEnum;
 import com.gk.meta.service.SysMenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,7 +30,7 @@ import java.util.List;
 
 /**
  * 菜单管理
- * 
+ *
  * @author Lowen
  */
 @RestController
@@ -39,15 +39,11 @@ import java.util.List;
 @AllArgsConstructor
 public class SysMenuController {
     private final SysMenuService sysMenuService;
-    private final SysParamsService sysParamsService;
 
 	@GetMapping("nav")
 	@Operation(summary = "导航")
 	public R<?> nav(){
-		List<SysMenuDTO> list = sysMenuService.getUserMenuList(MenuTypeEnum.enums(), Constant.MIN_SYS_ID);
-        if(!ReqContextHolder.isSAdmin()){
-            list.addFirst(sysMenuService.defaultNav());
-        }
+		List<SysMenuDTO> list = sysMenuService.getNavMenuList(MenuTypeEnum.enums(), Constant.MIN_SYS_ID);
 		return R.ok(list);
 	}
 
@@ -55,7 +51,7 @@ public class SysMenuController {
 	@Operation(summary = "列表")
 	@Parameter(name = "type", description = "菜单类型 0：菜单 1：按钮  null：全部", in = ParameterIn.QUERY)
 	public R<?> list(@RequestParam(required = false) List<Integer> typeList){
-		List<SysMenuDTO> list = sysMenuService.getUserMenuList(typeList, Constant.MIN_SYS_ID);
+		List<SysMenuDTO> list = sysMenuService.getAdminMenuList(typeList, Constant.MIN_SYS_ID);
 		return R.ok(list);
 	}
 
@@ -72,7 +68,6 @@ public class SysMenuController {
     @PreAuthorize("hasAuthority('sys:menu:info')")
     public R<?> updateById(@PathVariable("id") Long id, @RequestBody SysMenuDTO dto){
         dto.setId(id);
-        // 不是菜单组件为空
         if (ObjUtil.notEqual(MenuTypeEnum.MENU.code(), dto.getType())) {
             dto.setComponent("");
         }
@@ -87,17 +82,12 @@ public class SysMenuController {
         return R.ok(rresult);
     }
 
-    /**
-     * 系统语言参数
-     */
-    @GetMapping("dict/scope")
-    public R<?> dictScope(){
-        return R.ok(EnumUtils.toDictList(ScopeEnum.class));
+    @GetMapping("dict/subjectType")
+    @Operation(summary = "可见主体字典")
+    public R<?> dictSubjectType(){
+        return R.ok(EnumUtils.toDictList(SubjectTypeEnum.class));
     }
 
-    /**
-     * 系统语言参数
-     */
     @GetMapping("dict/domain")
     public R<?> dictDomain(){
         return R.ok(EnumUtils.toDictList(DomainEnum.class));
@@ -108,11 +98,9 @@ public class SysMenuController {
 	@PreAuthorize("hasAuthority('sys:menu:save')")
 	public R<?> save(@RequestBody SysMenuDTO dto){
         SysMenuEntity entity = ConvertUtils.sourceToTarget(dto, SysMenuEntity.class);
-        // 不是菜单组件为空
         if (ObjUtil.notEqual(MenuTypeEnum.MENU.code(), entity.getType())) {
             entity.setComponent("");
         }
-		//效验数据
 		sysMenuService.addMenu(entity);
 		return R.ok();
 	}
@@ -121,7 +109,6 @@ public class SysMenuController {
 	@Operation(summary = "修改")
 	@PreAuthorize("hasAuthority('sys:menu:update')")
 	public R<?> update(@RequestBody SysMenuDTO dto){
-        // 不是菜单组件为空
         if (ObjUtil.notEqual(MenuTypeEnum.MENU.code(), dto.getType())) {
             dto.setComponent("");
         }
@@ -133,9 +120,7 @@ public class SysMenuController {
 	@Operation(summary = "删除")
 	@PreAuthorize("hasAuthority('sys:menu:delete')")
 	public R<?> delete(@PathVariable("id") Long id){
-		//效验数据
 		AssertUtils.isNull(id, "id");
-		//判断是否有子菜单或按钮
 		List<SysMenuDTO> list = sysMenuService.getListPid(id);
 		if(list.size() > 0){
 			return R.error(ErrorCode.SUB_MENU_EXIST);
@@ -147,8 +132,9 @@ public class SysMenuController {
 	@GetMapping("select")
 	@Operation(summary = "角色菜单权限")
 	@PreAuthorize("hasAuthority('sys:menu:select')")
-	public R<?> select(){
-		List<SysMenuDTO> list = sysMenuService.getUserMenuList(null, Constant.MIN_SYS_ID);
+	public R<?> select(@RequestParam(required = false) String roleScope){
+        String scope = StringUtils.isNotBlank(roleScope) ? roleScope : ReqContextHolder.getSubjectType();
+		List<SysMenuDTO> list = sysMenuService.getRoleSelectMenuList(scope, null, Constant.MIN_SYS_ID);
 		return R.ok(list);
 	}
 }

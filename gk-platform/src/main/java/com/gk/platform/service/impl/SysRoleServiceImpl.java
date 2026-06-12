@@ -80,8 +80,8 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 			wrapper.ne("tenant_id", Constant.DEFAULT_TENANT_ID);
 		}
 
-		if (!ReqContextHolder.isSAdmin()) {
-            wrapper.ge("id", Constant.MIN_SYS_ID);
+        wrapper.ge("id", Constant.MIN_SYS_ID);
+        if (!ReqContextHolder.isSAdmin()) {
 			applyNonAdminTenantScope(wrapper);
 		}
 

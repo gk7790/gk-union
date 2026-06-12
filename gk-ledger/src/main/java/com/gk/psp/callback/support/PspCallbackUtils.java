@@ -1,5 +1,6 @@
 package com.gk.psp.callback.support;
 
+import com.gk.payment.enums.PayOrderStatusEnum;
 import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
@@ -13,8 +14,8 @@ public final class PspCallbackUtils {
 
     public static boolean isTerminal(String status) {
         String normalized = normalizeStatus(status);
-        return PspCallbackConstants.STATUS_SUCCESS.equals(normalized)
-                || PspCallbackConstants.STATUS_FAILED.equals(normalized);
+        return PayOrderStatusEnum.SUCCESS.code().equals(normalized)
+                || PayOrderStatusEnum.FAILED.code().equals(normalized);
     }
 
     public static String normalizeStatus(String status) {

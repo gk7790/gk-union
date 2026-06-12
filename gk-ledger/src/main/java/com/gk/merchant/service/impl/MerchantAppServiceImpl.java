@@ -10,6 +10,9 @@ import com.gk.common.model.PageData;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.common.enums.SignTypeEnum;
+import com.gk.merchant.enums.EncryptTypeEnum;
+import com.gk.merchant.enums.MerchantAppTypeEnum;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
@@ -24,9 +27,6 @@ import java.util.List;
 @Service
 public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, MerchantAppEntity, MerchantAppDTO> implements MerchantAppService {
 
-    private static final String DEFAULT_APP_TYPE = "API";
-    private static final String DEFAULT_SIGN_TYPE = "HMAC_SHA256";
-    private static final String DEFAULT_ENCRYPT_TYPE = "NONE";
     private static final int DEFAULT_STATUS = 1;
     private static final int DEFAULT_RATE_LIMIT_QPS = 50;
     private static final int DEFAULT_NONCE_TTL_SECONDS = 300;
@@ -143,13 +143,13 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             entity.setStatus(DEFAULT_STATUS);
         }
         if (StrUtil.isBlank(entity.getAppType())) {
-            entity.setAppType(DEFAULT_APP_TYPE);
+            entity.setAppType(MerchantAppTypeEnum.API.code());
         }
         if (StrUtil.isBlank(entity.getSignType())) {
-            entity.setSignType(DEFAULT_SIGN_TYPE);
+            entity.setSignType(SignTypeEnum.HMAC_SHA256.code());
         }
         if (StrUtil.isBlank(entity.getEncryptType())) {
-            entity.setEncryptType(DEFAULT_ENCRYPT_TYPE);
+            entity.setEncryptType(EncryptTypeEnum.NONE.code());
         }
         if (entity.getRateLimitQps() == null) {
             entity.setRateLimitQps(DEFAULT_RATE_LIMIT_QPS);

@@ -3,19 +3,19 @@ package com.gk.payment.enums;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
- * 订单下游商户通知状态。
+ * 代收订单结算状态。
  */
-public enum MerchantNotifyStatusEnum implements StringCodeEnum {
-    NONE("NONE", "无需通知", "enum.merchantNotifyStatus.none"),
-    PENDING("PENDING", "通知中", "enum.merchantNotifyStatus.pending"),
-    SUCCESS("SUCCESS", "通知成功", "enum.merchantNotifyStatus.success"),
-    FAILED("FAILED", "通知失败", "enum.merchantNotifyStatus.failed");
+public enum SettleStatusEnum implements StringCodeEnum {
+    PENDING("PENDING", "待结算", "enum.settleStatus.pending"),
+    RELEASED("RELEASED", "已释放", "enum.settleStatus.released"),
+    HELD("HELD", "已冻结", "enum.settleStatus.held"),
+    CANCELLED("CANCELLED", "已取消", "enum.settleStatus.cancelled");
 
     private final String code;
     private final String label;
     private final String i18nKey;
 
-    MerchantNotifyStatusEnum(String code, String label, String i18nKey) {
+    SettleStatusEnum(String code, String label, String i18nKey) {
         this.code = code;
         this.label = label;
         this.i18nKey = i18nKey;

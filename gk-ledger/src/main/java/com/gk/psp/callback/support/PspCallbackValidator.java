@@ -1,5 +1,6 @@
 package com.gk.psp.callback.support;
 
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import org.apache.commons.lang3.StringUtils;
@@ -19,7 +20,7 @@ public class PspCallbackValidator {
             throw new IllegalStateException("PSP callback PSP code mismatch");
         }
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (PspCallbackConstants.STATUS_SUCCESS.equals(status)) {
+        if (PayOrderStatusEnum.SUCCESS.code().equals(status)) {
             validateRequiredAmount(result.getAmount(), order.amount());
             validateRequiredCurrency(result.getCurrency(), order.currency());
             return;

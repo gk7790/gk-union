@@ -13,8 +13,11 @@ import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayOrderService;
 import com.gk.openapi.util.ApiAmountUtils;
+import com.gk.common.enums.OrderSourceEnum;
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
@@ -37,11 +40,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class OpenPayOrderServiceImpl implements OpenPayOrderService {
-    private static final String ORDER_SOURCE_API = "API";
-    private static final String STATUS_CREATED = "CREATED";
-    private static final String STATUS_PROCESSING = "PROCESSING";
-    private static final String STATUS_FAILED = "FAILED";
-    private static final String SETTLE_STATUS_PENDING = "PENDING";
 
     private final PayOrderDao payOrderDao;
     private final MerchantFeeRuleService merchantFeeRuleService;
@@ -90,7 +88,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPayOrderNo(BizKeyUtils.genPayOrderNo());
         entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
-        entity.setOrderSource(ORDER_SOURCE_API);
+        entity.setOrderSource(OrderSourceEnum.API.code());
         entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
         entity.setCurrency(normalizedCurrency);
         entity.setMethodCode(normalizedMethod);
@@ -104,8 +102,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setNotifyUrl(request.getNotifyUrl());
         entity.setReturnUrl(request.getReturnUrl());
         entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
-        entity.setStatus(STATUS_CREATED);
-        entity.setSettleStatus(SETTLE_STATUS_PENDING);
+        entity.setStatus(PayOrderStatusEnum.CREATED.code());
+        entity.setSettleStatus(SettleStatusEnum.PENDING.code());
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
 
@@ -192,12 +190,12 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPspPayParamsJson(result.getPayParamsJson());
         entity.setPspRawStatus(result.getRawStatus());
         if (result.isSuccess()) {
-            entity.setStatus(STATUS_PROCESSING);
-            entity.setPspStatus(STATUS_PROCESSING);
+            entity.setStatus(PayOrderStatusEnum.PROCESSING.code());
+            entity.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
             return;
         }
-        entity.setStatus(STATUS_FAILED);
-        entity.setPspStatus(STATUS_FAILED);
+        entity.setStatus(PayOrderStatusEnum.FAILED.code());
+        entity.setPspStatus(PayOrderStatusEnum.FAILED.code());
         entity.setStatusReason(StringUtils.defaultIfBlank(
                 result.getErrorMessage(),
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
@@ -210,7 +208,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * @param reason 失败原因
      */
     private void markFailed(PayOrderEntity entity, String reason) {
-        entity.setStatus(STATUS_FAILED);
+        entity.setStatus(PayOrderStatusEnum.FAILED.code());
         entity.setStatusReason(StringUtils.defaultIfBlank(reason, "Pay order failed"));
         payOrderDao.updateById(entity);
     }

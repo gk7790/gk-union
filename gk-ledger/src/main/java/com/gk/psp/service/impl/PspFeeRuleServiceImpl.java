@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -30,8 +31,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
-    private static final String DIRECTION_PAYIN = "PAYIN";
-    private static final String DIRECTION_PAYOUT = "PAYOUT";
     private static final int STATUS_ENABLED = 1;
 
     private final ObjectMapper objectMapper;
@@ -76,7 +75,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                DIRECTION_PAYIN
+                PayDirectionEnum.PAYIN.code()
         );
     }
 
@@ -91,7 +90,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                DIRECTION_PAYOUT
+                PayDirectionEnum.PAYOUT.code()
         );
     }
 

@@ -1,6 +1,7 @@
 package com.gk.psp.log;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
@@ -23,8 +24,6 @@ import java.util.concurrent.Executor;
 @Slf4j
 @Component
 public class PspRequestLogger {
-    private static final String BIZ_TYPE_PAY_ORDER = "PAY_ORDER";
-    private static final String BIZ_TYPE_PAYOUT_ORDER = "PAYOUT_ORDER";
     private static final String DEFAULT_HTTP_METHOD = "POST";
 
     private final PspRequestLogService pspRequestLogService;
@@ -101,7 +100,7 @@ public class PspRequestLogger {
         entity.setMerchantId(order == null ? null : order.getMerchantId());
         entity.setPspId(route == null ? null : route.getPspId());
         entity.setPspCode(route == null ? null : route.getPspCode());
-        entity.setBizType(BIZ_TYPE_PAY_ORDER);
+        entity.setBizType(BizTypeEnum.PAY_ORDER.code());
         entity.setBizId(order == null ? null : order.getId());
         entity.setBizNo(order == null ? null : order.getPayOrderNo());
         String pspRequestNo = result == null ? null : result.getPspRequestNo();
@@ -119,7 +118,7 @@ public class PspRequestLogger {
         entity.setMerchantId(order == null ? null : order.getMerchantId());
         entity.setPspId(route == null ? null : route.getPspId());
         entity.setPspCode(route == null ? null : route.getPspCode());
-        entity.setBizType(BIZ_TYPE_PAYOUT_ORDER);
+        entity.setBizType(BizTypeEnum.PAYOUT_ORDER.code());
         entity.setBizId(order == null ? null : order.getId());
         entity.setBizNo(order == null ? null : order.getPayoutOrderNo());
         String pspRequestNo = result == null ? null : result.getPspRequestNo();

@@ -2,6 +2,7 @@ package com.gk.psp.callback.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
@@ -22,7 +23,7 @@ public class PspCallbackOrderResolver {
     private final PspAccountDao pspAccountDao;
 
     public PspCallbackOrder resolve(String bizType, PspCallbackResult result) {
-        if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
             PayOrderEntity order = findOne(payOrderDao, "pay_order_no", result);
             if (order == null) {
                 throw new IllegalStateException("Pay order not found");

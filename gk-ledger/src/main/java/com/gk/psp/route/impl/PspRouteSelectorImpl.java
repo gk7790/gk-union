@@ -1,6 +1,7 @@
 package com.gk.psp.route.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.entity.PayOrderEntity;
@@ -26,8 +27,6 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class PspRouteSelectorImpl implements PspRouteSelector {
-    private static final String DIRECTION_PAYIN = "PAYIN";
-    private static final String DIRECTION_PAYOUT = "PAYOUT";
     private static final int STATUS_ENABLED = 1;
 
     private final PspRouteRuleDao pspRouteRuleDao;
@@ -45,7 +44,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                DIRECTION_PAYIN
+                PayDirectionEnum.PAYIN.code()
         );
     }
 
@@ -59,7 +58,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                DIRECTION_PAYOUT
+                PayDirectionEnum.PAYOUT.code()
         );
     }
 
@@ -120,7 +119,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         if (provider == null || !Integer.valueOf(STATUS_ENABLED).equals(provider.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
         }
-        boolean supported = DIRECTION_PAYOUT.equals(direction)
+        boolean supported = PayDirectionEnum.PAYOUT.code().equals(direction)
                 ? Integer.valueOf(1).equals(provider.getSupportPayout())
                 : Integer.valueOf(1).equals(provider.getSupportPayin());
         if (!supported) {

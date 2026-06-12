@@ -1,10 +1,14 @@
 package com.gk.psp.callback;
 
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.enums.PspCallbackProcessStatusEnum;
+import com.gk.psp.enums.PspCallbackVerifyStatusEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
@@ -36,12 +40,12 @@ public class PspCallbackService {
 
     @Transactional(rollbackFor = Exception.class)
     public String handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
-        return handle(pspCode, PspCallbackConstants.BIZ_TYPE_PAY_ORDER, request, rawBody);
+        return handle(pspCode, BizTypeEnum.PAY_ORDER.code(), request, rawBody);
     }
 
     @Transactional(rollbackFor = Exception.class)
     public String handlePayoutCallback(String pspCode, HttpServletRequest request, String rawBody) {
-        return handle(pspCode, PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER, request, rawBody);
+        return handle(pspCode, BizTypeEnum.PAYOUT_ORDER.code(), request, rawBody);
     }
 
     private String handle(String pspCode, String bizType, HttpServletRequest servletRequest, String rawBody) {
@@ -60,7 +64,7 @@ public class PspCallbackService {
             logEntity = logRecorder.received(request, result, order);
 
             if (!adapter.verifySign(request)) {
-                logRecorder.finish(logEntity, "FAILED", PspCallbackConstants.PROCESS_FAILED, "Invalid PSP callback signature");
+                logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.FAILED.code(), PspCallbackProcessStatusEnum.FAILED.code(), "Invalid PSP callback signature");
                 return result.getFailResponse();
             }
 
@@ -75,7 +79,7 @@ public class PspCallbackService {
                 notifyCreator.create(bizType, result, order, logEntity);
             }
 
-            logRecorder.finish(logEntity, "SUCCESS", orderChanged ? PspCallbackConstants.PROCESS_SUCCESS : PspCallbackConstants.PROCESS_IGNORED, null);
+            logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.SUCCESS.code(), orderChanged ? PspCallbackProcessStatusEnum.SUCCESS.code() : PspCallbackProcessStatusEnum.IGNORED.code(), null);
             return result.getSuccessResponse();
         } catch (Exception ex) {
             if (orderChanged) {
@@ -84,7 +88,7 @@ public class PspCallbackService {
             if (logEntity == null) {
                 logEntity = logRecorder.failed(pspCode, bizType, request, ex);
             }
-            logRecorder.finish(logEntity, "FAILED", PspCallbackConstants.PROCESS_FAILED, ex.getMessage());
+            logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.FAILED.code(), PspCallbackProcessStatusEnum.FAILED.code(), ex.getMessage());
             return "fail";
         }
     }
@@ -96,7 +100,7 @@ public class PspCallbackService {
     }
 
     private PspCallbackResult parse(PspCallbackAdapter adapter, String bizType, PspCallbackRequest request) {
-        if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
             return adapter.parsePayCallback(request);
         }
         return adapter.parsePayoutCallback(request);
@@ -111,13 +115,13 @@ public class PspCallbackService {
 
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType) && PspCallbackConstants.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType) && PayOrderStatusEnum.SUCCESS.code().equals(status)) {
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
-        if (PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER.equals(bizType) && PspCallbackConstants.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PayOrderStatusEnum.SUCCESS.code().equals(status)) {
             return ledgerPostingService.postPayoutSuccess(payoutRequest(order));
         }
-        if (PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER.equals(bizType) && PspCallbackConstants.STATUS_FAILED.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PayOrderStatusEnum.FAILED.code().equals(status)) {
             return ledgerPostingService.releasePayout(payoutRequest(order));
         }
         return null;

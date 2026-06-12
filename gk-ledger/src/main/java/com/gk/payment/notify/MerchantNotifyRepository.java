@@ -6,6 +6,7 @@ import com.gk.payment.dao.MerchantNotifyRecordDao;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
+import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
@@ -23,11 +24,6 @@ import java.util.List;
 @Repository
 @RequiredArgsConstructor
 public class MerchantNotifyRepository {
-    /** 可被扫描处理的状态 */
-    private static final String STATUS_INIT = "INIT";
-    private static final String STATUS_FAILED = "FAILED";
-    private static final String STATUS_PROCESSING = "PROCESSING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
 
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final MerchantNotifyRecordDao merchantNotifyRecordDao;
@@ -37,7 +33,9 @@ public class MerchantNotifyRepository {
      */
     public List<MerchantNotifyTaskEntity> findClaimable(Instant now, int batchSize) {
         QueryWrapper<MerchantNotifyTaskEntity> wrapper = new QueryWrapper<>();
-        wrapper.in("status", STATUS_INIT, STATUS_FAILED)
+        wrapper.in("status",
+                        MerchantNotifyTaskStatusEnum.INIT.code(),
+                        MerchantNotifyTaskStatusEnum.FAILED.code())
                 .le("next_retry_at", now)
                 .apply("retry_count < max_retry_count")
                 .and(w -> w.isNull("lock_until").or().le("lock_until", now))
@@ -57,7 +55,7 @@ public class MerchantNotifyRepository {
         wrapper.eq("id", task.getId())
                 .eq("status", task.getStatus())
                 .and(w -> w.isNull("lock_until").or().le("lock_until", now))
-                .set("status", STATUS_PROCESSING)
+                .set("status", MerchantNotifyTaskStatusEnum.PROCESSING.code())
                 .set("locked_by", workerId)
                 .set("locked_at", now)
                 .set("lock_until", lockUntil);
@@ -72,14 +70,14 @@ public class MerchantNotifyRepository {
      */
     public MerchantNotifyTaskEntity forceClaim(Long id, String workerId, Instant now, Instant lockUntil) {
         MerchantNotifyTaskEntity task = merchantNotifyTaskDao.selectById(id);
-        if (task == null || STATUS_SUCCESS.equals(task.getStatus())) {
+        if (task == null || MerchantNotifyTaskStatusEnum.SUCCESS.matches(task.getStatus())) {
             return null;
         }
         UpdateWrapper<MerchantNotifyTaskEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
-                .ne("status", STATUS_SUCCESS)
+                .ne("status", MerchantNotifyTaskStatusEnum.SUCCESS.code())
                 .and(w -> w.isNull("lock_until").or().le("lock_until", now))
-                .set("status", STATUS_PROCESSING)
+                .set("status", MerchantNotifyTaskStatusEnum.PROCESSING.code())
                 .set("locked_by", workerId)
                 .set("locked_at", now)
                 .set("lock_until", lockUntil);

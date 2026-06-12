@@ -2,8 +2,10 @@ package com.gk.psp.callback.support;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
@@ -22,11 +24,11 @@ public class PspCallbackOrderProcessor {
 
     public boolean process(String bizType, PspCallbackResult result, PspCallbackOrder order, LedgerPostingResult postingResult) {
         String targetStatus = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (PspCallbackConstants.STATUS_PROCESSING.equals(targetStatus)) {
+        if (PayOrderStatusEnum.PROCESSING.code().equals(targetStatus)) {
             if (PspCallbackUtils.isTerminal(order.status())) {
                 return false;
             }
-            return update(bizType, order.id(), wrapper -> applyCommon(wrapper, PspCallbackConstants.STATUS_PROCESSING, result, order));
+            return update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
         }
         if (!PspCallbackUtils.isTerminal(targetStatus)) {
             throw new IllegalStateException("Unsupported callback order status");
@@ -44,11 +46,11 @@ public class PspCallbackOrderProcessor {
         }
         String normalizedStatus = PspCallbackUtils.normalizeStatus(targetStatus);
         boolean updated = updateJournalNo(bizType, orderId, wrapper -> {
-            if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+            if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
                 wrapper.set("ledger_journal_no", journalNo);
-            } else if (PspCallbackConstants.STATUS_SUCCESS.equals(normalizedStatus)) {
+            } else if (PayOrderStatusEnum.SUCCESS.code().equals(normalizedStatus)) {
                 wrapper.set("success_journal_no", journalNo);
-            } else if (PspCallbackConstants.STATUS_FAILED.equals(normalizedStatus)) {
+            } else if (PayOrderStatusEnum.FAILED.code().equals(normalizedStatus)) {
                 wrapper.set("release_journal_no", journalNo);
             }
         });
@@ -62,10 +64,10 @@ public class PspCallbackOrderProcessor {
         applyCommon(wrapper, targetStatus, result, order);
         String statusReason = result.getErrorMessage();
         wrapper.set(statusReason != null, "status_reason", statusReason);
-        boolean success = PspCallbackConstants.STATUS_SUCCESS.equals(targetStatus);
+        boolean success = PayOrderStatusEnum.SUCCESS.code().equals(targetStatus);
         String journalNo = postingResult == null ? null : postingResult.getJournalNo();
         Instant now = Instant.now();
-        if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
             if (success) {
                 wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
                         .set("paid_at", now)
@@ -96,7 +98,7 @@ public class PspCallbackOrderProcessor {
     }
 
     private boolean update(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
-        return PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)
+        return BizTypeEnum.PAY_ORDER.matches(bizType)
                 ? update(payOrderDao, id, setter)
                 : update(payoutOrderDao, id, setter);
     }
@@ -104,13 +106,13 @@ public class PspCallbackOrderProcessor {
     private <T> boolean update(BaseMapper<T> dao, Long id, Consumer<UpdateWrapper<?>> setter) {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
-                .in("status", PspCallbackConstants.STATUS_CREATED, PspCallbackConstants.STATUS_PROCESSING);
+                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code());
         setter.accept(wrapper);
         return dao.update(null, wrapper) > 0;
     }
 
     private boolean updateJournalNo(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
-        return PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)
+        return BizTypeEnum.PAY_ORDER.matches(bizType)
                 ? updateJournalNo(payOrderDao, id, setter)
                 : updateJournalNo(payoutOrderDao, id, setter);
     }

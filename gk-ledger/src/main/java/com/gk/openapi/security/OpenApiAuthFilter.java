@@ -3,6 +3,7 @@ package com.gk.openapi.security;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.enums.SignTypeEnum;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.merchant.dao.MerchantAppDao;
@@ -46,8 +47,6 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     public static final String PARAM_SIGN = "sign";
 
     private static final long DEFAULT_TIMESTAMP_WINDOW_SECONDS = 300L;
-    private static final String SIGN_TYPE_HMAC_SHA256 = "HMAC_SHA256";
-    private static final String SIGN_TYPE_MD5 = "MD5";
 
     private final MerchantAppDao merchantAppDao;
     private final MerchantDao merchantDao;
@@ -88,7 +87,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         String appId = requireParam(signParams, PARAM_APP_ID);
         String timestamp = requireParam(signParams, PARAM_TIMESTAMP);
         String nonce = getParam(signParams, PARAM_NONCE);
-        String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SIGN_TYPE_MD5);
+        String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SignTypeEnum.MD5.code());
         String signature = requireParam(signParams, PARAM_SIGN);
 
         MerchantAppEntity app = merchantAppDao.selectOne(
@@ -100,7 +99,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         if (!Integer.valueOf(1).equals(app.getStatus())) {
             throw new ApiException(ApiErrorCode.APP_DISABLED);
         }
-        String appSignType = StringUtils.defaultIfBlank(app.getSignType(), SIGN_TYPE_MD5);
+        String appSignType = StringUtils.defaultIfBlank(app.getSignType(), SignTypeEnum.MD5.code());
         if (!supportedSignType(signType) || !signType.equalsIgnoreCase(appSignType)) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
         }
@@ -173,12 +172,12 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     }
 
     private boolean supportedSignType(String signType) {
-        return SIGN_TYPE_HMAC_SHA256.equalsIgnoreCase(signType) || SIGN_TYPE_MD5.equalsIgnoreCase(signType);
+        return SignTypeEnum.HMAC_SHA256.matches(signType) || SignTypeEnum.MD5.matches(signType);
     }
 
     private void validateSortedParamSignature(Map<String, Object> params, String signature, String apiSecret, String signType) {
         try {
-            boolean valid = SIGN_TYPE_MD5.equalsIgnoreCase(signType)
+            boolean valid = SignTypeEnum.MD5.matches(signType)
                     ? ApiSignUtils.verifyMd5Sign(params, apiSecret, signature)
                     : ApiSignUtils.verifyHmacSha256Sign(params, apiSecret, signature);
             if (!valid) {

@@ -1,5 +1,6 @@
 package com.gk.psp.adapter.world;
 
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
@@ -12,10 +13,6 @@ import java.util.Map;
 
 @Component
 public class WorldPspCallbackAdapter implements PspCallbackAdapter {
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAILED = "FAILED";
-    private static final String STATUS_PROCESSING = "PROCESSING";
-
     @Override
     public boolean supports(String pspCode) {
         if (StringUtils.isBlank(pspCode)) {
@@ -65,12 +62,12 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     private String toOrderStatus(String pspStatus) {
         String normalized = StringUtils.defaultString(pspStatus).trim().toUpperCase(Locale.ROOT);
         if (StringUtils.equalsAny(normalized, "SUCCESS", "SUCCEEDED", "PAID", "COMPLETED", "DONE")) {
-            return STATUS_SUCCESS;
+            return PayOrderStatusEnum.SUCCESS.code();
         }
         if (StringUtils.equalsAny(normalized, "FAILED", "FAIL", "CLOSED", "CANCELLED", "REJECTED")) {
-            return STATUS_FAILED;
+            return PayOrderStatusEnum.FAILED.code();
         }
-        return STATUS_PROCESSING;
+        return PayOrderStatusEnum.PROCESSING.code();
     }
 
     private BigDecimal decimal(Map<String, Object> params, String... names) {

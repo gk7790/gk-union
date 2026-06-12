@@ -10,7 +10,9 @@ import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
-import com.gk.psp.callback.support.PspCallbackConstants;
+import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.SignTypeEnum;
+import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,10 +40,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class MerchantNotifyExecutor {
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAILED = "FAILED";
-    private static final String STATUS_DEAD = "DEAD";
-    private static final String DEFAULT_SIGN_TYPE = "MD5";
 
     /** 单批抢占任务数 */
     private static final int BATCH_SIZE = 100;
@@ -134,7 +132,7 @@ public class MerchantNotifyExecutor {
         if (existing == null) {
             return Result.fail("通知任务不存在");
         }
-        if (STATUS_SUCCESS.equals(existing.getStatus())) {
+        if (MerchantNotifyTaskStatusEnum.SUCCESS.matches(existing.getStatus())) {
             return Result.fail("通知已成功, 无需重复发送");
         }
         Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
@@ -158,12 +156,12 @@ public class MerchantNotifyExecutor {
 
     public Result<Void> resendPayOrder(Long orderId) {
         AssertUtils.isNull(orderId, "id");
-        return resendByBizOrder(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, orderId);
+        return resendByBizOrder(BizTypeEnum.PAY_ORDER.code(), orderId);
     }
 
     public Result<Void> resendPayoutOrder(Long orderId) {
         AssertUtils.isNull(orderId, "id");
-        return resendByBizOrder(PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER, orderId);
+        return resendByBizOrder(BizTypeEnum.PAYOUT_ORDER.code(), orderId);
     }
 
     private Result<Void> resendByBizOrder(String bizType, Long orderId) {
@@ -249,7 +247,7 @@ public class MerchantNotifyExecutor {
         task.setLastAttemptAt(now);
 
         if (success) {
-            task.setStatus(STATUS_SUCCESS);
+            task.setStatus(MerchantNotifyTaskStatusEnum.SUCCESS.code());
             task.setSuccessAt(now);
             task.setDeadAt(null);
             return;
@@ -257,7 +255,7 @@ public class MerchantNotifyExecutor {
 
         boolean exhausted = attemptNo >= maxRetry;
         if (exhausted && !manual) {
-            task.setStatus(STATUS_DEAD);
+            task.setStatus(MerchantNotifyTaskStatusEnum.DEAD.code());
             task.setDeadAt(now);
             return;
         }
@@ -265,7 +263,7 @@ public class MerchantNotifyExecutor {
         if (exhausted) {
             task.setMaxRetryCount(attemptNo + 1);
         }
-        task.setStatus(STATUS_FAILED);
+        task.setStatus(MerchantNotifyTaskStatusEnum.FAILED.code());
         task.setNextRetryAt(now.plusSeconds(backoffSeconds(attemptNo)));
     }
 
@@ -329,7 +327,7 @@ public class MerchantNotifyExecutor {
         if (StringUtils.isBlank(signType)) {
             signType = task.getSignType();
         }
-        return StringUtils.defaultIfBlank(signType, DEFAULT_SIGN_TYPE);
+        return StringUtils.defaultIfBlank(signType, SignTypeEnum.MD5.code());
     }
 
     private long backoffSeconds(int failedTimes) {

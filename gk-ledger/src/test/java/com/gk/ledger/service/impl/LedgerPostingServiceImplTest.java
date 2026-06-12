@@ -45,6 +45,8 @@ class LedgerPostingServiceImplTest {
     private LedgerEntryDao ledgerEntryDao;
     @Mock
     private LedgerHoldDao ledgerHoldDao;
+    @Mock
+    private com.gk.ledger.service.LedgerAccountService ledgerAccountService;
 
     @InjectMocks
     private LedgerPostingServiceImpl ledgerPostingService;

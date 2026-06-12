@@ -1,5 +1,6 @@
 package com.gk.psp.callback.support;
 
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,7 @@ class PspCallbackValidatorTest {
         PspCallbackResult result = result("WORLD", "SUCCESS", "100.00", "PHP");
         PspCallbackOrder order = order("WORLD", "100.00000000", "PHP");
 
-        assertThatCode(() -> validator.validateTerminalCallback(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, result, order))
+        assertThatCode(() -> validator.validateTerminalCallback(BizTypeEnum.PAY_ORDER.code(), result, order))
                 .doesNotThrowAnyException();
     }
 
@@ -26,7 +27,7 @@ class PspCallbackValidatorTest {
         PspCallbackResult result = result("WORLD", "SUCCESS", "99.99", "PHP");
         PspCallbackOrder order = order("WORLD", "100.00000000", "PHP");
 
-        assertThatThrownBy(() -> validator.validateTerminalCallback(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, result, order))
+        assertThatThrownBy(() -> validator.validateTerminalCallback(BizTypeEnum.PAY_ORDER.code(), result, order))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("amount");
     }
@@ -36,7 +37,7 @@ class PspCallbackValidatorTest {
         PspCallbackResult result = result("WORLD", "SUCCESS", "100.00", "USD");
         PspCallbackOrder order = order("WORLD", "100.00000000", "PHP");
 
-        assertThatThrownBy(() -> validator.validateTerminalCallback(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, result, order))
+        assertThatThrownBy(() -> validator.validateTerminalCallback(BizTypeEnum.PAY_ORDER.code(), result, order))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("currency");
     }
@@ -46,7 +47,7 @@ class PspCallbackValidatorTest {
         PspCallbackResult result = result("OTHER", "SUCCESS", "100.00", "PHP");
         PspCallbackOrder order = order("WORLD", "100.00000000", "PHP");
 
-        assertThatThrownBy(() -> validator.validateTerminalCallback(PspCallbackConstants.BIZ_TYPE_PAY_ORDER, result, order))
+        assertThatThrownBy(() -> validator.validateTerminalCallback(BizTypeEnum.PAY_ORDER.code(), result, order))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("PSP");
     }

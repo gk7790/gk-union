@@ -6,6 +6,7 @@ import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
+import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.openapi.dto.BalanceResponse;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenBalanceService;
@@ -24,7 +25,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OpenBalanceServiceImpl implements OpenBalanceService {
-    private static final String ACCOUNT_TYPE_MERCHANT_AVAILABLE = "MERCHANT_AVAILABLE";
 
     private final LedgerAccountDao ledgerAccountDao;
     private final LedgerBalanceDao ledgerBalanceDao;
@@ -35,7 +35,7 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
                 .eq("tenant_id", ApiReqContextHolder.getTenantId())
                 .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
                 .eq("owner_id", ApiReqContextHolder.getMerchantId())
-                .eq("account_type", ACCOUNT_TYPE_MERCHANT_AVAILABLE)
+                .eq("account_type", LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code())
                 .eq("status", 1);
         if (StringUtils.isNotBlank(currency)) {
             accountWrapper.eq("currency", currency.trim().toUpperCase(Locale.ROOT));

@@ -1,17 +1,14 @@
 package com.gk.psp.fee;
 
+import com.gk.common.enums.FeeModeEnum;
+import com.gk.common.enums.StringCodeEnum;
 import com.gk.psp.entity.PspFeeRuleEntity;
-import org.apache.commons.lang3.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Locale;
 
 public final class PspFeeCalculator {
     private static final int MONEY_SCALE = 8;
-    private static final String FEE_MODE_RATE = "RATE";
-    private static final String FEE_MODE_FIXED = "FIXED";
-    private static final String FEE_MODE_RATE_FIXED = "RATE_FIXED";
 
     private PspFeeCalculator() {
     }
@@ -24,11 +21,14 @@ public final class PspFeeCalculator {
             throw new IllegalArgumentException("PSP fee rule is not configured");
         }
 
-        BigDecimal fee = switch (normalize(rule.getFeeMode())) {
-            case FEE_MODE_RATE -> amount.multiply(defaultZero(rule.getFeeRate()));
-            case FEE_MODE_FIXED -> defaultZero(rule.getFeeFixed());
-            case FEE_MODE_RATE_FIXED -> amount.multiply(defaultZero(rule.getFeeRate())).add(defaultZero(rule.getFeeFixed()));
-            default -> throw new IllegalArgumentException("Invalid PSP fee mode");
+        FeeModeEnum feeMode = StringCodeEnum.fromCode(FeeModeEnum.class, rule.getFeeMode());
+        if (feeMode == null) {
+            throw new IllegalArgumentException("Invalid PSP fee mode");
+        }
+        BigDecimal fee = switch (feeMode) {
+            case RATE -> amount.multiply(defaultZero(rule.getFeeRate()));
+            case FIXED -> defaultZero(rule.getFeeFixed());
+            case RATE_FIXED -> amount.multiply(defaultZero(rule.getFeeRate())).add(defaultZero(rule.getFeeFixed()));
         };
 
         if (rule.getMinFee() != null && fee.compareTo(rule.getMinFee()) < 0) {
@@ -38,10 +38,6 @@ public final class PspFeeCalculator {
             fee = rule.getMaxFee();
         }
         return fee.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
-    }
-
-    private static String normalize(String value) {
-        return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }
 
     private static BigDecimal defaultZero(BigDecimal value) {

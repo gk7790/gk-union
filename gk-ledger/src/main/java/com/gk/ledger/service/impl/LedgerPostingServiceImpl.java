@@ -1,8 +1,16 @@
 package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.ledger.enums.LedgerAccountTypeEnum;
+import com.gk.ledger.enums.LedgerDirectionEnum;
+import com.gk.ledger.enums.LedgerHoldStatusEnum;
+import com.gk.ledger.enums.LedgerJournalSourceEnum;
+import com.gk.ledger.enums.LedgerJournalStatusEnum;
+import com.gk.ledger.enums.LedgerOwnerTypeEnum;
+import com.gk.ledger.enums.LedgerPostingEventEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
@@ -16,6 +24,7 @@ import com.gk.ledger.entity.LedgerJournalEntity;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
+import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.service.LedgerPostingService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -36,42 +45,19 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
     private static final int STATUS_ENABLED = 1;
 
-    private static final String OWNER_SYSTEM = "SYSTEM";
-
-    private static final String ACCOUNT_MERCHANT_AVAILABLE = "MERCHANT_AVAILABLE";
-    private static final String ACCOUNT_MERCHANT_FROZEN = "MERCHANT_FROZEN";
-    private static final String ACCOUNT_SYSTEM_CLEARING = "SYSTEM_CLEARING";
-    private static final String ACCOUNT_PLATFORM_FEE_INCOME = "PLATFORM_FEE_INCOME";
-
-    private static final String BIZ_PAY_ORDER = "PAY_ORDER";
-    private static final String BIZ_PAYOUT_ORDER = "PAYOUT_ORDER";
-
-    private static final String EVENT_PAY_SUCCESS = "PAY_SUCCESS";
-    private static final String EVENT_PAYOUT_FREEZE = "PAYOUT_FREEZE";
-    private static final String EVENT_PAYOUT_SUCCESS = "PAYOUT_SUCCESS";
-    private static final String EVENT_PAYOUT_FAILED = "PAYOUT_FAILED";
-
-    private static final String DIRECTION_DEBIT = "DEBIT";
-    private static final String DIRECTION_CREDIT = "CREDIT";
-    private static final String JOURNAL_STATUS_POSTED = "POSTED";
-    private static final String SOURCE_ORDER = "ORDER";
-
-    private static final String HOLD_STATUS_HOLDING = "HOLDING";
-    private static final String HOLD_STATUS_CONSUMED = "CONSUMED";
-    private static final String HOLD_STATUS_RELEASED = "RELEASED";
-
     private final LedgerAccountDao ledgerAccountDao;
     private final LedgerBalanceDao ledgerBalanceDao;
     private final LedgerJournalDao ledgerJournalDao;
     private final LedgerEntryDao ledgerEntryDao;
     private final LedgerHoldDao ledgerHoldDao;
+    private final LedgerAccountService ledgerAccountService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LedgerPostingResult postPaySuccess(PaySuccessPostingRequest request) {
         validatePaySuccess(request);
-        String eventType = EVENT_PAY_SUCCESS;
-        LedgerJournalEntity existed = findJournal(request.getTenantId(), BIZ_PAY_ORDER, request.getPayOrderNo(), eventType);
+        String eventType = LedgerPostingEventEnum.PAY_SUCCESS.code();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType);
         if (existed != null) {
             return LedgerPostingResult.existed(existed.getJournalNo(), null);
         }
@@ -81,21 +67,21 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         requireNonNegative(settleAmount, "settleAmount");
         requireNonNegative(feeAmount, "merchantFeeAmount");
         List<PostingLine> lines = new ArrayList<>();
-        LedgerAccountEntity systemClearing = account(request.getTenantId(), OWNER_SYSTEM, 0L, ACCOUNT_SYSTEM_CLEARING, request.getCurrency());
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
+        LedgerAccountEntity systemClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
         if (positive(settleAmount)) {
-            lines.add(new PostingLine(systemClearing, DIRECTION_DEBIT, settleAmount, "Pay success settlement"));
-            lines.add(new PostingLine(merchantAvailable, DIRECTION_CREDIT, settleAmount, "Pay success settlement"));
+            lines.add(new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), settleAmount, "Pay success settlement"));
+            lines.add(new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Pay success settlement"));
         }
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
-            lines.add(new PostingLine(systemClearing, DIRECTION_DEBIT, feeAmount, "Pay success merchant fee"));
-            lines.add(new PostingLine(platformFee, DIRECTION_CREDIT, feeAmount, "Pay success merchant fee"));
+            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), request.getCurrency());
+            lines.add(new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), feeAmount, "Pay success merchant fee"));
+            lines.add(new PostingLine(platformFee, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Pay success merchant fee"));
         }
 
         LedgerJournalEntity journal = createJournal(
                 request.getTenantId(),
-                BIZ_PAY_ORDER,
+                BizTypeEnum.PAY_ORDER.code(),
                 request.getBizId(),
                 request.getPayOrderNo(),
                 eventType,
@@ -106,7 +92,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 "Pay success posting"
         );
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BIZ_PAY_ORDER, request.getPayOrderNo(), eventType, false);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
         postEntries(journal, lines);
         return LedgerPostingResult.posted(journal.getJournalNo());
@@ -116,8 +102,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     @Transactional(rollbackFor = Exception.class)
     public LedgerPostingResult freezePayout(PayoutPostingRequest request) {
         validatePayout(request);
-        String eventType = EVENT_PAYOUT_FREEZE;
-        LedgerJournalEntity existed = findJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType);
+        String eventType = LedgerPostingEventEnum.PAYOUT_FREEZE.code();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType);
         if (existed != null) {
             LedgerHoldEntity hold = findHold(request.getTenantId(), request.getPayoutOrderNo());
             return LedgerPostingResult.existed(existed.getJournalNo(), hold == null ? null : hold.getHoldNo());
@@ -127,16 +113,16 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (totalDebitAmount.compareTo(scale(request.getAmount())) < 0) {
             throw new IllegalArgumentException("Invalid payout posting request: totalDebitAmount must be greater than or equal to amount");
         }
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_AVAILABLE, request.getCurrency());
-        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), ACCOUNT_MERCHANT_FROZEN, request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_FROZEN.code(), request.getCurrency());
         List<PostingLine> lines = List.of(
-                new PostingLine(merchantAvailable, DIRECTION_DEBIT, totalDebitAmount, "Payout freeze"),
-                new PostingLine(merchantFrozen, DIRECTION_CREDIT, totalDebitAmount, "Payout freeze")
+                new PostingLine(merchantAvailable, LedgerDirectionEnum.DEBIT.code(), totalDebitAmount, "Payout freeze"),
+                new PostingLine(merchantFrozen, LedgerDirectionEnum.CREDIT.code(), totalDebitAmount, "Payout freeze")
         );
 
         LedgerJournalEntity journal = createJournal(
                 request.getTenantId(),
-                BIZ_PAYOUT_ORDER,
+                BizTypeEnum.PAYOUT_ORDER.code(),
                 request.getBizId(),
                 request.getPayoutOrderNo(),
                 eventType,
@@ -147,7 +133,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 "Payout freeze posting"
         );
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType, true);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
         postEntries(journal, lines);
 
@@ -161,7 +147,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         hold.setAvailableAccountNo(merchantAvailable.getAccountNo());
         hold.setFrozenAccountId(merchantFrozen.getId());
         hold.setFrozenAccountNo(merchantFrozen.getAccountNo());
-        hold.setBizType(BIZ_PAYOUT_ORDER);
+        hold.setBizType(BizTypeEnum.PAYOUT_ORDER.code());
         hold.setBizId(request.getBizId());
         hold.setBizNo(request.getPayoutOrderNo());
         hold.setHoldReason("PAYOUT");
@@ -170,7 +156,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         hold.setReleasedAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         hold.setConsumedAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         hold.setRemainingAmount(totalDebitAmount);
-        hold.setStatus(HOLD_STATUS_HOLDING);
+        hold.setStatus(LedgerHoldStatusEnum.HOLDING.code());
         hold.setHoldJournalNo(journal.getJournalNo());
         ledgerHoldDao.insert(hold);
         return LedgerPostingResult.posted(journal.getJournalNo(), hold.getHoldNo());
@@ -180,8 +166,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     @Transactional(rollbackFor = Exception.class)
     public LedgerPostingResult postPayoutSuccess(PayoutPostingRequest request) {
         validatePayout(request);
-        String eventType = EVENT_PAYOUT_SUCCESS;
-        LedgerJournalEntity existed = findJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType);
+        String eventType = LedgerPostingEventEnum.PAYOUT_SUCCESS.code();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType);
         if (existed != null) {
             LedgerHoldEntity hold = findHold(request.getTenantId(), request.getPayoutOrderNo());
             return LedgerPostingResult.existed(existed.getJournalNo(), hold == null ? null : hold.getHoldNo());
@@ -195,24 +181,24 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             throw new IllegalStateException("Payout posting amount does not match hold amount: " + request.getPayoutOrderNo());
         }
         LedgerAccountEntity merchantFrozen = account(hold.getFrozenAccountId());
-        LedgerAccountEntity systemClearing = account(request.getTenantId(), OWNER_SYSTEM, 0L, ACCOUNT_SYSTEM_CLEARING, request.getCurrency());
+        LedgerAccountEntity systemClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), request.getCurrency());
         List<PostingLine> lines = new ArrayList<>();
-        lines.add(new PostingLine(merchantFrozen, DIRECTION_DEBIT, totalDebitAmount, "Payout consume frozen amount"));
-        lines.add(new PostingLine(systemClearing, DIRECTION_CREDIT, payoutAmount, "Payout principal clearing"));
+        lines.add(new PostingLine(merchantFrozen, LedgerDirectionEnum.DEBIT.code(), totalDebitAmount, "Payout consume frozen amount"));
+        lines.add(new PostingLine(systemClearing, LedgerDirectionEnum.CREDIT.code(), payoutAmount, "Payout principal clearing"));
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, ACCOUNT_PLATFORM_FEE_INCOME, request.getCurrency());
-            lines.add(new PostingLine(platformFee, DIRECTION_CREDIT, feeAmount, "Payout merchant fee income"));
+            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), request.getCurrency());
+            lines.add(new PostingLine(platformFee, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Payout merchant fee income"));
         }
-        LedgerJournalEntity journal = createJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getBizId(), request.getPayoutOrderNo(), eventType,
+        LedgerJournalEntity journal = createJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getBizId(), request.getPayoutOrderNo(), eventType,
                 request.getCurrency(), totalDebitAmount, lines.size(), request.getTraceId(), "Payout success posting");
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType, true);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
         postEntries(journal, lines);
 
         hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
         hold.setRemainingAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        hold.setStatus(HOLD_STATUS_CONSUMED);
+        hold.setStatus(LedgerHoldStatusEnum.CONSUMED.code());
         hold.setConsumeJournalNo(journal.getJournalNo());
         ledgerHoldDao.updateById(hold);
         return LedgerPostingResult.posted(journal.getJournalNo(), hold.getHoldNo());
@@ -222,8 +208,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     @Transactional(rollbackFor = Exception.class)
     public LedgerPostingResult releasePayout(PayoutPostingRequest request) {
         validatePayout(request);
-        String eventType = EVENT_PAYOUT_FAILED;
-        LedgerJournalEntity existed = findJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType);
+        String eventType = LedgerPostingEventEnum.PAYOUT_FAILED.code();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType);
         if (existed != null) {
             LedgerHoldEntity hold = findHold(request.getTenantId(), request.getPayoutOrderNo());
             return LedgerPostingResult.existed(existed.getJournalNo(), hold == null ? null : hold.getHoldNo());
@@ -234,19 +220,19 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         LedgerAccountEntity merchantFrozen = account(hold.getFrozenAccountId());
         LedgerAccountEntity merchantAvailable = account(hold.getAvailableAccountId());
         List<PostingLine> lines = List.of(
-                new PostingLine(merchantFrozen, DIRECTION_DEBIT, amount, "Payout release frozen amount"),
-                new PostingLine(merchantAvailable, DIRECTION_CREDIT, amount, "Payout release frozen amount")
+                new PostingLine(merchantFrozen, LedgerDirectionEnum.DEBIT.code(), amount, "Payout release frozen amount"),
+                new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), amount, "Payout release frozen amount")
         );
-        LedgerJournalEntity journal = createJournal(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getBizId(), request.getPayoutOrderNo(), eventType,
+        LedgerJournalEntity journal = createJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getBizId(), request.getPayoutOrderNo(), eventType,
                 request.getCurrency(), amount, lines.size(), request.getTraceId(), "Payout failed release posting");
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BIZ_PAYOUT_ORDER, request.getPayoutOrderNo(), eventType, true);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
         postEntries(journal, lines);
 
         hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
         hold.setRemainingAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
-        hold.setStatus(HOLD_STATUS_RELEASED);
+        hold.setStatus(LedgerHoldStatusEnum.RELEASED.code());
         hold.setLastReleaseJournalNo(journal.getJournalNo());
         ledgerHoldDao.updateById(hold);
         return LedgerPostingResult.posted(journal.getJournalNo(), hold.getHoldNo());
@@ -265,8 +251,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         journal.setTotalAmount(scale(totalAmount));
         journal.setEntryCount(entryCount);
         journal.setIdempotencyKey(idempotencyKey(bizNo, eventType));
-        journal.setStatus(JOURNAL_STATUS_POSTED);
-        journal.setSourceType(SOURCE_ORDER);
+        journal.setStatus(LedgerJournalStatusEnum.POSTED.code());
+        journal.setSourceType(LedgerJournalSourceEnum.ORDER.code());
         journal.setTraceId(traceId);
         journal.setPostedAt(Instant.now());
         journal.setRemark(remark);
@@ -326,8 +312,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                     journal.getTenantId(),
                     line.account().getId(),
                     change,
-                    DIRECTION_DEBIT.equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
-                    DIRECTION_CREDIT.equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                    LedgerDirectionEnum.DEBIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                    LedgerDirectionEnum.CREDIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
                     entry.getId(),
                     journal.getJournalNo(),
                     journal.getPostedAt(),
@@ -376,6 +362,10 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     }
 
     private LedgerAccountEntity account(Long tenantId, String ownerType, Long ownerId, String accountType, String currency) {
+        if (SubjectTypeEnum.MERCHANT.code().equals(ownerType)
+                && (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(accountType) || LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType))) {
+            return ledgerAccountService.requireMerchantAccount(tenantId, ownerId, accountType, currency);
+        }
         LedgerAccountEntity account = ledgerAccountDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
                 .eq("tenant_id", tenantId)
                 .eq("owner_type", ownerType)
@@ -410,7 +400,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private LedgerHoldEntity findHold(Long tenantId, String bizNo) {
         return ledgerHoldDao.selectOne(new QueryWrapper<LedgerHoldEntity>()
                 .eq("tenant_id", tenantId)
-                .eq("biz_type", BIZ_PAYOUT_ORDER)
+                .eq("biz_type", BizTypeEnum.PAYOUT_ORDER.code())
                 .eq("biz_no", bizNo)
                 .last("limit 1"));
     }
@@ -418,9 +408,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private LedgerHoldEntity requireHoldingHold(Long tenantId, String bizNo) {
         LedgerHoldEntity hold = ledgerHoldDao.selectOne(new QueryWrapper<LedgerHoldEntity>()
                 .eq("tenant_id", tenantId)
-                .eq("biz_type", BIZ_PAYOUT_ORDER)
+                .eq("biz_type", BizTypeEnum.PAYOUT_ORDER.code())
                 .eq("biz_no", bizNo)
-                .in("status", HOLD_STATUS_HOLDING)
+                .in("status", LedgerHoldStatusEnum.HOLDING.code())
                 .last("limit 1 for update"));
         if (hold == null) {
             throw new IllegalStateException("Ledger hold is not holding: " + bizNo);

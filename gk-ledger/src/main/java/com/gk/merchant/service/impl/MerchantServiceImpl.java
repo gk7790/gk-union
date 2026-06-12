@@ -9,6 +9,11 @@ import com.gk.common.model.DynMap;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.ledger.service.LedgerAccountService;
+import com.gk.merchant.enums.MerchantRiskStatusEnum;
+import com.gk.merchant.enums.MerchantSettleCycleEnum;
+import com.gk.merchant.enums.MerchantSettleModeEnum;
+import com.gk.merchant.enums.MerchantTypeEnum;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.dto.MerchantDTO;
@@ -24,16 +29,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEntity, MerchantDTO> implements MerchantService {
 
-    private static final String DEFAULT_MERCHANT_TYPE = "COMPANY";
-    private static final String DEFAULT_RISK_STATUS = "NORMAL";
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final String DEFAULT_LANG = "zh-CN";
-    private static final String DEFAULT_SETTLE_MODE = "MANUAL";
-    private static final String DEFAULT_SETTLE_CYCLE = "T1";
     private static final int DEFAULT_STATUS = 1;
     private static final int MERCHANT_NO_GENERATE_MAX_ATTEMPTS = 5;
 
     private final MerchantAppService merchantAppService;
+    private final LedgerAccountService ledgerAccountService;
 
     @Override
     public QueryWrapper<MerchantEntity> getWrapper(DynMap params) {
@@ -80,6 +82,12 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         dto.setId(entity.getId());
         dto.setMerchantNo(entity.getMerchantNo());
 
+        ledgerAccountService.provisionMerchantAccounts(
+                entity.getTenantId(),
+                entity.getId(),
+                entity.getDefaultCurrency()
+        );
+
         MerchantAppDTO apiApp = dto.getApiApp();
         if (apiApp != null) {
             apiApp.setId(null);
@@ -98,10 +106,10 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setStatus(DEFAULT_STATUS);
         }
         if (StrUtil.isBlank(entity.getMerchantType())) {
-            entity.setMerchantType(DEFAULT_MERCHANT_TYPE);
+            entity.setMerchantType(MerchantTypeEnum.COMPANY.code());
         }
         if (StrUtil.isBlank(entity.getRiskStatus())) {
-            entity.setRiskStatus(DEFAULT_RISK_STATUS);
+            entity.setRiskStatus(MerchantRiskStatusEnum.NORMAL.code());
         }
         if (StrUtil.isBlank(entity.getTimezone())) {
             entity.setTimezone(DEFAULT_TIMEZONE);
@@ -110,10 +118,10 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setLang(DEFAULT_LANG);
         }
         if (StrUtil.isBlank(entity.getSettleMode())) {
-            entity.setSettleMode(DEFAULT_SETTLE_MODE);
+            entity.setSettleMode(MerchantSettleModeEnum.MANUAL.code());
         }
         if (StrUtil.isBlank(entity.getSettleCycle())) {
-            entity.setSettleCycle(DEFAULT_SETTLE_CYCLE);
+            entity.setSettleCycle(MerchantSettleCycleEnum.T1.code());
         }
     }
 

@@ -3,15 +3,34 @@ package com.gk.ledger.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.dao.LedgerAccountDao;
+import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dto.LedgerAccountDTO;
+import com.gk.ledger.enums.LedgerAccountTypeEnum;
+import com.gk.ledger.enums.LedgerDirectionEnum;
 import com.gk.ledger.entity.LedgerAccountEntity;
+import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.service.LedgerAccountService;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Locale;
 
 @Service
+@RequiredArgsConstructor
 public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, LedgerAccountEntity, LedgerAccountDTO> implements LedgerAccountService {
+
+    private static final int MONEY_SCALE = 8;
+    private static final int STATUS_ENABLED = 1;
+
+    private final LedgerBalanceDao ledgerBalanceDao;
 
     @Override
     public QueryWrapper<LedgerAccountEntity> getWrapper(DynMap params) {
@@ -36,5 +55,98 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.eq(StrUtil.isNotBlank(normalSide), "normal_side", normalSide);
         return wrapper;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void provisionMerchantAccounts(Long tenantId, Long merchantId, String currency) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), normalizedCurrency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_FROZEN.code(), normalizedCurrency);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerAccountEntity requireMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        LedgerAccountEntity account = findMerchantAccount(tenantId, merchantId, accountType, normalizedCurrency);
+        if (account != null) {
+            ensureBalance(account);
+            return account;
+        }
+        account = new LedgerAccountEntity();
+        account.setTenantId(tenantId);
+        account.setOwnerType(SubjectTypeEnum.MERCHANT.code());
+        account.setOwnerId(merchantId);
+        account.setAccountType(accountType);
+        account.setCurrency(normalizedCurrency);
+        account.setAccountNo(buildMerchantAccountNo(tenantId, merchantId, accountType, normalizedCurrency));
+        account.setNormalSide(LedgerDirectionEnum.CREDIT.code());
+        account.setAllowNegative(0);
+        account.setStatus(STATUS_ENABLED);
+        try {
+            baseDao.insert(account);
+        } catch (DuplicateKeyException ex) {
+            account = findMerchantAccount(tenantId, merchantId, accountType, normalizedCurrency);
+            if (account == null) {
+                throw ex;
+            }
+        }
+        ensureBalance(account);
+        return account;
+    }
+
+    private LedgerAccountEntity findMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency) {
+        return baseDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
+                .eq("tenant_id", tenantId)
+                .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
+                .eq("owner_id", merchantId)
+                .eq("account_type", accountType)
+                .eq("currency", currency)
+                .eq("status", STATUS_ENABLED)
+                .last("limit 1"));
+    }
+
+    private void ensureBalance(LedgerAccountEntity account) {
+        LedgerBalanceEntity existed = ledgerBalanceDao.selectOne(new QueryWrapper<LedgerBalanceEntity>()
+                .eq("tenant_id", account.getTenantId())
+                .eq("account_id", account.getId())
+                .last("limit 1"));
+        if (existed != null) {
+            return;
+        }
+        LedgerBalanceEntity balance = new LedgerBalanceEntity();
+        balance.setTenantId(account.getTenantId());
+        balance.setAccountId(account.getId());
+        balance.setAccountNo(account.getAccountNo());
+        balance.setCurrency(account.getCurrency());
+        balance.setBalance(zeroAmount());
+        balance.setDebitTotal(zeroAmount());
+        balance.setCreditTotal(zeroAmount());
+        balance.setVersion(0);
+        try {
+            ledgerBalanceDao.insert(balance);
+        } catch (DuplicateKeyException ignored) {
+            // concurrent init
+        }
+    }
+
+    static String buildMerchantAccountNo(Long tenantId, Long merchantId, String accountType, String currency) {
+        return "T" + tenantId + "-M" + merchantId + "-" + accountTypeToken(accountType) + "-" + currency;
+    }
+
+    private static String accountTypeToken(String accountType) {
+        if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {
+            return "FRZ";
+        }
+        return "AVL";
+    }
+
+    private static String normalizeCurrency(String currency) {
+        return StringUtils.defaultString(currency).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static BigDecimal zeroAmount() {
+        return BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 }

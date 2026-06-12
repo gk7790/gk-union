@@ -1,11 +1,9 @@
 package com.gk.common.enums;
 
-import org.apache.commons.lang3.StringUtils;
-
 /**
  * 登录/数据权限主体类型。
  */
-public enum SubjectTypeEnum implements SimpleEnum<String> {
+public enum SubjectTypeEnum implements StringCodeEnum {
     PLATFORM("PLATFORM", "平台", "enum.subjectType.platform"),
     TENANT("TENANT", "租户", "enum.subjectType.tenant"),
     MERCHANT("MERCHANT", "商户", "enum.subjectType.merchant");
@@ -35,19 +33,7 @@ public enum SubjectTypeEnum implements SimpleEnum<String> {
         return i18nKey;
     }
 
-    public boolean matches(String value) {
-        return value != null && code.equalsIgnoreCase(value.trim());
-    }
-
     public static SubjectTypeEnum fromCode(String value) {
-        if (StringUtils.isBlank(value)) {
-            return null;
-        }
-        for (SubjectTypeEnum item : values()) {
-            if (item.matches(value)) {
-                return item;
-            }
-        }
-        return null;
+        return StringCodeEnum.fromCode(SubjectTypeEnum.class, value);
     }
 }

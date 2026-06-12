@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -31,8 +32,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleDao, MerchantFeeRuleEntity, MerchantFeeRuleDTO> implements MerchantFeeRuleService {
-    private static final String ORDER_TYPE_PAYIN = "PAYIN";
-    private static final String ORDER_TYPE_PAYOUT = "PAYOUT";
     private static final int STATUS_ENABLED = 1;
 
     private final ObjectMapper objectMapper;
@@ -76,7 +75,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                ORDER_TYPE_PAYIN
+                PayDirectionEnum.PAYIN.code()
         );
     }
 
@@ -90,7 +89,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
-                ORDER_TYPE_PAYOUT
+                PayDirectionEnum.PAYOUT.code()
         );
     }
 

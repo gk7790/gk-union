@@ -5,8 +5,9 @@ import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.payment.enums.MerchantNotifyStatusEnum;
-import com.gk.psp.callback.support.PspCallbackConstants;
+import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,6 @@ import java.time.Instant;
 @Service
 @RequiredArgsConstructor
 public class MerchantOrderNotifyStatusService {
-    private static final String TASK_STATUS_SUCCESS = "SUCCESS";
-    private static final String TASK_STATUS_DEAD = "DEAD";
 
     private final PayOrderDao payOrderDao;
     private final PayoutOrderDao payoutOrderDao;
@@ -49,10 +48,10 @@ public class MerchantOrderNotifyStatusService {
     }
 
     private String toOrderStatus(String taskStatus) {
-        if (TASK_STATUS_SUCCESS.equals(taskStatus)) {
+        if (MerchantNotifyTaskStatusEnum.SUCCESS.matches(taskStatus)) {
             return MerchantNotifyStatusEnum.SUCCESS.code();
         }
-        if (TASK_STATUS_DEAD.equals(taskStatus)) {
+        if (MerchantNotifyTaskStatusEnum.DEAD.matches(taskStatus)) {
             return MerchantNotifyStatusEnum.FAILED.code();
         }
         if (StringUtils.isNotBlank(taskStatus)) {
@@ -72,7 +71,7 @@ public class MerchantOrderNotifyStatusService {
     }
 
     private void updateOrder(String bizType, Long orderId, String status, Instant notifyAt, Long taskId) {
-        if (PspCallbackConstants.BIZ_TYPE_PAY_ORDER.equals(bizType)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
             PayOrderEntity update = new PayOrderEntity();
             update.setId(orderId);
             update.setMerchantNotifyStatus(status);
@@ -81,7 +80,7 @@ public class MerchantOrderNotifyStatusService {
             payOrderDao.updateById(update);
             return;
         }
-        if (PspCallbackConstants.BIZ_TYPE_PAYOUT_ORDER.equals(bizType)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType)) {
             PayoutOrderEntity update = new PayoutOrderEntity();
             update.setId(orderId);
             update.setMerchantNotifyStatus(status);

@@ -32,7 +32,7 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
     @Override
 	public List<SysDeptDTO> list(Map<String, Object> params) {
 		//普通管理员，只能查询所属部门及子部门的数据
-		if(!ReqContextHolder.isSAdmin()) {
+		if(!ReqContextHolder.isSuperAdmin()) {
 			params.put("deptIdList", ReqContextHolder.getSubDeptIds());
 		}
 
@@ -60,7 +60,7 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void save(SysDeptDTO dto) {
 		SysDeptEntity entity = ConvertUtils.sourceToTarget(dto, SysDeptEntity.class);
-        if (!ReqContextHolder.isSAdmin()) {
+        if (!ReqContextHolder.isSuperAdmin()) {
             entity.setTenantId(ReqContextHolder.getTenantId());
             // 清缓存
             clearCache(entity.getId());
@@ -85,7 +85,7 @@ public class SysDeptServiceImpl extends BaseServiceImpl<SysDeptDao, SysDeptEntit
 		if(!subDeptList.contains(entity.getId())){
 			throw new GkException(ErrorCode.SUPERIOR_DEPT_ERROR);
 		}
-        if (!ReqContextHolder.isSAdmin()) {
+        if (!ReqContextHolder.isSuperAdmin()) {
             // 清缓存
             clearCache(entity.getId());
         }

@@ -3,11 +3,8 @@
 
 <mapper namespace="com.gk.platform.dao.SysUserSubjectDao">
     <select id="getByUserId" resultType="com.gk.platform.entity.SysUserSubjectEntity">
-        SELECT s.*,
-               r.auth AS roleAuth,
-               r.name AS roleName
+        SELECT s.*
         FROM sys_user_subject s
-        LEFT JOIN sys_role r ON r.id = s.role_id
         WHERE s.user_id = #{userId}
         LIMIT 1
     </select>

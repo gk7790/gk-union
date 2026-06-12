@@ -27,6 +27,9 @@ public class AuthUser extends DynMap {
     public Long getDeptId() { return getLong("deptId"); }
     public void setDeptId(Long deptId) {put("deptId", deptId);}
 
+    public Long getSubjectId() { return getLong("subjectId"); }
+    public void setSubjectId(Long subjectId) {put("subjectId", subjectId);}
+
     /**
      * 当前登入用户部门deptIdList
      */
@@ -45,6 +48,9 @@ public class AuthUser extends DynMap {
 
     public Long getRoleId() { return getLong("roleId"); }
     public void setRoleId(Long roleId) {put("roleId", roleId);}
+
+    public List<Long> getRoleIdList() { return getList("roleIdList", Long.class); }
+    public void setRoleIdList(List<Long> roleIdList) {put("roleIdList", roleIdList);}
 
     public String getSubjectType() { return getStr("subjectType"); }
     public void setSubjectType(String subjectType) {put("subjectType", subjectType);}

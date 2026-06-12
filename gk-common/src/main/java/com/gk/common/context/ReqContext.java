@@ -24,6 +24,11 @@ public class ReqContext {
     private Long userId;
 
     /**
+     * 当前用户主体ID
+     */
+    private Long subjectId;
+
+    /**
      * 用户名
      */
     private String username;
@@ -39,6 +44,10 @@ public class ReqContext {
      * 当前主体角色ID
      */
     private Long roleId;
+    /**
+     * 当前主体角色ID列表
+     */
+    private java.util.List<Long> roleIdList;
     /**
      * 主体类型：PLATFORM/TENANT/MERCHANT
      */

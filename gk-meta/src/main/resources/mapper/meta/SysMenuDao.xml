@@ -51,11 +51,10 @@
 	</select>
 
 	<select id="getNavMenuList" resultMap="SysMenuResultMap">
-		select distinct t3.* from sys_user_subject t1
+		select distinct t3.* from sys_role_user t1
 		inner join sys_role_menu t2 on t1.role_id = t2.role_id
 		inner join sys_menu t3 on t2.menu_id = t3.id
-		where t1.user_id = #{userId}
-          and t1.role_id = #{roleId}
+		where t1.user_subject_id = #{userSubjectId}
         <if test="typeList != null">
             and t3.type in
             <foreach item="type" collection="typeList" open="(" separator="," close=")">

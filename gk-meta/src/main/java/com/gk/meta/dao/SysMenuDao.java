@@ -26,8 +26,7 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
     /**
      * 当前登录上下文下的导航菜单：用户 + 角色 + 主体类型 + 角色菜单。
      */
-    List<SysMenuEntity> getNavMenuList(@Param("userId") Long userId,
-                                       @Param("roleId") Long roleId,
+    List<SysMenuEntity> getNavMenuList(@Param("userSubjectId") Long userSubjectId,
                                        @Param("subjectType") String subjectType,
                                        @Param("typeList") List<Integer> typeList);
 

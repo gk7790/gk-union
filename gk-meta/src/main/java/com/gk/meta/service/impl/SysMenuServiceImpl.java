@@ -66,7 +66,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
 	@Override
 	public List<SysMenuDTO> getAdminMenuList(List<Integer> typeList) {
-        String subjectType = ReqContextHolder.isSAdmin() ? null : ReqContextHolder.getSubjectType();
+        String subjectType = ReqContextHolder.isSuperAdmin() ? null : ReqContextHolder.getSubjectType();
         List<SysMenuEntity> menuList = baseDao.getCatalogMenuList(typeList, subjectType);
 		return TreeUtils.build(ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class));
 	}
@@ -104,16 +104,15 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
     }
 
     private List<SysMenuEntity> loadNavMenus(List<Integer> typeList) {
-        if (ReqContextHolder.isSAdmin()) {
+        if (ReqContextHolder.isSuperAdmin()) {
             // 超管：全量菜单目录（不过滤 subjectType / role_menu）
             return baseDao.getCatalogMenuList(typeList, null);
         }
-        Long userId = ReqContextHolder.getUserId();
-        Long roleId = ReqContextHolder.getRoleId();
-        if (userId == null || roleId == null) {
+        Long userSubjectId = ReqContextHolder.getSubjectId();
+        if (userSubjectId == null) {
             throw new GkException(ErrorCode.UNAUTHORIZED);
         }
-        return baseDao.getNavMenuList(userId, roleId, ReqContextHolder.getSubjectType(), typeList);
+        return baseDao.getNavMenuList(userSubjectId, ReqContextHolder.getSubjectType(), typeList);
     }
 
     private void stripInternalFields(List<SysMenuEntity> menuList) {

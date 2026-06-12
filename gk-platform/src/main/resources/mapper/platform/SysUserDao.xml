@@ -6,10 +6,11 @@
 	<select id="getList" resultType="com.gk.platform.entity.SysUserEntity">
 		select t1.*,
 			   s.subject_type as subjectType,
+			   s.id as subjectId,
 			   s.tenant_id as tenantId,
 			   s.merchant_id as merchantId,
 			   s.dept_id as deptId,
-			   s.role_id as roleId,
+			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
 			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName,
         	   (SELECT t3.NAME FROM sys_tenant t3 WHERE t3.id = s.tenant_id) tenantName
 			from sys_user t1
@@ -50,10 +51,11 @@
 	<select id="getById" resultType="com.gk.platform.entity.SysUserEntity">
 		select t1.*,
 			   s.subject_type as subjectType,
+			   s.id as subjectId,
 			   s.tenant_id as tenantId,
 			   s.merchant_id as merchantId,
 			   s.dept_id as deptId,
-			   s.role_id as roleId,
+			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
 			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName
 			from sys_user t1
 			left join sys_user_subject s on s.user_id = t1.id

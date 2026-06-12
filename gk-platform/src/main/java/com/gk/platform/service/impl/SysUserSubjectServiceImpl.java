@@ -17,9 +17,9 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
     }
 
     @Override
-    public void saveOrUpdate(Long userId, SysUserSubjectEntity subject) {
-        if (subject == null || subject.getRoleId() == null) {
-            return;
+    public SysUserSubjectEntity saveOrUpdate(Long userId, SysUserSubjectEntity subject) {
+        if (subject == null) {
+            return null;
         }
         subject.setUserId(userId);
         SysUserSubjectEntity existed = baseDao.selectOne(new QueryWrapper<SysUserSubjectEntity>().eq("user_id", userId).last("limit 1"));
@@ -28,10 +28,11 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
                 subject.setStatus(1);
             }
             insert(subject);
-            return;
+            return subject;
         }
         subject.setId(existed.getId());
         updateById(subject);
+        return subject;
     }
 
     @Override
@@ -40,13 +41,5 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
             return;
         }
         baseDao.delete(new QueryWrapper<SysUserSubjectEntity>().in("user_id", Arrays.asList(userIds)));
-    }
-
-    @Override
-    public void deleteByRoleIds(Long[] roleIds) {
-        if (roleIds == null || roleIds.length == 0) {
-            return;
-        }
-        baseDao.delete(new QueryWrapper<SysUserSubjectEntity>().in("role_id", Arrays.asList(roleIds)));
     }
 }

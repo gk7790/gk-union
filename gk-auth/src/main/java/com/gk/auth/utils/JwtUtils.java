@@ -26,6 +26,7 @@ import java.util.Map;
 public class JwtUtils {
 
     public static final String USER_ID = "id";
+    public static final String SUBJECT_ID = "subjectId";
     public static final String TENANT_ID = "tenantId";
     public static final String MERCHANT_ID = "merchantId";
     public static final String DEPT_ID = "deptId";

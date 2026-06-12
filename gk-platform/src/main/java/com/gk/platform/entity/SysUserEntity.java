@@ -6,6 +6,8 @@ import com.gk.common.core.entity.SimpleEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.List;
+
 @Data
 @EqualsAndHashCode(callSuper=false)
 @TableName("sys_user")
@@ -67,6 +69,9 @@ public class SysUserEntity extends SimpleEntity {
     private String tenantName;
 
     @TableField(exist=false)
+    private Long subjectId;
+
+    @TableField(exist=false)
     private String subjectType;
 
     @TableField(exist=false)
@@ -80,5 +85,8 @@ public class SysUserEntity extends SimpleEntity {
 
     @TableField(exist=false)
     private Long roleId;
+
+    @TableField(exist=false)
+    private List<Long> roleIdList;
 
 }

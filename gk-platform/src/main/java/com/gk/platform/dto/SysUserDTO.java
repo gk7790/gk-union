@@ -23,6 +23,9 @@ public class SysUserDTO implements Serializable {
 	@Schema(title = "用户ID", accessMode = Schema.AccessMode.READ_ONLY)
 	private Long id;
 
+	@Schema(title = "用户主体ID", accessMode = Schema.AccessMode.READ_ONLY)
+	private Long subjectId;
+
 	@Schema(title = "租户ID", description = "TENANT/MERCHANT 主体必填；平台主体为空")
     private Long tenantId;
 

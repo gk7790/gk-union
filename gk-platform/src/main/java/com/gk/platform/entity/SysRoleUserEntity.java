@@ -6,23 +6,13 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 角色用户关系
- *
- * @author Lowen
- * @since 1.0.0
+ * 用户主体与角色关系。
  */
 @Data
-@EqualsAndHashCode(callSuper=false)
+@EqualsAndHashCode(callSuper = false)
 @TableName("sys_role_user")
 public class SysRoleUserEntity extends BaseEntity {
-
-	/**
-	 * 角色ID
-	 */
-	private Long roleId;
-	/**
-	 * 用户ID
-	 */
-	private Long userId;
-
+    private Long userSubjectId;
+    private Long userId;
+    private Long roleId;
 }

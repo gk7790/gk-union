@@ -62,6 +62,13 @@ public class ReqContextHolder {
     }
 
     /**
+     * 用户主体ID
+     */
+    public static Long getSubjectId() {
+        return get().getSubjectId();
+    }
+
+    /**
      * 租户ID
      */
     public static Long getTenantId() {
@@ -80,6 +87,18 @@ public class ReqContextHolder {
      */
     public static Long getRoleId() {
         return get().getRoleId();
+    }
+
+    /**
+     * 当前主体角色ID列表
+     */
+    public static List<Long> getRoleIdList() {
+        List<Long> roleIdList = get().getRoleIdList();
+        if (roleIdList != null && !roleIdList.isEmpty()) {
+            return roleIdList;
+        }
+        Long roleId = getRoleId();
+        return roleId == null ? List.of() : List.of(roleId);
     }
 
     /**
@@ -160,7 +179,7 @@ public class ReqContextHolder {
     /**
      * 是否超级管理员
      */
-    public static Boolean isSAdmin() {
+    public static Boolean isSuperAdmin() {
         return Boolean.TRUE.equals(
                 get().getSAdmin()
         );
@@ -170,7 +189,7 @@ public class ReqContextHolder {
      * 判断是否是平台级用户
      */
     public static boolean isPlatform() {
-        return isSAdmin() || SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType());
+        return isSuperAdmin() || SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType());
     }
 
     /**

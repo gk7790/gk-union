@@ -17,8 +17,15 @@
         </foreach>
     </delete>
 
-    <select id="getRoleIdList" resultType="long">
-        select role_id from sys_role_user where user_id = #{value}
+    <delete id="deleteByUserSubjectIds">
+        delete from sys_role_user where user_subject_id in
+        <foreach item="userSubjectId" collection="array" open="(" separator="," close=")">
+            #{userSubjectId}
+        </foreach>
+    </delete>
+
+    <select id="getRoleIdListBySubjectId" resultType="long">
+        select role_id from sys_role_user where user_subject_id = #{value}
     </select>
 
 </mapper>

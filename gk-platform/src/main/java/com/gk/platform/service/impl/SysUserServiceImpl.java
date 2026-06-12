@@ -2,20 +2,21 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.core.service.impl.BaseServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.platform.dao.SysUserDao;
 import com.gk.platform.dto.SysUserDTO;
-import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.entity.SysUserEntity;
-import com.gk.platform.service.SysUserSubjectService;
+import com.gk.platform.entity.SysUserSubjectEntity;
+import com.gk.platform.service.SysRoleService;
+import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
-import com.gk.platform.service.SysRoleService;
+import com.gk.platform.service.SysUserSubjectService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -25,11 +26,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-
 /**
- * 系统用户
- * 
- * @author Lowen
+ * 系统用户。
  */
 @Service
 @RequiredArgsConstructor
@@ -37,185 +35,166 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     private final SysUserPostService sysUserPostService;
     private final SysUserSubjectService sysUserSubjectService;
     private final SysRoleService sysRoleService;
+    private final SysRoleUserService sysRoleUserService;
 
     @Override
-	public PageData<SysUserDTO> page(Map<String, Object> params) {
-		//转换成like
-		paramsToLike(params, "username");
-		applySubjectQueryScope(params);
+    public PageData<SysUserDTO> page(Map<String, Object> params) {
+        paramsToLike(params, "username");
+        applySubjectQueryScope(params);
 
-		//分页
-		IPage<SysUserEntity> page = getPage(params, "t1.created_at", false);
-
-        //普通管理员，只能查询所属部门及子部门的数据
-        if (!ReqContextHolder.isSAdmin()) {
-            params.put("deptIdList", ReqContextHolder.getSubDeptIds());
-			params.put("selfId", ReqContextHolder.getUserId());
-        }
-
-		//查询
-		List<SysUserEntity> list = baseDao.getList(params);
-
-		return getPageData(list, page.getTotal(), SysUserDTO.class);
-	}
-
-	@Override
-	public List<SysUserDTO> list(Map<String, Object> params) {
-		applySubjectQueryScope(params);
-
-		//普通管理员，只能查询子部门的数据
-        if (!ReqContextHolder.isSAdmin()) {
+        IPage<SysUserEntity> page = getPage(params, "t1.created_at", false);
+        if (!ReqContextHolder.isSuperAdmin()) {
             params.put("deptIdList", ReqContextHolder.getSubDeptIds());
             params.put("selfId", ReqContextHolder.getUserId());
         }
 
-		List<SysUserEntity> entityList = baseDao.getList(params);
+        List<SysUserEntity> list = baseDao.getList(params);
+        return getPageData(list, page.getTotal(), SysUserDTO.class);
+    }
 
-		return ConvertUtils.sourceToTarget(entityList, SysUserDTO.class);
-	}
+    @Override
+    public List<SysUserDTO> list(Map<String, Object> params) {
+        applySubjectQueryScope(params);
+        if (!ReqContextHolder.isSuperAdmin()) {
+            params.put("deptIdList", ReqContextHolder.getSubDeptIds());
+            params.put("selfId", ReqContextHolder.getUserId());
+        }
 
-	@Override
-	public SysUserDTO getById(Long id) {
-		SysUserEntity entity = baseDao.selectById(id);
+        List<SysUserEntity> entityList = baseDao.getList(params);
+        return ConvertUtils.sourceToTarget(entityList, SysUserDTO.class);
+    }
 
-		return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
-	}
+    @Override
+    public SysUserDTO getById(Long id) {
+        SysUserEntity entity = baseDao.selectById(id);
+        return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+    }
 
-	@Override
-	public SysUserDTO getByUsername(String username) {
-		SysUserEntity entity = baseDao.getByUsername(username);
-		return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
-	}
+    @Override
+    public SysUserDTO getByUsername(String username) {
+        SysUserEntity entity = baseDao.getByUsername(username);
+        return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+    }
 
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public void save(SysUserDTO dto) {
-		SysUserEntity entity = ConvertUtils.sourceToTarget(dto, SysUserEntity.class);
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void save(SysUserDTO dto) {
+        SysUserEntity entity = ConvertUtils.sourceToTarget(dto, SysUserEntity.class);
+        entity.setPassword(PasswordUtils.encode(entity.getPassword()));
 
-		//密码加密
-		String password = PasswordUtils.encode(entity.getPassword());
-		entity.setPassword(password);
+        insert(entity);
+        dto.setId(entity.getId());
 
-		//保存用户
-		insert(entity);
-		dto.setId(entity.getId());
+        saveSubjectAndRoles(entity.getId(), dto);
+        sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
+    }
 
-		// 保存用户主体关系
-		sysUserSubjectService.saveOrUpdate(entity.getId(), buildSubject(dto));
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(SysUserDTO dto) {
+        SysUserEntity entity = ConvertUtils.sourceToTarget(dto, SysUserEntity.class);
+        if (StringUtils.isBlank(dto.getPassword())) {
+            entity.setPassword(null);
+        } else {
+            entity.setPassword(PasswordUtils.encode(entity.getPassword()));
+        }
 
-		//保存用户岗位关系
-		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
-	}
+        updateById(entity);
+        saveSubjectAndRoles(entity.getId(), dto);
+        sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
+    }
 
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public void update(SysUserDTO dto) {
-		SysUserEntity entity = ConvertUtils.sourceToTarget(dto, SysUserEntity.class);
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateUserInfo(SysUserDTO dto) {
+        SysUserEntity entity = selectById(dto.getId());
+        entity.setAvatar(dto.getAvatar());
+        entity.setRealName(dto.getRealName());
+        entity.setGender(dto.getGender());
+        entity.setMobile(dto.getMobile());
+        entity.setEmail(dto.getEmail());
 
-		//密码加密
-		if(StringUtils.isBlank(dto.getPassword())){
-			entity.setPassword(null);
-		}else{
-			String password = PasswordUtils.encode(entity.getPassword());
-			entity.setPassword(password);
-		}
+        updateById(entity);
+    }
 
-		//更新用户
-		updateById(entity);
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void delete(Long[] ids) {
+        baseDao.deleteBatchIds(Arrays.asList(ids));
+        sysUserSubjectService.deleteByUserIds(ids);
+        sysRoleUserService.deleteByUserIds(ids);
+        sysUserPostService.deleteByUserIds(ids);
+    }
 
-		// 更新用户主体关系
-		sysUserSubjectService.saveOrUpdate(entity.getId(), buildSubject(dto));
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePassword(Long id, String newPassword) {
+        baseDao.updatePassword(id, PasswordUtils.encode(newPassword));
+    }
 
-		//保存用户岗位关系
-		sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
-	}
+    @Override
+    public int getCountByDeptId(Long deptId) {
+        return baseDao.getCountByDeptId(deptId);
+    }
 
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public void updateUserInfo(SysUserDTO dto) {
-		SysUserEntity entity = selectById(dto.getId());
-		entity.setAvatar(dto.getAvatar());
-		entity.setRealName(dto.getRealName());
-		entity.setGender(dto.getGender());
-		entity.setMobile(dto.getMobile());
-		entity.setEmail(dto.getEmail());
+    @Override
+    public List<Long> getUserIdListByDeptId(List<Long> deptIdList) {
+        return baseDao.getUserIdListByDeptId(deptIdList);
+    }
 
-		updateById(entity);
-	}
+    private void saveSubjectAndRoles(Long userId, SysUserDTO dto) {
+        SysUserSubjectEntity subject = buildSubject(dto);
+        List<Long> roleIds = resolveAssignableRoleIds(dto, subject);
+        subject = sysUserSubjectService.saveOrUpdate(userId, subject);
+        dto.setSubjectId(subject.getId());
+        dto.setRoleId(roleIds.get(0));
+        sysRoleUserService.saveOrUpdate(subject.getId(), userId, roleIds);
+    }
 
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public void delete(Long[] ids) {
-		//删除用户
-		baseDao.deleteBatchIds(Arrays.asList(ids));
+    private SysUserSubjectEntity buildSubject(SysUserDTO dto) {
+        SysUserSubjectEntity subject = new SysUserSubjectEntity();
+        subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code()));
+        subject.setTenantId(dto.getTenantId());
+        subject.setMerchantId(dto.getMerchantId());
+        subject.setDeptId(dto.getDeptId());
+        subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        return subject;
+    }
 
-		// 删除用户主体关系
-		sysUserSubjectService.deleteByUserIds(ids);
+    private List<Long> resolveAssignableRoleIds(SysUserDTO dto, SysUserSubjectEntity subject) {
+        List<Long> roleIds = dto.getRoleIdList();
+        if ((roleIds == null || roleIds.isEmpty()) && dto.getRoleId() != null) {
+            roleIds = List.of(dto.getRoleId());
+        }
+        if (roleIds == null || roleIds.isEmpty()) {
+            AssertUtils.isNull(null, "roleId");
+        }
+        for (Long roleId : roleIds) {
+            sysRoleService.assertRoleAssignable(
+                    roleId,
+                    subject.getSubjectType(),
+                    subject.getTenantId(),
+                    subject.getMerchantId()
+            );
+        }
+        return roleIds;
+    }
 
-		//删除用户岗位关系
-		sysUserPostService.deleteByUserIds(ids);
-	}
-
-	@Override
-	@Transactional(rollbackFor = Exception.class)
-	public void updatePassword(Long id, String newPassword) {
-		newPassword = PasswordUtils.encode(newPassword);
-
-		baseDao.updatePassword(id, newPassword);
-	}
-
-	@Override
-	public int getCountByDeptId(Long deptId) {
-		return baseDao.getCountByDeptId(deptId);
-	}
-
-	@Override
-	public List<Long> getUserIdListByDeptId(List<Long> deptIdList) {
-		return baseDao.getUserIdListByDeptId(deptIdList);
-	}
-
-	private SysUserSubjectEntity buildSubject(SysUserDTO dto) {
-		Long roleId = dto.getRoleId();
-		if (roleId == null && dto.getRoleIdList() != null && !dto.getRoleIdList().isEmpty()) {
-			roleId = dto.getRoleIdList().get(0);
-		}
-		AssertUtils.isNull(roleId, "roleId");
-		String subjectType = StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code());
-		sysRoleService.assertRoleAssignable(roleId, subjectType, dto.getTenantId(), dto.getMerchantId());
-		SysUserSubjectEntity subject = new SysUserSubjectEntity();
-		subject.setSubjectType(subjectType);
-		subject.setTenantId(dto.getTenantId());
-		subject.setMerchantId(dto.getMerchantId());
-		subject.setDeptId(dto.getDeptId());
-		subject.setRoleId(roleId);
-		subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
-		return subject;
-	}
-
-	/**
-	 * 按登录主体强制注入查询范围。
-	 * <ul>
-	 *     <li>平台：以前端传入的 tenantId / merchantId 等条件为准</li>
-	 *     <li>租户：强制 tenantId = 当前租户</li>
-	 *     <li>商户：强制 tenantId、merchantId = 当前登录主体</li>
-	 * </ul>
-	 */
-	private void applySubjectQueryScope(Map<String, Object> params) {
-		if (ReqContextHolder.isPlatform()) {
-			return;
-		}
-		if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
-			Long tenantId = ReqContextHolder.getTenantId();
-			Long merchantId = ReqContextHolder.getMerchantId();
-			AssertUtils.isNull(tenantId, "tenantId");
-			AssertUtils.isNull(merchantId, "merchantId");
-			params.put("tenantId", tenantId);
-			params.put("merchantId", merchantId);
-			return;
-		}
-		Long tenantId = ReqContextHolder.getTenantId();
-		AssertUtils.isNull(tenantId, "tenantId");
-		params.put("tenantId", tenantId);
-	}
-
+    private void applySubjectQueryScope(Map<String, Object> params) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            Long tenantId = ReqContextHolder.getTenantId();
+            Long merchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(tenantId, "tenantId");
+            AssertUtils.isNull(merchantId, "merchantId");
+            params.put("tenantId", tenantId);
+            params.put("merchantId", merchantId);
+            return;
+        }
+        Long tenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(tenantId, "tenantId");
+        params.put("tenantId", tenantId);
+    }
 }

@@ -331,14 +331,17 @@ CREATE TABLE `sys_role_menu`  (
 DROP TABLE IF EXISTS `sys_role_user`;
 CREATE TABLE `sys_role_user`  (
   `id` bigint NOT NULL COMMENT 'id',
-  `role_id` bigint NULL DEFAULT NULL COMMENT '角色ID',
+  `user_subject_id` bigint NULL DEFAULT NULL COMMENT '用户主体ID',
   `user_id` bigint NULL DEFAULT NULL COMMENT '用户ID',
+  `role_id` bigint NULL DEFAULT NULL COMMENT '角色ID',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建者',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_sys_role_user_subject_role`(`user_subject_id` ASC, `role_id` ASC) USING BTREE,
+  INDEX `idx_user_subject_id`(`user_subject_id` ASC) USING BTREE,
   INDEX `idx_role_id`(`role_id` ASC) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '角色用户关系' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '用户主体角色关系' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for sys_tenant
@@ -417,7 +420,6 @@ CREATE TABLE `sys_user_subject`  (
   `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID；TENANT/MERCHANT主体必填',
   `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID；MERCHANT主体必填',
   `dept_id` bigint NULL DEFAULT NULL COMMENT '租户内部门ID；TENANT主体可填',
-  `role_id` bigint NOT NULL COMMENT '角色ID，关联sys_role.id',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
   `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
@@ -429,7 +431,6 @@ CREATE TABLE `sys_user_subject`  (
   INDEX `idx_sys_user_subject_type`(`subject_type` ASC, `status` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_tenant`(`tenant_id` ASC, `status` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_merchant`(`tenant_id` ASC, `merchant_id` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_sys_user_subject_role`(`role_id` ASC) USING BTREE,
   CONSTRAINT `chk_sys_user_subject_type` CHECK (`subject_type` in ('PLATFORM','TENANT','MERCHANT')),
   CONSTRAINT `chk_sys_user_subject_status` CHECK (`status` in (0,1)),
   CONSTRAINT `chk_sys_user_subject_platform` CHECK (`subject_type` <> 'PLATFORM' OR (`tenant_id` is null AND `merchant_id` is null)),

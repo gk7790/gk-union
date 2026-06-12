@@ -6,9 +6,7 @@ import com.gk.platform.entity.SysUserSubjectEntity;
 public interface SysUserSubjectService extends BaseService<SysUserSubjectEntity> {
     SysUserSubjectEntity getByUserId(Long userId);
 
-    void saveOrUpdate(Long userId, SysUserSubjectEntity subject);
+    SysUserSubjectEntity saveOrUpdate(Long userId, SysUserSubjectEntity subject);
 
     void deleteByUserIds(Long[] userIds);
-
-    void deleteByRoleIds(Long[] roleIds);
 }

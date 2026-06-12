@@ -19,6 +19,7 @@ import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
 import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.service.SysUserPostService;
+import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserService;
 import com.gk.platform.service.SysUserSubjectService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,6 +50,7 @@ public class SysUserController {
     private final SysUserService sysUserService;
     private final SysUserPostService sysUserPostService;
     private final SysUserSubjectService sysUserSubjectService;
+    private final SysRoleUserService sysRoleUserService;
 
     /**
      * 分页
@@ -77,22 +79,8 @@ public class SysUserController {
     @PreAuthorize("hasAuthority('sys:user:info')")
     public R<?> get(@PathVariable("id") Long id) {
         SysUserDTO data = sysUserService.getById(id);
+        fillUserContext(data);
 
-        if (data.getRoleId() != null) {
-            data.setRoleIdList(List.of(data.getRoleId()));
-        }
-
-        //用户岗位列表
-        List<Long> postIdList = sysUserPostService.getPostIdList(id);
-        data.setPostIdList(postIdList);
-
-        SysUserSubjectEntity userSubject = sysUserSubjectService.getByUserId(data.getId());
-        if (ObjUtil.isNotEmpty(userSubject)) {
-            data.setDeptId(userSubject.getDeptId());
-            data.setTenantId(userSubject.getTenantId());
-            data.setMerchantId(userSubject.getMerchantId());
-            data.setRoleId(userSubject.getRoleId());
-        }
         return R.ok(data);
     }
 
@@ -100,8 +88,8 @@ public class SysUserController {
     @Operation(summary = "当前登录用户信息", description = "查询当前登录用户的基础资料和主体上下文。需要登录。")
     public R<?> info() {
         Long userId = currentUser.getUserId();
-
         SysUserDTO data = sysUserService.getById(userId);
+        fillCurrentUserContext(data);
         return R.ok(data);
     }
 
@@ -148,7 +136,7 @@ public class SysUserController {
     @PreAuthorize("hasAuthority('sys:user:update')")
     public R<?> update(@RequestBody SysUserDTO dto) {
         applySubjectContext(dto);
-        boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
+        boolean allowed = ReqContextHolder.isSuperAdmin() || currentUser.hasAllRole("admin");
         if (!allowed) {
             dto.setDeptId(null);
         }
@@ -196,5 +184,42 @@ public class SysUserController {
             return;
         }
         dto.setTenantId(ReqContextHolder.getTenantId());
+    }
+
+    private void fillUserContext(SysUserDTO data) {
+        if (data == null || data.getId() == null) {
+            return;
+        }
+        if (data.getRoleId() != null) {
+            data.setRoleIdList(List.of(data.getRoleId()));
+        }
+
+        List<Long> postIdList = sysUserPostService.getPostIdList(data.getId());
+        data.setPostIdList(postIdList);
+
+        SysUserSubjectEntity userSubject = sysUserSubjectService.getByUserId(data.getId());
+        if (ObjUtil.isEmpty(userSubject)) {
+            return;
+        }
+
+        data.setSubjectId(userSubject.getId());
+        data.setSubjectType(userSubject.getSubjectType());
+        data.setDeptId(userSubject.getDeptId());
+        data.setTenantId(userSubject.getTenantId());
+        data.setMerchantId(userSubject.getMerchantId());
+
+        List<Long> roleIdList = sysRoleUserService.getRoleIdListBySubjectId(userSubject.getId());
+        data.setRoleIdList(roleIdList);
+        if (roleIdList != null && !roleIdList.isEmpty()) {
+            data.setRoleId(roleIdList.get(0));
+        }
+    }
+
+    private void fillCurrentUserContext(SysUserDTO data) {
+        if (data == null || ReqContextHolder.getSubjectId() == null) {
+            return;
+        }
+        data.setSubjectId(ReqContextHolder.getSubjectId());
+        data.setSubjectType(ReqContextHolder.getSubjectType());
     }
 }

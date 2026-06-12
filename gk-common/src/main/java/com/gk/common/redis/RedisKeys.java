@@ -34,6 +34,13 @@ public class RedisKeys {
     }
 
     /**
+     * 当前主体的数据权限部门ID缓存。
+     */
+    public static String getSubjectDataScopeKey(Long subjectId){
+        return "sys:login:SubjectDataScope:" + subjectId;
+    }
+
+    /**
      * 验证码Key
      */
     public static String getSysLonginMerchantKey(String key){

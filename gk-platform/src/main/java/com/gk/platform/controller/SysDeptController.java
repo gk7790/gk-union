@@ -44,7 +44,7 @@ public class SysDeptController {
     @Operation(summary = "新增部门", description = "新增部门。租户主体新增时后端自动写入当前租户ID。权限码：sys:dept:add。")
     @PreAuthorize("hasAuthority('sys:dept:add')")
     public R<?> save(@RequestBody SysDeptDTO dto) {
-        if (!ReqContextHolder.isSAdmin()) {
+        if (!ReqContextHolder.isSuperAdmin()) {
             dto.setTenantId(ReqContextHolder.getTenantId());
             if (ObjUtil.isEmpty(dto.getPid()) || dto.getPid() <= Constant.MAX_RESERVED_ID) {
                 dto.setPid(ReqContextHolder.getDeptId());
@@ -60,7 +60,7 @@ public class SysDeptController {
     @PreAuthorize("hasAuthority('sys:dept:update')")
     public R<?> update(@Parameter(description = "部门ID", required = true) @PathVariable("id") Long id, @RequestBody SysDeptDTO dto) {
         dto.setId(id);
-        if (!ReqContextHolder.isSAdmin()) {
+        if (!ReqContextHolder.isSuperAdmin()) {
             dto.setTenantId(null);
             if (ObjUtil.isEmpty(dto.getPid()) || dto.getPid() <= Constant.MAX_RESERVED_ID) {
                 dto.setPid(ReqContextHolder.getDeptId());

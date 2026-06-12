@@ -62,8 +62,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SysUser userDetails = userDetailsService.getUserByUserId(Constant.ADMIN, context.getUserId());
 
                         context.setSAdmin(userDetails.isSuperAdmin());
+                        Boolean jwtSAdmin = claims.get(JwtUtils.SUPER_Admin, Boolean.class);
+                        if (Boolean.TRUE.equals(jwtSAdmin)) {
+                            context.setSAdmin(true);
+                        }
 
-                        if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {
+                        Set<Long> roleDeptIds = userDetailsService.getDataScopeList(userDetails.getSubjectId());
+                        if (roleDeptIds != null && !roleDeptIds.isEmpty()) {
+                            context.setDeptIdList(roleDeptIds);
+                        } if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {
                             Set<Long> subDeptIdList = userDetailsService.getSubDeptIdList(userDetails.getDeptId());
                             context.setDeptIdList(subDeptIdList);
                         }
@@ -152,10 +159,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public ReqContext formContext(Claims claims, HttpServletRequest request) {
         Long userId = claims.get(JwtUtils.USER_ID, Long.class);
+        Long subjectId = claims.get(JwtUtils.SUBJECT_ID, Long.class);
         Long tenantId = claims.get(JwtUtils.TENANT_ID, Long.class);
         Long merchantId = claims.get(JwtUtils.MERCHANT_ID, Long.class);
         Long deptId = claims.get(JwtUtils.DEPT_ID, Long.class);
         Long roleId = claims.get(JwtUtils.ROLE_ID, Long.class);
+        List<Long> roleIds = getLongList(claims.get("roleIds", List.class));
         String subjectType = claims.get(JwtUtils.SUBJECT_TYPE, String.class);
         String username = claims.get(JwtUtils.UNAME, String.class);
         Integer domain = claims.get(JwtUtils.DOMAIN, Integer.class);
@@ -173,9 +182,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return ReqContext.builder().model(claims.getSubject())
                 // 用户信息
-                .userId(userId).username(username)
+                .userId(userId).subjectId(subjectId).username(username)
                 .tenantId(tenantId).merchantId(merchantId).deptId(deptId)
-                .roleId(roleId).subjectType(subjectType)
+                .roleId(roleId).roleIdList(roleIds).subjectType(subjectType)
                 .domain(domain)
                 // 请求信息
                 .ip(IpUtils.getIpAddr(request))
@@ -183,6 +192,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .method(request.getMethod())
                 .userAgent(request.getHeader(HttpHeaders.USER_AGENT))
                 .lang(lang).timezone(timezone).traceId(traceId).build();
+    }
+
+    private List<Long> getLongList(List<?> values) {
+        if (values == null) {
+            return List.of();
+        }
+        List<Long> result = new ArrayList<>(values.size());
+        for (Object value : values) {
+            if (value instanceof Number number) {
+                result.add(number.longValue());
+            } else if (value != null) {
+                result.add(Long.parseLong(value.toString()));
+            }
+        }
+        return result;
     }
 
 }

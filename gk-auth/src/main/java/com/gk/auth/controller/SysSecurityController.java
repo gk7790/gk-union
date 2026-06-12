@@ -34,7 +34,7 @@ public class SysSecurityController {
     /**
      * 登录页面
      */
-    @PostMapping("auth/logout")
+    @PostMapping("user/logout")
     public R<?> logout() {
         AuthUser user = securityUtils.getAuthUser();
         List<String> keys = List.of(

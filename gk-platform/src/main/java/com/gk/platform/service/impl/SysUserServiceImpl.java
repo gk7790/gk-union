@@ -44,7 +44,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
         IPage<SysUserEntity> page = getPage(params, "t1.created_at", false);
         if (!ReqContextHolder.isSuperAdmin()) {
-            params.put("deptIdList", ReqContextHolder.getSubDeptIds());
+            params.put("deptIdList", ReqContextHolder.getSubDeptIdsWithSelf());
             params.put("selfId", ReqContextHolder.getUserId());
         }
 

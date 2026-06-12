@@ -122,7 +122,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         SysRoleEntity template = sysRoleService.selectById(roleTemplateId);
         if (template == null
                 || !SubjectTypeEnum.TENANT.matches(template.getRoleScope())
-                || template.getTenantId() != null
+                || !isRoleTemplate(template)
                 || !StatusEnum.NORMAL.code().equals(template.getStatus())) {
             throw new GkException(ErrorCode.FORBIDDEN);
         }
@@ -154,5 +154,10 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         }
         sysUserService.save(adminUser);
         return adminUser;
+    }
+
+    private boolean isRoleTemplate(SysRoleEntity role) {
+        Long tenantId = role.getTenantId();
+        return tenantId == null || Constant.DEFAULT_TENANT_ID.equals(tenantId);
     }
 }

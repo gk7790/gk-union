@@ -21,10 +21,10 @@ public class SysRoleDTO implements Serializable {
 	@Schema(title = "角色ID", accessMode = Schema.AccessMode.READ_ONLY)
 	private Long id;
 
-    @Schema(title = "租户ID", description = "平台角色为空；租户/商户角色填写所属租户ID")
+    @Schema(title = "租户ID", description = "0=系统模板，1=平台专属，≥2=租户实例")
     private Long tenantId;
 
-    @Schema(title = "角色编码", description = "用于权限判断，例如 SUPER_ADMIN、TENANT_ADMIN、MERCHANT_ADMIN")
+    @Schema(title = "角色编码", description = "权限标识；sadmin/admin 仅超管可设置")
     private String auth;
 
 	@Schema(title = "角色名称")

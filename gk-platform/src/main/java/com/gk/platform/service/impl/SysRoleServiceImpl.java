@@ -6,6 +6,7 @@ import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.dto.LabelDTO;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 角色
@@ -65,13 +67,18 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		Long tenantId = params.getLong("tenantId", null);
 		List<Integer> statusList = params.getList("status", Integer.class, null);
 		Boolean templateOnly = params.getBool("templateOnly", false);
+		Boolean assignableOnly = params.getBool("assignableOnly", false);
 
 		QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
 		wrapper.like(StringUtils.isNotBlank(name), "name", name);
 		wrapper.eq(StringUtils.isNotBlank(roleScope), "role_scope", roleScope);
 		wrapper.eq(tenantId != null, "tenant_id", tenantId);
 		wrapper.in(statusList != null && !statusList.isEmpty(), "status", statusList);
-		wrapper.isNull(Boolean.TRUE.equals(templateOnly), "tenant_id");
+		wrapper.eq(Boolean.TRUE.equals(templateOnly), "tenant_id", Constant.DEFAULT_TENANT_ID);
+
+		if (Boolean.TRUE.equals(assignableOnly)) {
+			wrapper.ne("tenant_id", Constant.DEFAULT_TENANT_ID);
+		}
 
 		if (!ReqContextHolder.isSAdmin()) {
             wrapper.ge("id", Constant.MIN_SYS_ID);
@@ -82,27 +89,31 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	}
 
 	/**
-	 * 非超管：本租户角色 + 系统预置角色（tenant/dept 为空或 0）。
+	 * 非超管：本租户角色 + 系统预置模板（tenant_id=0 且 dept_id=0）；非平台用户不可见 tenant_id=1。
 	 */
 	private void applyNonAdminTenantScope(QueryWrapper<SysRoleEntity> wrapper) {
+		if (!ReqContextHolder.isPlatform()) {
+			wrapper.ne("tenant_id", Constant.PLATFORM_TENANT_ID);
+		}
 		Long currentTenantId = ReqContextHolder.getTenantId();
 		wrapper.and(w -> {
 			if (currentTenantId != null) {
 				w.eq("tenant_id", currentTenantId).or();
 			}
 			w.nested(sys -> sys
-					.and(x -> x.isNull("tenant_id").or().eq("tenant_id", 0))
-					.and(x -> x.isNull("dept_id").or().eq("dept_id", 0)));
+					.eq("tenant_id", Constant.DEFAULT_TENANT_ID)
+					.eq("dept_id", Constant.DEPT_ROOT));
 		});
 	}
 
 	@Override
 	public SysRoleDTO get(Long id) {
-		assertRoleVisible(id);
+		AssertUtils.isNull(id, "id");
 		SysRoleEntity entity = baseDao.selectById(id);
 		if (entity == null) {
 			return null;
 		}
+		assertRoleVisible(entity);
 		SysRoleDTO dto = ConvertUtils.sourceToTarget(entity, SysRoleDTO.class);
 		markReadOnly(List.of(dto));
 		return dto;
@@ -113,12 +124,10 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
         if (!params.containsKey("status")) {
             params.put("status", StatusEnum.defaultStatus());
         }
+        params.put("assignableOnly", true);
 
         QueryWrapper<SysRoleEntity> wrapper = getWrapper(params);
         wrapper.select("id", "name");
-        if (!ReqContextHolder.isSAdmin()) {
-            wrapper.ge("id", Constant.MAX_RESERVED_ID);
-        }
 
         List<SysRoleEntity> result = baseDao.selectList(wrapper);
 
@@ -129,16 +138,16 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void save(SysRoleDTO dto) {
 		SysRoleEntity entity = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
+		normalizeRoleEntity(entity);
+		applyCallerTenantScope(entity, null);
+		assertAuthAssignable(entity.getAuth());
+		assertTenantScopeOnSave(entity);
 		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
-		//保存角色
 		insert(entity);
 		dto.setId(entity.getId());
 
-		//保存角色菜单关系
 		sysRoleMenuService.saveOrUpdate(entity.getId(), dto.getMenuIdList());
-
-		//保存角色数据权限关系
 		sysRoleDataScopeService.saveOrUpdate(entity.getId(), dto.getDeptIdList());
 	}
 
@@ -146,16 +155,19 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void update(SysRoleDTO dto) {
 		assertRoleMutable(dto.getId());
+		SysRoleEntity existing = baseDao.selectById(dto.getId());
+		if (existing == null) {
+			throw new GkException(ErrorCode.NOT_FOUND);
+		}
 		SysRoleEntity entity = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
+		normalizeRoleEntity(entity);
+		applyCallerTenantScope(entity, existing);
+		assertAuthAssignable(entity.getAuth());
+		assertTenantScopeOnSave(entity);
 		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
-		//更新角色
 		updateById(entity);
-
-		//更新角色菜单关系
 		sysRoleMenuService.saveOrUpdate(entity.getId(), dto.getMenuIdList());
-
-		//更新角色数据权限关系
 		sysRoleDataScopeService.saveOrUpdate(entity.getId(), dto.getDeptIdList());
 	}
 
@@ -167,17 +179,102 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 			assertRoleMutable(id);
 		}
 
-		//删除角色
 		baseDao.deleteBatchIds(Arrays.asList(ids));
-
-		//删除用户主体角色关系
 		sysUserSubjectService.deleteByRoleIds(ids);
-
-		//删除角色菜单关系
 		sysRoleMenuService.deleteByRoleIds(ids);
-
-		//删除角色数据权限关系
 		sysRoleDataScopeService.deleteByRoleIds(ids);
+	}
+
+	@Override
+	public void assertRoleAssignable(Long roleId, String subjectType, Long tenantId, Long merchantId) {
+		AssertUtils.isNull(roleId, "roleId");
+		SysRoleEntity role = baseDao.selectById(roleId);
+		if (role == null) {
+			throw new GkException(ErrorCode.NOT_FOUND);
+		}
+		Long roleTenantId = role.getTenantId() == null ? Constant.DEFAULT_TENANT_ID : role.getTenantId();
+
+		if (Constant.DEFAULT_TENANT_ID.equals(roleTenantId)) {
+			throw new GkException(ErrorCode.ROLE_TEMPLATE_NOT_ASSIGNABLE);
+		}
+		if (Constant.PLATFORM_TENANT_ID.equals(roleTenantId)
+				&& !SubjectTypeEnum.PLATFORM.matches(subjectType)) {
+			throw new GkException(ErrorCode.ROLE_PLATFORM_ONLY);
+		}
+		if (!ReqContextHolder.isSAdmin() && isReservedAuth(role.getAuth())) {
+			throw new GkException(ErrorCode.ROLE_AUTH_RESERVED);
+		}
+		if (SubjectTypeEnum.TENANT.matches(subjectType)) {
+			if (tenantId == null || !tenantId.equals(roleTenantId)) {
+				throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+			}
+			return;
+		}
+		if (SubjectTypeEnum.MERCHANT.matches(subjectType)) {
+			if (tenantId == null || !tenantId.equals(roleTenantId)) {
+				throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+			}
+			if (!SubjectTypeEnum.MERCHANT.matches(role.getRoleScope())) {
+				throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+			}
+			return;
+		}
+		if (SubjectTypeEnum.PLATFORM.matches(subjectType)
+				&& !SubjectTypeEnum.PLATFORM.matches(role.getRoleScope())) {
+			throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+		}
+	}
+
+	private void normalizeRoleEntity(SysRoleEntity entity) {
+		if (entity.getTenantId() == null) {
+			entity.setTenantId(Constant.DEFAULT_TENANT_ID);
+		}
+		if (entity.getDeptId() == null) {
+			entity.setDeptId(Constant.DEPT_ROOT);
+		}
+	}
+
+	private void applyCallerTenantScope(SysRoleEntity entity, SysRoleEntity existing) {
+		if (ReqContextHolder.isSAdmin() || ReqContextHolder.isPlatform()) {
+			return;
+		}
+		Long currentTenantId = ReqContextHolder.getTenantId();
+		AssertUtils.isNull(currentTenantId, "tenantId");
+		if (existing != null) {
+			entity.setTenantId(existing.getTenantId());
+			return;
+		}
+		entity.setTenantId(currentTenantId);
+	}
+
+	private void assertAuthAssignable(String auth) {
+		if (ReqContextHolder.isSAdmin() || !isReservedAuth(auth)) {
+			return;
+		}
+		throw new GkException(ErrorCode.ROLE_AUTH_RESERVED);
+	}
+
+	private void assertTenantScopeOnSave(SysRoleEntity entity) {
+		Long tenantId = entity.getTenantId();
+		String roleScope = entity.getRoleScope();
+
+		if (Constant.PLATFORM_TENANT_ID.equals(tenantId)
+				&& !SubjectTypeEnum.PLATFORM.matches(roleScope)) {
+			throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+		}
+		if (SubjectTypeEnum.PLATFORM.matches(roleScope)
+				&& tenantId > Constant.PLATFORM_TENANT_ID) {
+			throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
+		}
+		if (!ReqContextHolder.isSAdmin() && !ReqContextHolder.isPlatform()
+				&& tenantId <= Constant.PLATFORM_TENANT_ID) {
+			throw new GkException(ErrorCode.FORBIDDEN);
+		}
+	}
+
+	private boolean isReservedAuth(String auth) {
+		return Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
+				|| Constant.ROLE_AUTH_ADMIN.equalsIgnoreCase(auth);
 	}
 
 	private void markReadOnly(List<SysRoleDTO> roles) {
@@ -195,14 +292,50 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 
 	private void assertRoleVisible(Long id) {
 		AssertUtils.isNull(id, "id");
-		if (id < Constant.MIN_SYS_ID) {
+		SysRoleEntity entity = baseDao.selectById(id);
+		if (entity == null) {
+			throw new GkException(ErrorCode.NOT_FOUND);
+		}
+		assertRoleVisible(entity);
+	}
+
+	/**
+	 * 超管可访问任意角色；非超管仅可访问 id≥MIN_SYS_ID 且在本租户/系统预置范围内的角色。
+	 */
+	private void assertRoleVisible(SysRoleEntity entity) {
+		if (ReqContextHolder.isSAdmin()) {
+			return;
+		}
+		Long id = entity.getId();
+		if (id == null || id < Constant.MIN_SYS_ID) {
+			throw new GkException(ErrorCode.FORBIDDEN);
+		}
+		if (!isRoleInTenantScope(entity)) {
 			throw new GkException(ErrorCode.FORBIDDEN);
 		}
 	}
 
+	private boolean isRoleInTenantScope(SysRoleEntity role) {
+		Long roleTenantId = role.getTenantId() == null ? Constant.DEFAULT_TENANT_ID : role.getTenantId();
+		if (Constant.PLATFORM_TENANT_ID.equals(roleTenantId) && !ReqContextHolder.isPlatform()) {
+			return false;
+		}
+		Long currentTenantId = ReqContextHolder.getTenantId();
+		if (currentTenantId != null && currentTenantId.equals(roleTenantId)) {
+			return true;
+		}
+		return Constant.DEFAULT_TENANT_ID.equals(roleTenantId)
+				&& (role.getDeptId() == null || Objects.equals(role.getDeptId(), Constant.DEPT_ROOT));
+	}
+
+	/**
+	 * 超管可修改任意角色；非超管不可修改 id ≤ MAX_RESERVED_ID 的系统预置角色。
+	 */
 	private void assertRoleMutable(Long id) {
 		assertRoleVisible(id);
-		AssertUtils.isReserved(id);
+		if (!ReqContextHolder.isSAdmin() && id != null && id <= Constant.MAX_RESERVED_ID) {
+			throw new GkException(ErrorCode.FORBIDDEN);
+		}
 	}
 
 }

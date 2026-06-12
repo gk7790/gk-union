@@ -276,8 +276,8 @@ CREATE TABLE `sys_region`  (
 DROP TABLE IF EXISTS `sys_role`;
 CREATE TABLE `sys_role`  (
   `id` bigint NOT NULL COMMENT 'id',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID；平台角色为空，租户/商户角色填写所属租户',
-  `dept_id` bigint NULL DEFAULT NULL COMMENT '部门ID',
+  `tenant_id` bigint NOT NULL DEFAULT 0 COMMENT '租户ID；0=系统模板，1=平台专属，≥2=租户实例',
+  `dept_id` bigint NOT NULL DEFAULT 0 COMMENT '部门ID；0=不限制部门',
   `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '角色名称',
   `auth` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '角色标识',
   `role_scope` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'TENANT' COMMENT '角色作用域: PLATFORM/TENANT/MERCHANT',

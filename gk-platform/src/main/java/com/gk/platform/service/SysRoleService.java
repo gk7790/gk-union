@@ -30,4 +30,9 @@ public interface SysRoleService extends BaseService<SysRoleEntity> {
 	void delete(Long[] ids);
 
     List<LabelDTO> getDict(DynMap params);
+
+	/**
+	 * 校验角色是否可分配给指定主体用户。
+	 */
+	void assertRoleAssignable(Long roleId, String subjectType, Long tenantId, Long merchantId);
 }

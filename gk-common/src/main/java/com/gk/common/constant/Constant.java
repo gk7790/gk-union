@@ -31,6 +31,22 @@ public interface Constant {
      */
     Long MAX_RESERVED_ID = 1000L;
     /**
+     * 系统预置/模板租户ID
+     */
+    Long DEFAULT_TENANT_ID = 0L;
+    /**
+     * 平台机构租户ID
+     */
+    Long PLATFORM_TENANT_ID = 1L;
+    /**
+     * 超管角色标识
+     */
+    String ROLE_AUTH_SADMIN = "sadmin";
+    /**
+     * 平台管理员角色标识
+     */
+    String ROLE_AUTH_ADMIN = "admin";
+    /**
      * OK
      */
     String OK = "OK";

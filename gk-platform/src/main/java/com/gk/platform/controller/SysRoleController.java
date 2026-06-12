@@ -2,9 +2,7 @@ package com.gk.platform.controller;
 
 
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.beans.CurrentUser;
 import com.gk.common.constant.Constant;
-import com.gk.common.context.ReqContextHolder;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.model.PageData;
@@ -41,7 +39,6 @@ public class SysRoleController {
 	private final SysRoleService sysRoleService;
 	private final SysRoleMenuService sysRoleMenuService;
 	private final SysRoleDataScopeService sysRoleDataScopeService;
-    private final CurrentUser currentUser;
 
 	@GetMapping("page")
 	@Operation(summary = "角色分页", description = "分页查询角色。支持按 roleScope、tenantId、templateOnly 过滤。权限码：sys:role:page。")
@@ -67,7 +64,7 @@ public class SysRoleController {
     }
 
 	@GetMapping("dict")
-	@Operation(summary = "角色字典", description = "查询角色下拉选项。可通过 roleScope、tenantId、templateOnly 过滤。权限码：sys:role:page。")
+	@Operation(summary = "角色字典", description = "查询可分配给用户的角色下拉选项（不含模板角色）。可通过 roleScope、tenantId 过滤。权限码：sys:role:page。")
 	@PreAuthorize("hasAuthority('sys:role:page')")
 	public R<?> dict(@RequestMap DynMap params){
 		List<LabelDTO> data = sysRoleService.getDict(params);
@@ -78,17 +75,12 @@ public class SysRoleController {
 	@Operation(summary = "角色详情", description = "查询角色已绑定的菜单权限和部门数据权限。权限码：sys:role:info。")
 	@PreAuthorize("hasAuthority('sys:role:info')")
 	public R<?> get(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id){
-        if (id != null && id < Constant.MIN_SYS_ID) {
-            return R.error(ErrorCode.FORBIDDEN);
-        }
 		SysRoleDTO data = sysRoleService.get(id);
 		if (data == null) {
 			return R.error(ErrorCode.NOT_FOUND);
 		}
-		//查询角色对应的菜单
 		List<Long> menuIdList = sysRoleMenuService.getMenuIdList(id);
 		data.setMenuIdList(menuIdList);
-		//查询角色对应的数据权限
 		List<Long> deptIdList = sysRoleDataScopeService.getDeptIdList(id);
 		data.setDeptIdList(deptIdList);
 		return R.ok(data);
@@ -98,6 +90,9 @@ public class SysRoleController {
     @Operation(summary = "角色菜单权限", description = "查询指定角色已绑定的菜单ID列表。权限码：sys:role:info。")
     @PreAuthorize("hasAuthority('sys:role:info')")
     public R<?> getMenu(@Parameter(description = "角色ID", required = true) @RequestParam Long id){
+        if (sysRoleService.get(id) == null) {
+            return R.error(ErrorCode.NOT_FOUND);
+        }
         List<Long> menuIdList = sysRoleMenuService.getMenuIdList(id);
         return R.ok(menuIdList);
     }
@@ -106,36 +101,15 @@ public class SysRoleController {
 	@Operation(summary = "新增角色", description = "创建角色并绑定菜单权限、部门数据权限。平台角色、租户角色、商户角色通过 roleScope 区分。权限码：sys:role:add。")
 	@PreAuthorize("hasAuthority('sys:role:add')")
 	public R<?> save(@RequestBody SysRoleDTO dto){
-        if (!currentUser.hasAllRole("sadmin") && !currentUser.hasAllAuth("sys:role:add")) {
-            return R.error(ErrorCode.FORBIDDEN);
-        }
-        if (!currentUser.hasAllRole("sadmin") && "sadmin".equals(dto.getAuth())) {
-            return R.error(ErrorCode.FORBIDDEN);
-        }
-        boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
-        if (!allowed) {
-            dto.setTenantId(ReqContextHolder.getTenantId());
-        }
 		sysRoleService.save(dto);
 		return R.ok();
 	}
 
 	@PutMapping("{id}")
-	@Operation(summary = "修改角色", description = "修改角色基础信息、菜单权限和数据权限。权限码：sys:role:update。")
+	@Operation(summary = "修改角色", description = "修改角色基础信息、菜单权限和数据权限。超管可改任意角色；非超管不可改 id≤1000 的系统预置角色。权限码：sys:role:update。")
 	@PreAuthorize("hasAuthority('sys:role:update')")
 	public R<?> update(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id, @RequestBody SysRoleDTO dto){
-        AssertUtils.isReserved(id);
-        if (!currentUser.hasAllRole("sadmin") && !currentUser.hasAllAuth("sys:role:update")) {
-            return R.error(ErrorCode.FORBIDDEN);
-        }
-        if (!currentUser.hasAllRole("sadmin") && "sadmin".equals(dto.getAuth())) {
-            return R.error(ErrorCode.FORBIDDEN);
-        }
         dto.setId(id);
-        boolean allowed = ReqContextHolder.isSAdmin() || currentUser.hasAllRole("admin");
-        if (!allowed) {
-            dto.setTenantId(null);
-        }
 		sysRoleService.update(dto);
 		return R.ok();
 	}
@@ -144,11 +118,7 @@ public class SysRoleController {
 	@Operation(summary = "删除角色", description = "批量删除角色，并清理角色菜单、数据权限和用户主体角色绑定。权限码：sys:role:delete。")
     @PreAuthorize("hasAuthority('sys:role:delete')")
 	public R<?> delete(@RequestParam Long[] ids){
-		//效验数据
 		AssertUtils.isArrayEmpty(ids, "id");
-        for (Long id : ids) {
-            AssertUtils.isReserved(id);
-        }
 		sysRoleService.delete(ids);
 		return R.ok();
 	}

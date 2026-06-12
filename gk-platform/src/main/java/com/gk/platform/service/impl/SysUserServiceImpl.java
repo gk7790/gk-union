@@ -15,6 +15,7 @@ import com.gk.platform.entity.SysUserEntity;
 import com.gk.platform.service.SysUserSubjectService;
 import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
+import com.gk.platform.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import java.util.Map;
 public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntity> implements SysUserService {
     private final SysUserPostService sysUserPostService;
     private final SysUserSubjectService sysUserSubjectService;
+    private final SysRoleService sysRoleService;
 
     @Override
 	public PageData<SysUserDTO> page(Map<String, Object> params) {
@@ -178,8 +180,10 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 			roleId = dto.getRoleIdList().get(0);
 		}
 		AssertUtils.isNull(roleId, "roleId");
+		String subjectType = StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code());
+		sysRoleService.assertRoleAssignable(roleId, subjectType, dto.getTenantId(), dto.getMerchantId());
 		SysUserSubjectEntity subject = new SysUserSubjectEntity();
-		subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code()));
+		subject.setSubjectType(subjectType);
 		subject.setTenantId(dto.getTenantId());
 		subject.setMerchantId(dto.getMerchantId());
 		subject.setDeptId(dto.getDeptId());

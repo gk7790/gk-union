@@ -57,6 +57,9 @@ public class SysRoleDataScopeServiceImpl extends BaseServiceImpl<SysRoleDataScop
         Instant now = Instant.now();
         List<SysRoleDataScopeEntity> entities = new ArrayList<>(deptIdList.size());
         for (Long deptId : new LinkedHashSet<>(deptIdList)) {
+            if (deptId == null || deptId == 0L) {
+                continue;
+            }
             SysRoleDataScopeEntity entity = new SysRoleDataScopeEntity();
             entity.setId(IdWorker.getId());
             entity.setRoleId(roleId);

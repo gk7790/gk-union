@@ -78,7 +78,13 @@ public class SysRoleController {
 	@Operation(summary = "角色详情", description = "查询角色已绑定的菜单权限和部门数据权限。权限码：sys:role:info。")
 	@PreAuthorize("hasAuthority('sys:role:info')")
 	public R<?> get(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id){
-		SysRoleDTO data = new SysRoleDTO();
+        if (id != null && id < Constant.MIN_SYS_ID) {
+            return R.error(ErrorCode.FORBIDDEN);
+        }
+		SysRoleDTO data = sysRoleService.get(id);
+		if (data == null) {
+			return R.error(ErrorCode.NOT_FOUND);
+		}
 		//查询角色对应的菜单
 		List<Long> menuIdList = sysRoleMenuService.getMenuIdList(id);
 		data.setMenuIdList(menuIdList);
@@ -118,6 +124,7 @@ public class SysRoleController {
 	@Operation(summary = "修改角色", description = "修改角色基础信息、菜单权限和数据权限。权限码：sys:role:update。")
 	@PreAuthorize("hasAuthority('sys:role:update')")
 	public R<?> update(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id, @RequestBody SysRoleDTO dto){
+        AssertUtils.isReserved(id);
         if (!currentUser.hasAllRole("sadmin") && !currentUser.hasAllAuth("sys:role:update")) {
             return R.error(ErrorCode.FORBIDDEN);
         }
@@ -139,6 +146,9 @@ public class SysRoleController {
 	public R<?> delete(@RequestParam Long[] ids){
 		//效验数据
 		AssertUtils.isArrayEmpty(ids, "id");
+        for (Long id : ids) {
+            AssertUtils.isReserved(id);
+        }
 		sysRoleService.delete(ids);
 		return R.ok();
 	}

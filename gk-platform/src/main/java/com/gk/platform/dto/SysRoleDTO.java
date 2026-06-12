@@ -45,6 +45,9 @@ public class SysRoleDTO implements Serializable {
 	@Schema(title = "数据权限范围", description = "ALL/TENANT_ALL/SELF_AND_CHILDREN/SELF")
 	private String dataScope;
 
+	@Schema(title = "是否只读", description = "系统预置角色为 true，非超管不可修改", accessMode = Schema.AccessMode.READ_ONLY)
+	private Boolean readOnly;
+
 	@Schema(title = "创建时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
 	private Instant createdAt;

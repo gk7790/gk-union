@@ -37,9 +37,7 @@ public class SysController {
 
     @GetMapping("/enum/{key}")
     public R<?> getEnumDict(@PathVariable("key") String key) {
-        if ("scope".equalsIgnoreCase(key)) {
-            return R.ok(EnumUtils.toDictList(ScopeEnum.class));
-        } else if ("domain".equalsIgnoreCase(key)) {
+        if ("domain".equalsIgnoreCase(key)) {
             return R.ok(EnumUtils.toDictList(DomainEnum.class));
         } else if ("subjectType".equalsIgnoreCase(key)) {
             return R.ok(EnumUtils.toDictList(SubjectTypeEnum.class));

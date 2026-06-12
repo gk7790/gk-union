@@ -74,7 +74,10 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	@Override
 	public List<SysMenuDTO> getRoleSelectMenuList(String roleScope, List<Integer> typeList) {
         AssertUtils.isBlank(roleScope, "roleScope");
-        List<SysMenuEntity> menuList = baseDao.getCatalogMenuList(typeList, roleScope);
+        List<SysMenuEntity> menuList = ReqContextHolder.isSuperAdmin()
+                ? baseDao.getCatalogMenuList(typeList, roleScope)
+                : loadAuthorizedMenus(roleScope, typeList);
+        stripInternalFields(menuList);
 		return TreeUtils.build(ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class));
 	}
 
@@ -108,11 +111,15 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
             // 超管：全量菜单目录（不过滤 subjectType / role_menu）
             return baseDao.getCatalogMenuList(typeList, null);
         }
+        return loadAuthorizedMenus(ReqContextHolder.getSubjectType(), typeList);
+    }
+
+    private List<SysMenuEntity> loadAuthorizedMenus(String subjectType, List<Integer> typeList) {
         Long userSubjectId = ReqContextHolder.getSubjectId();
         if (userSubjectId == null) {
             throw new GkException(ErrorCode.UNAUTHORIZED);
         }
-        return baseDao.getNavMenuList(userSubjectId, ReqContextHolder.getSubjectType(), typeList);
+        return baseDao.getNavMenuList(userSubjectId, subjectType, typeList);
     }
 
     private void stripInternalFields(List<SysMenuEntity> menuList) {

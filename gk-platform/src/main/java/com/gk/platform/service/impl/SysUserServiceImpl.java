@@ -8,6 +8,7 @@ import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.platform.dao.SysUserDao;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 系统用户。
@@ -147,12 +149,14 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     }
 
     private SysUserSubjectEntity buildSubject(SysUserDTO dto) {
+        String subjectType = Optional.ofNullable(dto).map(SysUserDTO::getSubjectType).orElse(SubjectTypeEnum.TENANT.code());
+        Integer status = Optional.ofNullable(dto).map(SysUserDTO::getStatus).orElse(StatusEnum.NORMAL.code());
         SysUserSubjectEntity subject = new SysUserSubjectEntity();
-        subject.setSubjectType(StringUtils.defaultIfBlank(dto.getSubjectType(), SubjectTypeEnum.PLATFORM.code()));
+        subject.setSubjectType(subjectType);
         subject.setTenantId(dto.getTenantId());
         subject.setMerchantId(dto.getMerchantId());
         subject.setDeptId(dto.getDeptId());
-        subject.setStatus(dto.getStatus() == null ? 1 : dto.getStatus());
+        subject.setStatus(status);
         return subject;
     }
 

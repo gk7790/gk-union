@@ -1,5 +1,6 @@
 package com.gk.infra.controller;
 
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.model.R;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.EnumUtils;
@@ -40,7 +41,7 @@ public class SysController {
         if ("domain".equalsIgnoreCase(key)) {
             return R.ok(EnumUtils.toDictList(DomainEnum.class));
         } else if ("subjectType".equalsIgnoreCase(key)) {
-            return R.ok(EnumUtils.toDictList(SubjectTypeEnum.class));
+            return R.ok(SubjectTypeEnum.visibleList(ReqContextHolder.getSubjectType()));
         }
         return R.ok();
     }

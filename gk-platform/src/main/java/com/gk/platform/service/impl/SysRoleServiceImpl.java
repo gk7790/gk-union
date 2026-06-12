@@ -140,9 +140,11 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
             params.put("status", StatusEnum.defaultStatus());
         }
 
+        String roleScope = params.getStr("roleScope");
+
         QueryWrapper<SysRoleEntity> wrapper = getWrapper(params);
         wrapper.select("id", "name");
-
+        wrapper.eq(params.isValueNull("role_scope"), "role_scope", roleScope);
         if (!ReqContextHolder.isSuperAdmin()) {
             wrapper.eq("tenant_id", ReqContextHolder.getTenantId());
             wrapper.in("dept_id", ReqContextHolder.getSubDeptIdsWithSelf());

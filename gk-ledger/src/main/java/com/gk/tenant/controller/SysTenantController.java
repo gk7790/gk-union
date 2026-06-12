@@ -109,7 +109,7 @@ public class SysTenantController {
     public R<?> roleTemplates() {
         DynMap params = new DynMap();
         params.put("roleScope", SubjectTypeEnum.TENANT.code());
-        params.put("templateOnly", true);
+        params.put("tenantId", Constant.DEFAULT_TENANT_ID);
         params.put("status", List.of(StatusEnum.NORMAL.code()));
         List<SysRoleDTO> list = sysRoleService.list(params);
         return R.ok(list);

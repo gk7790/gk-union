@@ -74,8 +74,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	/**
 	 * 构建角色查询条件。
 	 * <p>
-	 * 支持按名称、主体范围、租户、状态过滤；{@code templateOnly} 只看模板，
-	 * {@code assignableOnly} 排除模板（用于用户绑角色下拉）。
+	 * 支持按名称、主体范围、租户、状态过滤；查模板角色可直接传 {@code tenantId=0}。
 	 * 所有列表默认隐藏 {@code id < MIN_SYS_ID} 的内置角色；非超管额外做租户隔离。
 	 */
 	private QueryWrapper<SysRoleEntity> getWrapper(DynMap params) {
@@ -83,23 +82,12 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		String roleScope = params.getStr("roleScope");
 		Long tenantId = params.getLong("tenantId", null);
 		List<Integer> statusList = params.getList("status", Integer.class, null);
-		Boolean templateOnly = params.getBool("templateOnly", false);
-		Boolean assignableOnly = params.getBool("assignableOnly", false);
-		// 查可分配角色且未指定 scope 时，非超管默认限定为当前主体类型
-		if (Boolean.TRUE.equals(assignableOnly) && StringUtils.isBlank(roleScope) && !ReqContextHolder.isSuperAdmin()) {
-			roleScope = ReqContextHolder.getSubjectType();
-		}
 
 		QueryWrapper<SysRoleEntity> wrapper = new QueryWrapper<>();
 		wrapper.like(StringUtils.isNotBlank(name), "name", name);
 		wrapper.eq(StringUtils.isNotBlank(roleScope), "role_scope", roleScope);
 		wrapper.eq(tenantId != null, "tenant_id", tenantId);
 		wrapper.in(statusList != null && !statusList.isEmpty(), "status", statusList);
-		wrapper.eq(Boolean.TRUE.equals(templateOnly), "tenant_id", Constant.DEFAULT_TENANT_ID);
-
-		if (Boolean.TRUE.equals(assignableOnly)) {
-			wrapper.ne("tenant_id", Constant.DEFAULT_TENANT_ID);
-		}
 
         wrapper.ge("id", Constant.MIN_SYS_ID);
         if (!ReqContextHolder.isSuperAdmin()) {
@@ -151,10 +139,14 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
         if (!params.containsKey("status")) {
             params.put("status", StatusEnum.defaultStatus());
         }
-        params.put("assignableOnly", true);
 
         QueryWrapper<SysRoleEntity> wrapper = getWrapper(params);
         wrapper.select("id", "name");
+
+        if (!ReqContextHolder.isSuperAdmin()) {
+            wrapper.eq("tenant_id", ReqContextHolder.getTenantId());
+            wrapper.in("dept_id", ReqContextHolder.getSubDeptIdsWithSelf());
+        }
 
         List<SysRoleEntity> result = baseDao.selectList(wrapper);
 

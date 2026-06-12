@@ -41,7 +41,7 @@ public class SysRoleController {
 	private final SysRoleDataScopeService sysRoleDataScopeService;
 
 	@GetMapping("page")
-	@Operation(summary = "角色分页", description = "分页查询角色。支持按 roleScope、tenantId、templateOnly 过滤。权限码：sys:role:page。")
+	@Operation(summary = "角色分页", description = "分页查询角色。支持按 roleScope、tenantId 过滤；查模板传 tenantId=0。权限码：sys:role:page。")
 	@Parameters({
 		@Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true) ,
 		@Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY,required = true) ,
@@ -114,12 +114,12 @@ public class SysRoleController {
 		return R.ok();
 	}
 
-	@DeleteMapping
-	@Operation(summary = "删除角色", description = "批量删除角色，并清理角色菜单、数据权限和用户主体角色绑定。权限码：sys:role:delete。")
-    @PreAuthorize("hasAuthority('sys:role:delete')")
-	public R<?> delete(@RequestParam Long[] ids){
-		AssertUtils.isArrayEmpty(ids, "id");
-		sysRoleService.delete(ids);
+	@DeleteMapping("{id}")
+	@Operation(summary = "删除角色", description = "删除单个角色，并清理角色菜单、数据权限和用户主体角色绑定。权限码：sys:role:delete。")
+	@PreAuthorize("hasAuthority('sys:role:delete')")
+	public R<?> deleteById(@Parameter(description = "角色ID", required = true) @PathVariable("id") Long id) {
+		AssertUtils.isNull(id, "id");
+		sysRoleService.delete(new Long[]{id});
 		return R.ok();
 	}
 }

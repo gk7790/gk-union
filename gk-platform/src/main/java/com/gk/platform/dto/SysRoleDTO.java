@@ -21,7 +21,7 @@ public class SysRoleDTO implements Serializable {
 	@Schema(title = "角色ID", accessMode = Schema.AccessMode.READ_ONLY)
 	private Long id;
 
-    @Schema(title = "租户ID", description = "0=系统模板，1=平台专属，≥2=租户实例")
+    @Schema(title = "租户ID", description = "0=系统模板，1=平台专属，≥2=租户实例；新建取当前用户，更新不可改", accessMode = Schema.AccessMode.READ_ONLY)
     private Long tenantId;
 
     @Schema(title = "角色编码", description = "权限标识；sadmin/admin 仅超管可设置")
@@ -29,6 +29,9 @@ public class SysRoleDTO implements Serializable {
 
 	@Schema(title = "角色名称")
 	private String name;
+
+	@Schema(title = "部门ID", description = "角色归属部门；新建取当前用户，更新仅超管可改")
+	private Long deptId;
 
 	@Schema(title = "部门名称")
 	private String deptName;
@@ -44,9 +47,6 @@ public class SysRoleDTO implements Serializable {
 
 	@Schema(title = "数据权限范围", description = "ALL/TENANT_ALL/SELF_AND_CHILDREN/SELF")
 	private String dataScope;
-
-	@Schema(title = "是否只读", description = "系统预置角色为 true，非超管不可修改", accessMode = Schema.AccessMode.READ_ONLY)
-	private Boolean readOnly;
 
 	@Schema(title = "创建时间")
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)

@@ -49,6 +49,9 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     @Override
     public QueryWrapper<SysTenantEntity> getWrapper(DynMap params) {
         QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
+        if (!ReqContextHolder.isSuperAdmin()) {
+            wrapper.ge("id", Constant.MIN_SYS_ID);
+        }
         return wrapper;
     }
 
@@ -58,6 +61,9 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
 
         QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");
+        if (!ReqContextHolder.isSuperAdmin()) {
+            wrapper.ge("id", Constant.MIN_SYS_ID);
+        }
         wrapper.in("status", list);
         List<SysTenantEntity> result = baseDao.selectList(wrapper);
 

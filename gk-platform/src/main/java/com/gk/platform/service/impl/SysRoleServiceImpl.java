@@ -32,9 +32,16 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * 角色
- * 
- * @author Lowen
+ * 角色管理服务。
+ * <p>
+ * 角色按 {@code tenant_id} 分层：
+ * <ul>
+ *     <li>{@code tenant_id = 0}：系统模板，仅供复制参考，不可直接分配给用户</li>
+ *     <li>{@code tenant_id = 1}：平台机构专用角色，仅 PLATFORM 主体可用</li>
+ *     <li>{@code tenant_id >= 2}：租户/商户实例角色，可分配给用户</li>
+ * </ul>
+ * {@code role_scope}（PLATFORM/TENANT/MERCHANT）决定角色适用哪类主体，并与菜单 {@code subject_types} 对齐。
+ * 非超管的可见/可改范围由当前登录租户与主体类型约束。
  */
 @Service
 @RequiredArgsConstructor
@@ -44,6 +51,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	private final SysRoleUserService sysRoleUserService;
 	private final SysMenuService sysMenuService;
 
+	/** 角色分页。 */
     @Override
 	public PageData<SysRoleDTO> page(DynMap params) {
 		IPage<SysRoleEntity> page = baseDao.selectPage(
@@ -52,18 +60,24 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		);
 
 		PageData<SysRoleDTO> pageData = getPageData(page, SysRoleDTO.class);
-		markReadOnly(pageData.getItems());
 		return pageData;
 	}
 
+	/** 角色列表，过滤规则与分页一致。 */
 	@Override
 	public List<SysRoleDTO> list(DynMap params) {
 		List<SysRoleEntity> entityList = baseDao.selectList(getWrapper(params));
 		List<SysRoleDTO> dtoList = ConvertUtils.sourceToTarget(entityList, SysRoleDTO.class);
-		markReadOnly(dtoList);
 		return dtoList;
 	}
 
+	/**
+	 * 构建角色查询条件。
+	 * <p>
+	 * 支持按名称、主体范围、租户、状态过滤；{@code templateOnly} 只看模板，
+	 * {@code assignableOnly} 排除模板（用于用户绑角色下拉）。
+	 * 所有列表默认隐藏 {@code id < MIN_SYS_ID} 的内置角色；非超管额外做租户隔离。
+	 */
 	private QueryWrapper<SysRoleEntity> getWrapper(DynMap params) {
 		String name = params.getStr("name");
 		String roleScope = params.getStr("roleScope");
@@ -71,6 +85,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		List<Integer> statusList = params.getList("status", Integer.class, null);
 		Boolean templateOnly = params.getBool("templateOnly", false);
 		Boolean assignableOnly = params.getBool("assignableOnly", false);
+		// 查可分配角色且未指定 scope 时，非超管默认限定为当前主体类型
 		if (Boolean.TRUE.equals(assignableOnly) && StringUtils.isBlank(roleScope) && !ReqContextHolder.isSuperAdmin()) {
 			roleScope = ReqContextHolder.getSubjectType();
 		}
@@ -95,7 +110,8 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	}
 
 	/**
-	 * 非超管：本租户角色 + 系统预置模板（tenant_id=0 且 dept_id=0）；非平台用户不可见 tenant_id=1。
+	 * 非超管租户隔离：本租户角色 + 系统预置模板（tenant_id=0 且 dept_id=0）；
+	 * 非平台用户不可见 tenant_id=1 的平台机构角色。
 	 */
 	private void applyNonAdminTenantScope(QueryWrapper<SysRoleEntity> wrapper) {
 		if (!ReqContextHolder.isPlatform()) {
@@ -112,6 +128,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		});
 	}
 
+	/** 单条查询；非超管须通过可见性校验。 */
 	@Override
 	public SysRoleDTO get(Long id) {
 		AssertUtils.isNull(id, "id");
@@ -119,12 +136,16 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		if (entity == null) {
 			return null;
 		}
+        // 非超管只能访问本租户角色、系统模板，或（平台用户）平台机构角色
 		assertRoleVisible(entity);
 		SysRoleDTO dto = ConvertUtils.sourceToTarget(entity, SysRoleDTO.class);
-		markReadOnly(List.of(dto));
 		return dto;
 	}
 
+	/**
+	 * 角色下拉字典：默认只查正常状态、可分配给用户的角色（排除模板）。
+	 * 用于用户管理页绑定角色时的选项列表。
+	 */
     @Override
     public List<LabelDTO> getDict(DynMap params) {
         if (!params.containsKey("status")) {
@@ -140,11 +161,15 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
         return result.stream().map(item -> new LabelDTO(item.getId(), item.getName())).toList();
     }
 
+	/**
+	 * 新增角色：tenant_id、dept_id 强制取当前登录用户；忽略前端传入值。
+	 */
     @Override
 	@Transactional(rollbackFor = Exception.class)
 	public void save(SysRoleDTO dto) {
 		SysRoleEntity entity = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
-		prepareRoleForCreate(entity);
+		applyCreateOwnership(entity);
+        prepareRoleForCreate(entity);
 		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
 		insert(entity);
@@ -154,6 +179,9 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		sysRoleDataScopeService.saveOrUpdate(entity.getId(), dto.getDeptIdList());
 	}
 
+	/**
+	 * 更新角色：tenant_id 不可改；dept_id 仅超管可改。
+	 */
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public void update(SysRoleDTO dto) {
@@ -161,10 +189,11 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		if (existing == null) {
 			throw new GkException(ErrorCode.NOT_FOUND);
 		}
-		assertRoleMutable(existing);
+		assertRoleVisible(existing);
 
 		SysRoleEntity incoming = ConvertUtils.sourceToTarget(dto, SysRoleEntity.class);
 		SysRoleEntity entity = mergeForUpdate(incoming, existing);
+		lockOwnershipOnUpdate(entity, existing, incoming);
 		prepareRoleForUpdate(entity, existing);
 		sysMenuService.assertMenusMatchRoleScope(entity.getRoleScope(), dto.getMenuIdList());
 
@@ -173,6 +202,10 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		sysRoleDataScopeService.saveOrUpdate(entity.getId(), dto.getDeptIdList());
 	}
 
+	/**
+	 * 批量删除角色，并级联清理用户绑定、菜单权限、数据权限。
+	 * 每条角色删除前均校验可见性。
+	 */
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public void delete(Long[] ids) {
@@ -182,7 +215,6 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 				throw new GkException(ErrorCode.NOT_FOUND);
 			}
 			assertRoleVisible(entity);
-			assertRoleMutable(entity);
 		}
 
 		baseDao.deleteBatchIds(Arrays.asList(ids));
@@ -191,6 +223,15 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		sysRoleDataScopeService.deleteByRoleIds(ids);
 	}
 
+	/**
+	 * 校验角色是否可分配给指定主体（用户绑角色时调用）。
+	 * <ul>
+	 *     <li>模板角色（tenant_id=0）不可分配</li>
+	 *     <li>平台角色（tenant_id=1）只能绑 PLATFORM 主体</li>
+	 *     <li>非超管不可分配 sadmin/admin 标识的保留角色</li>
+	 *     <li>租户/商户角色的 tenant_id、role_scope 须与目标主体一致</li>
+	 * </ul>
+	 */
 	@Override
 	public void assertRoleAssignable(Long roleId, String subjectType, Long tenantId, Long merchantId) {
 		AssertUtils.isNull(roleId, "roleId");
@@ -234,34 +275,26 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		}
 	}
 
-	private void markReadOnly(List<SysRoleDTO> roles) {
-		if (roles == null || roles.isEmpty()) {
-			return;
-		}
-		for (SysRoleDTO role : roles) {
-			role.setReadOnly(!ReqContextHolder.isSuperAdmin() && isReservedRoleId(role.getId()));
-		}
-	}
-
+	/**
+	 * 创建前：补默认值、按调用方限定租户、校验保留标识与 tenant/scope 组合。
+	 */
 	private void prepareRoleForCreate(SysRoleEntity entity) {
 		normalizeRole(entity);
-		applyCallerTenantScope(entity, null);
 		assertReservedAuthAllowed(entity.getAuth());
 		assertRoleTenantScope(entity);
 	}
 
+	/** 更新前校验保留标识与 tenant/scope 组合；归属字段已在 lockOwnershipOnUpdate 中锁定。 */
 	private void prepareRoleForUpdate(SysRoleEntity entity, SysRoleEntity existing) {
 		normalizeRole(entity);
-		applyCallerTenantScope(entity, existing);
 		assertReservedAuthAllowed(entity.getAuth());
 		assertRoleTenantScope(entity);
 	}
 
+	/** 部分更新：null 字段保留库内原值；tenant_id / dept_id 由 lockOwnershipOnUpdate 处理。 */
 	private SysRoleEntity mergeForUpdate(SysRoleEntity incoming, SysRoleEntity existing) {
 		SysRoleEntity merged = new SysRoleEntity();
 		merged.setId(existing.getId());
-		merged.setTenantId(incoming.getTenantId() != null ? incoming.getTenantId() : existing.getTenantId());
-		merged.setDeptId(incoming.getDeptId() != null ? incoming.getDeptId() : existing.getDeptId());
 		merged.setAuth(incoming.getAuth() != null ? incoming.getAuth() : existing.getAuth());
 		merged.setName(incoming.getName() != null ? incoming.getName() : existing.getName());
 		merged.setRemark(incoming.getRemark() != null ? incoming.getRemark() : existing.getRemark());
@@ -271,6 +304,23 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		return merged;
 	}
 
+	/** 新建角色：tenant_id、dept_id 取当前登录用户，忽略请求体。 */
+	private void applyCreateOwnership(SysRoleEntity entity) {
+		entity.setTenantId(ReqContextHolder.getTenantId());
+		entity.setDeptId(ReqContextHolder.getDeptId());
+	}
+
+	/** 更新角色：tenant_id 始终不变；dept_id 仅超管可改。 */
+	private void lockOwnershipOnUpdate(SysRoleEntity entity, SysRoleEntity existing, SysRoleEntity incoming) {
+		entity.setTenantId(existing.getTenantId());
+		if (ReqContextHolder.isSuperAdmin()) {
+			entity.setDeptId(incoming.getDeptId() != null ? incoming.getDeptId() : existing.getDeptId());
+		} else {
+			entity.setDeptId(existing.getDeptId());
+		}
+	}
+
+	/** 空 tenant_id / dept_id 归一为系统默认值（0）。 */
 	private void normalizeRole(SysRoleEntity entity) {
 		if (entity.getTenantId() == null) {
 			entity.setTenantId(Constant.DEFAULT_TENANT_ID);
@@ -280,19 +330,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		}
 	}
 
-	private void applyCallerTenantScope(SysRoleEntity entity, SysRoleEntity existing) {
-		if (ReqContextHolder.isSuperAdmin() || ReqContextHolder.isPlatform()) {
-			return;
-		}
-		Long currentTenantId = ReqContextHolder.getTenantId();
-		AssertUtils.isNull(currentTenantId, "tenantId");
-		if (existing != null) {
-			entity.setTenantId(existing.getTenantId());
-			return;
-		}
-		entity.setTenantId(currentTenantId);
-	}
-
+	/** 可见即可改：非超管只能访问本租户角色、系统模板，或（平台用户）平台机构角色。 */
 	private void assertRoleVisible(SysRoleEntity entity) {
 		if (ReqContextHolder.isSuperAdmin()) {
 			return;
@@ -306,13 +344,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		}
 	}
 
-	private void assertRoleMutable(SysRoleEntity entity) {
-		assertRoleVisible(entity);
-		if (!ReqContextHolder.isSuperAdmin() && isLockedSystemRoleId(entity.getId())) {
-			throw new GkException(ErrorCode.FORBIDDEN);
-		}
-	}
-
+	/** 非超管禁止创建/修改为 sadmin、admin 保留角色标识。 */
 	private void assertReservedAuthAllowed(String auth) {
 		if (ReqContextHolder.isSuperAdmin() || !isReservedAuth(auth)) {
 			return;
@@ -320,6 +352,11 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		throw new GkException(ErrorCode.ROLE_AUTH_RESERVED);
 	}
 
+	/**
+	 * 校验 tenant_id 与 role_scope 组合合法：
+	 * tenant_id=1 必须是 PLATFORM scope；PLATFORM scope 不能挂在普通租户上；
+	 * 非平台/非超管不能操作系统级（tenant_id <= 1）角色。
+	 */
 	private void assertRoleTenantScope(SysRoleEntity entity) {
 		Long tenantId = entity.getTenantId();
 		String roleScope = entity.getRoleScope();
@@ -338,6 +375,7 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 		}
 	}
 
+	/** 判断角色是否落在当前调用者的可见租户范围内。 */
 	private boolean isRoleInCallerScope(SysRoleEntity role) {
 		Long roleTenantId = role.getTenantId() == null ? Constant.DEFAULT_TENANT_ID : role.getTenantId();
 		if (Constant.PLATFORM_TENANT_ID.equals(roleTenantId) && !ReqContextHolder.isPlatform()) {
@@ -351,18 +389,11 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 				&& (role.getDeptId() == null || Objects.equals(role.getDeptId(), Constant.DEPT_ROOT));
 	}
 
+	/** 系统保留角色标识：sadmin、admin。 */
 	private boolean isReservedAuth(String auth) {
 		return auth != null
 				&& (Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
 				|| Constant.ROLE_AUTH_ADMIN.equalsIgnoreCase(auth));
-	}
-
-	private boolean isReservedRoleId(Long id) {
-		return id != null && id >= Constant.MIN_SYS_ID && id <= Constant.MAX_RESERVED_ID;
-	}
-
-	private boolean isLockedSystemRoleId(Long id) {
-		return id != null && id <= Constant.MAX_RESERVED_ID;
 	}
 
 }

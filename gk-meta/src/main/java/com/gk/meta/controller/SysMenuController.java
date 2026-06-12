@@ -3,7 +3,6 @@ package com.gk.meta.controller;
 
 import cn.hutool.core.util.ObjUtil;
 import com.gk.common.annotation.RequestMap;
-import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.enums.MenuTypeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
@@ -43,7 +42,7 @@ public class SysMenuController {
 	@GetMapping("nav")
 	@Operation(summary = "导航")
 	public R<?> nav(){
-		List<SysMenuDTO> list = sysMenuService.getNavMenuList(MenuTypeEnum.enums(), Constant.MIN_SYS_ID);
+		List<SysMenuDTO> list = sysMenuService.getNavMenuList(MenuTypeEnum.enums());
 		return R.ok(list);
 	}
 
@@ -51,7 +50,7 @@ public class SysMenuController {
 	@Operation(summary = "列表")
 	@Parameter(name = "type", description = "菜单类型 0：菜单 1：按钮  null：全部", in = ParameterIn.QUERY)
 	public R<?> list(@RequestParam(required = false) List<Integer> typeList){
-		List<SysMenuDTO> list = sysMenuService.getAdminMenuList(typeList, Constant.MIN_SYS_ID);
+		List<SysMenuDTO> list = sysMenuService.getAdminMenuList(typeList);
 		return R.ok(list);
 	}
 
@@ -134,7 +133,7 @@ public class SysMenuController {
 	@PreAuthorize("hasAuthority('sys:menu:select')")
 	public R<?> select(@RequestParam(required = false) String roleScope){
         String scope = StringUtils.isNotBlank(roleScope) ? roleScope : ReqContextHolder.getSubjectType();
-		List<SysMenuDTO> list = sysMenuService.getRoleSelectMenuList(scope, null, Constant.MIN_SYS_ID);
+		List<SysMenuDTO> list = sysMenuService.getRoleSelectMenuList(scope, null);
 		return R.ok(list);
 	}
 }

@@ -14,4 +14,12 @@
         </foreach>
     </delete>
 
+    <insert id="insertBatch">
+        insert into sys_role_data_scope (id, role_id, dept_id, created_by, created_at)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.roleId}, #{item.deptId}, #{item.createdBy}, #{item.createdAt})
+        </foreach>
+    </insert>
+
 </mapper>

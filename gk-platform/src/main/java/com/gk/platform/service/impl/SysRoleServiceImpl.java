@@ -116,6 +116,10 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 
         QueryWrapper<SysRoleEntity> wrapper = getWrapper(params);
         wrapper.select("id", "name");
+        if (!ReqContextHolder.isSAdmin()) {
+            wrapper.ge("id", Constant.MAX_RESERVED_ID);
+        }
+
         List<SysRoleEntity> result = baseDao.selectList(wrapper);
 
         return result.stream().map(item -> new LabelDTO(item.getId(), item.getName())).toList();

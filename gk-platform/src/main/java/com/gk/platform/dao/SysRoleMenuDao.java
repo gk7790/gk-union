@@ -4,6 +4,8 @@ import com.gk.common.core.dao.BaseDao;
 import com.gk.platform.entity.SysRoleMenuEntity;
 import org.apache.ibatis.annotations.Mapper;
 
+import org.apache.ibatis.annotations.Param;
+
 import java.util.List;
 
 /**
@@ -30,4 +32,9 @@ public interface SysRoleMenuDao extends BaseDao<SysRoleMenuEntity> {
 	 * @param menuId 菜单id
 	 */
 	void deleteByMenuId(Long menuId);
+
+	/**
+	 * 批量插入角色菜单关系（单条 INSERT 多行 VALUES）。
+	 */
+	void insertBatch(@Param("list") List<SysRoleMenuEntity> list);
 }

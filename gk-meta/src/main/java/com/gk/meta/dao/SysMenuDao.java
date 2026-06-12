@@ -21,8 +21,7 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
      * 菜单目录（管理端 / 角色授权树），按主体类型过滤。
      */
     List<SysMenuEntity> getCatalogMenuList(@Param("typeList") List<Integer> typeList,
-                                           @Param("subjectType") String subjectType,
-                                           @Param("minId") long minId);
+                                           @Param("subjectType") String subjectType);
 
     /**
      * 当前登录上下文下的导航菜单：用户 + 角色 + 主体类型 + 角色菜单。
@@ -30,8 +29,7 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
     List<SysMenuEntity> getNavMenuList(@Param("userId") Long userId,
                                        @Param("roleId") Long roleId,
                                        @Param("subjectType") String subjectType,
-                                       @Param("typeList") List<Integer> typeList,
-                                       @Param("minId") long minId);
+                                       @Param("typeList") List<Integer> typeList);
 
     /**
      * 统计不在指定主体类型可见范围内的菜单数量。

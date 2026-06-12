@@ -4,6 +4,8 @@ import com.gk.common.core.dao.BaseDao;
 import com.gk.platform.entity.SysRoleDataScopeEntity;
 import org.apache.ibatis.annotations.Mapper;
 
+import org.apache.ibatis.annotations.Param;
+
 import java.util.List;
 
 /**
@@ -25,4 +27,9 @@ public interface SysRoleDataScopeDao extends BaseDao<SysRoleDataScopeEntity> {
      * @param roleIds 角色ids
      */
     void deleteByRoleIds(Long[] roleIds);
+
+    /**
+     * 批量插入角色数据权限（单条 INSERT 多行 VALUES）。
+     */
+    void insertBatch(@Param("list") List<SysRoleDataScopeEntity> list);
 }

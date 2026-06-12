@@ -24,19 +24,19 @@ public interface SysMenuService extends BaseService<SysMenuEntity> {
 	void delete(Long id);
 
 	/**
-	 * 侧边栏导航菜单（当前用户 + 当前角色 + 主体类型）。
+	 * 侧边栏导航：超管返回全部菜单；其他用户按 role_menu + subjectType。
 	 */
-	List<SysMenuDTO> getNavMenuList(List<Integer> typeList, long minId);
+	List<SysMenuDTO> getNavMenuList(List<Integer> typeList);
 
 	/**
 	 * 菜单管理列表（超管看全部目录，其他按当前主体类型过滤）。
 	 */
-	List<SysMenuDTO> getAdminMenuList(List<Integer> typeList, long minId);
+	List<SysMenuDTO> getAdminMenuList(List<Integer> typeList);
 
 	/**
 	 * 角色授权可选菜单树（按 roleScope / subjectType 过滤目录）。
 	 */
-	List<SysMenuDTO> getRoleSelectMenuList(String roleScope, List<Integer> typeList, long minId);
+	List<SysMenuDTO> getRoleSelectMenuList(String roleScope, List<Integer> typeList);
 
 	/**
 	 * 校验角色绑定的菜单均属于该 roleScope 可见范围。

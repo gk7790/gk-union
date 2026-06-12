@@ -1,12 +1,10 @@
 package com.gk.meta.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
-import com.gk.common.enums.MenuTypeEnum;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.TreeUtils;
 import com.gk.common.validator.AssertUtils;
@@ -35,7 +33,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	@Override
 	@Transactional(rollbackFor = Exception.class)
 	public void addMenu(SysMenuEntity entity) {
-        resolveSubjectTypes(entity);
+        assertSubjectTypes(entity.getSubjectTypes());
         entity.getMeta().setOrder(entity.getSort());
 		insert(entity);
 	}
@@ -44,7 +42,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	@Transactional(rollbackFor = Exception.class)
 	public void update(SysMenuDTO dto) {
         SysMenuEntity entity = ConvertUtils.sourceToTarget(dto, SysMenuEntity.class);
-        resolveSubjectTypes(entity);
+        assertSubjectTypes(entity.getSubjectTypes());
 
 		if (entity.getId().equals(entity.getPid())) {
 			throw new GkException(ErrorCode.SUPERIOR_MENU_ERROR);
@@ -125,29 +123,9 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
         }
     }
 
-    /**
-     * 目录/菜单必填 subjectTypes；按钮未填时继承父菜单。
-     */
-    private void resolveSubjectTypes(SysMenuEntity entity) {
-        if (CollectionUtils.isNotEmpty(entity.getSubjectTypes())) {
-            return;
+    private void assertSubjectTypes(List<String> subjectTypes) {
+        if (CollectionUtils.isEmpty(subjectTypes)) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "subjectTypes");
         }
-        if (MenuTypeEnum.BUTTON.code().equals(entity.getType())) {
-            entity.setSubjectTypes(inheritSubjectTypesFromParent(entity.getPid()));
-            return;
-        }
-        throw new GkException(ErrorCode.BAD_REQUEST, "subjectTypes");
-    }
-
-    private List<String> inheritSubjectTypesFromParent(Long pid) {
-        AssertUtils.isNull(pid, "pid");
-        if (Constant.MENU_ROOT.equals(pid)) {
-            throw new GkException(ErrorCode.SUPERIOR_MENU_ERROR);
-        }
-        SysMenuEntity parent = baseDao.getById(pid);
-        if (parent == null || CollectionUtils.isEmpty(parent.getSubjectTypes())) {
-            throw new GkException(ErrorCode.SUPERIOR_MENU_ERROR);
-        }
-        return parent.getSubjectTypes();
     }
 }

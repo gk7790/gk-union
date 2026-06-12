@@ -36,7 +36,7 @@
         </if>
     </sql>
 
-	<select id="getById" resultType="com.gk.meta.entity.SysMenuEntity">
+	<select id="getById" resultMap="SysMenuResultMap">
 		select t1.* from sys_menu t1
 		where t1.id = #{id}
 	</select>
@@ -83,7 +83,7 @@
         )
     </select>
 
-	<select id="getListPid" resultType="com.gk.meta.entity.SysMenuEntity">
+	<select id="getListPid" resultMap="SysMenuResultMap">
 		select * from sys_menu where pid = #{value}
 	</select>
 

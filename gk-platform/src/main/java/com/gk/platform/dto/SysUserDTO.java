@@ -76,9 +76,6 @@ public class SysUserDTO implements Serializable {
 	@Schema(title = "兼容角色ID列表", description = "当前单主体模型只取第一个角色ID")
 	private List<Long> roleIdList;
 
-	@Schema(title = "岗位ID列表")
-	private List<Long> postIdList;
-
 	@Schema(title = "部门名称", accessMode = Schema.AccessMode.READ_ONLY)
 	private String deptName;
 

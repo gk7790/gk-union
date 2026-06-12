@@ -18,7 +18,6 @@ import com.gk.infra.dto.PasswordDTO;
 import com.gk.platform.dto.SysUserDTO;
 import com.gk.platform.entity.SysUserEntity;
 import com.gk.platform.entity.SysUserSubjectEntity;
-import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysRoleUserService;
 import com.gk.platform.service.SysUserService;
 import com.gk.platform.service.SysUserSubjectService;
@@ -48,7 +47,6 @@ import java.util.List;
 public class SysUserController {
     private final CurrentUser currentUser;
     private final SysUserService sysUserService;
-    private final SysUserPostService sysUserPostService;
     private final SysUserSubjectService sysUserSubjectService;
     private final SysRoleUserService sysRoleUserService;
 
@@ -75,7 +73,7 @@ public class SysUserController {
     }
 
     @GetMapping("{id}")
-    @Operation(summary = "用户详情", description = "查询用户基础信息、主体绑定角色和岗位。权限码：sys:user:info。")
+    @Operation(summary = "用户详情", description = "查询用户基础信息及主体绑定角色。权限码：sys:user:info。")
     @PreAuthorize("hasAuthority('sys:user:info')")
     public R<?> get(@PathVariable("id") Long id) {
         SysUserDTO data = sysUserService.getById(id);
@@ -193,9 +191,6 @@ public class SysUserController {
         if (data.getRoleId() != null) {
             data.setRoleIdList(List.of(data.getRoleId()));
         }
-
-        List<Long> postIdList = sysUserPostService.getPostIdList(data.getId());
-        data.setPostIdList(postIdList);
 
         SysUserSubjectEntity userSubject = sysUserSubjectService.getByUserId(data.getId());
         if (ObjUtil.isEmpty(userSubject)) {

@@ -395,21 +395,6 @@ CREATE TABLE `sys_user`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '系统用户' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Table structure for sys_user_post
--- ----------------------------
-DROP TABLE IF EXISTS `sys_user_post`;
-CREATE TABLE `sys_user_post`  (
-  `id` bigint NOT NULL COMMENT 'id',
-  `post_id` bigint NULL DEFAULT NULL COMMENT '岗位ID',
-  `user_id` bigint NULL DEFAULT NULL COMMENT '用户ID',
-  `creator` bigint NULL DEFAULT NULL COMMENT '创建者',
-  `create_date` datetime NULL DEFAULT NULL COMMENT '创建时间',
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_post_id`(`post_id` ASC) USING BTREE,
-  INDEX `idx_user_id`(`user_id` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '用户岗位关系' ROW_FORMAT = Dynamic;
-
--- ----------------------------
 -- Table structure for sys_user_subject
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_user_subject`;

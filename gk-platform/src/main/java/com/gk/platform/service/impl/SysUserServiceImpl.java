@@ -14,7 +14,6 @@ import com.gk.platform.entity.SysUserEntity;
 import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.service.SysRoleService;
 import com.gk.platform.service.SysRoleUserService;
-import com.gk.platform.service.SysUserPostService;
 import com.gk.platform.service.SysUserService;
 import com.gk.platform.service.SysUserSubjectService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntity> implements SysUserService {
-    private final SysUserPostService sysUserPostService;
     private final SysUserSubjectService sysUserSubjectService;
     private final SysRoleService sysRoleService;
     private final SysRoleUserService sysRoleUserService;
@@ -86,7 +84,6 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         dto.setId(entity.getId());
 
         saveSubjectAndRoles(entity.getId(), dto);
-        sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
     }
 
     @Override
@@ -101,7 +98,6 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
 
         updateById(entity);
         saveSubjectAndRoles(entity.getId(), dto);
-        sysUserPostService.saveOrUpdate(entity.getId(), dto.getPostIdList());
     }
 
     @Override
@@ -123,7 +119,6 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         baseDao.deleteBatchIds(Arrays.asList(ids));
         sysUserSubjectService.deleteByUserIds(ids);
         sysRoleUserService.deleteByUserIds(ids);
-        sysUserPostService.deleteByUserIds(ids);
     }
 
     @Override

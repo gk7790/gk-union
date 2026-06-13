@@ -64,6 +64,10 @@ public class BizKeyUtils {
         return "LH" + encodeId(IdWorker.getId());
     }
 
+    public static String genMerchantBalanceAdjustOrderNo() {
+        return "MBA" + encodeId(IdWorker.getId());
+    }
+
     public static String genShortCode() {
         return randomUpperCode(SHORT_CODE_LENGTH);
     }

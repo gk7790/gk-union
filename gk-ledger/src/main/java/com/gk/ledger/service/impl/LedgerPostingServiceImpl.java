@@ -2,6 +2,7 @@ package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
@@ -11,6 +12,7 @@ import com.gk.ledger.enums.LedgerJournalSourceEnum;
 import com.gk.ledger.enums.LedgerJournalStatusEnum;
 import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.ledger.enums.LedgerPostingEventEnum;
+import com.gk.ledger.enums.MerchantBalanceAdjustTypeEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
@@ -22,6 +24,7 @@ import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.entity.LedgerHoldEntity;
 import com.gk.ledger.entity.LedgerJournalEntity;
 import com.gk.ledger.posting.LedgerPostingResult;
+import com.gk.ledger.posting.MerchantBalanceAdjustPostingRequest;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerAccountService;
@@ -279,8 +282,63 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         return LedgerPostingResult.posted(journal.getJournalNo(), hold.getHoldNo());
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerPostingResult postMerchantBalanceAdjust(MerchantBalanceAdjustPostingRequest request) {
+        MerchantBalanceAdjustTypeEnum adjustType = validateMerchantBalanceAdjust(request);
+        String eventType = adjustType.eventType();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType);
+        if (existed != null) {
+            return LedgerPostingResult.existed(existed.getJournalNo(), null);
+        }
+
+        BigDecimal amount = scale(request.getAmount());
+        LedgerAccountEntity systemClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+
+        List<PostingLine> lines;
+        if (adjustType.increase()) {
+            lines = List.of(
+                    new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), amount, "Merchant balance manual increase"),
+                    new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), amount, "Merchant balance manual increase")
+            );
+        } else {
+            lines = List.of(
+                    new PostingLine(merchantAvailable, LedgerDirectionEnum.DEBIT.code(), amount, "Merchant balance manual decrease"),
+                    new PostingLine(systemClearing, LedgerDirectionEnum.CREDIT.code(), amount, "Merchant balance manual decrease")
+            );
+        }
+
+        LedgerJournalEntity journal = createJournal(
+                request.getTenantId(),
+                BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(),
+                request.getBizId(),
+                request.getAdjustOrderNo(),
+                eventType,
+                request.getCurrency(),
+                amount,
+                lines.size(),
+                request.getTraceId(),
+                request.getReason(),
+                LedgerJournalSourceEnum.MANUAL.code(),
+                request.getReverseOfJournalNo()
+        );
+        if (journal == null) {
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
+        }
+        postEntries(journal, lines);
+        return LedgerPostingResult.posted(journal.getJournalNo());
+    }
+
     private LedgerJournalEntity createJournal(Long tenantId, String bizType, Long bizId, String bizNo, String eventType,
                                               String currency, BigDecimal totalAmount, int entryCount, String traceId, String remark) {
+        return createJournal(tenantId, bizType, bizId, bizNo, eventType, currency, totalAmount, entryCount, traceId, remark,
+                LedgerJournalSourceEnum.ORDER.code(), null);
+    }
+
+    private LedgerJournalEntity createJournal(Long tenantId, String bizType, Long bizId, String bizNo, String eventType,
+                                              String currency, BigDecimal totalAmount, int entryCount, String traceId,
+                                              String remark, String sourceType, String reverseOfJournalNo) {
         LedgerJournalEntity journal = new LedgerJournalEntity();
         journal.setTenantId(tenantId);
         journal.setJournalNo(BizKeyUtils.genLedgerJournalNo());
@@ -293,7 +351,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         journal.setEntryCount(entryCount);
         journal.setIdempotencyKey(idempotencyKey(bizNo, eventType));
         journal.setStatus(LedgerJournalStatusEnum.POSTED.code());
-        journal.setSourceType(LedgerJournalSourceEnum.ORDER.code());
+        journal.setSourceType(sourceType);
+        journal.setReverseOfJournalNo(reverseOfJournalNo);
         journal.setTraceId(traceId);
         journal.setPostedAt(Instant.now());
         journal.setRemark(remark);
@@ -499,6 +558,19 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (request.getTotalDebitAmount() != null && !positive(request.getTotalDebitAmount())) {
             throw new IllegalArgumentException("Invalid payout posting request: totalDebitAmount");
         }
+    }
+
+    private MerchantBalanceAdjustTypeEnum validateMerchantBalanceAdjust(MerchantBalanceAdjustPostingRequest request) {
+        if (request == null || request.getTenantId() == null || request.getMerchantId() == null
+                || StringUtils.isBlank(request.getAdjustOrderNo()) || StringUtils.isBlank(request.getCurrency())
+                || !positive(request.getAmount())) {
+            throw new IllegalArgumentException("Invalid merchant balance adjust posting request");
+        }
+        MerchantBalanceAdjustTypeEnum adjustType = StringCodeEnum.fromCode(MerchantBalanceAdjustTypeEnum.class, request.getAdjustType());
+        if (adjustType == null) {
+            throw new IllegalArgumentException("Invalid merchant balance adjust type");
+        }
+        return adjustType;
     }
 
     private boolean positive(BigDecimal value) {

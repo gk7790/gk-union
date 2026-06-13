@@ -1,6 +1,7 @@
 package com.gk.ledger.service;
 
 import com.gk.ledger.posting.LedgerPostingResult;
+import com.gk.ledger.posting.MerchantBalanceAdjustPostingRequest;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 
@@ -60,4 +61,22 @@ public interface LedgerPostingService {
      * @return 结果
      */
     LedgerPostingResult releasePayout(PayoutPostingRequest request);
+
+    /**
+     * 运营手工充值入账。
+     *
+     * 将一笔商户余额调整单过账到总账：
+     * 1. 校验租户、商户、币种、金额、调整单号等必填参数；
+     * 2. 使用调整单号 + 事件类型做幂等控制，避免重复充值；
+     * 3. 生成 ledger_journal 账务凭证，source_type = MANUAL；
+     * 4. 生成两条 ledger_entry 分录：
+     *    - 借：SYSTEM_CLEARING 系统清算账户
+     *    - 贷：MERCHANT_AVAILABLE 商户可用余额账户
+     * 5. 更新 ledger_balance，使商户可用余额增加；
+     * 6. 返回入账凭证号 journalNo，供 merchant_balance_adjust_order 回填。
+     * 注意：该方法只处理“充值/增加余额”场景。
+     * 如果后续要统一支持充值、扣减、冲正、补账，建议使用更通用的
+     * postMerchantBalanceAdjust(...)，通过 adjustType 区分 RECHARGE/DEDUCT/REVERSE/SUPPLEMENT。
+     */
+    LedgerPostingResult postMerchantBalanceAdjust(MerchantBalanceAdjustPostingRequest request);
 }

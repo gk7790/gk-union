@@ -2,10 +2,13 @@ package com.gk.psp.adapter.world;
 
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
+import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -85,6 +88,72 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setRawResponseJson("{\"code\":200,\"message\":\"success\",\"data\":{\"system_order_id\":\""
                 + PSP_PAYOUT_ORDER_NO + "\",\"merchant_order_id\":\"" + order.getPayoutOrderNo() + "\"}}");
         return result;
+    }
+
+    @Override
+    public PspOrderQueryResult queryPayOrder(PayOrderEntity order, PspRouteResult route) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("merchant_order_id", order.getPayOrderNo());
+        params.put("system_order_id", StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAY_ORDER_NO));
+        params.put("sign", WorldPspSignUtils.sign(params, route.getPspAccountApiSecret()));
+
+        return PspOrderQueryResult.builder()
+                .success(true)
+                .pspCode(route.getPspCode())
+                .systemOrderNo(order.getPayOrderNo())
+                .merchantOrderNo(order.getMerchantOrderNo())
+                .pspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAY_ORDER_NO))
+                .pspStatus(PayOrderStatusEnum.PROCESSING.code())
+                .orderStatus(PayOrderStatusEnum.PROCESSING.code())
+                .amount(order.getAmount())
+                .currency(order.getCurrency())
+                .pspRequestNo("PRQ_DEMO_WORLD_PAY_QUERY")
+                .requestUrl(defaultBaseUrl(route) + "/open-api/query-pay-order")
+                .httpMethod("POST")
+                .requestHeadersJson("{\"Content-Type\":\"application/x-www-form-urlencoded\"}")
+                .requestBody(WorldPspSignUtils.canonicalText(params) + "&sign=" + params.get("sign"))
+                .responseStatus(200)
+                .responseCode("200")
+                .responseMessage("success")
+                .responseSign("0a8b3c95541e092a63577724b9c66e24")
+                .rawResponseJson("{\"code\":200,\"message\":\"success\",\"data\":{\"system_order_id\":\""
+                        + StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAY_ORDER_NO)
+                        + "\",\"merchant_order_id\":\"" + order.getPayOrderNo()
+                        + "\",\"status\":\"PROCESSING\"}}")
+                .build();
+    }
+
+    @Override
+    public PspOrderQueryResult queryPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("merchant_order_id", order.getPayoutOrderNo());
+        params.put("system_order_id", StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAYOUT_ORDER_NO));
+        params.put("sign", WorldPspSignUtils.sign(params, route.getPspAccountApiSecret()));
+
+        return PspOrderQueryResult.builder()
+                .success(true)
+                .pspCode(route.getPspCode())
+                .systemOrderNo(order.getPayoutOrderNo())
+                .merchantOrderNo(order.getMerchantOrderNo())
+                .pspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAYOUT_ORDER_NO))
+                .pspStatus(PayoutOrderStatusEnum.PROCESSING.code())
+                .orderStatus(PayoutOrderStatusEnum.PROCESSING.code())
+                .amount(order.getAmount())
+                .currency(order.getCurrency())
+                .pspRequestNo("PRQ_DEMO_WORLD_PAYOUT_QUERY")
+                .requestUrl(defaultBaseUrl(route) + "/open-api/query-payout-order")
+                .httpMethod("POST")
+                .requestHeadersJson("{\"Content-Type\":\"application/x-www-form-urlencoded\"}")
+                .requestBody(WorldPspSignUtils.canonicalText(params) + "&sign=" + params.get("sign"))
+                .responseStatus(200)
+                .responseCode("200")
+                .responseMessage("success")
+                .responseSign("0a8b3c95541e092a63577724b9c66e24")
+                .rawResponseJson("{\"code\":200,\"message\":\"success\",\"data\":{\"system_order_id\":\""
+                        + StringUtils.defaultIfBlank(order.getPspOrderNo(), PSP_PAYOUT_ORDER_NO)
+                        + "\",\"merchant_order_id\":\"" + order.getPayoutOrderNo()
+                        + "\",\"status\":\"PROCESSING\"}}")
+                .build();
     }
 
     private String defaultBaseUrl(PspRouteResult route) {

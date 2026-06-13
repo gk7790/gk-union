@@ -52,6 +52,10 @@ public class BizKeyUtils {
         return "MNT" + encodeId(IdWorker.getId());
     }
 
+    public static String genOrderStatusLogNo() {
+        return "OSL" + encodeId(IdWorker.getId());
+    }
+
     public static String genLedgerJournalNo() {
         return "LJ" + encodeId(IdWorker.getId());
     }

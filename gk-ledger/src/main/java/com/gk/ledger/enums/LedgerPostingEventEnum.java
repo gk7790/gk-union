@@ -7,6 +7,7 @@ import com.gk.common.enums.StringCodeEnum;
  */
 public enum LedgerPostingEventEnum implements StringCodeEnum {
     PAY_SUCCESS("PAY_SUCCESS", "代收成功", "enum.ledgerPostingEvent.paySuccess"),
+    SETTLE_RELEASE("SETTLE_RELEASE", "结算释放", "enum.ledgerPostingEvent.settleRelease"),
     PAYOUT_FREEZE("PAYOUT_FREEZE", "代付冻结", "enum.ledgerPostingEvent.payoutFreeze"),
     PAYOUT_SUCCESS("PAYOUT_SUCCESS", "代付成功", "enum.ledgerPostingEvent.payoutSuccess"),
     PAYOUT_FAILED("PAYOUT_FAILED", "代付失败", "enum.ledgerPostingEvent.payoutFailed");

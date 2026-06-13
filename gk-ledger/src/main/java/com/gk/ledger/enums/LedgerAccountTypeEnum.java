@@ -7,6 +7,7 @@ import com.gk.common.enums.StringCodeEnum;
  */
 public enum LedgerAccountTypeEnum implements StringCodeEnum {
     MERCHANT_AVAILABLE("MERCHANT_AVAILABLE", "商户可用", "enum.ledgerAccountType.merchantAvailable"),
+    MERCHANT_PENDING_SETTLE("MERCHANT_PENDING_SETTLE", "商户待结算", "enum.ledgerAccountType.merchantPendingSettle"),
     MERCHANT_FROZEN("MERCHANT_FROZEN", "商户冻结", "enum.ledgerAccountType.merchantFrozen"),
     SYSTEM_CLEARING("SYSTEM_CLEARING", "系统清算", "enum.ledgerAccountType.systemClearing"),
     PLATFORM_FEE_INCOME("PLATFORM_FEE_INCOME", "平台手续费收入", "enum.ledgerAccountType.platformFeeIncome");

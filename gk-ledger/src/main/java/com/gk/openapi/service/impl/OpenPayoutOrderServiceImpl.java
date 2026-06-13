@@ -23,6 +23,7 @@ import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
+import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.fee.PspFeeResult;
@@ -55,6 +56,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final LedgerPostingService ledgerPostingService;
     private final ObjectMapper objectMapper;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
+    private final OrderStatusLogService orderStatusLogService;
 
     @Override
     public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
@@ -159,6 +161,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private boolean insertOrder(PayoutOrderEntity entity) {
         try {
             payoutOrderDao.insert(entity);
+            recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", null, "MERCHANT");
             return true;
         } catch (DuplicateKeyException ex) {
             PayoutOrderEntity existed = payoutOrderDao.selectOne(
@@ -210,6 +213,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     private void applyDispatchResult(PayoutOrderEntity entity, PspPayoutDispatchResult result) {
+        String fromStatus = entity.getStatus();
         entity.setPspRequestNo(result.getPspRequestNo());
         entity.setPspOrderNo(result.getPspOrderNo());
         entity.setPspRawStatus(result.getRawStatus());
@@ -217,26 +221,61 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             entity.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
             entity.setSubmittedAt(Instant.now());
+            entity.setNextQueryAt(Instant.now().plusSeconds(60));
+            recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
         }
         entity.setStatus(PayoutOrderStatusEnum.FAILED.code());
         entity.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
         entity.setFailCode(result.getErrorCode());
         entity.setFailMsg(StringUtils.left(result.getErrorMessage(), 512));
-        entity.setStatusReason(StringUtils.defaultIfBlank(
+        String reason = StringUtils.defaultIfBlank(
                 result.getErrorMessage(),
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP payout submit failed")
-        ));
+        );
+        entity.setStatusReason(reason);
         entity.setFailedAt(Instant.now());
+        recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT_FAILED", reason, "SYSTEM");
     }
 
     private void markFailed(PayoutOrderEntity entity, String reason, String failCode) {
+        String fromStatus = entity.getStatus();
         entity.setStatus(PayoutOrderStatusEnum.FAILED.code());
-        entity.setStatusReason(StringUtils.defaultIfBlank(reason, "Payout order failed"));
+        String message = StringUtils.defaultIfBlank(reason, "Payout order failed");
+        entity.setStatusReason(message);
         entity.setFailCode(failCode);
         entity.setFailMsg(StringUtils.left(reason, 512));
         entity.setFailedAt(Instant.now());
         payoutOrderDao.updateById(entity);
+        recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
+    }
+
+    private void recordStatusChange(PayoutOrderEntity entity,
+                                    String fromStatus,
+                                    String toStatus,
+                                    String eventType,
+                                    String reason,
+                                    String operatorType) {
+        orderStatusLogService.recordChange(
+                "PAYOUT",
+                entity.getTenantId(),
+                entity.getMerchantId(),
+                entity.getId(),
+                entity.getPayoutOrderNo(),
+                fromStatus,
+                toStatus,
+                eventType,
+                reason,
+                operatorType,
+                ApiReqContextHolder.getAppId(),
+                entity.getMerchantOrderNo(),
+                traceId()
+        );
+    }
+
+    private String traceId() {
+        ApiReqContext context = ApiReqContextHolder.get();
+        return context == null ? null : context.getTraceId();
     }
 
     private void applyMerchantFee(PayoutOrderEntity entity) {

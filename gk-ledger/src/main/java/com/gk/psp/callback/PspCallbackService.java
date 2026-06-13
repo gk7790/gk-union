@@ -6,6 +6,7 @@ import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.service.PayOrderService;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
 import com.gk.psp.enums.PspCallbackProcessStatusEnum;
 import com.gk.psp.enums.PspCallbackVerifyStatusEnum;
@@ -37,6 +38,7 @@ public class PspCallbackService {
     private final PspCallbackNotifyCreator notifyCreator;
     private final LedgerPostingService ledgerPostingService;
     private final PspCallbackValidator callbackValidator;
+    private final PayOrderService payOrderService;
 
     @Transactional(rollbackFor = Exception.class)
     public String handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
@@ -76,6 +78,10 @@ public class PspCallbackService {
             if (orderChanged && terminal) {
                 LedgerPostingResult postingResult = postLedger(bizType, result, order);
                 orderProcessor.attachPostingResult(bizType, order.id(), result.getOrderStatus(), postingResult);
+                if (BizTypeEnum.PAY_ORDER.matches(bizType)
+                        && PayOrderStatusEnum.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
+                    payOrderService.onPaySuccessPosted(order.id());
+                }
                 notifyCreator.create(bizType, result, order, logEntity);
             }
 

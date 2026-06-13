@@ -4,14 +4,54 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.OrderStatusLogDao;
 import com.gk.payment.dto.OrderStatusLogDTO;
 import com.gk.payment.entity.OrderStatusLogEntity;
 import com.gk.payment.service.OrderStatusLogService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OrderStatusLogServiceImpl extends CrudServiceImpl<OrderStatusLogDao, OrderStatusLogEntity, OrderStatusLogDTO> implements OrderStatusLogService {
+
+    @Override
+    public void recordChange(String orderType,
+                             Long tenantId,
+                             Long merchantId,
+                             Long orderId,
+                             String orderNo,
+                             String fromStatus,
+                             String toStatus,
+                             String eventType,
+                             String reason,
+                             String operatorType,
+                             String operatorId,
+                             String requestId,
+                             String traceId) {
+        if (tenantId == null || orderId == null || StringUtils.isBlank(orderNo) || StringUtils.isBlank(toStatus)) {
+            return;
+        }
+        if (StringUtils.equals(fromStatus, toStatus)) {
+            return;
+        }
+        OrderStatusLogEntity entity = new OrderStatusLogEntity();
+        entity.setTenantId(tenantId);
+        entity.setMerchantId(merchantId);
+        entity.setLogNo(BizKeyUtils.genOrderStatusLogNo());
+        entity.setOrderType(orderType);
+        entity.setOrderId(orderId);
+        entity.setOrderNo(orderNo);
+        entity.setFromStatus(fromStatus);
+        entity.setToStatus(toStatus);
+        entity.setEventType(StringUtils.defaultIfBlank(eventType, toStatus));
+        entity.setReason(StringUtils.left(reason, 512));
+        entity.setOperatorType(StringUtils.defaultIfBlank(operatorType, "SYSTEM"));
+        entity.setOperatorId(operatorId);
+        entity.setRequestId(requestId);
+        entity.setTraceId(traceId);
+        baseDao.insert(entity);
+    }
 
     @Override
     public QueryWrapper<OrderStatusLogEntity> getWrapper(DynMap params) {

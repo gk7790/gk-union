@@ -7,18 +7,20 @@ import com.gk.ledger.posting.PayoutPostingRequest;
 public interface LedgerPostingService {
 
     /**
-     * PAY_SUCCESS
-     * 代收成功入账
-     * 代收 = 买家付钱进来给商户。PSP 收到钱后，平台给商户记一笔可用余额（扣掉手续费）。
-     * 入参 PaySuccessPostingRequest：amount（订单额）、merchantFeeAmount（手续费）、settleAmount（待结算 = amount − 手续费）。
-     * 借贷分录（示意）：
-     * PSP 清算账户 PSP_CLEARING ← 收到 amount
-     * 商户可用 MERCHANT_AVAILABLE ← 增加 settleAmount
-     * 平台手续费收入 ← 增加 merchantFeeAmount
-     * 返回只有 journalNo（无 holdNo，代收不涉及冻结）。
-     * @param request 参数
+     * PAY_SUCCESS — 代收成功入账至待结算账户（非可用）。
+     * 借贷分录：
+     * SYSTEM_CLEARING 借 settleAmount + feeAmount
+     * MERCHANT_PENDING_SETTLE 贷 settleAmount
+     * PLATFORM_FEE_INCOME 贷 merchantFeeAmount
      */
     LedgerPostingResult postPaySuccess(PaySuccessPostingRequest request);
+
+    /**
+     * SETTLE_RELEASE — 待结算释放至商户可用。
+     * MERCHANT_PENDING_SETTLE 借 settleAmount
+     * MERCHANT_AVAILABLE 贷 settleAmount
+     */
+    LedgerPostingResult releasePaySettle(PaySuccessPostingRequest request);
 
     /**
      * 代付冻结

@@ -7,5 +7,8 @@ import lombok.Data;
 public class BalanceResponse {
     private String accountNo;
     private String currency;
+    /** 可代付/提现的可用余额 */
     private String balance;
+    /** 代收成功尚未释放的待结算余额 */
+    private String pendingSettleBalance;
 }

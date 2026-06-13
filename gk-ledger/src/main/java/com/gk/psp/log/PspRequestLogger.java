@@ -10,6 +10,7 @@ import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.entity.PspRequestLogEntity;
+import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;
 import com.gk.psp.service.PspRequestLogService;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,42 @@ public class PspRequestLogger {
         submit(entity);
     }
 
+    public void payQuerySuccess(PayOrderEntity order, PspRouteResult route, PspOrderQueryResult result, long costMs) {
+        PspRequestLogEntity entity = baseEntity(order, route, null);
+        applyQueryResult(entity, result, defaultPayQueryUrl(route), costMs);
+        submit(entity);
+    }
+
+    public void payQueryFailed(PayOrderEntity order, PspRouteResult route, Throwable throwable, long costMs) {
+        PspRequestLogEntity entity = baseEntity(order, route, null);
+        entity.setRequestUrl(defaultPayQueryUrl(route));
+        entity.setHttpMethod(DEFAULT_HTTP_METHOD);
+        entity.setRequestBody(sanitizeText(toJson(payRequestSnapshot(order, route))));
+        entity.setSuccess(0);
+        entity.setErrorCode("PSP_PAY_QUERY_FAILED");
+        entity.setErrorMsg(StringUtils.left(throwable == null ? null : throwable.getMessage(), 1024));
+        entity.setCostMs(costMs);
+        submit(entity);
+    }
+
+    public void payoutQuerySuccess(PayoutOrderEntity order, PspRouteResult route, PspOrderQueryResult result, long costMs) {
+        PspRequestLogEntity entity = baseEntity(order, route, null);
+        applyQueryResult(entity, result, defaultPayoutQueryUrl(route), costMs);
+        submit(entity);
+    }
+
+    public void payoutQueryFailed(PayoutOrderEntity order, PspRouteResult route, Throwable throwable, long costMs) {
+        PspRequestLogEntity entity = baseEntity(order, route, null);
+        entity.setRequestUrl(defaultPayoutQueryUrl(route));
+        entity.setHttpMethod(DEFAULT_HTTP_METHOD);
+        entity.setRequestBody(sanitizeText(toJson(payoutRequestSnapshot(order, route))));
+        entity.setSuccess(0);
+        entity.setErrorCode("PSP_PAYOUT_QUERY_FAILED");
+        entity.setErrorMsg(StringUtils.left(throwable == null ? null : throwable.getMessage(), 1024));
+        entity.setCostMs(costMs);
+        submit(entity);
+    }
+
     private PspRequestLogEntity baseEntity(PayOrderEntity order, PspRouteResult route, PspPayDispatchResult result) {
         PspRequestLogEntity entity = new PspRequestLogEntity();
         entity.setTenantId(order == null ? null : order.getTenantId());
@@ -169,6 +206,36 @@ public class PspRequestLogger {
             return null;
         }
         return StringUtils.removeEnd(route.getPspBaseUrl(), "/") + "/open-api/create-payout-order";
+    }
+
+    private void applyQueryResult(PspRequestLogEntity entity, PspOrderQueryResult result, String defaultUrl, long costMs) {
+        entity.setRequestNo(StringUtils.defaultIfBlank(result.getPspRequestNo(), entity.getRequestNo()));
+        entity.setPspRequestNo(result.getPspRequestNo());
+        entity.setPspOrderNo(result.getPspOrderNo());
+        entity.setRequestUrl(StringUtils.defaultIfBlank(result.getRequestUrl(), defaultUrl));
+        entity.setHttpMethod(StringUtils.defaultIfBlank(result.getHttpMethod(), DEFAULT_HTTP_METHOD));
+        entity.setRequestHeadersJson(sanitizeText(result.getRequestHeadersJson()));
+        entity.setRequestBody(sanitizeText(result.getRequestBody()));
+        entity.setResponseStatus(result.getResponseStatus());
+        entity.setResponseBody(sanitizeText(result.getRawResponseJson()));
+        entity.setSuccess(result.isSuccess() ? 1 : 0);
+        entity.setErrorCode(result.getErrorCode());
+        entity.setErrorMsg(StringUtils.left(result.getErrorMessage(), 1024));
+        entity.setCostMs(costMs);
+    }
+
+    private String defaultPayQueryUrl(PspRouteResult route) {
+        if (route == null || StringUtils.isBlank(route.getPspBaseUrl())) {
+            return null;
+        }
+        return StringUtils.removeEnd(route.getPspBaseUrl(), "/") + "/open-api/query-pay-order";
+    }
+
+    private String defaultPayoutQueryUrl(PspRouteResult route) {
+        if (route == null || StringUtils.isBlank(route.getPspBaseUrl())) {
+            return null;
+        }
+        return StringUtils.removeEnd(route.getPspBaseUrl(), "/") + "/open-api/query-payout-order";
     }
 
     private void submit(PspRequestLogEntity entity) {

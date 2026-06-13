@@ -2,8 +2,10 @@ package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.dispatch.PspPayDispatchResult;
+import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -44,5 +46,31 @@ public class DemoPspPayAdapter implements PspPayAdapter {
         result.setResponseMessage("success");
         result.setRawResponseJson("{\"code\":200,\"message\":\"success\"}");
         return result;
+    }
+
+    @Override
+    public PspOrderQueryResult queryPayOrder(PayOrderEntity order, PspRouteResult route) {
+        String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_PAY_BASE_URL);
+        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getPayOrderNo());
+        return PspOrderQueryResult.builder()
+                .success(true)
+                .pspCode(route.getPspCode())
+                .systemOrderNo(order.getPayOrderNo())
+                .merchantOrderNo(order.getMerchantOrderNo())
+                .pspOrderNo(pspOrderNo)
+                .pspStatus(PayOrderStatusEnum.PROCESSING.code())
+                .orderStatus(PayOrderStatusEnum.PROCESSING.code())
+                .amount(order.getAmount())
+                .currency(order.getCurrency())
+                .pspRequestNo(BizKeyUtils.genPspRequestNo())
+                .requestUrl(baseUrl + "/open-api/query-pay-order")
+                .httpMethod("POST")
+                .requestHeadersJson("{\"Content-Type\":\"application/json\"}")
+                .requestBody("{\"merchant_order_id\":\"" + order.getPayOrderNo() + "\"}")
+                .responseStatus(200)
+                .responseCode("200")
+                .responseMessage("success")
+                .rawResponseJson("{\"code\":200,\"message\":\"success\",\"status\":\"PROCESSING\"}")
+                .build();
     }
 }

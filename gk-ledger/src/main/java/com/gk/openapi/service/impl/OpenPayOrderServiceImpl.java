@@ -21,6 +21,7 @@ import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
+import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayDispatchService;
 import com.gk.psp.fee.PspFeeResult;
@@ -33,6 +34,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,6 +50,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final PspPayDispatchService pspPayDispatchService;
     private final ObjectMapper objectMapper;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
+    private final OrderStatusLogService orderStatusLogService;
 
     @Override
     public PayOrderResponse create(PayOrderCreateRequest request) {
@@ -104,6 +107,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
         entity.setStatus(PayOrderStatusEnum.CREATED.code());
         entity.setSettleStatus(SettleStatusEnum.PENDING.code());
+        entity.setQueryCount(0);
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
 
@@ -120,6 +124,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private boolean insertOrder(PayOrderEntity entity) {
         try {
             payOrderDao.insert(entity);
+            recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", null, "MERCHANT");
             return true;
         } catch (DuplicateKeyException ex) {
             PayOrderEntity existed = payOrderDao.selectOne(
@@ -184,6 +189,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * @param result 请求结果
      */
     private void applyDispatchResult(PayOrderEntity entity, PspPayDispatchResult result) {
+        String fromStatus = entity.getStatus();
         entity.setPspRequestNo(result.getPspRequestNo());
         entity.setPspOrderNo(result.getPspOrderNo());
         entity.setPspPayUrl(result.getPayUrl());
@@ -192,14 +198,18 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         if (result.isSuccess()) {
             entity.setStatus(PayOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
+            entity.setNextQueryAt(Instant.now().plusSeconds(60));
+            recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
         }
         entity.setStatus(PayOrderStatusEnum.FAILED.code());
         entity.setPspStatus(PayOrderStatusEnum.FAILED.code());
-        entity.setStatusReason(StringUtils.defaultIfBlank(
+        String reason = StringUtils.defaultIfBlank(
                 result.getErrorMessage(),
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
-        ));
+        );
+        entity.setStatusReason(reason);
+        recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT_FAILED", reason, "SYSTEM");
     }
 
     /**
@@ -208,9 +218,40 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * @param reason 失败原因
      */
     private void markFailed(PayOrderEntity entity, String reason) {
+        String fromStatus = entity.getStatus();
         entity.setStatus(PayOrderStatusEnum.FAILED.code());
-        entity.setStatusReason(StringUtils.defaultIfBlank(reason, "Pay order failed"));
+        String message = StringUtils.defaultIfBlank(reason, "Pay order failed");
+        entity.setStatusReason(message);
         payOrderDao.updateById(entity);
+        recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
+    }
+
+    private void recordStatusChange(PayOrderEntity entity,
+                                    String fromStatus,
+                                    String toStatus,
+                                    String eventType,
+                                    String reason,
+                                    String operatorType) {
+        orderStatusLogService.recordChange(
+                "PAY",
+                entity.getTenantId(),
+                entity.getMerchantId(),
+                entity.getId(),
+                entity.getPayOrderNo(),
+                fromStatus,
+                toStatus,
+                eventType,
+                reason,
+                operatorType,
+                ApiReqContextHolder.getAppId(),
+                entity.getMerchantOrderNo(),
+                traceId()
+        );
+    }
+
+    private String traceId() {
+        ApiReqContext context = ApiReqContextHolder.get();
+        return context == null ? null : context.getTraceId();
     }
 
     private String toJson(Map<String, Object> value) {

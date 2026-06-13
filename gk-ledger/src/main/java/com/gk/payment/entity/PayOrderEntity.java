@@ -63,8 +63,11 @@ public class PayOrderEntity extends SimpleEntity {
     private String pspRawStatus;
     private String pspPayUrl;
     private String pspPayParamsJson;
+    private Instant nextQueryAt;
+    private Integer queryCount;
     private String ledgerJournalNo;
     private String settleStatus;
+    private Instant settleReleaseAt;
     private Instant settleAt;
     private String settleJournalNo;
     private String outboxEventId;

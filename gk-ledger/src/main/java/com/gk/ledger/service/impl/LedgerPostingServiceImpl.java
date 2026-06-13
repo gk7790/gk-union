@@ -68,10 +68,10 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         requireNonNegative(feeAmount, "merchantFeeAmount");
         List<PostingLine> lines = new ArrayList<>();
         LedgerAccountEntity systemClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), request.getCurrency());
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
         if (positive(settleAmount)) {
-            lines.add(new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), settleAmount, "Pay success settlement"));
-            lines.add(new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Pay success settlement"));
+            lines.add(new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), settleAmount, "Pay success pending settlement"));
+            lines.add(new PostingLine(merchantPending, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Pay success pending settlement"));
         }
         if (positive(feeAmount)) {
             LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), request.getCurrency());
@@ -90,6 +90,47 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 lines.size(),
                 request.getTraceId(),
                 "Pay success posting"
+        );
+        if (journal == null) {
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
+        }
+        postEntries(journal, lines);
+        return LedgerPostingResult.posted(journal.getJournalNo());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerPostingResult releasePaySettle(PaySuccessPostingRequest request) {
+        validatePaySuccess(request);
+        String eventType = LedgerPostingEventEnum.SETTLE_RELEASE.code();
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType);
+        if (existed != null) {
+            return LedgerPostingResult.existed(existed.getJournalNo(), null);
+        }
+
+        BigDecimal settleAmount = amountOrDefault(request.getSettleAmount(), request.getAmount().subtract(defaultZero(request.getMerchantFeeAmount())));
+        requireNonNegative(settleAmount, "settleAmount");
+        if (!positive(settleAmount)) {
+            throw new IllegalArgumentException("Invalid settle release amount");
+        }
+        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+        List<PostingLine> lines = List.of(
+                new PostingLine(merchantPending, LedgerDirectionEnum.DEBIT.code(), settleAmount, "Settle release to available"),
+                new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Settle release to available")
+        );
+
+        LedgerJournalEntity journal = createJournal(
+                request.getTenantId(),
+                BizTypeEnum.PAY_ORDER.code(),
+                request.getBizId(),
+                request.getPayOrderNo(),
+                eventType,
+                request.getCurrency(),
+                settleAmount,
+                lines.size(),
+                request.getTraceId(),
+                "Pay settle release posting"
         );
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
@@ -363,7 +404,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
 
     private LedgerAccountEntity account(Long tenantId, String ownerType, Long ownerId, String accountType, String currency) {
         if (SubjectTypeEnum.MERCHANT.code().equals(ownerType)
-                && (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(accountType) || LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType))) {
+                && (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(accountType)
+                || LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)
+                || LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(accountType))) {
             return ledgerAccountService.requireMerchantAccount(tenantId, ownerId, accountType, currency);
         }
         LedgerAccountEntity account = ledgerAccountDao.selectOne(new QueryWrapper<LedgerAccountEntity>()

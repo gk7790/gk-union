@@ -6,7 +6,9 @@ import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
+import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import lombok.RequiredArgsConstructor;
@@ -21,22 +23,32 @@ import java.util.function.Consumer;
 public class PspCallbackOrderProcessor {
     private final PayOrderDao payOrderDao;
     private final PayoutOrderDao payoutOrderDao;
+    private final OrderStatusLogService orderStatusLogService;
 
     public boolean process(String bizType, PspCallbackResult result, PspCallbackOrder order, LedgerPostingResult postingResult) {
+        String fromStatus = order.status();
         String targetStatus = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
         if (PayOrderStatusEnum.PROCESSING.code().equals(targetStatus)) {
-            if (PspCallbackUtils.isTerminal(order.status())) {
+            if (PspCallbackUtils.isTerminal(fromStatus)) {
                 return false;
             }
-            return update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
+            boolean updated = update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
+            if (updated) {
+                recordChange(bizType, order, fromStatus, PayOrderStatusEnum.PROCESSING.code(), statusEventType(bizType, PayOrderStatusEnum.PROCESSING.code()), result);
+            }
+            return updated;
         }
         if (!PspCallbackUtils.isTerminal(targetStatus)) {
             throw new IllegalStateException("Unsupported callback order status");
         }
-        if (targetStatus.equals(order.status()) || PspCallbackUtils.isTerminal(order.status())) {
+        if (targetStatus.equals(fromStatus) || PspCallbackUtils.isTerminal(fromStatus)) {
             return false;
         }
-        return update(bizType, order.id(), wrapper -> applyTerminal(bizType, wrapper, result, order, targetStatus, postingResult));
+        boolean updated = update(bizType, order.id(), wrapper -> applyTerminal(bizType, wrapper, result, order, targetStatus, postingResult));
+        if (updated) {
+            recordChange(bizType, order, fromStatus, targetStatus, statusEventType(bizType, targetStatus), result);
+        }
+        return updated;
     }
 
     public void attachPostingResult(String bizType, Long orderId, String targetStatus, LedgerPostingResult postingResult) {
@@ -71,9 +83,11 @@ public class PspCallbackOrderProcessor {
             if (success) {
                 wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
                         .set("paid_at", now)
+                        .set("settle_status", SettleStatusEnum.PENDING.code())
                         .set(journalNo != null, "ledger_journal_no", journalNo);
             } else {
-                wrapper.set("failed_at", now);
+                wrapper.set("failed_at", now)
+                        .set("settle_status", SettleStatusEnum.CANCELLED.code());
             }
             return;
         }
@@ -122,5 +136,33 @@ public class PspCallbackOrderProcessor {
         wrapper.eq("id", id);
         setter.accept(wrapper);
         return dao.update(null, wrapper) > 0;
+    }
+
+    private void recordChange(String bizType, PspCallbackOrder order, String fromStatus, String toStatus,
+                              String eventType, PspCallbackResult result) {
+        orderStatusLogService.recordChange(
+                orderType(bizType),
+                order.tenantId(),
+                order.merchantId(),
+                order.id(),
+                order.orderNo(),
+                fromStatus,
+                toStatus,
+                eventType,
+                result == null ? null : result.getErrorMessage(),
+                "PSP",
+                order.pspCode(),
+                null,
+                null
+        );
+    }
+
+    private String orderType(String bizType) {
+        return BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+    }
+
+    private String statusEventType(String bizType, String status) {
+        String prefix = BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+        return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 }

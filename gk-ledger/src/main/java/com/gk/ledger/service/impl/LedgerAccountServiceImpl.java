@@ -62,6 +62,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     public void provisionMerchantAccounts(Long tenantId, Long merchantId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
         requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), normalizedCurrency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), normalizedCurrency);
         requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_FROZEN.code(), normalizedCurrency);
     }
 

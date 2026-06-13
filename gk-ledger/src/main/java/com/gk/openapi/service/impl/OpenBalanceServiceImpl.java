@@ -15,7 +15,10 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,12 +38,14 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
                 .eq("tenant_id", ApiReqContextHolder.getTenantId())
                 .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
                 .eq("owner_id", ApiReqContextHolder.getMerchantId())
-                .eq("account_type", LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code())
+                .in("account_type",
+                        LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(),
+                        LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code())
                 .eq("status", 1);
         if (StringUtils.isNotBlank(currency)) {
             accountWrapper.eq("currency", currency.trim().toUpperCase(Locale.ROOT));
         }
-        accountWrapper.orderByAsc("currency");
+        accountWrapper.orderByAsc("currency", "account_type");
         List<LedgerAccountEntity> accounts = ledgerAccountDao.selectList(accountWrapper);
         if (accounts.isEmpty()) {
             return Collections.emptyList();
@@ -54,13 +59,28 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
                 ).stream()
                 .collect(Collectors.toMap(LedgerBalanceEntity::getAccountId, Function.identity(), (left, right) -> left));
 
-        return accounts.stream().map(account -> {
+        Map<String, BalanceResponse> byCurrency = new LinkedHashMap<>();
+        for (LedgerAccountEntity account : accounts) {
+            BalanceResponse response = byCurrency.computeIfAbsent(account.getCurrency(), key -> {
+                BalanceResponse item = new BalanceResponse();
+                item.setCurrency(key);
+                item.setBalance(formatMoney(BigDecimal.ZERO, key));
+                item.setPendingSettleBalance(formatMoney(BigDecimal.ZERO, key));
+                return item;
+            });
             LedgerBalanceEntity balance = balanceMap.get(account.getId());
-            BalanceResponse response = new BalanceResponse();
-            response.setAccountNo(account.getAccountNo());
-            response.setCurrency(account.getCurrency());
-            response.setBalance(ApiAmountUtils.formatCurrencyAmount(balance == null ? null : balance.getBalance(), account.getCurrency()));
-            return response;
-        }).toList();
+            BigDecimal amount = balance == null ? BigDecimal.ZERO : balance.getBalance();
+            if (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(account.getAccountType())) {
+                response.setAccountNo(account.getAccountNo());
+                response.setBalance(formatMoney(amount, account.getCurrency()));
+            } else if (LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(account.getAccountType())) {
+                response.setPendingSettleBalance(formatMoney(amount, account.getCurrency()));
+            }
+        }
+        return new ArrayList<>(byCurrency.values());
+    }
+
+    private String formatMoney(BigDecimal value, String currency) {
+        return ApiAmountUtils.formatCurrencyAmount(value, currency);
     }
 }

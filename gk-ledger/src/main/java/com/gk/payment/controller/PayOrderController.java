@@ -47,6 +47,15 @@ public class PayOrderController {
         return R.ok(payOrderService.get(id));
     }
 
+    @PostMapping("{id}/release-settle")
+    @Operation(summary = "手动释放待结算", description = "将代收成功且 settle_status=PENDING 的订单释放至商户可用余额")
+    @PreAuthorize("hasAuthority('payment:pay-order:release-settle')")
+    public R<Void> releaseSettle(@PathVariable("id") Long id) {
+        AssertUtils.isNull(id, "id");
+        payOrderService.releaseSettle(id);
+        return R.ok();
+    }
+
     @PostMapping("{id}/notify")
     @Operation(summary = "手动通知商户", description = "立即同步重发; 成功提示通知成功, 失败返回 msg, 详情见通知记录")
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")

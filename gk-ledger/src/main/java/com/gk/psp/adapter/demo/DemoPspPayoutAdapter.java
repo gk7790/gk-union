@@ -2,8 +2,10 @@ package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
+import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -44,5 +46,31 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
         result.setResponseMessage("success");
         result.setRawResponseJson("{\"code\":200,\"message\":\"success\"}");
         return result;
+    }
+
+    @Override
+    public PspOrderQueryResult queryPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
+        String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_BASE_URL);
+        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getPayoutOrderNo());
+        return PspOrderQueryResult.builder()
+                .success(true)
+                .pspCode(route.getPspCode())
+                .systemOrderNo(order.getPayoutOrderNo())
+                .merchantOrderNo(order.getMerchantOrderNo())
+                .pspOrderNo(pspOrderNo)
+                .pspStatus(PayoutOrderStatusEnum.PROCESSING.code())
+                .orderStatus(PayoutOrderStatusEnum.PROCESSING.code())
+                .amount(order.getAmount())
+                .currency(order.getCurrency())
+                .pspRequestNo(BizKeyUtils.genPspRequestNo())
+                .requestUrl(baseUrl + "/open-api/query-payout-order")
+                .httpMethod("POST")
+                .requestHeadersJson("{\"Content-Type\":\"application/json\"}")
+                .requestBody("{\"merchant_order_id\":\"" + order.getPayoutOrderNo() + "\"}")
+                .responseStatus(200)
+                .responseCode("200")
+                .responseMessage("success")
+                .rawResponseJson("{\"code\":200,\"message\":\"success\",\"status\":\"PROCESSING\"}")
+                .build();
     }
 }

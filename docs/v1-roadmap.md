@@ -1,106 +1,94 @@
-# 国际四方 V1 实施计划（按优先级）
+我这次按代码现状重新梳理了一遍，不只看旧文档。整体判断：**后台基础、商户、订单、账务、PSP 路由、回调、商户通知这些骨架已经比较完整；但第一版真正上线还差“真实 PSP 调用 + OpenAPI 安全 + 补偿任务 + 状态轨迹/隔离”这几个关键闭环。**
 
-> 目标（V1 验收标准）：**能稳定完成一笔代收、一笔代付，钱账正确，可追溯，可补偿**。
-> 验收的关键不是功能多，而是每一笔钱从订单 → PSP → 账务 → 余额 → 通知都能闭环追踪。
+**当前业务主链路**
+代收链路现在是：
 
-本文档基于对当前代码库的盘点，给出"接下来要做什么"的优先级路线图。
+商户调用 `/api/v1/pay/create` → 创建 `pay_order` → 算商户手续费 → 选 PSP 路由 → 调 PSP 适配器 → 更新订单为处理中 → PSP 回调 → 验签/幂等/金额校验 → 订单成功 → 账务入账 → 创建商户通知任务 → 定时任务发通知。
 
----
+主要入口在 [OpenApiV1Controller.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/openapi/controller/OpenApiV1Controller.java:62)，订单编排在 [OpenPayOrderServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/openapi/service/impl/OpenPayOrderServiceImpl.java:52)，回调闭环在 [PspCallbackService.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/callback/PspCallbackService.java:51)。
 
-## 一、现状结论
+代付链路现在是：
 
-项目的"骨架和账务内核"已经比较扎实，但**主链路目前是"假的"——尚未跑通真实资金闭环**。
+商户调用 `/api/v1/payout/create` → 创建 `payout_order` → 算手续费 → 冻结商户可用余额 → 选 PSP 路由 → 调 PSP 适配器 → PSP 回调成功则扣冻结，失败则解冻 → 创建商户通知任务。
 
-### 已经做得不错（DONE）
+入口在 [OpenPayoutOrderServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/openapi/service/impl/OpenPayoutOrderServiceImpl.java:59)，冻结账务已经接到 [LedgerPostingServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/ledger/service/impl/LedgerPostingServiceImpl.java:103)。
 
-| 领域 | 说明 |
-|------|------|
-| IAM | 用户/主体/角色/部门/租户、登录 JWT、`@PreAuthorize` + 超管绕过、租户开通 `onboard()` |
-| 账务内核 | `LedgerPostingServiceImpl` 真正的复式记账（journal→entry→balance，悲观锁 + 幂等）；代收入账、代付冻结/成功/解冻 |
-| 订单编排 | `OpenPayOrderServiceImpl` / `OpenPayoutOrderServiceImpl`（幂等、算费、路由、派发）、PSP 路由选择、回调解析（World 验签） |
-| 日志 | PSP 请求日志、商户请求日志、Telegram 机器人入站 |
+**已经完成的逻辑功能**
+- 商户管理：商户创建、商户号生成、默认结算参数、创建时自动开账。
+  位置：[MerchantServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/merchant/service/impl/MerchantServiceImpl.java:63)
 
-### 致命缺口（卡住 V1 闭环）
+- 商户应用：`app_id/api_secret` 自动生成、密钥重置、列表脱敏。
+  位置：[MerchantAppServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/merchant/service/impl/MerchantAppServiceImpl.java:71)
 
-1. **没有真实 PSP HTTP 调用** —— 所有 submit 适配器（demo/world）都返回写死的假单号，钱根本没动。
-2. **开放 API 签名/时间戳校验被注释掉**（`OpenApiAuthFilter` 124-127 行）—— 等于没鉴权。
-3. **商户通知只建了 task，没有发送器/重试** —— 商户永远收不到回调，闭环断裂。
-4. **没有任何业务定时任务** —— 补单查询、超时关单、通知重试、结算释放全缺（`gk-scheduler` 只有 `testTask`）。
-5. **结算生命周期不流转** —— `settleStatus`/`settleAt` 字段有，但没人改（待结算永远到不了可用）。
-6. **商户 app 没有 app_id/api_secret 生成逻辑** —— 商户没法接入。
-7. **开户没自动建 ledger_account** —— 下单时账户可能不存在。
-8. **`@DataScope` 写好了却没挂到任何方法上** —— 多租户后台查询存在越权风险。
-9. **Outbox 只有建表 SQL，没 Java 实现。**
+- OpenAPI 基础接口：余额查询、支付方式查询、代收创建/查询、代付创建/查询。
+  位置：[OpenApiV1Controller.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/openapi/controller/OpenApiV1Controller.java:43)
 
----
+- PSP 基础配置：provider、method、account、route rule、fee rule、request log、callback log 的表、CRUD 和后台接口基本都有。
 
-## 二、计划（按优先级）
+- PSP 路由：按租户、商户、应用、国家、币种、支付方式、方向、金额、优先级选路由。
+  位置：[PspRouteSelectorImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/route/impl/PspRouteSelectorImpl.java:1)
 
-### 🔴 P0 —— 打通"一笔真实资金闭环"（不做无法上线）
+- 账务核心：账户、余额、凭证、分录、冻结明细已经建模；代收入账、代付冻结、代付成功、代付失败解冻都有实现。
+  位置：[LedgerPostingServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/ledger/service/impl/LedgerPostingServiceImpl.java:57)
 
-> 验收：用真实 PSP 沙箱，商户签名调一笔代收 → 成功回调 → 入账 → 商户收到带签名的通知；代付同理。
+- PSP 回调处理：回调日志、解析、验签、订单状态更新、终态校验、账务过账、创建商户通知任务已经串起来。
+  位置：[PspCallbackService.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/callback/PspCallbackService.java:66)
 
-| # | 任务 | 关键改动点 |
-|---|------|-----------|
-| P0-1 | **接入 1 个真实 PSP（HTTP 落地）** | 把 `WorldPspSubmitAdapter` 的写死返回换成真实 `RestClient` 调用（参考 `TgBotApiClient` 写法），打通下单/查单/代付；补 `DemoPspCallbackAdapter` 让 demo 链路可本地端到端自测 |
-| P0-2 | **重新开启开放 API 鉴权** | 放开 `OpenApiAuthFilter` 的 `validateTimestamp()` + `validateSortedParamSignature()`，nonce 改为强制 |
-| P0-3 | **商户 app 凭证发放** | `MerchantAppServiceImpl` 保存时生成 `app_id`/`api_secret`、密钥加密存储、提供重置/轮换接口 |
-| P0-4 | **开户自动建账** | 商户 onboarding/创建时自动 `ledger_account` 开户（代收待结算、可用、冻结等账户） |
-| P0-5 | **商户通知发送器（闭环关键）** | `gk-scheduler` 加 worker：扫 `merchant_notify_task` 的 `INIT` → HMAC 签名 → HTTP POST → 写 `merchant_notify_record` → 失败退避重试；后台支持手动重发 |
+- 商户异步通知：通知任务、通知记录、HTTP POST、签名、重试、死信、手动重发已经有了。
+  位置：[MerchantNotifyExecutor.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/payment/notify/MerchantNotifyExecutor.java:42)，Quartz 种子在 [v1_merchant_notify_job.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/v1_merchant_notify_job.sql:9)
 
-### 🟠 P1 —— 可补偿 / 可追溯（V1 验收硬指标）
+- 后台查询：商户、商户应用、PSP 配置、订单、账务、通知任务/记录、请求日志等基础后台接口已经铺开。
 
-| # | 任务 | 关键改动点 |
-|---|------|-----------|
-| P1-1 | **业务定时任务** | 基于现成 Quartz 框架建 `ITask` 实现 + 种子 job：代收超时关单、代付/代收 PROCESSING 状态补查询、通知重试 |
-| P1-2 | **结算释放** | `settleStatus` 流转 + 待结算→可用的 ledger 过账（T+N） |
-| P1-3 | **订单状态轨迹** | 在代收/代付流程中真正写 `OrderStatusLogEntity`（目前是空壳） |
+**还差的关键功能**
+- 真实 PSP HTTP 调用还没完成。`WorldPspSubmitAdapter` 现在仍是写死返回，不是真的请求上游。
+  位置：[WorldPspSubmitAdapter.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/adapter/world/WorldPspSubmitAdapter.java:30)
 
-### 🟡 P2 —— 多租户安全加固（SaaS 必须，但不卡资金链路）
+- OpenAPI 鉴权没真正打开。时间戳校验、签名校验被注释，nonce 为空也直接放过。
+  位置：[OpenApiAuthFilter.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/openapi/security/OpenApiAuthFilter.java:123)
 
-| # | 任务 | 关键改动点 |
-|---|------|-----------|
-| P2-1 | **挂载 `@DataScope`** | 加到后台 list/page 方法 + MyBatis XML 加 `${sqlFilter}`，强制 tenant_id/merchant_id 隔离 |
-| P2-2 | **配置安全** | JWT 密钥、PSP 密钥、加密 key 外置到环境变量（现在 `JwtUtils` 硬编码） |
-| P2-3 | **Outbox 机制（可选）** | V1 也可先用通知表代替；如需要再补 producer/consumer/重试 Java 层 |
+- PSP 查单能力缺失。当前 PSP adapter 只有创建代收/代付，没有查询订单状态，所以无法做处理中补单。
+  相关接口：[PspPayAdapter.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/adapter/PspPayAdapter.java:10)
 
-### ⚪ P3 —— 完善与体验（后续迭代）
+- 业务补偿定时任务不足。目前只有商户通知定时任务；还缺代收超时关闭、代收/代付处理中查单、代付异常解冻补偿。
 
-- 自动对账 / 差错处理
-- 多主体登录切换
-- `GET /sys/role/{id}` 与 user `getById` 补全字段
-- `SysI18nController` 补 `@PreAuthorize`
-- `gk-cloak` 风控
-- Telegram 出站队列发送器
-- 集成测试覆盖主链路、关键接口可观测性（日志 / 指标）
+- 订单状态轨迹没写入。`OrderStatusLog` 有表和 CRUD，但主链路没有真正记录状态变更。
+  位置：[OrderStatusLogServiceImpl.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/payment/service/impl/OrderStatusLogServiceImpl.java:14)
 
----
+- 结算模型口径不一致。表里有 `settle_status=PENDING`，但代收成功账务现在直接入商户可用余额。要决定 V1 是“成功即入可用”，还是严格做“待结算 → 可用释放”。
 
-## 三、执行顺序（里程碑）
+- 多租户后台数据隔离还没完全落地。`@DataScope` 基础设施有，但业务查询基本没挂载，存在后台越权查询风险。
 
-| 里程碑 | 内容 | 达成标志 |
-|--------|------|---------|
-| **M1（闭环可演示）** | P0 全部 | 真实跑通一笔代收 + 代付 + 通知 |
-| **M2（可灰度）** | P1 全部 | 补偿机制齐全，敢放真实流量 |
-| **M3（可多租户售卖）** | P2 全部 | 隔离 + 密钥安全达标 |
-| **M4（打磨）** | P3 | 对账、体验、可观测性完善 |
+- Outbox 只有 SQL，没有 Java producer/consumer/重试机制。V1 可以先用商户通知表顶住，但如果要事件驱动补偿，就要补。
+  位置：[v1_mq_schema.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/v1_mq_schema.sql:56)
 
----
+**后续计划**
+P0，先打通可演示闭环：
 
-## 四、V1 业务闭环参考流程
+1. 打开 OpenAPI 安全：恢复时间戳校验、签名校验，nonce 改成必填。
+2. 接入一个真实 PSP 沙箱：把 `WorldPspSubmitAdapter` 改成真实 HTTP 下单。
+3. 给 PSP adapter 增加查单接口：代收查单、代付查单。
+4. 做处理中补单任务：扫 `PROCESSING` 订单，查 PSP，按结果走回调同样的账务/通知逻辑。
+5. 跑通验收：一笔代收成功入账并通知商户；一笔代付冻结、成功扣款或失败解冻并通知商户。
 
-```text
-商户 API 安全 → 订单 → PSP 适配 → 账务 → Outbox/通知 → 定时补偿 → 后台查询
-```
+P1，补可追溯和可补偿：
 
-代收：
-```text
-商户创建 pay_order → 选 PSP → 请求 PSP 下单 → 保存返回 → 接收回调
-→ 校验/幂等 → 代收成功入账 → 建通知任务 → 异步通知商户
-```
+1. 记录 `order_status_log`，所有 CREATED/PROCESSING/SUCCESS/FAILED/CLOSED 都要有轨迹。
+2. 做代收超时关闭任务。
+3. 做代付提交失败/长时间处理中补偿。
+4. 明确结算口径；如果要 T+N，就补待结算账户和释放任务。
 
-代付：
-```text
-商户创建 payout_order → 校验余额 → 冻结余额 → 请求 PSP 代付 → 接收回调/定时补查
-→ 成功扣冻结 / 失败解冻 → 建通知任务 → 异步通知商户
-```
+P2，补上线安全：
+
+1. 给后台 list/page 挂 `@DataScope`，强制 tenant/merchant 隔离。
+2. 商户密钥、PSP 密钥加密存储或至少环境密钥加密。
+3. 完善 request/response 脱敏，避免日志里出现密钥、银行卡、手机号。
+4. 补核心集成测试：代收成功、重复回调、金额不一致、代付成功、代付失败解冻、通知重试。
+
+P3，再做增强：
+
+1. Outbox Java 层实现。
+2. 自动对账和差错处理。
+3. 商户门户或商户自助查询。
+4. 更复杂的 PSP 路由和风控策略。
+
+我建议你下一步就从 **P0-1 OpenAPI 鉴权恢复** 和 **P0-2 真实 PSP 下单/查单接口** 开始。现在项目的骨架已经够用了，真正缺的是把“模拟链路”换成“真实资金链路”。

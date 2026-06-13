@@ -6,7 +6,7 @@ import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.payout.enums.PayoutOrderStatusEnum;
 import com.gk.payment.service.PayOrderService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;

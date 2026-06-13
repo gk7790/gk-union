@@ -12,7 +12,7 @@ import com.gk.ledger.enums.LedgerJournalSourceEnum;
 import com.gk.ledger.enums.LedgerJournalStatusEnum;
 import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.ledger.enums.LedgerPostingEventEnum;
-import com.gk.ledger.enums.MerchantBalanceAdjustTypeEnum;
+import com.gk.adjustment.enums.MerchantBalanceAdjustTypeEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;

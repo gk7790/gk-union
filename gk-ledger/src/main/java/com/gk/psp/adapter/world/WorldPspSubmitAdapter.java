@@ -1,9 +1,9 @@
 package com.gk.psp.adapter.world;
 
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.payout.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.payout.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.dispatch.PspPayDispatchResult;

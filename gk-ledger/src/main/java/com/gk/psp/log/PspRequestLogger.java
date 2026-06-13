@@ -6,7 +6,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.payout.entity.PayoutOrderEntity;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.entity.PspRequestLogEntity;

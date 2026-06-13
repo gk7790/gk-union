@@ -1,8 +1,8 @@
 package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.payout.entity.PayoutOrderEntity;
+import com.gk.payment.payout.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.query.PspOrderQueryResult;

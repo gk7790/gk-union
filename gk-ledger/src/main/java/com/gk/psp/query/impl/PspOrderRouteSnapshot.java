@@ -3,7 +3,7 @@ package com.gk.psp.query.impl;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.payout.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.entity.PspAccountEntity;

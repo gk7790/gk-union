@@ -1,6 +1,6 @@
 package com.gk.psp.adapter;
 
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.payout.entity.PayoutOrderEntity;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;

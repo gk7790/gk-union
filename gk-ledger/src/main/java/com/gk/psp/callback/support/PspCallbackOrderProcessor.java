@@ -7,7 +7,7 @@ import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
-import com.gk.payment.dao.PayoutOrderDao;
+import com.gk.payment.payout.dao.PayoutOrderDao;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;

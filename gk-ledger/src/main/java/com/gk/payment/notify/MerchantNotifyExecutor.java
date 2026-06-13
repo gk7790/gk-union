@@ -7,7 +7,7 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.dao.PayOrderDao;
-import com.gk.payment.payout.dao.PayoutOrderDao;
+import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.common.enums.BizTypeEnum;

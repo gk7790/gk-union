@@ -1,10 +1,10 @@
 package com.gk.payment.notify;
 
 import com.gk.payment.dao.PayOrderDao;
-import com.gk.payment.payout.dao.PayoutOrderDao;
+import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.payout.entity.PayoutOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.payment.enums.MerchantNotifyStatusEnum;
 import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;

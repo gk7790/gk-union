@@ -1,4 +1,4 @@
-package com.gk.payment.payout.entity;
+package com.gk.payment.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.gk.common.core.entity.SimpleEntity;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.gk.tenant.query.dao.TenantMerchantBalanceQueryDao">
+<mapper namespace="com.gk.tenant.dao.MerchantBalanceQueryDao">
     <sql id="merchantBalanceWhere">
         <where>
             <if test="params.tenantId != null">
@@ -28,7 +28,7 @@
         </where>
     </sql>
 
-    <select id="countTenantMerchantBalances" resultType="java.lang.Long">
+    <select id="countMerchantBalances" resultType="java.lang.Long">
         SELECT COUNT(1)
         FROM (
             SELECT m.id, COALESCE(a.currency, m.default_currency) AS currency
@@ -44,7 +44,7 @@
         ) t
     </select>
 
-    <select id="pageTenantMerchantBalances" resultType="com.gk.tenant.query.dto.TenantMerchantBalanceDTO">
+    <select id="pageMerchantBalances" resultType="com.gk.tenant.dto.MerchantBalanceDTO">
         SELECT
             m.tenant_id AS tenantId,
             m.id AS merchantId,

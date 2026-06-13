@@ -2,7 +2,7 @@ package com.gk.psp.dispatch.impl;
 
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
-import com.gk.payment.payout.entity.PayoutOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;

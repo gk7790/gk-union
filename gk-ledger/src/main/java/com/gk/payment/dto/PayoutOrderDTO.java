@@ -1,4 +1,4 @@
-package com.gk.payment.payout.dto;
+package com.gk.payment.dto;
 
 import lombok.Data;
 

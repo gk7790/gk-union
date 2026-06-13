@@ -1,4 +1,4 @@
-package com.gk.payment.payout.controller;
+package com.gk.payment.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
@@ -6,9 +6,9 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
-import com.gk.payment.payout.dto.PayoutOrderDTO;
+import com.gk.payment.dto.PayoutOrderDTO;
 import com.gk.payment.notify.MerchantNotifyExecutor;
-import com.gk.payment.payout.service.PayoutOrderService;
+import com.gk.payment.service.PayoutOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;

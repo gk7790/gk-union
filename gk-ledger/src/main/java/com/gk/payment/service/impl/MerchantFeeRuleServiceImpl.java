@@ -12,7 +12,7 @@ import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.payout.entity.PayoutOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
 import com.gk.payment.fee.MerchantFeeCalculator;
 import com.gk.payment.fee.MerchantFeeResult;

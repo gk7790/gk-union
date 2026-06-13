@@ -1,4 +1,4 @@
-package com.gk.tenant.query.dto;
+package com.gk.tenant.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
-public class TenantMerchantBalanceDTO {
+public class MerchantBalanceDTO {
     @Schema(title = "租户ID")
     private Long tenantId;
     @Schema(title = "商户ID")

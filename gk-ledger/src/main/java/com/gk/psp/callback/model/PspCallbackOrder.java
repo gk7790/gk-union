@@ -1,7 +1,7 @@
 package com.gk.psp.callback.model;
 
 import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.payout.entity.PayoutOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
 
 import java.math.BigDecimal;
 

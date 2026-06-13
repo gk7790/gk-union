@@ -1,4 +1,4 @@
-package com.gk.payment.payout.enums;
+package com.gk.payment.enums;
 
 import com.gk.common.enums.StringCodeEnum;
 

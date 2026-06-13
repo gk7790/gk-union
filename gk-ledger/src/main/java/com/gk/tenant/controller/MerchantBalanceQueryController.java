@@ -1,12 +1,12 @@
-package com.gk.tenant.query.controller;
+package com.gk.tenant.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
-import com.gk.tenant.query.dto.TenantMerchantBalanceDTO;
-import com.gk.tenant.query.service.TenantMerchantBalanceQueryService;
+import com.gk.tenant.dto.MerchantBalanceDTO;
+import com.gk.tenant.service.MerchantBalanceQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/ledger/tenant-merchant-balance")
 @RequiredArgsConstructor
-public class TenantMerchantBalanceQueryController {
-    private final TenantMerchantBalanceQueryService tenantMerchantBalanceQueryService;
+public class MerchantBalanceQueryController {
+    private final MerchantBalanceQueryService merchantBalanceQueryService;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -37,7 +37,7 @@ public class TenantMerchantBalanceQueryController {
     })
     @PreAuthorize("hasAuthority('ledger:tenant-merchant-balance:page')")
     public R<?> page(@RequestMap DynMap params) {
-        PageData<TenantMerchantBalanceDTO> page = tenantMerchantBalanceQueryService.page(params);
+        PageData<MerchantBalanceDTO> page = merchantBalanceQueryService.page(params);
         return R.ok(page);
     }
 }

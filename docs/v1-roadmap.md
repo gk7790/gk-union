@@ -35,7 +35,7 @@
   位置：[PspCallbackService.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/psp/callback/PspCallbackService.java:66)
 
 - 商户异步通知：通知任务、通知记录、HTTP POST、签名、重试、死信、手动重发已经有了。
-  位置：[MerchantNotifyExecutor.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/payment/notify/MerchantNotifyExecutor.java:42)，Quartz 种子在 [v1_merchant_notify_job.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/v1_merchant_notify_job.sql:9)
+  位置：[MerchantNotifyExecutor.java](E:/IdeaProjects/gk-union/gk-ledger/src/main/java/com/gk/payment/notify/MerchantNotifyExecutor.java:42)，Quartz 种子在 [v1_merchant_notify_job.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/payment/v1_merchant_notify_job.sql:9)
 
 - 后台查询：商户、商户应用、PSP 配置、订单、账务、通知任务/记录、请求日志等基础后台接口已经铺开。
 
@@ -59,7 +59,7 @@
 - 多租户后台数据隔离还没完全落地。`@DataScope` 基础设施有，但业务查询基本没挂载，存在后台越权查询风险。
 
 - Outbox 只有 SQL，没有 Java producer/consumer/重试机制。V1 可以先用商户通知表顶住，但如果要事件驱动补偿，就要补。
-  位置：[v1_mq_schema.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/v1_mq_schema.sql:56)
+  位置：[v1_mq_schema.sql](E:/IdeaProjects/gk-union/gk-ledger/src/main/resources/sql/ledger/v1_mq_schema.sql:56)
 
 **后续计划**
 P0，先打通可演示闭环：

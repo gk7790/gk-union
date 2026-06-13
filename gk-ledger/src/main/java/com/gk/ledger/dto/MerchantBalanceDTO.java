@@ -1,4 +1,4 @@
-package com.gk.tenant.dto;
+package com.gk.ledger.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;

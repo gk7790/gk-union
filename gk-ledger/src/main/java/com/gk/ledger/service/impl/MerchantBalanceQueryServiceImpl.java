@@ -1,11 +1,11 @@
-package com.gk.tenant.service.impl;
+package com.gk.ledger.service.impl;
 
 import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.tenant.dao.MerchantBalanceQueryDao;
-import com.gk.tenant.dto.MerchantBalanceDTO;
-import com.gk.tenant.service.MerchantBalanceQueryService;
+import com.gk.ledger.dao.MerchantBalanceQueryDao;
+import com.gk.ledger.dto.MerchantBalanceDTO;
+import com.gk.ledger.service.MerchantBalanceQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

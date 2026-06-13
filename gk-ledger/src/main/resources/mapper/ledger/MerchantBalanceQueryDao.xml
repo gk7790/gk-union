@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.gk.tenant.dao.MerchantBalanceQueryDao">
+<mapper namespace="com.gk.ledger.dao.MerchantBalanceQueryDao">
     <sql id="merchantBalanceWhere">
         <where>
             <if test="params.tenantId != null">
@@ -44,7 +44,7 @@
         ) t
     </select>
 
-    <select id="pageMerchantBalances" resultType="com.gk.tenant.dto.MerchantBalanceDTO">
+    <select id="pageMerchantBalances" resultType="com.gk.ledger.dto.MerchantBalanceDTO">
         SELECT
             m.tenant_id AS tenantId,
             m.id AS merchantId,

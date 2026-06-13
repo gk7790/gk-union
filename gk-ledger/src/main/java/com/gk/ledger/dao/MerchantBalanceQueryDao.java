@@ -1,7 +1,7 @@
-package com.gk.tenant.dao;
+package com.gk.ledger.dao;
 
 import com.gk.common.model.DynMap;
-import com.gk.tenant.dto.MerchantBalanceDTO;
+import com.gk.ledger.dto.MerchantBalanceDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

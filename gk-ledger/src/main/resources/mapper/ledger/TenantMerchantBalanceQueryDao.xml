@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.ledger.query.dao.TenantMerchantBalanceQueryDao">
+    <sql id="merchantBalanceWhere">
+        <where>
+            <if test="params.tenantId != null">
+                AND m.tenant_id = #{params.tenantId}
+            </if>
+            <if test="params.merchantId != null">
+                AND m.id = #{params.merchantId}
+            </if>
+            <if test="params.merchantNo != null and params.merchantNo != ''">
+                AND m.merchant_no = #{params.merchantNo}
+            </if>
+            <if test="params.merchantName != null and params.merchantName != ''">
+                AND m.merchant_name LIKE CONCAT('%', #{params.merchantName}, '%')
+            </if>
+            <if test="params.status != null">
+                AND m.status = #{params.status}
+            </if>
+            <if test="params.riskStatus != null and params.riskStatus != ''">
+                AND m.risk_status = #{params.riskStatus}
+            </if>
+            <if test="params.currency != null and params.currency != ''">
+                AND COALESCE(a.currency, m.default_currency) = #{params.currency}
+            </if>
+        </where>
+    </sql>
+
+    <select id="countTenantMerchantBalances" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM (
+            SELECT m.id, COALESCE(a.currency, m.default_currency) AS currency
+            FROM merchant m
+            LEFT JOIN ledger_account a
+              ON a.tenant_id = m.tenant_id
+             AND a.owner_type = 'MERCHANT'
+             AND a.owner_id = m.id
+            AND a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE')
+             AND a.status = 1
+            <include refid="merchantBalanceWhere"/>
+            GROUP BY m.id, COALESCE(a.currency, m.default_currency)
+        ) t
+    </select>
+
+    <select id="pageTenantMerchantBalances" resultType="com.gk.ledger.query.dto.TenantMerchantBalanceDTO">
+        SELECT
+            m.tenant_id AS tenantId,
+            m.id AS merchantId,
+            m.merchant_no AS merchantNo,
+            m.merchant_name AS merchantName,
+            m.merchant_short_name AS merchantShortName,
+            m.status AS status,
+            m.risk_status AS riskStatus,
+            COALESCE(a.currency, m.default_currency) AS currency,
+            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_AVAILABLE' THEN b.balance ELSE 0 END), 0) AS availableBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_FROZEN' THEN b.balance ELSE 0 END), 0) AS frozenBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettleBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_AVAILABLE' THEN b.balance ELSE 0 END), 0) AS effectiveBalance,
+            COALESCE(SUM(CASE WHEN a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS totalBalance,
+            MAX(b.last_posted_at) AS lastPostedAt
+        FROM merchant m
+        LEFT JOIN ledger_account a
+          ON a.tenant_id = m.tenant_id
+         AND a.owner_type = 'MERCHANT'
+         AND a.owner_id = m.id
+         AND a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE')
+         AND a.status = 1
+        LEFT JOIN ledger_balance b
+          ON b.tenant_id = a.tenant_id
+         AND b.account_id = a.id
+        <include refid="merchantBalanceWhere"/>
+        GROUP BY
+            m.tenant_id,
+            m.id,
+            m.merchant_no,
+            m.merchant_name,
+            m.merchant_short_name,
+            m.status,
+            m.risk_status,
+            COALESCE(a.currency, m.default_currency)
+        ORDER BY m.id DESC
+        LIMIT #{params.limitValue} OFFSET #{params.offset}
+    </select>
+</mapper>

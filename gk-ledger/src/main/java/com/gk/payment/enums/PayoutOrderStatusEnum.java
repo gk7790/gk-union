@@ -9,6 +9,7 @@ public enum PayoutOrderStatusEnum implements StringCodeEnum {
     CREATED("CREATED", "已创建", "enum.payoutOrderStatus.created"),
     FROZEN("FROZEN", "已冻结", "enum.payoutOrderStatus.frozen"),
     PROCESSING("PROCESSING", "处理中", "enum.payoutOrderStatus.processing"),
+    MANUAL_REVIEW("MANUAL_REVIEW", "待人工处理", "enum.payoutOrderStatus.manualReview"),
     SUCCESS("SUCCESS", "成功", "enum.payoutOrderStatus.success"),
     FAILED("FAILED", "失败", "enum.payoutOrderStatus.failed"),
     CANCELLED("CANCELLED", "已取消", "enum.payoutOrderStatus.cancelled");

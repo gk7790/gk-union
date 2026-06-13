@@ -2,16 +2,24 @@ package com.gk.ledger.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.dao.LedgerHoldDao;
 import com.gk.ledger.dto.LedgerHoldDTO;
 import com.gk.ledger.entity.LedgerHoldEntity;
+import com.gk.ledger.enums.LedgerHoldStatusEnum;
 import com.gk.ledger.service.LedgerHoldService;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.List;
+
 @Service
 public class LedgerHoldServiceImpl extends CrudServiceImpl<LedgerHoldDao, LedgerHoldEntity, LedgerHoldDTO> implements LedgerHoldService {
+    private static final int EXPIRED_HOLD_DRAIN_BATCH = 50;
+    private static final String ORDER_HOLD_SCOPE = "ORDER";
+    private static final String EXPIRED_REASON = "Ledger hold expired and requires manual handling";
 
     @Override
     public QueryWrapper<LedgerHoldEntity> getWrapper(DynMap params) {
@@ -40,5 +48,35 @@ public class LedgerHoldServiceImpl extends CrudServiceImpl<LedgerHoldDao, Ledger
         wrapper.eq(StrUtil.isNotBlank(holdScope), "hold_scope", holdScope);
         wrapper.eq(StrUtil.isNotBlank(status), "status", status);
         return wrapper;
+    }
+
+    @Override
+    public int drainExpiredHolds() {
+        Instant now = Instant.now();
+        List<LedgerHoldEntity> holds = baseDao.selectList(new QueryWrapper<LedgerHoldEntity>()
+                .eq("status", LedgerHoldStatusEnum.HOLDING.code())
+                .isNotNull("expired_at")
+                .le("expired_at", now)
+                .orderByAsc("expired_at", "id")
+                .last("limit " + EXPIRED_HOLD_DRAIN_BATCH));
+        int expired = 0;
+        for (LedgerHoldEntity hold : holds) {
+            if (ORDER_HOLD_SCOPE.equalsIgnoreCase(StrUtil.blankToDefault(hold.getHoldScope(), ""))) {
+                continue;
+            }
+            if (markExpired(hold)) {
+                expired++;
+            }
+        }
+        return expired;
+    }
+
+    private boolean markExpired(LedgerHoldEntity hold) {
+        UpdateWrapper<LedgerHoldEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", hold.getId())
+                .eq("status", LedgerHoldStatusEnum.HOLDING.code())
+                .set("status", LedgerHoldStatusEnum.EXPIRED.code())
+                .set("reason", EXPIRED_REASON);
+        return baseDao.update(null, wrapper) > 0;
     }
 }

@@ -14,4 +14,7 @@ public interface PayOrderService extends CrudService<PayOrderEntity, PayOrderDTO
 
     /** 扫描到期 AUTO 订单并释放，供定时任务调用。 */
     int drainDueSettlements();
+
+    /** 扫描超时未支付订单并关闭，供定时任务调用。 */
+    int drainExpiredPayOrders();
 }

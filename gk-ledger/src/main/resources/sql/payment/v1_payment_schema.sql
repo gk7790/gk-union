@@ -153,7 +153,7 @@ CREATE TABLE `payout_order`  (
   `merchant_notify_status` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '下游商户通知状态: NONE/PENDING/SUCCESS/FAILED',
   `merchant_notify_at` datetime(3) NULL DEFAULT NULL COMMENT '下游商户通知完成/最近尝试时间',
   `merchant_notify_task_id` bigint NULL DEFAULT NULL COMMENT '关联商户通知任务ID',
-  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/FROZEN/PROCESSING/SUCCESS/FAILED/CANCELLED',
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'CREATED' COMMENT '状态: CREATED/FROZEN/PROCESSING/MANUAL_REVIEW/SUCCESS/FAILED/CANCELLED',
   `status_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '当前状态原因',
   `submitted_at` datetime(3) NULL DEFAULT NULL COMMENT '提交PSP时间',
   `completed_at` datetime(3) NULL DEFAULT NULL COMMENT '完成时间',

@@ -33,6 +33,8 @@ import java.util.List;
 public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEntity, PayOrderDTO> implements PayOrderService {
 
     private static final int SETTLE_DRAIN_BATCH = 50;
+    private static final int EXPIRE_DRAIN_BATCH = 50;
+    private static final String PAY_ORDER_EXPIRED_REASON = "Pay order expired";
 
     private final MerchantDao merchantDao;
     private final LedgerPostingService ledgerPostingService;
@@ -143,6 +145,61 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
             }
         }
         return released;
+    }
+
+    @Override
+    public int drainExpiredPayOrders() {
+        Instant now = Instant.now();
+        List<PayOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayOrderEntity>()
+                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code())
+                .isNotNull("expire_at")
+                .le("expire_at", now)
+                .isNull("paid_at")
+                .and(wrapper -> wrapper.isNull("paid_amount").or().eq("paid_amount", BigDecimal.ZERO))
+                .orderByAsc("expire_at", "id")
+                .last("limit " + EXPIRE_DRAIN_BATCH));
+        int closed = 0;
+        for (PayOrderEntity order : orders) {
+            try {
+                if (closeExpiredPayOrder(order, now)) {
+                    closed++;
+                }
+            } catch (Exception ex) {
+                log.warn("Pay order close expired failed, orderNo={}, err={}", order.getPayOrderNo(), ex.getMessage());
+            }
+        }
+        return closed;
+    }
+
+    private boolean closeExpiredPayOrder(PayOrderEntity order, Instant now) {
+        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", order.getId())
+                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code())
+                .isNull("paid_at")
+                .and(item -> item.isNull("paid_amount").or().eq("paid_amount", BigDecimal.ZERO))
+                .set("status", PayOrderStatusEnum.CLOSED.code())
+                .set("status_reason", PAY_ORDER_EXPIRED_REASON)
+                .set("closed_at", now)
+                .set("next_query_at", null);
+        if (baseDao.update(null, wrapper) == 0) {
+            return false;
+        }
+        orderStatusLogService.recordChange(
+                "PAY",
+                order.getTenantId(),
+                order.getMerchantId(),
+                order.getId(),
+                order.getPayOrderNo(),
+                order.getStatus(),
+                PayOrderStatusEnum.CLOSED.code(),
+                "ORDER_EXPIRED",
+                PAY_ORDER_EXPIRED_REASON,
+                "SYSTEM",
+                null,
+                order.getMerchantOrderNo(),
+                null
+        );
+        return true;
     }
 
     private boolean shouldAutoRelease(MerchantEntity merchant, Instant releaseAt) {

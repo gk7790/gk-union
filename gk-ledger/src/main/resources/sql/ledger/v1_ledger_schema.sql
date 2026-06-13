@@ -136,7 +136,7 @@ CREATE TABLE `ledger_hold`  (
   `released_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '已释放金额',
   `consumed_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '已消耗金额',
   `remaining_amount` decimal(24, 8) NOT NULL DEFAULT 0.00000000 COMMENT '剩余冻结金额',
-  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'HOLDING' COMMENT '状态: HOLDING/PART_RELEASED/RELEASED/CONSUMED/CANCELLED',
+  `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'HOLDING' COMMENT '状态: HOLDING/PART_RELEASED/EXPIRED/RELEASED/CONSUMED/CANCELLED',
   `hold_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '冻结凭证号',
   `last_release_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '最后释放凭证号',
   `consume_journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '消耗凭证号',

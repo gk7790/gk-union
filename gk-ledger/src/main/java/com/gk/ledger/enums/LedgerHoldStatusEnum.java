@@ -8,6 +8,7 @@ import com.gk.common.enums.StringCodeEnum;
 public enum LedgerHoldStatusEnum implements StringCodeEnum {
     HOLDING("HOLDING", "冻结中", "enum.ledgerHoldStatus.holding"),
     PART_RELEASED("PART_RELEASED", "部分解冻", "enum.ledgerHoldStatus.partReleased"),
+    EXPIRED("EXPIRED", "已过期待处理", "enum.ledgerHoldStatus.expired"),
     RELEASED("RELEASED", "已解冻", "enum.ledgerHoldStatus.released"),
     CONSUMED("CONSUMED", "已消费", "enum.ledgerHoldStatus.consumed"),
     CANCELLED("CANCELLED", "已取消", "enum.ledgerHoldStatus.cancelled");

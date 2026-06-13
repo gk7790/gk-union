@@ -140,6 +140,9 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {
             return "FRZ";
         }
+        if (LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(accountType)) {
+            return "PND";
+        }
         return "AVL";
     }
 

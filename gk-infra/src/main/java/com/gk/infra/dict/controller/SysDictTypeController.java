@@ -125,6 +125,7 @@ public class SysDictTypeController {
         DictData data = new DictData();
         data.setDictLabel(label.getLabel());
         data.setDictValue(label.getValue() == null ? null : String.valueOf(label.getValue()));
+        data.setAttrType(label.getAttrType());
         data.setI18nKey(label.getI18nKey());
         return data;
     }

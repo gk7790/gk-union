@@ -120,6 +120,12 @@ public class SysDictTypeServiceImpl extends BaseServiceImpl<SysDictTypeDao, SysD
             return List.of();
         }
         List<DictData> dataList = sysDictDataDao.getDictDataList(dictType);
-        return dataList.stream().map(e-> new LabelDTO(e.getDictValue(), e.getDictLabel(), e.getI18nKey())).toList();
+        return dataList.stream().map(this::toLabel).toList();
+    }
+
+    private LabelDTO toLabel(DictData data) {
+        LabelDTO label = new LabelDTO(data.getDictValue(), data.getDictLabel(), data.getI18nKey());
+        label.setAttrType(data.getAttrType());
+        return label;
     }
 }

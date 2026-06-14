@@ -1,16 +1,25 @@
 package com.gk.psp.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * PSP 回调处理状态。
  */
 @EnumDict("pspCallbackProcessStatus")
 public enum PspCallbackProcessStatusEnum implements StringCodeEnum {
+    @Style(StyleType.INFO)
     INIT("INIT", "待处理", "enum.pspCallbackProcessStatus.init"),
+
+    @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.pspCallbackProcessStatus.success"),
+
+    @Style(StyleType.DANGER)
     FAILED("FAILED", "失败", "enum.pspCallbackProcessStatus.failed"),
+
+    @Style(StyleType.WARNING)
     IGNORED("IGNORED", "忽略", "enum.pspCallbackProcessStatus.ignored");
 
     private final String code;

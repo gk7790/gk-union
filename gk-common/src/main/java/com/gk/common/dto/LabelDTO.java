@@ -17,6 +17,7 @@ public class LabelDTO {
     private Long pid;
     private Object value;
     private String label;
+    private String attrType;
     private String i18nKey;
     private List<LabelDTO> children;
 

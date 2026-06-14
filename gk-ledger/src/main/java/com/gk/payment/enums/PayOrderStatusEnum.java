@@ -1,17 +1,28 @@
 package com.gk.payment.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 代收订单状态。
  */
 @EnumDict("payOrderStatus")
 public enum PayOrderStatusEnum implements StringCodeEnum {
+    @Style(StyleType.INFO)
     CREATED("CREATED", "已创建", "enum.payOrderStatus.created"),
+
+    @Style(StyleType.PRIMARY)
     PROCESSING("PROCESSING", "处理中", "enum.payOrderStatus.processing"),
+
+    @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.payOrderStatus.success"),
+
+    @Style(StyleType.DANGER)
     FAILED("FAILED", "失败", "enum.payOrderStatus.failed"),
+
+    @Style(StyleType.DANGER)
     CLOSED("CLOSED", "已关闭", "enum.payOrderStatus.closed");
 
     private final String code;

@@ -1,7 +1,9 @@
 package com.gk.payment.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.Instant;
@@ -17,9 +19,16 @@ import java.util.Locale;
  */
 @EnumDict("settleStatus")
 public enum SettleStatusEnum implements StringCodeEnum {
+    @Style(StyleType.WARNING)
     PENDING("PENDING", "待结算", "enum.settleStatus.pending"),
+
+    @Style(StyleType.SUCCESS)
     RELEASED("RELEASED", "已释放", "enum.settleStatus.released"),
+
+    @Style(StyleType.WARNING)
     HELD("HELD", "已冻结", "enum.settleStatus.held"),
+
+    @Style(StyleType.DANGER)
     CANCELLED("CANCELLED", "已取消", "enum.settleStatus.cancelled");
 
     private final String code;

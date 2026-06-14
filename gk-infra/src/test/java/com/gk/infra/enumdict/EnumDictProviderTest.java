@@ -1,8 +1,10 @@
 package com.gk.infra.enumdict;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.enums.SimpleEnum;
+import com.gk.common.enums.StyleType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,10 +26,12 @@ class EnumDictProviderTest {
         assertFalse(dicts.containsKey("sampleHidden"));
         assertFalse(dicts.containsKey("samplePlain"));
         assertEquals("A", dicts.get("sampleVisible").getFirst().getValue());
+        assertEquals("success", dicts.get("sampleVisible").getFirst().getAttrType());
     }
 
     @EnumDict("sampleVisible")
     enum SampleVisibleEnum implements SimpleEnum<String> {
+        @Style(StyleType.SUCCESS)
         A("A", "A label", "enum.sample.a");
 
         private final String code;

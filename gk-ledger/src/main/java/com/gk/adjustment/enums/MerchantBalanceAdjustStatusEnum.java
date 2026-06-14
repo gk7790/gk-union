@@ -1,12 +1,19 @@
 package com.gk.adjustment.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 @EnumDict("merchantBalanceAdjustStatus")
 public enum MerchantBalanceAdjustStatusEnum implements StringCodeEnum {
+    @Style(StyleType.INFO)
     CREATED("CREATED", "已创建", "enum.merchantBalanceAdjustStatus.created"),
+
+    @Style(StyleType.SUCCESS)
     POSTED("POSTED", "已入账", "enum.merchantBalanceAdjustStatus.posted"),
+
+    @Style(StyleType.DANGER)
     FAILED("FAILED", "失败", "enum.merchantBalanceAdjustStatus.failed");
 
     private final String code;

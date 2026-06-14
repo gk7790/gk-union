@@ -1,14 +1,21 @@
 package com.gk.infra.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.SimpleEnum;
+import com.gk.common.enums.StyleType;
 
 import java.util.List;
 
 @EnumDict("status")
 public enum StatusEnum implements SimpleEnum<Integer> {
+    @Style(StyleType.SUCCESS)
     NORMAL(1, "正常", "enum.status.normal"),
+
+    @Style(StyleType.WARNING)
     PAUSE(2, "暂停", "enum.status.pause"),
+
+    @Style(StyleType.DANGER)
     STOP(3, "停用", "enum.status.stop");
 
     private final Integer code;

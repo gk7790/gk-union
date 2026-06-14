@@ -1,16 +1,25 @@
 package com.gk.psp.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * PSP 回调验签状态。
  */
 @EnumDict("pspCallbackVerifyStatus")
 public enum PspCallbackVerifyStatusEnum implements StringCodeEnum {
+    @Style(StyleType.INFO)
     INIT("INIT", "待验签", "enum.pspCallbackVerifyStatus.init"),
+
+    @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.pspCallbackVerifyStatus.success"),
+
+    @Style(StyleType.DANGER)
     FAILED("FAILED", "失败", "enum.pspCallbackVerifyStatus.failed"),
+
+    @Style(StyleType.INFO)
     SKIPPED("SKIPPED", "跳过", "enum.pspCallbackVerifyStatus.skipped");
 
     private final String code;

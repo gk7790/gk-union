@@ -1,6 +1,7 @@
 package com.gk.psp.log;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.openapi.security.ApiReqContext;
@@ -37,16 +38,13 @@ public class PspRequestLogger {
     private static final String DEFAULT_HTTP_METHOD = "POST";
 
     private final PspRequestLogService pspRequestLogService;
-    private final ObjectMapper objectMapper;
     private final Executor pspRequestLogExecutor;
 
     public PspRequestLogger(
             PspRequestLogService pspRequestLogService,
-            ObjectMapper objectMapper,
             @Qualifier("pspRequestLogExecutor") Executor pspRequestLogExecutor
     ) {
         this.pspRequestLogService = pspRequestLogService;
-        this.objectMapper = objectMapper;
         this.pspRequestLogExecutor = pspRequestLogExecutor;
     }
 
@@ -342,7 +340,7 @@ public class PspRequestLogger {
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(value);
+            return JSON.toJSONString(value, JSONWriter.Feature.WriteMapNullValue);
         } catch (Exception ex) {
             return null;
         }

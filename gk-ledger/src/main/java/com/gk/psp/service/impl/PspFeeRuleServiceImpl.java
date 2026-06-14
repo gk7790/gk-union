@@ -1,11 +1,13 @@
 package com.gk.psp.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.entity.PayOrderEntity;
@@ -31,10 +33,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
-    private static final int STATUS_ENABLED = 1;
-
-    private final ObjectMapper objectMapper;
-
     @Override
     public QueryWrapper<PspFeeRuleEntity> getWrapper(DynMap params) {
         QueryWrapper<PspFeeRuleEntity> wrapper = new QueryWrapper<>();
@@ -137,7 +135,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 .eq("psp_id", pspId)
                 .eq("direction", direction)
                 .eq("currency", normalize(currency))
-                .eq("status", STATUS_ENABLED)
+                .eq("status", StatusEnum.NORMAL.code())
                 .and(w -> w.eq("psp_account_id", pspAccountId).or().isNull("psp_account_id"))
                 .and(w -> w.eq("psp_method_id", pspMethodId).or().isNull("psp_method_id"))
                 .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
@@ -195,11 +193,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         snapshot.put("feeFixed", decimalText(rule.getFeeFixed()));
         snapshot.put("minFee", decimalText(rule.getMinFee()));
         snapshot.put("maxFee", decimalText(rule.getMaxFee()));
-        try {
-            return objectMapper.writeValueAsString(snapshot);
-        } catch (Exception ex) {
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
-        }
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
     }
 
     private String decimalText(BigDecimal value) {

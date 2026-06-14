@@ -1,6 +1,8 @@
 package com.gk.openapi.service.impl;
 
+import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.alibaba.fastjson2.JSON;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
@@ -507,7 +509,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setPayeePhoneHash(sha256Hex(phone));
         entity.setPayeeEmailMask(maskEmail(email));
         entity.setPayeeEmailHash(sha256Hex(email));
-        entity.setPayeeJson(toJson(payeeSnapshot(payeeName, accountNo, bankCode, walletType, phone, email)));
+        entity.setPayeeJson(JSON.toJSONString(
+                payeeSnapshot(payeeName, accountNo, bankCode, walletType, phone, email),
+                JSONWriter.Feature.WriteMapNullValue
+        ));
     }
 
     /**
@@ -536,7 +541,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         snapshot.put("pspMethodCode", route.getPspMethodCode());
         snapshot.put("pspAccountId", route.getPspAccountId());
         snapshot.put("pspAccountNo", route.getPspAccountNo());
-        return toJson(snapshot);
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
     }
 
     /**

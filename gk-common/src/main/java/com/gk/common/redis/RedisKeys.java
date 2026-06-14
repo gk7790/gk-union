@@ -118,6 +118,35 @@ public class RedisKeys {
         return "openapi:rate:" + module + ":" + key;
     }
 
+    public static String getLoginIpWhitelistKey(String subjectType, Long tenantId, Long merchantId, Long subjectId) {
+        return "sys:login-ip-whitelist:"
+                + nullToAll(subjectType) + ":"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(merchantId) + ":"
+                + nullToAll(subjectId);
+    }
+
+    public static String getLoginIpWhitelistPattern() {
+        return "sys:login-ip-whitelist:*";
+    }
+
+    public static String getApiIpWhitelistKey(String apiType, Long tenantId, Long merchantId, Long merchantAppId, String appId) {
+        return "sys:api-ip-whitelist:"
+                + nullToAll(apiType) + ":"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(merchantId) + ":"
+                + nullToAll(merchantAppId) + ":"
+                + nullToAll(appId);
+    }
+
+    public static String getApiIpWhitelistPattern() {
+        return "sys:api-ip-whitelist:*";
+    }
+
+    private static String nullToAll(Object value) {
+        return value == null ? "*" : String.valueOf(value);
+    }
+
 
     /**
      * redis 会员用户有效时间

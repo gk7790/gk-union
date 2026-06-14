@@ -10,12 +10,12 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.infra.ipwhitelist.service.SysApiIpWhitelistService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.log.MerchantRequestLogger;
 import com.gk.openapi.tools.ApiR;
 import com.gk.openapi.util.ApiSignUtils;
-import com.gk.openapi.util.IpWhitelistUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -53,6 +53,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     private final RedisUtils redisUtils;
     private final MerchantRequestLogger merchantRequestLogger;
     private final ObjectMapper objectMapper;
+    private final SysApiIpWhitelistService sysApiIpWhitelistService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -108,7 +109,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         }
 
         String clientIp = getClientIp(request);
-        if (!IpWhitelistUtils.allowed(clientIp, app.getIpWhitelistJson())) {
+        if (!sysApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), app.getId(), app.getAppId(), clientIp)) {
             throw new ApiException(ApiErrorCode.INVALID_IP);
         }
 

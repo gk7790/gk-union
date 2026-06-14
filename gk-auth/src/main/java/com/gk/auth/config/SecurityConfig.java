@@ -9,6 +9,7 @@ import com.gk.auth.oauth.JsonUsernamePasswordAuthenticationFilter;
 import com.gk.auth.oauth.JwtAuthenticationFilter;
 import com.gk.auth.service.JpaUserDetailsService;
 import com.gk.auth.utils.JwtUtils;
+import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -46,16 +47,18 @@ import java.util.stream.Collectors;
 @EnableMethodSecurity
 public class SecurityConfig {
     private final JpaUserDetailsService userDetailsService;
+    private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
 
-    public SecurityConfig(JpaUserDetailsService userDetailsService) {
+    public SecurityConfig(JpaUserDetailsService userDetailsService, SysLoginIpWhitelistService sysLoginIpWhitelistService) {
         this.userDetailsService = userDetailsService;
+        this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
     }
 
     /**
      * JSON 登录过滤器
      */
     private JsonUsernamePasswordAuthenticationFilter jsonAuthenticationFilter(AuthenticationManager authManager) {
-        JsonUsernamePasswordAuthenticationFilter filter = new JsonUsernamePasswordAuthenticationFilter();
+        JsonUsernamePasswordAuthenticationFilter filter = new JsonUsernamePasswordAuthenticationFilter(sysLoginIpWhitelistService);
         filter.setAuthenticationManager(authManager);
         filter.setFilterProcessesUrl("/auth/login");
         filter.setAuthenticationSuccessHandler(loginSuccessHandler());

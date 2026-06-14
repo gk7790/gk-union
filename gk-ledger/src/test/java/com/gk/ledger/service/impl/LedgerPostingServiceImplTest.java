@@ -2,6 +2,7 @@ package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
@@ -234,7 +235,7 @@ class LedgerPostingServiceImplTest {
         account.setCurrency("PHP");
         account.setNormalSide(normalSide);
         account.setAllowNegative(0);
-        account.setStatus(1);
+        account.setStatus(StatusEnum.NORMAL.code());
         return account;
     }
 

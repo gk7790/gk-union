@@ -2,6 +2,7 @@ package com.gk.psp.route.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.entity.PayOrderEntity;
@@ -27,8 +28,6 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class PspRouteSelectorImpl implements PspRouteSelector {
-    private static final int STATUS_ENABLED = 1;
-
     private final PspRouteRuleDao pspRouteRuleDao;
     private final PspProviderDao pspProviderDao;
     private final PspMethodDao pspMethodDao;
@@ -79,7 +78,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                         .eq("currency", currency)
                         .eq("method_code", methodCode)
                         .eq("direction", direction)
-                        .eq("status", STATUS_ENABLED)
+                        .eq("status", StatusEnum.NORMAL.code())
                         .and(wrapper -> wrapper.isNull("merchant_id").or().eq("merchant_id", merchantId))
                         .and(wrapper -> wrapper.isNull("merchant_app_id").or().eq("merchant_app_id", merchantAppId))
                         .and(wrapper -> wrapper.isNull("min_amount").or().le("min_amount", amount))
@@ -116,7 +115,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {
         PspProviderEntity provider = pspProviderDao.selectById(pspId);
-        if (provider == null || !Integer.valueOf(STATUS_ENABLED).equals(provider.getStatus())) {
+        if (provider == null || !StatusEnum.NORMAL.code().equals(provider.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
         }
         boolean supported = PayDirectionEnum.PAYOUT.code().equals(direction)
@@ -130,7 +129,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
 
     private PspMethodEntity requireMethod(Long pspMethodId) {
         PspMethodEntity method = pspMethodDao.selectById(pspMethodId);
-        if (method == null || !Integer.valueOf(STATUS_ENABLED).equals(method.getStatus())) {
+        if (method == null || !StatusEnum.NORMAL.code().equals(method.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP method is not available");
         }
         return method;
@@ -138,7 +137,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
 
     private PspAccountEntity requirePspAccount(Long pspAccountId) {
         PspAccountEntity account = pspAccountDao.selectById(pspAccountId);
-        if (account == null || !Integer.valueOf(STATUS_ENABLED).equals(account.getStatus())) {
+        if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP account is not available");
         }
         return account;

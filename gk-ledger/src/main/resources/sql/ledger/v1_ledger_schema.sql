@@ -31,7 +31,7 @@ CREATE TABLE `ledger_account`  (
   `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种: USD/CNY/BRL/INR等',
   `normal_side` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户余额方向: DEBIT/CREDIT',
   `allow_negative` tinyint NOT NULL DEFAULT 0 COMMENT '是否允许负余额: 0否 1是',
-  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
   `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',

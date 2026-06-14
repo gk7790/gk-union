@@ -1,6 +1,7 @@
 package com.gk.openapi.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.dto.PaymentMethodResponse;
 import com.gk.openapi.service.OpenPaymentMethodService;
 import com.gk.psp.dao.PspMethodDao;
@@ -19,7 +20,7 @@ public class OpenPaymentMethodServiceImpl implements OpenPaymentMethodService {
 
     @Override
     public List<PaymentMethodResponse> list(String countryCode, String currency, String direction) {
-        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<PspMethodEntity>().eq("status", 1);
+        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<PspMethodEntity>().eq("status", StatusEnum.NORMAL.code());
         if (StringUtils.isNotBlank(countryCode)) {
             wrapper.eq("country_code", countryCode);
         }

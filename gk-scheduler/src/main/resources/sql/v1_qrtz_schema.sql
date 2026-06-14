@@ -220,7 +220,7 @@ CREATE TABLE `schedule_job`  (
   `bean_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'spring bean名称',
   `params` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '参数',
   `cron_expression` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'cron表达式',
-  `status` tinyint UNSIGNED NULL DEFAULT NULL COMMENT '任务状态  0：暂停  1：正常',
+  `status` tinyint UNSIGNED NULL DEFAULT 1 COMMENT '任务状态: 1正常 2暂停 3停用',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建者',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',

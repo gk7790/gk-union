@@ -2,6 +2,7 @@ package com.gk.platform.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.BaseServiceImpl;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.platform.dao.SysUserSubjectDao;
 import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.service.SysUserSubjectService;
@@ -25,7 +26,7 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
         SysUserSubjectEntity existed = baseDao.selectOne(new QueryWrapper<SysUserSubjectEntity>().eq("user_id", userId).last("limit 1"));
         if (existed == null) {
             if (subject.getStatus() == null) {
-                subject.setStatus(1);
+                subject.setStatus(StatusEnum.NORMAL.code());
             }
             insert(subject);
             return subject;

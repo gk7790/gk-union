@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dto.LedgerAccountDTO;
@@ -28,7 +29,6 @@ import java.util.Locale;
 public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, LedgerAccountEntity, LedgerAccountDTO> implements LedgerAccountService {
 
     private static final int MONEY_SCALE = 8;
-    private static final int STATUS_ENABLED = 1;
 
     private final LedgerBalanceDao ledgerBalanceDao;
 
@@ -84,7 +84,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setAccountNo(buildMerchantAccountNo(tenantId, merchantId, accountType, normalizedCurrency));
         account.setNormalSide(LedgerDirectionEnum.CREDIT.code());
         account.setAllowNegative(0);
-        account.setStatus(STATUS_ENABLED);
+        account.setStatus(StatusEnum.NORMAL.code());
         try {
             baseDao.insert(account);
         } catch (DuplicateKeyException ex) {
@@ -104,7 +104,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
                 .eq("owner_id", merchantId)
                 .eq("account_type", accountType)
                 .eq("currency", currency)
-                .eq("status", STATUS_ENABLED)
+                .eq("status", StatusEnum.NORMAL.code())
                 .last("limit 1"));
     }
 

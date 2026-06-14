@@ -1,8 +1,8 @@
 package com.gk.quartz.utils;
 
-import com.gk.quartz.enums.ScheduleStatusEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.quartz.entity.ScheduleJobEntity;
 import org.quartz.*;
 
@@ -64,7 +64,7 @@ public class ScheduleUtils {
             scheduler.scheduleJob(jobDetail, trigger);
             
             //暂停任务
-            if(scheduleJob.getStatus() == ScheduleStatusEnum.PAUSE.code()){
+            if(scheduleJob.getStatus() == StatusEnum.PAUSE.code()){
             	pauseJob(scheduler, scheduleJob.getId());
             }
         } catch (SchedulerException e) {
@@ -94,7 +94,7 @@ public class ScheduleUtils {
             scheduler.rescheduleJob(triggerKey, trigger);
             
             //暂停任务
-            if(scheduleJob.getStatus() == ScheduleStatusEnum.PAUSE.code()){
+            if(scheduleJob.getStatus() == StatusEnum.PAUSE.code()){
             	pauseJob(scheduler, scheduleJob.getId());
             }
             

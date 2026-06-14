@@ -42,7 +42,7 @@ CREATE TABLE `gen_datasource`  (
   `conn_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'URL',
   `username` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用户名',
   `password` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '密码',
-  `status` tinyint NULL DEFAULT NULL COMMENT '状态  0：启用   1：禁用',
+  `status` tinyint NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '数据源管理' ROW_FORMAT = Dynamic;
@@ -125,7 +125,7 @@ CREATE TABLE `gen_template`  (
   `file_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '文件名',
   `content` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '内容',
   `path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '生成路径',
-  `status` tinyint NULL DEFAULT NULL COMMENT '状态  0：启用   1：禁用',
+  `status` tinyint NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '模板管理' ROW_FORMAT = Dynamic;

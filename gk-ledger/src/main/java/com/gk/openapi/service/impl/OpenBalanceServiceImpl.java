@@ -2,6 +2,7 @@ package com.gk.openapi.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.entity.LedgerAccountEntity;
@@ -41,7 +42,7 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
                 .in("account_type",
                         LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(),
                         LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code())
-                .eq("status", 1);
+                .eq("status", StatusEnum.NORMAL.code());
         if (StringUtils.isNotBlank(currency)) {
             accountWrapper.eq("currency", currency.trim().toUpperCase(Locale.ROOT));
         }

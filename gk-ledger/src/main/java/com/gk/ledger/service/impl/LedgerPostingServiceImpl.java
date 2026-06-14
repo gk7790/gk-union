@@ -5,6 +5,7 @@ import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.enums.LedgerDirectionEnum;
 import com.gk.ledger.enums.LedgerHoldStatusEnum;
@@ -46,7 +47,6 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
-    private static final int STATUS_ENABLED = 1;
 
     private final LedgerAccountDao ledgerAccountDao;
     private final LedgerBalanceDao ledgerBalanceDao;
@@ -474,7 +474,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 .eq("owner_id", ownerId)
                 .eq("account_type", accountType)
                 .eq("currency", normalize(currency))
-                .eq("status", STATUS_ENABLED)
+                .eq("status", StatusEnum.NORMAL.code())
                 .last("limit 1"));
         if (account == null) {
             throw new IllegalStateException("Ledger account is not configured: " + ownerType + "/" + accountType + "/" + currency);
@@ -484,7 +484,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
 
     private LedgerAccountEntity account(Long accountId) {
         LedgerAccountEntity account = ledgerAccountDao.selectById(accountId);
-        if (account == null || !Integer.valueOf(STATUS_ENABLED).equals(account.getStatus())) {
+        if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
             throw new IllegalStateException("Ledger account is not available: " + accountId);
         }
         return account;

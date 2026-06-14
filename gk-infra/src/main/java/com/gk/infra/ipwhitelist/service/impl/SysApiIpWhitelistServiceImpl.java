@@ -44,16 +44,8 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         String ruleName = params.getStr("ruleName");
         String ipPattern = params.getStr("ipPattern");
 
-        applyQueryScope(params, wrapper);
-        tenantId = params.getLong("tenantId", null);
-        merchantId = params.getLong("merchantId", null);
+        applyReadableScope(wrapper, tenantId, merchantId);
         wrapper.eq(StrUtil.isNotBlank(apiType), "api_type", apiType);
-        if (ReqContextHolder.isPlatform()) {
-            wrapper.eq(tenantId != null, "tenant_id", tenantId);
-            wrapper.eq(merchantId != null, "merchant_id", merchantId);
-        } else if (SubjectTypeEnum.TENANT.matches(ReqContextHolder.getSubjectType())) {
-            wrapper.eq(merchantId != null, "merchant_id", merchantId);
-        }
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.like(StrUtil.isNotBlank(ipPattern), "ip_pattern", ipPattern);
@@ -104,10 +96,10 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         if (StrUtil.isBlank(dto.getApiType())) {
             dto.setApiType(ApiIpWhitelistTypeEnum.MERCHANT_OPENAPI.code());
         }
+        applySaveScope(dto);
         AssertUtils.isNull(dto.getTenantId(), "tenantId");
         AssertUtils.isNull(dto.getMerchantId(), "merchantId");
         AssertUtils.isBlank(dto.getIpPattern(), "ipPattern");
-        applySaveScope(dto);
         if (dto.getStatus() == null) {
             dto.setStatus(StatusEnum.NORMAL.code());
         }
@@ -149,20 +141,22 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         }
     }
 
-    private void applyQueryScope(DynMap params, QueryWrapper<SysApiIpWhitelistEntity> wrapper) {
+    private void applyReadableScope(QueryWrapper<SysApiIpWhitelistEntity> wrapper, Long tenantId, Long merchantId) {
         if (ReqContextHolder.isPlatform()) {
+            wrapper.eq(tenantId != null, "tenant_id", tenantId);
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
             return;
         }
-        Long tenantId = ReqContextHolder.getTenantId();
-        AssertUtils.isNull(tenantId, "tenantId");
-        wrapper.eq("tenant_id", tenantId);
-        params.put("tenantId", tenantId);
+        Long currentTenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(currentTenantId, "tenantId");
+        wrapper.eq("tenant_id", currentTenantId);
         if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
-            Long merchantId = ReqContextHolder.getMerchantId();
-            AssertUtils.isNull(merchantId, "merchantId");
-            wrapper.eq("merchant_id", merchantId);
-            params.put("merchantId", merchantId);
+            Long currentMerchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(currentMerchantId, "merchantId");
+            wrapper.eq("merchant_id", currentMerchantId);
+            return;
         }
+        wrapper.eq(merchantId != null, "merchant_id", merchantId);
     }
 
     private void evictCache() {

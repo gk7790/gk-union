@@ -6,11 +6,9 @@ import java.io.Serializable;
 import java.time.Instant;
 
 @Data
-public class SysApiIpWhitelistDTO implements Serializable {
+public class PspCallbackIpWhitelistDTO implements Serializable {
     private Long id;
-    private String apiType;
-    private Long tenantId;
-    private Long merchantId;
+    private String pspCode;
     private String ruleName;
     private String ipPattern;
     private Integer status;

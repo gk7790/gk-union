@@ -130,15 +130,22 @@ public class RedisKeys {
         return "sys:login-ip-whitelist:*";
     }
 
-    public static String getApiIpWhitelistKey(String apiType, Long tenantId, Long merchantId) {
-        return "sys:api-ip-whitelist:"
-                + nullToAll(apiType) + ":"
+    public static String getMerchantApiIpWhitelistKey(Long tenantId, Long merchantId) {
+        return "merchant:api-ip-whitelist:"
                 + nullToAll(tenantId) + ":"
                 + nullToAll(merchantId);
     }
 
-    public static String getApiIpWhitelistPattern() {
-        return "sys:api-ip-whitelist:*";
+    public static String getMerchantApiIpWhitelistPattern() {
+        return "merchant:api-ip-whitelist:*";
+    }
+
+    public static String getPspCallbackIpWhitelistKey(String pspCode) {
+        return "psp:callback-ip-whitelist:" + nullToAll(pspCode);
+    }
+
+    public static String getPspCallbackIpWhitelistPattern() {
+        return "psp:callback-ip-whitelist:*";
     }
 
     private static String nullToAll(Object value) {

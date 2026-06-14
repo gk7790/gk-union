@@ -7,9 +7,8 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-@TableName("sys_api_ip_whitelist")
-public class SysApiIpWhitelistEntity extends SimpleEntity {
-    private String apiType;
+@TableName("merchant_api_ip_whitelist")
+public class MerchantApiIpWhitelistEntity extends SimpleEntity {
     private Long tenantId;
     private Long merchantId;
     private String ruleName;

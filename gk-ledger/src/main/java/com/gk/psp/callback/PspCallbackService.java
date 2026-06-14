@@ -1,6 +1,7 @@
 package com.gk.psp.callback;
 
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.infra.ipwhitelist.service.PspCallbackIpWhitelistService;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
@@ -43,6 +44,7 @@ public class PspCallbackService {
     private final LedgerPostingService ledgerPostingService;
     private final PspCallbackValidator callbackValidator;
     private final PayOrderService payOrderService;
+    private final PspCallbackIpWhitelistService pspCallbackIpWhitelistService;
 
     /**
      * 处理 PSP 代收回调。
@@ -94,6 +96,9 @@ public class PspCallbackService {
         // 标记订单是否已经发生状态变更；若后续账务或通知失败，需要把事务标记回滚。
         boolean orderChanged = false;
         try {
+            if (!pspCallbackIpWhitelistService.isPspCallbackAllowed(request.getPspCode(), request.getClientIp())) {
+                throw new IllegalStateException("PSP callback IP is not allowed");
+            }
             // 3. 使用 PSP 适配器把原始回调解析成统一结果模型，包括订单号、状态、金额、币种等。
             PspCallbackResult result = parse(adapter, bizType, request);
             // 4. 根据回调结果定位平台侧订单，并拿到订单快照、商户、金额、手续费、PSP 账户等信息。

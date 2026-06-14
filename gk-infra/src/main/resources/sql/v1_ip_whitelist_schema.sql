@@ -24,9 +24,9 @@ CREATE TABLE `sys_login_ip_whitelist` (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'login IP whitelist' ROW_FORMAT = Dynamic;
 
 DROP TABLE IF EXISTS `sys_api_ip_whitelist`;
-CREATE TABLE `sys_api_ip_whitelist` (
+DROP TABLE IF EXISTS `merchant_api_ip_whitelist`;
+CREATE TABLE `merchant_api_ip_whitelist` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'primary key',
-  `api_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'MERCHANT_OPENAPI' COMMENT 'api type',
   `tenant_id` bigint NOT NULL COMMENT 'tenant id',
   `merchant_id` bigint NOT NULL COMMENT 'merchant id',
   `rule_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'rule name',
@@ -38,10 +38,27 @@ CREATE TABLE `sys_api_ip_whitelist` (
   `updated_by` bigint NULL DEFAULT NULL COMMENT 'updated by',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_api_ip_merchant` (`api_type`, `tenant_id`, `merchant_id`, `status`) USING BTREE,
-  INDEX `idx_api_ip_status` (`status`, `created_at`) USING BTREE,
-  CONSTRAINT `chk_api_ip_type` CHECK (`api_type` in ('MERCHANT_OPENAPI')),
-  CONSTRAINT `chk_api_ip_status` CHECK (`status` in (1,2,3))
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'API IP whitelist' ROW_FORMAT = Dynamic;
+  INDEX `idx_merchant_api_ip_scope` (`tenant_id`, `merchant_id`, `status`) USING BTREE,
+  INDEX `idx_merchant_api_ip_status` (`status`, `created_at`) USING BTREE,
+  CONSTRAINT `chk_merchant_api_ip_status` CHECK (`status` in (1,2,3))
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'merchant API IP whitelist' ROW_FORMAT = Dynamic;
+
+DROP TABLE IF EXISTS `psp_callback_ip_whitelist`;
+CREATE TABLE `psp_callback_ip_whitelist` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'primary key',
+  `psp_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PSP code',
+  `rule_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'rule name',
+  `ip_pattern` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'IPv4, CIDR, or *',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '1 normal, 2 pause, 3 stop',
+  `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'remark',
+  `created_by` bigint NULL DEFAULT NULL COMMENT 'created by',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  `updated_by` bigint NULL DEFAULT NULL COMMENT 'updated by',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_psp_callback_ip_scope` (`psp_code`, `status`) USING BTREE,
+  INDEX `idx_psp_callback_ip_status` (`status`, `created_at`) USING BTREE,
+  CONSTRAINT `chk_psp_callback_ip_status` CHECK (`status` in (1,2,3))
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'PSP callback IP whitelist' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

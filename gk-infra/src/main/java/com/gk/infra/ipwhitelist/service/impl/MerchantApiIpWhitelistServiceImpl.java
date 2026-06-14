@@ -12,11 +12,10 @@ import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.IpPatternUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.infra.ipwhitelist.dao.SysApiIpWhitelistDao;
-import com.gk.infra.ipwhitelist.dto.SysApiIpWhitelistDTO;
-import com.gk.infra.ipwhitelist.entity.SysApiIpWhitelistEntity;
-import com.gk.infra.ipwhitelist.enums.ApiIpWhitelistTypeEnum;
-import com.gk.infra.ipwhitelist.service.SysApiIpWhitelistService;
+import com.gk.infra.ipwhitelist.dao.MerchantApiIpWhitelistDao;
+import com.gk.infra.ipwhitelist.dto.MerchantApiIpWhitelistDTO;
+import com.gk.infra.ipwhitelist.entity.MerchantApiIpWhitelistEntity;
+import com.gk.infra.ipwhitelist.service.MerchantApiIpWhitelistService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -28,16 +27,15 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitelistDao, SysApiIpWhitelistEntity, SysApiIpWhitelistDTO>
-        implements SysApiIpWhitelistService {
+public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantApiIpWhitelistDao, MerchantApiIpWhitelistEntity, MerchantApiIpWhitelistDTO>
+        implements MerchantApiIpWhitelistService {
     private static final long CACHE_SECONDS = 300L;
 
     private final RedisUtils redisUtils;
 
     @Override
-    public QueryWrapper<SysApiIpWhitelistEntity> getWrapper(DynMap params) {
-        QueryWrapper<SysApiIpWhitelistEntity> wrapper = new QueryWrapper<>();
-        String apiType = params.getStr("apiType");
+    public QueryWrapper<MerchantApiIpWhitelistEntity> getWrapper(DynMap params) {
+        QueryWrapper<MerchantApiIpWhitelistEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
         Long merchantId = params.getLong("merchantId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
@@ -45,7 +43,6 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         String ipPattern = params.getStr("ipPattern");
 
         applyReadableScope(wrapper, tenantId, merchantId);
-        wrapper.eq(StrUtil.isNotBlank(apiType), "api_type", apiType);
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.like(StrUtil.isNotBlank(ipPattern), "ip_pattern", ipPattern);
@@ -54,7 +51,7 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void save(SysApiIpWhitelistDTO dto) {
+    public void save(MerchantApiIpWhitelistDTO dto) {
         prepare(dto);
         super.save(dto);
         evictCache();
@@ -62,7 +59,7 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void update(SysApiIpWhitelistDTO dto) {
+    public void update(MerchantApiIpWhitelistDTO dto) {
         AssertUtils.isNull(dto.getId(), "id");
         prepare(dto);
         super.update(dto);
@@ -88,14 +85,11 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         if (tenantId == null || merchantId == null) {
             return false;
         }
-        List<String> rules = loadRules(ApiIpWhitelistTypeEnum.MERCHANT_OPENAPI.code(), tenantId, merchantId);
+        List<String> rules = loadRules(tenantId, merchantId);
         return IpPatternUtils.matchesAny(clientIp, rules);
     }
 
-    private void prepare(SysApiIpWhitelistDTO dto) {
-        if (StrUtil.isBlank(dto.getApiType())) {
-            dto.setApiType(ApiIpWhitelistTypeEnum.MERCHANT_OPENAPI.code());
-        }
+    private void prepare(MerchantApiIpWhitelistDTO dto) {
         applySaveScope(dto);
         AssertUtils.isNull(dto.getTenantId(), "tenantId");
         AssertUtils.isNull(dto.getMerchantId(), "merchantId");
@@ -105,21 +99,20 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         }
     }
 
-    private List<String> loadRules(String apiType, Long tenantId, Long merchantId) {
-        String cacheKey = RedisKeys.getApiIpWhitelistKey(apiType, tenantId, merchantId);
+    private List<String> loadRules(Long tenantId, Long merchantId) {
+        String cacheKey = RedisKeys.getMerchantApiIpWhitelistKey(tenantId, merchantId);
         Object cached = redisUtils.get(cacheKey);
         if (cached instanceof String cachedText && StringUtils.isNotBlank(cachedText)) {
             return JSON.parseArray(cachedText, String.class);
         }
 
-        QueryWrapper<SysApiIpWhitelistEntity> wrapper = new QueryWrapper<SysApiIpWhitelistEntity>()
+        QueryWrapper<MerchantApiIpWhitelistEntity> wrapper = new QueryWrapper<MerchantApiIpWhitelistEntity>()
                 .eq("status", StatusEnum.NORMAL.code())
-                .eq("api_type", apiType)
                 .eq("tenant_id", tenantId)
                 .eq("merchant_id", merchantId);
 
         List<String> rules = baseDao.selectList(wrapper).stream()
-                .map(SysApiIpWhitelistEntity::getIpPattern)
+                .map(MerchantApiIpWhitelistEntity::getIpPattern)
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .toList();
@@ -127,7 +120,7 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         return rules;
     }
 
-    private void applySaveScope(SysApiIpWhitelistDTO dto) {
+    private void applySaveScope(MerchantApiIpWhitelistDTO dto) {
         if (ReqContextHolder.isPlatform()) {
             return;
         }
@@ -141,7 +134,7 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         }
     }
 
-    private void applyReadableScope(QueryWrapper<SysApiIpWhitelistEntity> wrapper, Long tenantId, Long merchantId) {
+    private void applyReadableScope(QueryWrapper<MerchantApiIpWhitelistEntity> wrapper, Long tenantId, Long merchantId) {
         if (ReqContextHolder.isPlatform()) {
             wrapper.eq(tenantId != null, "tenant_id", tenantId);
             wrapper.eq(merchantId != null, "merchant_id", merchantId);
@@ -160,7 +153,7 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
     }
 
     private void evictCache() {
-        deleteKeys(redisUtils.keys(RedisKeys.getApiIpWhitelistPattern()));
+        deleteKeys(redisUtils.keys(RedisKeys.getMerchantApiIpWhitelistPattern()));
     }
 
     private void deleteKeys(Collection<String> keys) {

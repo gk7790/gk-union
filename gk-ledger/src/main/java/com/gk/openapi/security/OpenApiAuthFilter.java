@@ -10,7 +10,7 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.infra.ipwhitelist.service.SysApiIpWhitelistService;
+import com.gk.infra.ipwhitelist.service.MerchantApiIpWhitelistService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.log.MerchantRequestLogger;
@@ -53,7 +53,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     private final RedisUtils redisUtils;
     private final MerchantRequestLogger merchantRequestLogger;
     private final ObjectMapper objectMapper;
-    private final SysApiIpWhitelistService sysApiIpWhitelistService;
+    private final MerchantApiIpWhitelistService merchantApiIpWhitelistService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -109,7 +109,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         }
 
         String clientIp = getClientIp(request);
-        if (!sysApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), clientIp)) {
+        if (!merchantApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), clientIp)) {
             throw new ApiException(ApiErrorCode.INVALID_IP);
         }
 

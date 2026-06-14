@@ -147,6 +147,11 @@ public interface Constant {
     String REDIS_EXPIRE_KEY = "REDIS_EXPIRE_KEY";
 
     /**
+     * Telegram 基础配置
+     */
+    String TELEGRAM_BASE_CONFIG_KEY = "TELEGRAM_BASE_CONFIG_KEY";
+
+    /**
      * 邮件配置KEY
      */
     String MAIL_CONFIG_KEY = "MAIL_CONFIG_KEY";

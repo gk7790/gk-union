@@ -2,7 +2,9 @@ package com.gk.telegram.bot;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
-import com.gk.telegram.config.TgProperties;
+import com.gk.common.constant.Constant;
+import com.gk.infra.config.model.TgBaseConfig;
+import com.gk.infra.config.service.SysParamsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -19,10 +21,11 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class TgBotApiClient {
-    private final TgProperties properties;
+    private final SysParamsService sysParamsService;
 
     private RestClient client() {
-        return RestClient.builder().baseUrl(properties.getApiBaseUrl()).build();
+        TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
+        return RestClient.builder().baseUrl(tgBase.getApiBaseUrl()).build();
     }
 
     /**

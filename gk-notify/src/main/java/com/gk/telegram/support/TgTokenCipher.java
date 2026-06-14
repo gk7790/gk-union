@@ -2,7 +2,6 @@ package com.gk.telegram.support;
 
 import cn.hutool.crypto.SecureUtil;
 import com.gk.common.tools.AesGcm;
-import com.gk.telegram.config.TgProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -12,10 +11,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class TgTokenCipher {
-    private final TgProperties properties;
 
     private AesGcm aesGcm() {
-        return new AesGcm(properties.getCryptoKey(), properties.getCryptoSalt());
+        return new AesGcm("1234567890123456",  "gk-telegram");
     }
 
     /**

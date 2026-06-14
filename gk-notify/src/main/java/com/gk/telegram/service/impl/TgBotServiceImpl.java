@@ -3,13 +3,15 @@ package com.gk.telegram.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.constant.Constant;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.config.model.TgBaseConfig;
+import com.gk.infra.config.service.SysParamsService;
 import com.gk.telegram.bot.TgBotApiClient;
-import com.gk.telegram.config.TgProperties;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dto.TgBotDTO;
 import com.gk.telegram.entity.TgBotEntity;
@@ -23,10 +25,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgBotDTO> implements TgBotService {
     private static final String BOT_NO_PREFIX = "TG";
-
     private final TgTokenCipher tokenCipher;
     private final TgBotApiClient botApiClient;
-    private final TgProperties properties;
+    private final SysParamsService sysParamsService;
 
     @Override
     public QueryWrapper<TgBotEntity> getWrapper(DynMap params) {
@@ -106,11 +107,14 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         if (bot == null) {
             throw new GkException("机器人不存在");
         }
-        if (StrUtil.isBlank(properties.getWebhookBaseUrl())) {
-            throw new GkException("未配置 telegram.webhook-base-url");
+
+        TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
+        String webhookBaseUrl = tgBase.getWebhookBaseUrl();
+        if (StrUtil.isBlank(webhookBaseUrl)) {
+            throw new GkException("未配置 TELEGRAM_BASE_CONFIG_KEY.tgWebhookBaseUrl");
         }
         String token = tokenCipher.decrypt(bot.getTokenCipher());
-        String url = properties.getWebhookBaseUrl().replaceAll("/+$", "") + "/tg/webhook/" + bot.getBotNo();
+        String url = webhookBaseUrl.replaceAll("/+$", "") + "/tg/webhook/" + bot.getBotNo();
         boolean ok = botApiClient.setWebhook(token, url, bot.getSecretToken());
         if (!ok) {
             throw new GkException("设置Webhook失败, 请检查网络与Token");

@@ -1,10 +1,13 @@
 package com.gk.merchant.support;
 
+import com.gk.common.constant.Constant;
+import com.gk.common.model.DynMap;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
+import com.gk.infra.config.model.TgBaseConfig;
+import com.gk.infra.config.service.SysParamsService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.SecureRandom;
@@ -17,9 +20,8 @@ public class MerchantTgBindCodeService {
     private static final int MAX_GENERATE_ATTEMPTS = 5;
 
     private final RedisUtils redisUtils;
+    private final SysParamsService sysParamsService;
     private final SecureRandom random = new SecureRandom();
-    @Value("${telegram.bind-code-ttl-minutes:10}")
-    private int ttlMinutes = 10;
 
     public String generate(Long merchantId) {
         if (merchantId == null) {
@@ -29,7 +31,8 @@ public class MerchantTgBindCodeService {
             String code = randomCode();
             String key = RedisKeys.getTgMerchantBindCodeKey(code);
             if (!redisUtils.isKeyExist(key)) {
-                redisUtils.set(key, String.valueOf(merchantId), ttlMinutes * 60L);
+                TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
+                redisUtils.set(key, String.valueOf(merchantId), tgBase.getBindCodeTtl() * 60L);
                 return code;
             }
         }
@@ -75,4 +78,5 @@ public class MerchantTgBindCodeService {
             return null;
         }
     }
+
 }

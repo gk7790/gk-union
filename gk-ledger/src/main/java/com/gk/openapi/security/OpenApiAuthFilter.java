@@ -109,7 +109,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         }
 
         String clientIp = getClientIp(request);
-        if (!sysApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), app.getId(), app.getAppId(), clientIp)) {
+        if (!sysApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), clientIp)) {
             throw new ApiException(ApiErrorCode.INVALID_IP);
         }
 

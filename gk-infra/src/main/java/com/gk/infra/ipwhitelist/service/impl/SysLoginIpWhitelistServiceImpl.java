@@ -3,7 +3,9 @@ package com.gk.infra.ipwhitelist.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
@@ -42,9 +44,17 @@ public class SysLoginIpWhitelistServiceImpl extends CrudServiceImpl<SysLoginIpWh
         String ruleName = params.getStr("ruleName");
         String ipPattern = params.getStr("ipPattern");
 
+        applyQueryScope(params, wrapper);
+        subjectType = params.getStr("subjectType");
+        tenantId = params.getLong("tenantId", null);
+        merchantId = params.getLong("merchantId", null);
         wrapper.eq(StrUtil.isNotBlank(subjectType), "subject_type", subjectType);
-        wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        if (ReqContextHolder.isPlatform()) {
+            wrapper.eq(tenantId != null, "tenant_id", tenantId);
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        } else if (SubjectTypeEnum.TENANT.matches(ReqContextHolder.getSubjectType())) {
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        }
         wrapper.eq(subjectId != null, "subject_id", subjectId);
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
@@ -96,6 +106,7 @@ public class SysLoginIpWhitelistServiceImpl extends CrudServiceImpl<SysLoginIpWh
     }
 
     private void prepare(SysLoginIpWhitelistDTO dto) {
+        applySaveScope(dto);
         AssertUtils.isBlank(dto.getSubjectType(), "subjectType");
         AssertUtils.isBlank(dto.getIpPattern(), "ipPattern");
         if (dto.getStatus() == null) {
@@ -133,6 +144,45 @@ public class SysLoginIpWhitelistServiceImpl extends CrudServiceImpl<SysLoginIpWh
                 item.or().eq(column, value);
             }
         });
+    }
+
+    private void applySaveScope(SysLoginIpWhitelistDTO dto) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        Long tenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(tenantId, "tenantId");
+        dto.setTenantId(tenantId);
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            Long merchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(merchantId, "merchantId");
+            dto.setSubjectType(SubjectTypeEnum.MERCHANT.code());
+            dto.setMerchantId(merchantId);
+            return;
+        }
+        if (StrUtil.isBlank(dto.getSubjectType())) {
+            dto.setSubjectType(SubjectTypeEnum.TENANT.code());
+        } else if (SubjectTypeEnum.PLATFORM.matches(dto.getSubjectType())) {
+            dto.setSubjectType(SubjectTypeEnum.TENANT.code());
+            dto.setMerchantId(null);
+        }
+    }
+
+    private void applyQueryScope(DynMap params, QueryWrapper<SysLoginIpWhitelistEntity> wrapper) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        Long tenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(tenantId, "tenantId");
+        wrapper.eq("tenant_id", tenantId);
+        params.put("tenantId", tenantId);
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            Long merchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(merchantId, "merchantId");
+            wrapper.eq("merchant_id", merchantId);
+            params.put("merchantId", merchantId);
+            params.put("subjectType", SubjectTypeEnum.MERCHANT.code());
+        }
     }
 
     private void evictCache() {

@@ -130,13 +130,11 @@ public class RedisKeys {
         return "sys:login-ip-whitelist:*";
     }
 
-    public static String getApiIpWhitelistKey(String apiType, Long tenantId, Long merchantId, Long merchantAppId, String appId) {
+    public static String getApiIpWhitelistKey(String apiType, Long tenantId, Long merchantId) {
         return "sys:api-ip-whitelist:"
                 + nullToAll(apiType) + ":"
                 + nullToAll(tenantId) + ":"
-                + nullToAll(merchantId) + ":"
-                + nullToAll(merchantAppId) + ":"
-                + nullToAll(appId);
+                + nullToAll(merchantId);
     }
 
     public static String getApiIpWhitelistPattern() {

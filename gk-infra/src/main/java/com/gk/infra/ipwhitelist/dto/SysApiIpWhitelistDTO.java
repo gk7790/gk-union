@@ -11,8 +11,6 @@ public class SysApiIpWhitelistDTO implements Serializable {
     private String apiType;
     private Long tenantId;
     private Long merchantId;
-    private Long merchantAppId;
-    private String appId;
     private String ruleName;
     private String ipPattern;
     private Integer status;

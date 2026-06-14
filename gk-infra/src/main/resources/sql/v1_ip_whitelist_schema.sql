@@ -29,8 +29,6 @@ CREATE TABLE `sys_api_ip_whitelist` (
   `api_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'MERCHANT_OPENAPI' COMMENT 'api type',
   `tenant_id` bigint NOT NULL COMMENT 'tenant id',
   `merchant_id` bigint NOT NULL COMMENT 'merchant id',
-  `merchant_app_id` bigint NULL DEFAULT NULL COMMENT 'merchant_app.id, null means all apps under the merchant',
-  `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'external app id snapshot',
   `rule_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'rule name',
   `ip_pattern` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'IPv4, CIDR, or *',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '1 normal, 2 pause, 3 stop',
@@ -40,8 +38,7 @@ CREATE TABLE `sys_api_ip_whitelist` (
   `updated_by` bigint NULL DEFAULT NULL COMMENT 'updated by',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_api_ip_app` (`api_type`, `tenant_id`, `merchant_id`, `merchant_app_id`, `status`) USING BTREE,
-  INDEX `idx_api_ip_app_id` (`api_type`, `app_id`, `status`) USING BTREE,
+  INDEX `idx_api_ip_merchant` (`api_type`, `tenant_id`, `merchant_id`, `status`) USING BTREE,
   INDEX `idx_api_ip_status` (`status`, `created_at`) USING BTREE,
   CONSTRAINT `chk_api_ip_type` CHECK (`api_type` in ('MERCHANT_OPENAPI')),
   CONSTRAINT `chk_api_ip_status` CHECK (`status` in (1,2,3))

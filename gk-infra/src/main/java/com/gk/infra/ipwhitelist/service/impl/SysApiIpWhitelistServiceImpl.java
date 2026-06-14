@@ -3,7 +3,9 @@ package com.gk.infra.ipwhitelist.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
@@ -38,17 +40,20 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         String apiType = params.getStr("apiType");
         Long tenantId = params.getLong("tenantId", null);
         Long merchantId = params.getLong("merchantId", null);
-        Long merchantAppId = params.getLong("merchantAppId", null);
-        String appId = params.getStr("appId");
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String ruleName = params.getStr("ruleName");
         String ipPattern = params.getStr("ipPattern");
 
+        applyQueryScope(params, wrapper);
+        tenantId = params.getLong("tenantId", null);
+        merchantId = params.getLong("merchantId", null);
         wrapper.eq(StrUtil.isNotBlank(apiType), "api_type", apiType);
-        wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(merchantId != null, "merchant_id", merchantId);
-        wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
-        wrapper.eq(StrUtil.isNotBlank(appId), "app_id", appId);
+        if (ReqContextHolder.isPlatform()) {
+            wrapper.eq(tenantId != null, "tenant_id", tenantId);
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        } else if (SubjectTypeEnum.TENANT.matches(ReqContextHolder.getSubjectType())) {
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        }
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.like(StrUtil.isNotBlank(ipPattern), "ip_pattern", ipPattern);
@@ -87,11 +92,11 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
     }
 
     @Override
-    public boolean isMerchantApiAllowed(Long tenantId, Long merchantId, Long merchantAppId, String appId, String clientIp) {
+    public boolean isMerchantApiAllowed(Long tenantId, Long merchantId, String clientIp) {
         if (tenantId == null || merchantId == null) {
             return false;
         }
-        List<String> rules = loadRules(ApiIpWhitelistTypeEnum.MERCHANT_OPENAPI.code(), tenantId, merchantId, merchantAppId, appId);
+        List<String> rules = loadRules(ApiIpWhitelistTypeEnum.MERCHANT_OPENAPI.code(), tenantId, merchantId);
         return IpPatternUtils.matchesAny(clientIp, rules);
     }
 
@@ -102,13 +107,14 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         AssertUtils.isNull(dto.getTenantId(), "tenantId");
         AssertUtils.isNull(dto.getMerchantId(), "merchantId");
         AssertUtils.isBlank(dto.getIpPattern(), "ipPattern");
+        applySaveScope(dto);
         if (dto.getStatus() == null) {
             dto.setStatus(StatusEnum.NORMAL.code());
         }
     }
 
-    private List<String> loadRules(String apiType, Long tenantId, Long merchantId, Long merchantAppId, String appId) {
-        String cacheKey = RedisKeys.getApiIpWhitelistKey(apiType, tenantId, merchantId, merchantAppId, appId);
+    private List<String> loadRules(String apiType, Long tenantId, Long merchantId) {
+        String cacheKey = RedisKeys.getApiIpWhitelistKey(apiType, tenantId, merchantId);
         Object cached = redisUtils.get(cacheKey);
         if (cached instanceof String cachedText && StringUtils.isNotBlank(cachedText)) {
             return JSON.parseArray(cachedText, String.class);
@@ -119,8 +125,6 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
                 .eq("api_type", apiType)
                 .eq("tenant_id", tenantId)
                 .eq("merchant_id", merchantId);
-        addNullableScope(wrapper, "merchant_app_id", merchantAppId);
-        addNullableScope(wrapper, "app_id", appId);
 
         List<String> rules = baseDao.selectList(wrapper).stream()
                 .map(SysApiIpWhitelistEntity::getIpPattern)
@@ -131,13 +135,34 @@ public class SysApiIpWhitelistServiceImpl extends CrudServiceImpl<SysApiIpWhitel
         return rules;
     }
 
-    private void addNullableScope(QueryWrapper<SysApiIpWhitelistEntity> wrapper, String column, Object value) {
-        wrapper.and(item -> {
-            item.isNull(column);
-            if (value != null && StringUtils.isNotBlank(String.valueOf(value))) {
-                item.or().eq(column, value);
-            }
-        });
+    private void applySaveScope(SysApiIpWhitelistDTO dto) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        Long tenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(tenantId, "tenantId");
+        dto.setTenantId(tenantId);
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            Long merchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(merchantId, "merchantId");
+            dto.setMerchantId(merchantId);
+        }
+    }
+
+    private void applyQueryScope(DynMap params, QueryWrapper<SysApiIpWhitelistEntity> wrapper) {
+        if (ReqContextHolder.isPlatform()) {
+            return;
+        }
+        Long tenantId = ReqContextHolder.getTenantId();
+        AssertUtils.isNull(tenantId, "tenantId");
+        wrapper.eq("tenant_id", tenantId);
+        params.put("tenantId", tenantId);
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            Long merchantId = ReqContextHolder.getMerchantId();
+            AssertUtils.isNull(merchantId, "merchantId");
+            wrapper.eq("merchant_id", merchantId);
+            params.put("merchantId", merchantId);
+        }
     }
 
     private void evictCache() {

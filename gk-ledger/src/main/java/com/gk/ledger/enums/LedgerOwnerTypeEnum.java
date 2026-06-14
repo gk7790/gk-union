@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 账本资金主体类型。
  */
+@EnumDict("ledgerOwnerType")
 public enum LedgerOwnerTypeEnum implements StringCodeEnum {
     PLATFORM("PLATFORM", "平台", "enum.ledgerOwnerType.platform"),
     TENANT("TENANT", "租户", "enum.ledgerOwnerType.tenant"),

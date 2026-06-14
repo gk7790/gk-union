@@ -1,10 +1,12 @@
 package com.gk.merchant.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 商户类型。
  */
+@EnumDict("merchantType")
 public enum MerchantTypeEnum implements StringCodeEnum {
     COMPANY("COMPANY", "企业", "enum.merchantType.company"),
     PERSON("PERSON", "个人", "enum.merchantType.person");

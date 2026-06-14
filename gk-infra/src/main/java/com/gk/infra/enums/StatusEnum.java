@@ -1,9 +1,11 @@
 package com.gk.infra.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.SimpleEnum;
 
 import java.util.List;
 
+@EnumDict("status")
 public enum StatusEnum implements SimpleEnum<Integer> {
     NORMAL(1, "正常", "enum.status.normal"),
     PAUSE(2, "暂停", "enum.status.pause"),

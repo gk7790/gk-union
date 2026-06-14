@@ -1,7 +1,9 @@
 package com.gk.infra.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.SimpleEnum;
 
+@EnumDict("domain")
 public enum DomainEnum implements SimpleEnum<Integer> {
     GAMING(1, "游戏", "dict.domain.gaming"),
     CLOAK(2, "斗篷", "dict.domain.cloak"),;

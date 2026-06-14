@@ -1,5 +1,8 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
+
+@EnumDict("bizType")
 public enum BizTypeEnum implements StringCodeEnum {
     PAY_ORDER("PAY_ORDER", "代收订单", "enum.bizType.payOrder"),
     PAYOUT_ORDER("PAYOUT_ORDER", "代付订单", "enum.bizType.payoutOrder"),

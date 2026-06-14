@@ -1,10 +1,12 @@
 package com.gk.psp.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * PSP 回调处理状态。
  */
+@EnumDict("pspCallbackProcessStatus")
 public enum PspCallbackProcessStatusEnum implements StringCodeEnum {
     INIT("INIT", "待处理", "enum.pspCallbackProcessStatus.init"),
     SUCCESS("SUCCESS", "成功", "enum.pspCallbackProcessStatus.success"),

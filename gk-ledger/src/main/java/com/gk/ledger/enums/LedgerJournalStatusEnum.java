@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 分录状态。
  */
+@EnumDict("ledgerJournalStatus")
 public enum LedgerJournalStatusEnum implements StringCodeEnum {
     POSTED("POSTED", "已过账", "enum.ledgerJournalStatus.posted"),
     REVERSED("REVERSED", "已冲正", "enum.ledgerJournalStatus.reversed");

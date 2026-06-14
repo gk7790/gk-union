@@ -1,8 +1,11 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
+
 /**
  * 手续费承担方。
  */
+@EnumDict("feeBearer")
 public enum FeeBearerEnum implements StringCodeEnum {
     MERCHANT("MERCHANT", "商户", "enum.feeBearer.merchant"),
     CUSTOMER("CUSTOMER", "客户", "enum.feeBearer.customer");

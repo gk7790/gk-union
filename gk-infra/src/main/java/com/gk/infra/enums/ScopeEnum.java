@@ -1,10 +1,12 @@
 package com.gk.infra.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.SimpleEnum;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@EnumDict("scope")
 public enum ScopeEnum implements SimpleEnum<Integer> {
     PLATFORM(1, "平台", "dict.scope.platform"),
     TENANT(3, "租户", "dict.scope.tenant"),

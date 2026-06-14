@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 分录来源类型。
  */
+@EnumDict("ledgerJournalSource")
 public enum LedgerJournalSourceEnum implements StringCodeEnum {
     ORDER("ORDER", "订单", "enum.ledgerJournalSource.order"),
     SETTLE("SETTLE", "结算", "enum.ledgerJournalSource.settle"),

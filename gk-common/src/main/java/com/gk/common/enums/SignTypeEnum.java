@@ -1,8 +1,11 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
+
 /**
  * API 签名算法。
  */
+@EnumDict("signType")
 public enum SignTypeEnum implements StringCodeEnum {
     HMAC_SHA256("HMAC_SHA256", "HMAC-SHA256", "enum.signType.hmacSha256"),
     MD5("MD5", "MD5", "enum.signType.md5"),

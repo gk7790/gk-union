@@ -1,10 +1,12 @@
 package com.gk.merchant.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 商户结算周期。
  */
+@EnumDict("merchantSettleCycle")
 public enum MerchantSettleCycleEnum implements StringCodeEnum {
     T0("T0", "T+0", "enum.merchantSettleCycle.t0"),
     T1("T1", "T+1", "enum.merchantSettleCycle.t1"),

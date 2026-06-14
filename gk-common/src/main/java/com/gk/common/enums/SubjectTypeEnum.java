@@ -1,5 +1,6 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.dto.LabelDTO;
 
 import java.util.List;

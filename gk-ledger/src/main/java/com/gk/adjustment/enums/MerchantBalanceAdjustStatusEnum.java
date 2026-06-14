@@ -1,7 +1,9 @@
 package com.gk.adjustment.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
+@EnumDict("merchantBalanceAdjustStatus")
 public enum MerchantBalanceAdjustStatusEnum implements StringCodeEnum {
     CREATED("CREATED", "已创建", "enum.merchantBalanceAdjustStatus.created"),
     POSTED("POSTED", "已入账", "enum.merchantBalanceAdjustStatus.posted"),

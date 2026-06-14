@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 账本账户类型。
  */
+@EnumDict("ledgerAccountType")
 public enum LedgerAccountTypeEnum implements StringCodeEnum {
     MERCHANT_AVAILABLE("MERCHANT_AVAILABLE", "商户可用", "enum.ledgerAccountType.merchantAvailable"),
     MERCHANT_PENDING_SETTLE("MERCHANT_PENDING_SETTLE", "商户待结算", "enum.ledgerAccountType.merchantPendingSettle"),

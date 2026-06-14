@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 冻结单状态。
  */
+@EnumDict("ledgerHoldStatus")
 public enum LedgerHoldStatusEnum implements StringCodeEnum {
     HOLDING("HOLDING", "冻结中", "enum.ledgerHoldStatus.holding"),
     PART_RELEASED("PART_RELEASED", "部分解冻", "enum.ledgerHoldStatus.partReleased"),

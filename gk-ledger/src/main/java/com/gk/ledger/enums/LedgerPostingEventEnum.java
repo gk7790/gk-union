@@ -1,7 +1,9 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
+@EnumDict("ledgerPostingEvent")
 public enum LedgerPostingEventEnum implements StringCodeEnum {
     PAY_SUCCESS("PAY_SUCCESS", "代收成功", "enum.ledgerPostingEvent.paySuccess"),
     SETTLE_RELEASE("SETTLE_RELEASE", "结算释放", "enum.ledgerPostingEvent.settleRelease"),

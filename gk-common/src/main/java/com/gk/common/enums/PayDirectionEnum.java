@@ -1,8 +1,11 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
+
 /**
  * 支付方向：代收 / 代付。
  */
+@EnumDict("payDirection")
 public enum PayDirectionEnum implements StringCodeEnum {
     PAYIN("PAYIN", "代收", "enum.payDirection.payin"),
     PAYOUT("PAYOUT", "代付", "enum.payDirection.payout");

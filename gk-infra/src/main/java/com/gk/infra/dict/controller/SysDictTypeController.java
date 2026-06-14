@@ -9,8 +9,10 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.dict.dto.SysDictTypeDTO;
+import com.gk.infra.dict.entity.DictData;
 import com.gk.infra.dict.entity.DictType;
 import com.gk.infra.dict.service.SysDictTypeService;
+import com.gk.infra.enumdict.EnumDictProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -20,7 +22,10 @@ import lombok.AllArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 字典类型
@@ -33,6 +38,7 @@ import java.util.List;
 @AllArgsConstructor
 public class SysDictTypeController {
     private final SysDictTypeService sysDictTypeService;
+    private final EnumDictProvider enumDictProvider;
 
     @GetMapping("page")
     @Operation(summary = "字典类型")
@@ -54,6 +60,11 @@ public class SysDictTypeController {
     @GetMapping("{dictType}")
     public R<?> get(@PathVariable("dictType") String dictType){
         List<LabelDTO> list = sysDictTypeService.getDictList(dictType);
+        List<LabelDTO> enumList = enumDictProvider.get(dictType);
+        if (!enumList.isEmpty()) {
+            list = new ArrayList<>(list);
+            list.addAll(enumList);
+        }
         return R.ok(list);
     }
 
@@ -95,7 +106,27 @@ public class SysDictTypeController {
     @Operation(summary = "所有字典数据")
     public R<List<DictType>> all(){
         List<DictType> list = sysDictTypeService.getAllList();
-        return R.ok(list);
+        Map<String, DictType> dictMap = new LinkedHashMap<>();
+        for (DictType item : list) {
+            dictMap.put(item.getDictType(), item);
+        }
+        enumDictProvider.list(null).forEach((dictType, dataList) -> {
+            DictType item = dictMap.computeIfAbsent(dictType, key -> {
+                DictType dict = new DictType();
+                dict.setDictType(key);
+                return dict;
+            });
+            item.getDataList().addAll(dataList.stream().map(this::toDictData).toList());
+        });
+        return R.ok(dictMap.values().stream().toList());
+    }
+
+    private DictData toDictData(LabelDTO label) {
+        DictData data = new DictData();
+        data.setDictLabel(label.getLabel());
+        data.setDictValue(label.getValue() == null ? null : String.valueOf(label.getValue()));
+        data.setI18nKey(label.getI18nKey());
+        return data;
     }
 
 }

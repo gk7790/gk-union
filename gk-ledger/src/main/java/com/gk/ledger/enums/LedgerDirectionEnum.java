@@ -1,10 +1,12 @@
 package com.gk.ledger.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 记账方向 / 账户余额方向。
  */
+@EnumDict("ledgerDirection")
 public enum LedgerDirectionEnum implements StringCodeEnum {
     DEBIT("DEBIT", "借方", "enum.ledgerDirection.debit"),
     CREDIT("CREDIT", "贷方", "enum.ledgerDirection.credit");

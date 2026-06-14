@@ -1,8 +1,11 @@
 package com.gk.common.enums;
 
+import com.gk.common.annotation.EnumDict;
+
 /**
  * 订单来源。
  */
+@EnumDict("orderSource")
 public enum OrderSourceEnum implements StringCodeEnum {
     API("API", "API", "enum.orderSource.api"),
     ADMIN("ADMIN", "后台", "enum.orderSource.admin"),

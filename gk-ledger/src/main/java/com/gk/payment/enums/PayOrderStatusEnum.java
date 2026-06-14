@@ -1,10 +1,12 @@
 package com.gk.payment.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 代收订单状态。
  */
+@EnumDict("payOrderStatus")
 public enum PayOrderStatusEnum implements StringCodeEnum {
     CREATED("CREATED", "已创建", "enum.payOrderStatus.created"),
     PROCESSING("PROCESSING", "处理中", "enum.payOrderStatus.processing"),

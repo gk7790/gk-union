@@ -1,5 +1,6 @@
 package com.gk.payment.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 import org.apache.commons.lang3.StringUtils;
 
@@ -14,6 +15,7 @@ import java.util.Locale;
  * PENDING：代收成功已入账至待结算账户，尚未释放到可用；
  * RELEASED：已释放至商户可用余额。
  */
+@EnumDict("settleStatus")
 public enum SettleStatusEnum implements StringCodeEnum {
     PENDING("PENDING", "待结算", "enum.settleStatus.pending"),
     RELEASED("RELEASED", "已释放", "enum.settleStatus.released"),

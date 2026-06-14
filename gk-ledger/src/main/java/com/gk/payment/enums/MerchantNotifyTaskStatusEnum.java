@@ -1,10 +1,12 @@
 package com.gk.payment.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 商户通知任务状态。
  */
+@EnumDict("merchantNotifyTaskStatus")
 public enum MerchantNotifyTaskStatusEnum implements StringCodeEnum {
     INIT("INIT", "待发送", "enum.merchantNotifyTaskStatus.init"),
     PROCESSING("PROCESSING", "发送中", "enum.merchantNotifyTaskStatus.processing"),

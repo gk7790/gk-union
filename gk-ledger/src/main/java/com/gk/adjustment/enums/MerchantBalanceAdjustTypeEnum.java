@@ -1,8 +1,10 @@
 package com.gk.adjustment.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.ledger.enums.LedgerPostingEventEnum;
 
+@EnumDict("merchantBalanceAdjustType")
 public enum MerchantBalanceAdjustTypeEnum implements StringCodeEnum {
     RECHARGE("RECHARGE", "充值", "enum.merchantBalanceAdjustType.recharge", LedgerPostingEventEnum.MANUAL_RECHARGE.code(), true),
     DEDUCT("DEDUCT", "扣减", "enum.merchantBalanceAdjustType.deduct", LedgerPostingEventEnum.MANUAL_DEDUCT.code(), false),

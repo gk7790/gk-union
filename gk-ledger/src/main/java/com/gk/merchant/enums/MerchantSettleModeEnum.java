@@ -1,10 +1,12 @@
 package com.gk.merchant.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 商户结算模式。
  */
+@EnumDict("merchantSettleMode")
 public enum MerchantSettleModeEnum implements StringCodeEnum {
     MANUAL("MANUAL", "手工", "enum.merchantSettleMode.manual"),
     AUTO("AUTO", "自动", "enum.merchantSettleMode.auto");

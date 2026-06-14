@@ -1,10 +1,12 @@
 package com.gk.merchant.enums;
 
+import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
 
 /**
  * 商户应用加密类型。
  */
+@EnumDict("encryptType")
 public enum EncryptTypeEnum implements StringCodeEnum {
     NONE("NONE", "无", "enum.encryptType.none"),
     AES("AES", "AES", "enum.encryptType.aes"),

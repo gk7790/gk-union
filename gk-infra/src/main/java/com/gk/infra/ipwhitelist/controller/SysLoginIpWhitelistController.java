@@ -47,7 +47,7 @@ public class SysLoginIpWhitelistController {
 
     @PostMapping
     @Operation(summary = "保存")
-    @PreAuthorize("hasAuthority('sys:login-ip-whitelist:save')")
+    @PreAuthorize("hasAuthority('sys:login-ip-whitelist:add')")
     public R<?> save(@RequestBody SysLoginIpWhitelistDTO dto) {
         sysLoginIpWhitelistService.save(dto);
         return R.ok(dto);

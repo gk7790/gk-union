@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import java.util.Map;
  * 一个 Bot API 方法(如 sendMessage)由 Telegram 执行, 无需回调发送接口。
  * </p>
  */
+@Slf4j
 @Tag(name = "Telegram机器人-入站指令")
 @RestController
 @RequestMapping("/tg/webhook")
@@ -41,6 +43,8 @@ public class TgWebhookController {
             @RequestHeader(value = SECRET_HEADER, required = false) String secretToken,
             @RequestBody(required = false) String rawBody,
             HttpServletRequest request) {
+
+        log.error(rawBody);
 
         String secret = secretToken != null ? secretToken : request.getHeader(SECRET_HEADER);
         TgWebhookService.Result result = tgWebhookService.handle(botNo, secret, rawBody);

@@ -40,7 +40,7 @@ public class TgCommandDispatcher {
             return "未识别的指令: " + TgHtml.code(command) + "\n\n" + helpText();
         }
         if (handler.requireBinding() && ctx.getAccount() == null) {
-            return "请先绑定系统账号后再使用该指令。\n在系统中获取绑定码, 然后发送: " + TgHtml.code("/bind <绑定码>");
+            return "当前 Telegram 未绑定系统账号, 暂无法使用该指令。请联系管理员处理账号绑定。";
         }
         try {
             return handler.handle(ctx);

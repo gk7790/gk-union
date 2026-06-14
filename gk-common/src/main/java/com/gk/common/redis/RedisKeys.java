@@ -140,6 +140,10 @@ public class RedisKeys {
         return "merchant:api-ip-whitelist:*";
     }
 
+    public static String getTgMerchantBindCodeKey(String code) {
+        return "tg:merchant:bind:" + code;
+    }
+
     public static String getPspCallbackIpWhitelistKey(String pspCode) {
         return "psp:callback-ip-whitelist:" + nullToAll(pspCode);
     }

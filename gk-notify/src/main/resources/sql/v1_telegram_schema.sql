@@ -6,12 +6,11 @@
  Target Server Version : 80036 (8.0.36)
  File Encoding         : 65001
 
- 说明: Telegram 机器人, 含"出站推送" + "入站指令" 两条链路, 共 6 张表:
+ 说明: Telegram 机器人, 含"出站推送" + "入站指令" 两条链路, 共 5 张表:
    [出站] tg_bot          机器人配置(BotToken 加密落库)
    [出站] tg_chat         推送目标会话/群, 内嵌事件订阅字段
    [出站] tg_message_task 出站消息任务(状态机 + 重试 + 死信 + 抢占锁), 复用 merchant_notify_task 模式
    [入站] tg_account      TG用户 ↔ 系统主体绑定(指令鉴权核心)
-   [入站] tg_bind_code    一次性绑定验证码(可用 Redis 替代, 落表便于审计)
    [入站] tg_update_log   入站指令幂等去重 + 审计, 复用 psp_callback_log 思路
  后续可平滑扩展: tg_subscription(订阅拆表)、tg_message_template(模板拆表)
 */
@@ -141,26 +140,6 @@ CREATE TABLE `tg_account`  (
   INDEX `idx_tg_account_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_tg_account_tenant`(`tenant_id` ASC, `status` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Telegram账号绑定' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Table structure for tg_bind_code  (一次性绑定验证码)
--- ----------------------------
-DROP TABLE IF EXISTS `tg_bind_code`;
-CREATE TABLE `tg_bind_code`  (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID',
-  `code` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '一次性绑定码',
-  `user_id` bigint NOT NULL COMMENT '发起绑定的系统用户ID',
-  `subject_id` bigint NULL DEFAULT NULL COMMENT '主体ID',
-  `tg_user_id` bigint NULL DEFAULT NULL COMMENT '已使用时记录的TG用户ID',
-  `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态: 0待使用 1已使用 2过期',
-  `expire_at` datetime(3) NOT NULL COMMENT '过期时间',
-  `used_at` datetime(3) NULL DEFAULT NULL COMMENT '使用时间',
-  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_tg_bind_code`(`code` ASC) USING BTREE,
-  INDEX `idx_tg_bind_code_scan`(`status` ASC, `expire_at` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Telegram绑定验证码' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tg_update_log  (入站指令幂等 + 审计)

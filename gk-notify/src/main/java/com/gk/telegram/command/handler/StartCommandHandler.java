@@ -33,7 +33,7 @@ public class StartCommandHandler implements TgCommandHandler {
                     + "发送 " + TgHtml.code("/help") + " 查看全部指令。";
         }
         return TgHtml.bold("欢迎使用本机器人") + "\n"
-                + "请先在系统中获取绑定码, 然后发送: " + TgHtml.code("/bind <绑定码>") + " 完成绑定。\n"
+                + "商户通知绑定请在商户详情生成绑定码, 然后发送: " + TgHtml.code("/merchant <绑定码>") + "。\n"
                 + "发送 " + TgHtml.code("/help") + " 查看全部指令。";
     }
 }

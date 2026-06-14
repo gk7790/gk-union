@@ -3,9 +3,9 @@ package com.gk.telegram.command.handler;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
-import com.gk.common.utils.BizKeyUtils;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.merchant.support.MerchantTgBindCodeService;
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandHandler;
 import com.gk.telegram.entity.TgBotEntity;
@@ -16,12 +16,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * /merchant 绑定商户 Telegram 通知: /merchant &lt;绑定码&gt;
- * <p>绑定码 = 商户 ID 的 Base32 短码，可在商户详情查看。</p>
+ * <p>绑定码 = 商户详情中生成的 Redis 10 分钟一次性码。</p>
  */
 @Component
 @RequiredArgsConstructor
 public class BindMerchantCommandHandler implements TgCommandHandler {
     private final MerchantDao merchantDao;
+    private final MerchantTgBindCodeService merchantTgBindCodeService;
 
     @Override
     public String command() {
@@ -60,13 +61,14 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
                     + "后续平台通知将发送到此 Telegram。";
         } catch (GkException ex) {
             return TgHtml.escape(ex.getMsg());
-        } catch (IllegalArgumentException ex) {
-            return "绑定码格式无效。";
         }
     }
 
     private MerchantEntity bind(String code, Long tgUserId, Long botTenantId, String botOwnerScope) {
-        long merchantId = BizKeyUtils.decodeId(code);
+        Long merchantId = merchantTgBindCodeService.consume(code);
+        if (merchantId == null) {
+            throw new GkException("绑定码无效或已过期，请在商户详情重新生成");
+        }
         MerchantEntity merchant = merchantDao.selectById(merchantId);
         if (merchant == null) {
             throw new GkException("商户不存在");
@@ -112,6 +114,6 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
 
     private String usage() {
         return "用法: " + TgHtml.code("/merchant <绑定码>")
-                + "\n绑定码为商户 ID 的 Base32 短码，在商户后台详情可查看。";
+                + "\n绑定码在商户后台详情生成，10 分钟内有效且成功绑定后失效。";
     }
 }

@@ -19,6 +19,6 @@ public class TgProperties {
     private String apiBaseUrl = "https://api.telegram.org";
     /** 本服务对外基础地址(用于拼接 setWebhook 的回调URL), 如 https://pay.example.com */
     private String webhookBaseUrl = "";
-    /** 绑定码有效期(分钟) */
+    /** 商户 Telegram 绑定码有效期(分钟) */
     private int bindCodeTtlMinutes = 10;
 }

@@ -5,10 +5,10 @@ import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
-import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.merchant.dto.MerchantDTO;
 import com.gk.merchant.service.MerchantService;
+import com.gk.merchant.support.MerchantTgBindCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MerchantController {
     private final MerchantService merchantService;
+    private final MerchantTgBindCodeService merchantTgBindCodeService;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -45,7 +46,7 @@ public class MerchantController {
     public R<?> get(@PathVariable("id") Long id) {
         MerchantDTO data = merchantService.get(id);
         if (data != null && data.getId() != null) {
-            data.setTgBindCode(BizKeyUtils.encodeId(data.getId()));
+            data.setTgBindCode(merchantTgBindCodeService.generate(data.getId()));
         }
         return R.ok(data);
     }

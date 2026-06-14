@@ -126,6 +126,10 @@ public class RedisUtils {
         return redisTemplate.opsForValue().get(key);
     }
 
+    public Object getAndDelete(String key) {
+        return redisTemplate.opsForValue().getAndDelete(key);
+    }
+
     /**
      * 获取指定类型的keu数据
      */

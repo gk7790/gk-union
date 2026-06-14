@@ -50,13 +50,3 @@ INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_cod
 SELECT 1950000000000000010, 1950000000000000008, 'tg-account-unbind', NULL, 5, 1, 'tg:account:update', NULL,
        '{"title":"解绑"}', 2, NOW(), NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000010);
-
-INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
-SELECT 1950000000000000011, 1950000000000000002, 'tg-bind-index', '/notify/tg/bind/index', 2, 1, 'tg:bind-code:generate',
-       '/notify/tg/bind/index', '{"title":"账号绑定","icon":"lucide:user-check"}', 3, NOW(), NOW()
-FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000011);
-
-INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
-SELECT 1950000000000000012, 1950000000000000011, 'tg-bind-generate', NULL, 5, 1, 'tg:bind-code:generate', NULL,
-       '{"title":"生成绑定码"}', 1, NOW(), NOW()
-FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000012);

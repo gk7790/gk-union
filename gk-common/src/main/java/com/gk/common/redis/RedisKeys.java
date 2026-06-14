@@ -158,9 +158,4 @@ public class RedisKeys {
      * 过期时长为24小时，单位：秒
      */
     public static long MEMBER_HOUR_EXPIRE = 60 * 60 * 24;
-
-    /**
-     * 白名单列表Key
-     */
-    public static final String SYS_WHITE_LIST_KEY = "sys:whitelist";
 }

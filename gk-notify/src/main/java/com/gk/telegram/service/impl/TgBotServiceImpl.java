@@ -4,10 +4,11 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.constant.Constant;
-import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.Result;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.config.model.TgBaseConfig;
 import com.gk.infra.config.service.SysParamsService;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgBotDTO> implements TgBotService {
     private static final String BOT_NO_PREFIX = "TG";
+
     private final TgTokenCipher tokenCipher;
     private final TgBotApiClient botApiClient;
     private final SysParamsService sysParamsService;
@@ -56,7 +58,7 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
     @Override
     public void save(TgBotDTO dto) {
         if (StrUtil.isBlank(dto.getToken())) {
-            throw new GkException("Bot Token 不能为空");
+            throw new GkException("Bot Token cannot be blank");
         }
         TgBotEntity entity = new TgBotEntity();
         BeanUtils.copyProperties(dto, entity);
@@ -70,16 +72,16 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         entity.setMode(StrUtil.isNotBlank(dto.getMode()) ? dto.getMode() : "WEBHOOK");
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
 
-        // 连通测试(getMe)回填 username/botUserId, 失败不阻断创建
-        JSONObject me = botApiClient.getMe(dto.getToken());
-        if (me != null) {
+        Result<JSONObject> getMeResult = botApiClient.getMe(dto.getToken());
+        JSONObject me = getMeResult.getData();
+        if (getMeResult.isSuccess() && me != null) {
             entity.setBotUserId(me.getLong("id"));
             if (StrUtil.isBlank(entity.getUsername())) {
                 entity.setUsername(me.getString("username"));
             }
         }
         if (StrUtil.isBlank(entity.getUsername())) {
-            throw new GkException("无法获取Bot username, 请检查Token是否正确或手动填写username");
+            throw new GkException("Unable to get Bot username: " + getMeResult.getMsg());
         }
 
         insert(entity);
@@ -92,7 +94,6 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
     public void update(TgBotDTO dto) {
         TgBotEntity entity = new TgBotEntity();
         BeanUtils.copyProperties(dto, entity);
-        // token为空表示不修改; 非空则重新加密
         if (StrUtil.isNotBlank(dto.getToken())) {
             entity.setTokenCipher(tokenCipher.encrypt(dto.getToken()));
             entity.setTokenHash(tokenCipher.hash(dto.getToken()));
@@ -102,46 +103,52 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
     }
 
     @Override
-    public String setupWebhook(Long id) {
+    public Result<String> setupWebhook(Long id) {
         TgBotEntity bot = baseDao.selectById(id);
         if (bot == null) {
-            throw new GkException("机器人不存在");
+            throw new GkException("Bot does not exist");
         }
 
         TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
-        String webhookBaseUrl = tgBase.getWebhookBaseUrl();
+        String webhookBaseUrl = tgBase == null ? null : tgBase.getWebhookBaseUrl();
         if (StrUtil.isBlank(webhookBaseUrl)) {
-            throw new GkException("未配置 TELEGRAM_BASE_CONFIG_KEY.tgWebhookBaseUrl");
+            return Result.fail("Missing TELEGRAM_BASE_CONFIG_KEY.webhookBaseUrl");
         }
         String token = tokenCipher.decrypt(bot.getTokenCipher());
         String url = webhookBaseUrl.replaceAll("/+$", "") + "/tg/webhook/" + bot.getBotNo();
-        boolean ok = botApiClient.setWebhook(token, url, bot.getSecretToken());
-        if (!ok) {
-            throw new GkException("设置Webhook失败, 请检查网络与Token");
+        Result<JSONObject> webhookResult = botApiClient.setWebhook(token, url, bot.getSecretToken());
+        if (webhookResult.isFail()) {
+            return Result.fail(webhookResult.getMsg());
         }
+
         TgBotEntity update = new TgBotEntity();
         update.setId(id);
         update.setWebhookUrl(url);
         updateById(update);
-        return url;
+        return Result.success(url, "Webhook set successfully");
     }
 
     @Override
-    public String testConnectivity(Long id) {
+    public Result<String> testConnectivity(Long id) {
         TgBotEntity bot = baseDao.selectById(id);
         if (bot == null) {
-            throw new GkException("机器人不存在");
+            throw new GkException("Bot does not exist");
         }
         String token = tokenCipher.decrypt(bot.getTokenCipher());
-        JSONObject me = botApiClient.getMe(token);
-        if (me == null) {
-            return null;
+        Result<JSONObject> getMeResult = botApiClient.getMe(token);
+        if (getMeResult.isFail()) {
+            return Result.fail(getMeResult.getMsg());
         }
+        JSONObject me = getMeResult.getData();
+        if (me == null) {
+            return Result.fail("Telegram API result is empty");
+        }
+
         TgBotEntity update = new TgBotEntity();
         update.setId(id);
         update.setBotUserId(me.getLong("id"));
         update.setUsername(me.getString("username"));
         updateById(update);
-        return me.getString("username");
+        return Result.success(me.getString("username"), "Telegram API connectivity test succeeded");
     }
 }

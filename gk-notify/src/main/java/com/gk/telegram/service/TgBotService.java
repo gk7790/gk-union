@@ -1,6 +1,7 @@
 package com.gk.telegram.service;
 
 import com.gk.common.core.service.CrudService;
+import com.gk.common.model.Result;
 import com.gk.telegram.dto.TgBotDTO;
 import com.gk.telegram.entity.TgBotEntity;
 
@@ -22,7 +23,7 @@ public interface TgBotService extends CrudService<TgBotEntity, TgBotDTO> {
      * @param id 机器人ID
      * @return 已设置的回调URL
      */
-    String setupWebhook(Long id);
+    Result<String> setupWebhook(Long id);
 
     /**
      * 连通测试(getMe), 成功回填username/botUserId
@@ -30,5 +31,5 @@ public interface TgBotService extends CrudService<TgBotEntity, TgBotDTO> {
      * @param id 机器人ID
      * @return Bot @username, 失败返回null
      */
-    String testConnectivity(Long id);
+    Result<String> testConnectivity(Long id);
 }

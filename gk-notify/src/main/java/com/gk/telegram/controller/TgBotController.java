@@ -78,13 +78,13 @@ public class TgBotController {
     @Operation(summary = "设置Webhook", description = "向Telegram注册回调地址并下发secret_token")
     @PreAuthorize("hasAuthority('tg:bot:update')")
     public R<?> setupWebhook(@PathVariable("id") Long id) {
-        return R.ok(tgBotService.setupWebhook(id));
+        return R.fromResult(tgBotService.setupWebhook(id));
     }
 
     @GetMapping("{id}/test")
     @Operation(summary = "连通测试", description = "调用getMe校验Token并回填username/botUserId")
     @PreAuthorize("hasAuthority('tg:bot:info')")
     public R<?> test(@PathVariable("id") Long id) {
-        return R.ok(tgBotService.testConnectivity(id));
+        return R.fromResult(tgBotService.testConnectivity(id));
     }
 }

@@ -3,6 +3,7 @@ package com.gk.telegram.bot;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.gk.common.constant.Constant;
+import com.gk.common.model.Result;
 import com.gk.infra.config.model.TgBaseConfig;
 import com.gk.infra.config.service.SysParamsService;
 import lombok.RequiredArgsConstructor;
@@ -10,12 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Telegram Bot API 客户端(基于 Spring RestClient, 无需引入第三方SDK)
+ * Telegram Bot API client.
  */
 @Slf4j
 @Component
@@ -25,33 +27,27 @@ public class TgBotApiClient {
 
     private RestClient client() {
         TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
-        return RestClient.builder().baseUrl(tgBase.getApiBaseUrl()).build();
+        String apiBaseUrl = tgBase == null ? null : tgBase.getApiBaseUrl();
+        if (apiBaseUrl == null || apiBaseUrl.isBlank()) {
+            apiBaseUrl = "https://api.telegram.org";
+        }
+        return RestClient.builder().baseUrl(apiBaseUrl.trim()).build();
     }
 
-    /**
-     * getMe: 校验token并获取机器人基础信息
-     *
-     * @return Telegram返回的 result 对象(含id/username), 失败返回null
-     */
-    public JSONObject getMe(String token) {
+    public Result<JSONObject> getMe(String token) {
         try {
             String resp = client().get()
                     .uri("/bot" + token + "/getMe")
                     .retrieve()
                     .body(String.class);
-            return result(resp);
+            return result(resp, "Telegram getMe succeeded");
         } catch (Exception e) {
             log.warn("Telegram getMe failed: {}", e.getMessage());
-            return null;
+            return fail(e);
         }
     }
 
-    /**
-     * setWebhook: 设置回调地址与 secret_token
-     *
-     * @return 是否成功
-     */
-    public boolean setWebhook(String token, String url, String secretToken) {
+    public Result<JSONObject> setWebhook(String token, String url, String secretToken) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("url", url);
         if (secretToken != null && !secretToken.isBlank()) {
@@ -64,20 +60,14 @@ public class TgBotApiClient {
                     .body(body)
                     .retrieve()
                     .body(String.class);
-            JSONObject root = JSON.parseObject(resp);
-            return root != null && Boolean.TRUE.equals(root.getBoolean("ok"));
+            return result(resp, "Telegram webhook set successfully");
         } catch (Exception e) {
             log.warn("Telegram setWebhook failed: {}", e.getMessage());
-            return false;
+            return fail(e);
         }
     }
 
-    /**
-     * sendMessage: 主动发送文本消息(出站推送使用)
-     *
-     * @return Telegram返回的 result 对象(含message_id), 失败返回null
-     */
-    public JSONObject sendMessage(String token, Long chatId, String text, String parseMode) {
+    public Result<JSONObject> sendMessage(String token, Long chatId, String text, String parseMode) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("chat_id", chatId);
         body.put("text", text);
@@ -91,18 +81,47 @@ public class TgBotApiClient {
                     .body(body)
                     .retrieve()
                     .body(String.class);
-            return result(resp);
+            return result(resp, "Telegram message sent successfully");
         } catch (Exception e) {
             log.warn("Telegram sendMessage failed: {}", e.getMessage());
-            return null;
+            return fail(e);
         }
     }
 
-    private JSONObject result(String resp) {
-        JSONObject root = JSON.parseObject(resp);
-        if (root == null || !Boolean.TRUE.equals(root.getBoolean("ok"))) {
-            return null;
+    Result<JSONObject> result(String resp, String successMessage) {
+        try {
+            JSONObject root = JSON.parseObject(resp);
+            if (root == null) {
+                return Result.fail("Telegram API response is empty");
+            }
+            if (!Boolean.TRUE.equals(root.getBoolean("ok"))) {
+                return Result.fail(failureMessage(root));
+            }
+            return Result.success(root.getJSONObject("result"), successMessage);
+        } catch (Exception e) {
+            return Result.fail("Failed to parse Telegram API response: {}", e.getMessage());
         }
-        return root.getJSONObject("result");
+    }
+
+    private Result<JSONObject> fail(Exception e) {
+        if (e instanceof RestClientResponseException responseException) {
+            String body = responseException.getResponseBodyAsString();
+            if (body != null && !body.isBlank()) {
+                return result(body, "");
+            }
+        }
+        return Result.fail("Telegram API call failed: {}", e.getMessage());
+    }
+
+    private String failureMessage(JSONObject root) {
+        Integer errorCode = root.getInteger("error_code");
+        String description = root.getString("description");
+        if (description == null || description.isBlank()) {
+            description = "Unknown error";
+        }
+        if (errorCode == null) {
+            return "Telegram API call failed: " + description;
+        }
+        return "Telegram API call failed(" + errorCode + "): " + description;
     }
 }

@@ -6,6 +6,8 @@ import com.gk.common.exception.GkException;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.support.MerchantTgBindCodeService;
+import com.gk.platform.entity.SysUserSubjectEntity;
+import com.gk.platform.service.SysUserSubjectService;
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandHandler;
 import com.gk.telegram.entity.TgBotEntity;
@@ -16,42 +18,32 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 /**
- * 绑定吗
+ * /merchant 指令处理器。
+ * <p>绑定商户主通知账号，并同步写入 tg_account 作为指令鉴权账号。</p>
  */
 @Component
 @RequiredArgsConstructor
 public class BindMerchantCommandHandler implements TgCommandHandler {
     private final MerchantDao merchantDao;
     private final MerchantTgBindCodeService merchantTgBindCodeService;
+    private final SysUserSubjectService sysUserSubjectService;
     private final TgAccountService tgAccountService;
 
-    /**
-     * 当前处理器绑定的 Telegram 指令。
-     */
     @Override
     public String command() {
         return "/merchant";
     }
 
-    /**
-     * /help 中展示的指令说明。
-     */
     @Override
     public String description() {
         return "绑定商户主通知账号: /merchant <绑定码>";
     }
 
-    /**
-     * 商户主账号绑定入口允许未绑定 Telegram 用户调用。
-     */
     @Override
     public boolean requireBinding() {
         return false;
     }
 
-    /**
-     * 使用一次性绑定码绑定商户主 Telegram 通知账号，并同步写入 tg_account。
-     */
     @Override
     public String handle(TgCommandContext ctx) {
         String code = ctx.arg(0);
@@ -62,21 +54,19 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
             return "请在机器人私聊中绑定商户账号。";
         }
         try {
-            MerchantEntity merchant = bindMerchant(ctx, code.trim());
+            BindingTarget target = bindMerchant(ctx, code.trim());
             return TgHtml.bold("商户绑定成功") + "\n"
-                    + "商户号: " + TgHtml.code(merchant.getMerchantNo()) + "\n"
-                    + "商户名: " + TgHtml.escape(merchant.getMerchantName()) + "\n"
+                    + "商户号: " + TgHtml.code(target.merchant().getMerchantNo()) + "\n"
+                    + "商户名: " + TgHtml.escape(target.merchant().getMerchantName()) + "\n"
                     + "Telegram ID: " + TgHtml.code(ctx.getTgUserId());
         } catch (GkException ex) {
             return TgHtml.escape(ex.getMsg());
         }
     }
 
-    /**
-     * 绑定 merchant.tg_user_id，并确保一个 Telegram 用户不会绑定多个商户主账号。
-     */
-    private MerchantEntity bindMerchant(TgCommandContext ctx, String code) {
-        MerchantEntity merchant = consumeMerchant(ctx, code);
+    private BindingTarget bindMerchant(TgCommandContext ctx, String code) {
+        BindingTarget target = consumeTarget(ctx, code);
+        MerchantEntity merchant = target.merchant();
         Long tgUserId = ctx.getTgUserId();
         if (merchant.getTgUserId() != null && !merchant.getTgUserId().equals(tgUserId)) {
             throw new GkException("该商户已绑定其他 Telegram 账号，请先解绑");
@@ -88,7 +78,6 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
         if (occupied != null) {
             throw new GkException("当前 Telegram 已绑定商户 " + occupied.getMerchantNo());
         }
-        // merchant.tg_user_id 是商户通知主账号；tg_account 是指令鉴权账号，两边都要保持一致。
         if (merchant.getTgUserId() == null || !merchant.getTgUserId().equals(tgUserId)) {
             MerchantEntity update = new MerchantEntity();
             update.setId(merchant.getId());
@@ -96,29 +85,54 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
             merchantDao.updateById(update);
             merchant.setTgUserId(tgUserId);
         }
-        tgAccountService.bindMerchantAccount(ctx.getBot().getId(), tgUserId,
-                ctx.getTgUsername(), ctx.getLanguageCode(), merchant);
-        return merchant;
+        tgAccountService.bindSubjectAccount(ctx.getBot().getId(), tgUserId,
+                ctx.getTgUsername(), ctx.getLanguageCode(), target.subject());
+        return target;
     }
 
-    /**
-     * 消费绑定码并校验商户是否允许被当前机器人绑定。
-     */
-    private MerchantEntity consumeMerchant(TgCommandContext ctx, String code) {
+    private BindingTarget consumeTarget(TgCommandContext ctx, String code) {
         if (ctx.getBot() == null || ctx.getBot().getId() == null) {
             throw new GkException("Telegram 机器人信息无效");
         }
         if (ctx.getTgUserId() == null || ctx.getTgUserId() <= 0) {
             throw new GkException("Telegram 用户信息无效");
         }
-        // consume 后 Redis 中的绑定码会被删除，避免同一个码被重复使用。
-        Long merchantId = merchantTgBindCodeService.consume(code);
-        if (merchantId == null) {
+        Long subjectId = merchantTgBindCodeService.consume(code);
+        if (subjectId == null) {
             throw new GkException("绑定码无效或已过期，请重新生成");
         }
-        MerchantEntity merchant = merchantDao.selectById(merchantId);
+        SysUserSubjectEntity subject = sysUserSubjectService.selectById(subjectId);
+        validateSubject(subject, ctx.getBot());
+        MerchantEntity merchant = merchantDao.selectById(subject.getMerchantId());
+        validateMerchant(subject, merchant);
+        return new BindingTarget(subject, merchant);
+    }
+
+    private void validateSubject(SysUserSubjectEntity subject, TgBotEntity bot) {
+        if (subject == null) {
+            throw new GkException("绑定主体不存在");
+        }
+        if (!Integer.valueOf(1).equals(subject.getStatus())) {
+            throw new GkException("绑定主体已禁用");
+        }
+        if (!SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
+            throw new GkException("绑定码不是商户主体，无法绑定");
+        }
+        if (subject.getTenantId() == null || subject.getMerchantId() == null || subject.getUserId() == null) {
+            throw new GkException("商户主体信息不完整，无法绑定");
+        }
+        if (bot != null && SubjectTypeEnum.TENANT.matches(bot.getOwnerScope())
+                && !subject.getTenantId().equals(bot.getTenantId())) {
+            throw new GkException("该商户不属于当前机器人租户");
+        }
+    }
+
+    private void validateMerchant(SysUserSubjectEntity subject, MerchantEntity merchant) {
         if (merchant == null) {
             throw new GkException("商户不存在");
+        }
+        if (!subject.getTenantId().equals(merchant.getTenantId())) {
+            throw new GkException("商户主体与商户租户不一致");
         }
         if (!Integer.valueOf(1).equals(merchant.getStatus())) {
             throw new GkException("商户已禁用，无法绑定");
@@ -126,26 +140,12 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
         if (!"NORMAL".equalsIgnoreCase(StringUtils.defaultString(merchant.getRiskStatus()))) {
             throw new GkException("商户风控状态异常，无法绑定");
         }
-        validateBotScope(merchant, ctx.getBot());
-        return merchant;
     }
 
-    /**
-     * 租户机器人只能绑定同租户下的商户，平台机器人不限制商户租户。
-     */
-    private void validateBotScope(MerchantEntity merchant, TgBotEntity bot) {
-        if (bot == null || !SubjectTypeEnum.TENANT.matches(bot.getOwnerScope())) {
-            return;
-        }
-        if (bot.getTenantId() == null || !bot.getTenantId().equals(merchant.getTenantId())) {
-            throw new GkException("该商户不属于当前机器人租户");
-        }
-    }
-
-    /**
-     * 缺少绑定码时返回的使用说明。
-     */
     private String usage() {
         return "用法: " + TgHtml.code("/merchant <绑定码>");
+    }
+
+    private record BindingTarget(SysUserSubjectEntity subject, MerchantEntity merchant) {
     }
 }

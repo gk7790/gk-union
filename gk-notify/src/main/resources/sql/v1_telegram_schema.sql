@@ -122,25 +122,34 @@ CREATE TABLE `tg_message_task`  (
 -- Table structure for tg_account  (TG用户绑定系统主体, 指令鉴权核心)
 -- ----------------------------
 DROP TABLE IF EXISTS `tg_account`;
-CREATE TABLE `tg_account`  (
+CREATE TABLE `tg_account` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID',
+
+  `tenant_id` bigint NOT NULL COMMENT '租户ID, 冗余自sys_user_subject.tenant_id, 用于租户隔离和列表查询',
   `bot_id` bigint NOT NULL COMMENT '绑定时所用机器人ID, 关联tg_bot.id',
+
   `tg_user_id` bigint NOT NULL COMMENT 'Telegram用户ID',
-  `tg_username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'TG用户名@',
-  `user_id` bigint NULL DEFAULT NULL COMMENT '系统用户ID, 关联sys_user.id',
-  `subject_id` bigint NULL DEFAULT NULL COMMENT '主体ID, 关联sys_user_subject.id',
-  `language_code` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'TG语言',
+  `tg_username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'Telegram用户名',
+  `language_code` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'Telegram语言',
+
+  `user_id` bigint NOT NULL COMMENT '系统用户ID, 关联sys_user.id',
+  `subject_id` bigint NOT NULL COMMENT '系统用户主体ID, 关联sys_user_subject.id, 通过该主体确定tenant/merchant范围',
+
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0解绑 1已绑定',
   `bound_at` datetime(3) NULL DEFAULT NULL COMMENT '绑定时间',
   `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_tg_account_bot_user`(`bot_id` ASC, `tg_user_id` ASC) USING BTREE,
-  INDEX `idx_tg_account_user`(`user_id` ASC) USING BTREE,
-  INDEX `idx_tg_account_tenant`(`tenant_id` ASC, `status` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Telegram账号绑定' ROW_FORMAT = Dynamic;
 
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_tg_account_bot_user` (`bot_id` ASC, `tg_user_id` ASC) USING BTREE,
+  INDEX `idx_tg_account_user` (`user_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_tg_account_subject` (`subject_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_tg_account_tenant` (`tenant_id` ASC, `status` ASC) USING BTREE
+) ENGINE = InnoDB
+  CHARACTER SET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Telegram账号绑定'
+  ROW_FORMAT = Dynamic;
 -- ----------------------------
 -- Table structure for tg_update_log  (入站指令幂等 + 审计)
 -- ----------------------------

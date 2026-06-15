@@ -46,6 +46,10 @@ public class OrderCommandHandler implements TgCommandHandler {
             return "用法: " + TgHtml.code("/order <平台单号或商户单号>");
         }
         Long tenantId = ctx.targetTenantId();
+        Long merchantId = ctx.targetMerchantId();
+        if (merchantId == null) {
+            return "当前绑定账号未关联商户，无法查询订单。";
+        }
         if (tenantId == null) {
             return "当前绑定未关联租户，无法查询订单。";
         }
@@ -68,14 +72,12 @@ public class OrderCommandHandler implements TgCommandHandler {
 
     /**
      * 构造订单查询条件。
-     * <p>个人绑定按租户查，群绑定如果有 merchantId 则进一步收窄到商户范围。</p>
+     * <p>所有查询都必须同时带 tenantId + merchantId，避免租户级误查其他商户订单。</p>
      */
     private PayOrderDTO queryOne(TgCommandContext ctx, String field, String value) {
         DynMap params = new DynMap();
         params.put("tenantId", ctx.targetTenantId());
-        if (ctx.targetMerchantId() != null) {
-            params.put("merchantId", ctx.targetMerchantId());
-        }
+        params.put("merchantId", ctx.targetMerchantId());
         params.put(field, value);
         List<PayOrderDTO> list = payOrderService.list(params);
         return (list == null || list.isEmpty()) ? null : list.get(0);

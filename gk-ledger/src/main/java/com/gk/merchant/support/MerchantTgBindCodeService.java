@@ -23,16 +23,16 @@ public class MerchantTgBindCodeService {
     private final SysParamsService sysParamsService;
     private final SecureRandom random = new SecureRandom();
 
-    public String generate(Long merchantId) {
-        if (merchantId == null) {
-            throw new IllegalArgumentException("merchantId must not be null");
+    public String generate(Long subjectId) {
+        if (subjectId == null) {
+            throw new IllegalArgumentException("subjectId must not be null");
         }
         for (int i = 0; i < MAX_GENERATE_ATTEMPTS; i++) {
             String code = randomCode();
             String key = RedisKeys.getTgMerchantBindCodeKey(code);
             if (!redisUtils.isKeyExist(key)) {
                 TgBaseConfig tgBase = sysParamsService.getValueObject(Constant.TELEGRAM_BASE_CONFIG_KEY, TgBaseConfig.class);
-                redisUtils.set(key, String.valueOf(merchantId), tgBase.getBindCodeTtl() * 60L);
+                redisUtils.set(key, String.valueOf(subjectId), tgBase.getBindCodeTtl() * 60L);
                 return code;
             }
         }
@@ -49,11 +49,11 @@ public class MerchantTgBindCodeService {
         if (value == null) {
             return null;
         }
-        Long merchantId = parseMerchantId(value);
-        if (merchantId == null) {
+        Long subjectId = parseSubjectId(value);
+        if (subjectId == null) {
             return null;
         }
-        return merchantId;
+        return subjectId;
     }
 
     private String randomCode() {
@@ -71,7 +71,7 @@ public class MerchantTgBindCodeService {
         return code.trim().toUpperCase();
     }
 
-    private Long parseMerchantId(Object value) {
+    private Long parseSubjectId(Object value) {
         try {
             return Long.valueOf(String.valueOf(value));
         } catch (NumberFormatException ex) {

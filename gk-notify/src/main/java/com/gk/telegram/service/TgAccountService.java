@@ -1,7 +1,7 @@
 package com.gk.telegram.service;
 
 import com.gk.common.core.service.CrudService;
-import com.gk.merchant.entity.MerchantEntity;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.telegram.dto.TgAccountDTO;
 import com.gk.telegram.entity.TgAccountEntity;
 
@@ -23,7 +23,7 @@ public interface TgAccountService extends CrudService<TgAccountEntity, TgAccount
      *
      * @return 新增或恢复后的绑定记录
      */
-    TgAccountEntity bindMerchantAccount(Long botId, Long tgUserId, String tgUsername, String languageCode, MerchantEntity merchant);
+    TgAccountEntity bindSubjectAccount(Long botId, Long tgUserId, String tgUsername, String languageCode, SysUserSubjectEntity subject);
 
     /**
      * 解绑(置为status=0)

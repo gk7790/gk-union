@@ -2,6 +2,7 @@ package com.gk.merchant.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
@@ -45,8 +46,10 @@ public class MerchantController {
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> get(@PathVariable("id") Long id) {
         MerchantDTO data = merchantService.get(id);
-        if (data != null && data.getId() != null) {
-            data.setTgBindCode(merchantTgBindCodeService.generate(data.getId()));
+        Long subjectId = ReqContextHolder.getSubjectId();
+        Long merchantId = ReqContextHolder.getMerchantId();
+        if (data != null && data.getId() != null && subjectId != null && data.getId().equals(merchantId)) {
+            data.setTgBindCode(merchantTgBindCodeService.generate(subjectId));
         }
         return R.ok(data);
     }

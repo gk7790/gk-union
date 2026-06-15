@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
-import com.gk.merchant.entity.MerchantEntity;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.telegram.dao.TgAccountDao;
 import com.gk.telegram.dto.TgAccountDTO;
 import com.gk.telegram.entity.TgAccountEntity;
@@ -60,9 +60,9 @@ public class TgAccountServiceImpl extends CrudServiceImpl<TgAccountDao, TgAccoun
      * <p>表上存在 bot_id + tg_user_id 唯一键，所以这里按唯一键做 upsert 语义。</p>
      */
     @Override
-    public TgAccountEntity bindMerchantAccount(Long botId, Long tgUserId, String tgUsername, String languageCode, MerchantEntity merchant) {
-        if (botId == null || tgUserId == null || merchant == null) {
-            throw new IllegalArgumentException("botId, tgUserId and merchant are required");
+    public TgAccountEntity bindSubjectAccount(Long botId, Long tgUserId, String tgUsername, String languageCode, SysUserSubjectEntity subject) {
+        if (botId == null || tgUserId == null || subject == null || subject.getUserId() == null || subject.getId() == null) {
+            throw new IllegalArgumentException("botId, tgUserId and subject are required");
         }
         Instant now = Instant.now();
         TgAccountEntity existed = baseDao.selectOne(new QueryWrapper<TgAccountEntity>()
@@ -72,10 +72,12 @@ public class TgAccountServiceImpl extends CrudServiceImpl<TgAccountDao, TgAccoun
         if (existed == null) {
             // 首次绑定时插入新记录，user_id/subject_id 预留给后续真正系统用户绑定码使用。
             TgAccountEntity entity = new TgAccountEntity();
-            entity.setTenantId(merchant.getTenantId());
+            entity.setTenantId(subject.getTenantId());
             entity.setBotId(botId);
             entity.setTgUserId(tgUserId);
             entity.setTgUsername(tgUsername);
+            entity.setUserId(subject.getUserId());
+            entity.setSubjectId(subject.getId());
             entity.setLanguageCode(languageCode);
             entity.setStatus(1);
             entity.setBoundAt(now);
@@ -88,16 +90,20 @@ public class TgAccountServiceImpl extends CrudServiceImpl<TgAccountDao, TgAccoun
         // 已存在记录时恢复为有效状态，并刷新 Telegram 用户名、语言和租户信息。
         TgAccountEntity update = new TgAccountEntity();
         update.setId(existed.getId());
-        update.setTenantId(merchant.getTenantId());
+        update.setTenantId(subject.getTenantId());
         update.setTgUsername(tgUsername);
+        update.setUserId(subject.getUserId());
+        update.setSubjectId(subject.getId());
         update.setLanguageCode(languageCode);
         update.setStatus(1);
         update.setBoundAt(now);
         update.setUpdatedAt(now);
         baseDao.updateById(update);
 
-        existed.setTenantId(merchant.getTenantId());
+        existed.setTenantId(subject.getTenantId());
         existed.setTgUsername(tgUsername);
+        existed.setUserId(subject.getUserId());
+        existed.setSubjectId(subject.getId());
         existed.setLanguageCode(languageCode);
         existed.setStatus(1);
         existed.setBoundAt(now);

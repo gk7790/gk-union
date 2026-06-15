@@ -2,6 +2,8 @@ package com.gk.telegram.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.gk.platform.entity.SysUserSubjectEntity;
+import com.gk.platform.service.SysUserSubjectService;
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandDispatcher;
 import com.gk.telegram.entity.TgAccountEntity;
@@ -42,6 +44,7 @@ public class TgWebhookServiceImpl implements TgWebhookService {
     private final TgChatService tgChatService;
     private final TgUpdateLogService tgUpdateLogService;
     private final TgCommandDispatcher commandDispatcher;
+    private final SysUserSubjectService sysUserSubjectService;
 
     /**
      * 处理 Telegram webhook 推送的一条 Update。
@@ -121,6 +124,11 @@ public class TgWebhookServiceImpl implements TgWebhookService {
             TgChatEntity boundChat = chatId != null
                     ? tgChatService.getActiveChat(bot.getId(), chatId)
                     : null;
+            SysUserSubjectEntity subject = account != null && account.getSubjectId() != null
+                    ? sysUserSubjectService.selectById(account.getSubjectId())
+                    : null;
+            Long targetTenantId = subject != null ? subject.getTenantId() : (boundChat == null ? null : boundChat.getTenantId());
+            Long targetMerchantId = subject != null ? subject.getMerchantId() : (boundChat == null ? null : boundChat.getMerchantId());
             TgCommandContext ctx = TgCommandContext.builder()
                     .bot(bot)
                     .tgUserId(tgUserId)
@@ -134,6 +142,8 @@ public class TgWebhookServiceImpl implements TgWebhookService {
                     .args(parseArgs(text))
                     .account(account)
                     .chat(boundChat)
+                    .targetTenantId(targetTenantId)
+                    .targetMerchantId(targetMerchantId)
                     .build();
             // 指令自身只返回回复文本，webhook 层负责包装成 Telegram sendMessage 响应体。
             replyText = commandDispatcher.dispatch(ctx);

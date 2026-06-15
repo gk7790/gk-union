@@ -38,6 +38,10 @@ public class TgCommandContext {
     private TgAccountEntity account;
     /** 当前会话的群绑定记录；未绑定时为空。 */
     private TgChatEntity chat;
+    /** 当前指令允许访问的租户范围，个人绑定来自 sys_user_subject，群绑定来自 tg_chat。 */
+    private Long targetTenantId;
+    /** 当前指令允许访问的商户范围，个人绑定来自 sys_user_subject，群绑定来自 tg_chat。 */
+    private Long targetMerchantId;
 
     /**
      * 获取第 index 个命令参数，越界时返回 null。
@@ -60,6 +64,9 @@ public class TgCommandContext {
      * 获取查询类指令使用的租户范围，优先个人绑定，其次群绑定。
      */
     public Long targetTenantId() {
+        if (targetTenantId != null) {
+            return targetTenantId;
+        }
         if (account != null && account.getTenantId() != null) {
             return account.getTenantId();
         }
@@ -70,6 +77,9 @@ public class TgCommandContext {
      * 获取查询类指令使用的商户范围，目前主要来自群绑定。
      */
     public Long targetMerchantId() {
+        if (targetMerchantId != null) {
+            return targetMerchantId;
+        }
         return chat == null ? null : chat.getMerchantId();
     }
 

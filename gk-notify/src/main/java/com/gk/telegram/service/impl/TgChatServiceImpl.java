@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
-import com.gk.merchant.entity.MerchantEntity;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;
@@ -67,9 +67,10 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
      * <p>表上存在 bot_id + chat_id 唯一键，所以这里按唯一键做 upsert 语义。</p>
      */
     @Override
-    public TgChatEntity bindMerchantChat(Long botId, Long chatId, String chatType, String title, String languageCode, MerchantEntity merchant) {
-        if (botId == null || chatId == null || merchant == null) {
-            throw new IllegalArgumentException("botId, chatId and merchant are required");
+    public TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
+                                        SysUserSubjectEntity subject) {
+        if (botId == null || chatId == null || subject == null || subject.getId() == null) {
+            throw new IllegalArgumentException("botId, chatId and subject are required");
         }
         Instant now = Instant.now();
         String normalizedType = StringUtils.defaultIfBlank(chatType, "GROUP").toUpperCase(Locale.ROOT);
@@ -81,8 +82,8 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         if (existed == null) {
             // 首次群绑定时登记推送目标，并默认作为通知用途。
             TgChatEntity entity = new TgChatEntity();
-            entity.setTenantId(merchant.getTenantId());
-            entity.setMerchantId(merchant.getId());
+            entity.setTenantId(subject.getTenantId());
+            entity.setMerchantId(subject.getMerchantId());
             entity.setBotId(botId);
             entity.setChatId(chatId);
             entity.setChatType(normalizedType);
@@ -99,8 +100,8 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         // 群重新绑定时刷新租户、商户、标题和语言，并恢复为启用状态。
         TgChatEntity update = new TgChatEntity();
         update.setId(existed.getId());
-        update.setTenantId(merchant.getTenantId());
-        update.setMerchantId(merchant.getId());
+        update.setTenantId(subject.getTenantId());
+        update.setMerchantId(subject.getMerchantId());
         update.setChatType(normalizedType);
         update.setTitle(title);
         update.setLang(lang);
@@ -108,8 +109,8 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         update.setUpdatedAt(now);
         baseDao.updateById(update);
 
-        existed.setTenantId(merchant.getTenantId());
-        existed.setMerchantId(merchant.getId());
+        existed.setTenantId(subject.getTenantId());
+        existed.setMerchantId(subject.getMerchantId());
         existed.setChatType(normalizedType);
         existed.setTitle(title);
         existed.setLang(lang);

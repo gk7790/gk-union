@@ -9,6 +9,7 @@ import lombok.Data;
 public class TgBindTicket {
     private String code;
     private String purpose;
+    private String subjectType;
     private Long tenantId;
     private Long merchantId;
     private Long subjectId;

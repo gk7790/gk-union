@@ -1,7 +1,7 @@
 package com.gk.telegram.service;
 
 import com.gk.common.core.service.CrudService;
-import com.gk.merchant.entity.MerchantEntity;
+import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;
 
@@ -15,9 +15,10 @@ public interface TgChatService extends CrudService<TgChatEntity, TgChatDTO> {
     TgChatEntity getActiveChat(Long botId, Long chatId);
 
     /**
-     * 将当前 Telegram 群绑定到商户，用于群内订单查询和后续消息推送。
+     * 将当前 Telegram 群绑定到系统主体，支持平台、租户和商户群。
      */
-    TgChatEntity bindMerchantChat(Long botId, Long chatId, String chatType, String title, String languageCode, MerchantEntity merchant);
+    TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
+                                 SysUserSubjectEntity subject);
 
     /**
      * 解绑群会话，保留历史记录并将状态置为停用。

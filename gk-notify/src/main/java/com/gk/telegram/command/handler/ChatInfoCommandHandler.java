@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * /chatinfo 指令处理器。
- * <p>展示当前 Telegram chat 的基础信息，以及该群/会话是否已绑定到系统商户。</p>
+ * <p>展示当前 Telegram chat 的基础信息，以及该群/会话是否已绑定到系统主体。</p>
  */
 @Component
 public class ChatInfoCommandHandler implements TgCommandHandler {

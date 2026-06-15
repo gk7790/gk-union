@@ -2,6 +2,7 @@ package com.gk.infra.telegram;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.config.model.TgBaseConfig;
@@ -26,8 +27,9 @@ public class TgBindTicketService {
     private final SysParamsService sysParamsService;
     private final SecureRandom random = new SecureRandom();
 
-    public TgBindTicket generate(TgBindTicketCreateRequest request) {
-        validateCreateRequest(request);
+    public TgBindTicket generate(TgBindPurpose purpose, String subjectType,
+                                 Long tenantId, Long merchantId, Long subjectId, Long userId) {
+        validateCreateRequest(purpose, subjectType, tenantId, merchantId, subjectId, userId);
         long ttlSeconds = getTtlSeconds();
         for (int i = 0; i < MAX_GENERATE_ATTEMPTS; i++) {
             String code = randomCode();
@@ -35,11 +37,12 @@ public class TgBindTicketService {
             if (!redisUtils.isKeyExist(key)) {
                 TgBindTicket ticket = new TgBindTicket();
                 ticket.setCode(code);
-                ticket.setPurpose(request.getPurpose().name());
-                ticket.setTenantId(request.getTenantId());
-                ticket.setMerchantId(request.getMerchantId());
-                ticket.setSubjectId(request.getSubjectId());
-                ticket.setUserId(request.getUserId());
+                ticket.setPurpose(purpose.name());
+                ticket.setSubjectType(subjectType);
+                ticket.setTenantId(tenantId);
+                ticket.setMerchantId(merchantId);
+                ticket.setSubjectId(subjectId);
+                ticket.setUserId(userId);
                 redisUtils.set(key, JSON.toJSONString(ticket), ttlSeconds);
                 return ticket;
             }
@@ -64,13 +67,26 @@ public class TgBindTicketService {
         return consumed;
     }
 
-    private void validateCreateRequest(TgBindTicketCreateRequest request) {
-        if (request == null || request.getPurpose() == null) {
+    private void validateCreateRequest(TgBindPurpose purpose, String subjectType,
+                                       Long tenantId, Long merchantId, Long subjectId, Long userId) {
+        if (purpose == null) {
             throw new IllegalArgumentException("purpose is required");
         }
-        if (request.getTenantId() == null || request.getMerchantId() == null
-                || request.getSubjectId() == null || request.getUserId() == null) {
-            throw new IllegalArgumentException("tenantId, merchantId, subjectId and userId are required");
+        SubjectTypeEnum type = SubjectTypeEnum.fromCode(subjectType);
+        if (type == null) {
+            throw new IllegalArgumentException("subjectType is required");
+        }
+        if (subjectId == null || userId == null) {
+            throw new IllegalArgumentException("subjectId and userId are required");
+        }
+        if (TgBindPurpose.MERCHANT.equals(purpose) && !SubjectTypeEnum.MERCHANT.matches(subjectType)) {
+            throw new IllegalArgumentException("merchant purpose requires merchant subject");
+        }
+        if (SubjectTypeEnum.TENANT.matches(subjectType) && tenantId == null) {
+            throw new IllegalArgumentException("tenantId is required for tenant subject");
+        }
+        if (SubjectTypeEnum.MERCHANT.matches(subjectType) && (tenantId == null || merchantId == null)) {
+            throw new IllegalArgumentException("tenantId and merchantId are required for merchant subject");
         }
     }
 

@@ -23,7 +23,7 @@ import java.util.Objects;
 /**
  * /bind 指令处理器。
  *
- * <p>只消费 ACCOUNT 用途的绑定票据，把当前 Telegram 用户绑定到票据对应的商户主体。</p>
+ * <p>只消费 USER 用途的绑定票据，把当前 Telegram 用户绑定到票据对应的系统主体。</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -61,9 +61,7 @@ public class BindCommandHandler implements TgCommandHandler {
             BindingTarget target = consumeTarget(ctx, code.trim());
             tgAccountService.bindSubjectAccount(ctx.getBot().getId(), ctx.getTgUserId(),
                     ctx.getTgUsername(), ctx.getLanguageCode(), target.subject());
-            return TgHtml.bold("账号绑定成功") + "\n"
-                    + "商户号: " + TgHtml.code(target.merchant().getMerchantNo()) + "\n"
-                    + "商户名: " + TgHtml.escape(target.merchant().getMerchantName());
+            return successMessage(target);
         } catch (GkException ex) {
             return TgHtml.escape(ex.getMsg());
         }
@@ -71,15 +69,18 @@ public class BindCommandHandler implements TgCommandHandler {
 
     private BindingTarget consumeTarget(TgCommandContext ctx, String code) {
         validateTelegramContext(ctx);
-        TgBindTicket ticket = tgBindTicketService.consume(code, TgBindPurpose.ACCOUNT);
+        TgBindTicket ticket = tgBindTicketService.consume(code, TgBindPurpose.USER);
         if (ticket == null || ticket.getSubjectId() == null) {
             throw new GkException("绑定码无效、用途不匹配或已过期，请重新生成");
         }
         SysUserSubjectEntity subject = sysUserSubjectService.selectById(ticket.getSubjectId());
         validateTicket(ticket, subject);
         validateSubject(subject, ctx.getBot());
-        MerchantEntity merchant = merchantDao.selectById(subject.getMerchantId());
-        validateMerchant(subject, merchant);
+        MerchantEntity merchant = null;
+        if (SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
+            merchant = merchantDao.selectById(subject.getMerchantId());
+            validateMerchant(subject, merchant);
+        }
         return new BindingTarget(subject, merchant);
     }
 
@@ -98,8 +99,9 @@ public class BindCommandHandler implements TgCommandHandler {
         }
         if (!Objects.equals(ticket.getTenantId(), subject.getTenantId())
                 || !Objects.equals(ticket.getMerchantId(), subject.getMerchantId())
-                || !Objects.equals(ticket.getUserId(), subject.getUserId())) {
-            throw new GkException("绑定码与商户主体不匹配，请重新生成");
+                || !Objects.equals(ticket.getUserId(), subject.getUserId())
+                || !Objects.equals(ticket.getSubjectType(), subject.getSubjectType())) {
+            throw new GkException("绑定码与系统主体不匹配，请重新生成");
         }
     }
 
@@ -110,16 +112,34 @@ public class BindCommandHandler implements TgCommandHandler {
         if (!Integer.valueOf(1).equals(subject.getStatus())) {
             throw new GkException("绑定主体已禁用");
         }
-        if (!SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
-            throw new GkException("绑定码不是商户主体，无法绑定");
+        SubjectTypeEnum subjectType = SubjectTypeEnum.fromCode(subject.getSubjectType());
+        if (subjectType == null) {
+            throw new GkException("绑定主体类型无效");
         }
-        if (subject.getTenantId() == null || subject.getMerchantId() == null || subject.getUserId() == null) {
+        if (subject.getUserId() == null) {
+            throw new GkException("绑定主体用户信息不完整，无法绑定");
+        }
+        if (SubjectTypeEnum.TENANT.matches(subject.getSubjectType()) && subject.getTenantId() == null) {
+            throw new GkException("租户主体信息不完整，无法绑定");
+        }
+        if (SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())
+                && (subject.getTenantId() == null || subject.getMerchantId() == null)) {
             throw new GkException("商户主体信息不完整，无法绑定");
         }
         if (bot != null && SubjectTypeEnum.TENANT.matches(bot.getOwnerScope())
-                && !subject.getTenantId().equals(bot.getTenantId())) {
-            throw new GkException("该商户不属于当前机器人租户");
+                && !Objects.equals(subject.getTenantId(), bot.getTenantId())) {
+            throw new GkException("绑定主体不属于当前机器人租户");
         }
+    }
+
+    private String successMessage(BindingTarget target) {
+        StringBuilder sb = new StringBuilder(TgHtml.bold("账号绑定成功"));
+        sb.append("\n主体类型: ").append(TgHtml.code(target.subject().getSubjectType()));
+        if (target.merchant() != null) {
+            sb.append("\n商户号: ").append(TgHtml.code(target.merchant().getMerchantNo()));
+            sb.append("\n商户名: ").append(TgHtml.escape(target.merchant().getMerchantName()));
+        }
+        return sb.toString();
     }
 
     private void validateMerchant(SysUserSubjectEntity subject, MerchantEntity merchant) {

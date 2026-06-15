@@ -125,7 +125,7 @@ DROP TABLE IF EXISTS `tg_account`;
 CREATE TABLE `tg_account` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
 
-  `tenant_id` bigint NOT NULL COMMENT '租户ID, 冗余自sys_user_subject.tenant_id, 用于租户隔离和列表查询',
+  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID, 冗余自sys_user_subject.tenant_id; 平台主体为空',
   `bot_id` bigint NOT NULL COMMENT '绑定时所用机器人ID, 关联tg_bot.id',
 
   `tg_user_id` bigint NOT NULL COMMENT 'Telegram用户ID',

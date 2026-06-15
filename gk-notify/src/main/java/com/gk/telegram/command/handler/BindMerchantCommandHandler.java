@@ -24,7 +24,7 @@ import java.util.Objects;
 /**
  * /merchant 指令处理器。
  *
- * <p>只消费 MERCHANT_NOTIFY 用途的绑定票据，绑定或更新商户主通知 Telegram 账号。</p>
+ * <p>只消费 MERCHANT 用途的绑定票据，绑定或更新商户主 Telegram 账号。</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -94,7 +94,7 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
 
     private BindingTarget consumeTarget(TgCommandContext ctx, String code) {
         validateTelegramContext(ctx);
-        TgBindTicket ticket = tgBindTicketService.consume(code, TgBindPurpose.MERCHANT_NOTIFY);
+        TgBindTicket ticket = tgBindTicketService.consume(code, TgBindPurpose.MERCHANT);
         if (ticket == null || ticket.getSubjectId() == null) {
             throw new GkException("绑定码无效、用途不匹配或已过期，请重新生成");
         }
@@ -121,7 +121,8 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
         }
         if (!Objects.equals(ticket.getTenantId(), subject.getTenantId())
                 || !Objects.equals(ticket.getMerchantId(), subject.getMerchantId())
-                || !Objects.equals(ticket.getUserId(), subject.getUserId())) {
+                || !Objects.equals(ticket.getUserId(), subject.getUserId())
+                || !Objects.equals(ticket.getSubjectType(), subject.getSubjectType())) {
             throw new GkException("绑定码与商户主体不匹配，请重新生成");
         }
     }

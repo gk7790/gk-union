@@ -10,7 +10,6 @@ import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.telegram.TgBindPurpose;
 import com.gk.infra.telegram.TgBindTicket;
-import com.gk.infra.telegram.TgBindTicketCreateRequest;
 import com.gk.infra.telegram.TgBindTicketService;
 import com.gk.merchant.dto.MerchantDTO;
 import com.gk.merchant.service.MerchantService;
@@ -49,20 +48,14 @@ public class MerchantController {
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> get(@PathVariable("id") Long id) {
-        MerchantDTO data = merchantService.get(id);
-        Long subjectId = ReqContextHolder.getSubjectId();
-        Long merchantId = ReqContextHolder.getMerchantId();
-        if (data != null && data.getId() != null && subjectId != null && data.getId().equals(merchantId)) {
-            data.setTgBindCode(generateTicket(data, TgBindPurpose.ACCOUNT).getCode());
-        }
-        return R.ok(data);
+        return R.ok(merchantService.get(id));
     }
 
     @PostMapping("{id}/tg-bind-ticket")
     @Operation(summary = "生成Telegram绑定码")
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> generateTgBindTicket(@PathVariable("id") Long id,
-                                     @RequestParam(defaultValue = "ACCOUNT") String purpose) {
+                                     @RequestParam(defaultValue = "USER") String purpose) {
         MerchantDTO data = merchantService.get(id);
         if (data == null || data.getId() == null) {
             throw new GkException("商户不存在");
@@ -71,6 +64,7 @@ public class MerchantController {
         DynMap result = new DynMap();
         result.put("code", ticket.getCode());
         result.put("purpose", ticket.getPurpose());
+        result.put("subjectType", ticket.getSubjectType());
         return R.ok(result);
     }
 
@@ -106,15 +100,11 @@ public class MerchantController {
         Long subjectId = ReqContextHolder.getSubjectId();
         Long userId = ReqContextHolder.getUserId();
         Long tenantId = ReqContextHolder.getTenantId();
+        String subjectType = ReqContextHolder.getSubjectType();
         if (merchant == null || merchant.getId() == null || !merchant.getId().equals(currentMerchantId)) {
             throw new GkException("只能为当前登录商户生成Telegram绑定码");
         }
-        return tgBindTicketService.generate(TgBindTicketCreateRequest.builder()
-                .purpose(purpose)
-                .tenantId(tenantId != null ? tenantId : merchant.getTenantId())
-                .merchantId(merchant.getId())
-                .subjectId(subjectId)
-                .userId(userId)
-                .build());
+        return tgBindTicketService.generate(purpose, subjectType, tenantId != null ? tenantId : merchant.getTenantId(),
+                merchant.getId(), subjectId, userId);
     }
 }

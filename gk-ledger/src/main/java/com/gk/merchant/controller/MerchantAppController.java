@@ -62,6 +62,14 @@ public class MerchantAppController {
         return R.ok(merchantAppService.resetApiSecret(id));
     }
 
+    @PostMapping("{id}/production")
+    @Operation(summary = "创建正式APP")
+    @PreAuthorize("hasAuthority('merchant:app:update')")
+    public R<?> createProductionApp(@PathVariable("id") Long id) {
+        AssertUtils.isReserved(id);
+        return R.ok(merchantAppService.createProductionApp(id));
+    }
+
     @PutMapping("{id}")
     @Operation(summary = "修改")
     @PreAuthorize("hasAuthority('merchant:app:update')")

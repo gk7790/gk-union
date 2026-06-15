@@ -13,6 +13,7 @@ import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.merchant.config.MerchantDefaultsProperties;
+import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
 import com.gk.merchant.enums.MerchantSettleCycleEnum;
 import com.gk.merchant.enums.MerchantSettleModeEnum;
@@ -165,6 +166,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         apiApp.setId(null);
         apiApp.setTenantId(entity.getTenantId());
         apiApp.setMerchantId(entity.getId());
+        apiApp.setAppEnv(MerchantAppEnvEnum.TEST.code());
         if (StrUtil.isBlank(apiApp.getAppName())) {
             apiApp.setAppName(entity.getMerchantName() + " API");
         }

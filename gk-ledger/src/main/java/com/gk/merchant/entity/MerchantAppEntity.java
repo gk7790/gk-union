@@ -19,6 +19,7 @@ public class MerchantAppEntity extends SimpleEntity {
     private String appId;
     private String appName;
     private String appType;
+    private String appEnv;
     private Integer status;
     private String signType;
     private String encryptType;

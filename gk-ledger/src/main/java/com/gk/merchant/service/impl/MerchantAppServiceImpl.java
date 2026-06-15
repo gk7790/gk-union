@@ -11,6 +11,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.common.enums.SignTypeEnum;
+import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.EncryptTypeEnum;
 import com.gk.merchant.enums.MerchantAppTypeEnum;
 import com.gk.merchant.dao.MerchantAppDao;
@@ -42,6 +43,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         String appId = params.getStr("appId");
         String appName = params.getStr("appName");
         String appType = params.getStr("appType");
+        String appEnv = params.getStr("appEnv");
         String signType = params.getStr("signType");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
@@ -50,6 +52,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         wrapper.eq(StrUtil.isNotBlank(appId), "app_id", appId);
         wrapper.like(StrUtil.isNotBlank(appName), "app_name", appName);
         wrapper.eq(StrUtil.isNotBlank(appType), "app_type", appType);
+        wrapper.eq(StrUtil.isNotBlank(appEnv), "app_env", appEnv);
         wrapper.eq(StrUtil.isNotBlank(signType), "sign_type", signType);
 
         return wrapper;
@@ -88,6 +91,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
         dto.setId(entity.getId());
         dto.setAppId(entity.getAppId());
+        dto.setAppEnv(entity.getAppEnv());
         dto.setApiSecret(apiSecret);
         dto.setSecretVersion(entity.getSecretVersion());
         dto.setSecretUpdatedAt(entity.getSecretUpdatedAt());
@@ -138,12 +142,42 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         return dto;
     }
 
+    @Override
+    public MerchantAppDTO createProductionApp(Long testAppId) {
+        AssertUtils.isNull(testAppId, "id");
+        MerchantAppEntity testApp = baseDao.selectById(testAppId);
+        if (testApp == null) {
+            throw new GkException(ErrorCode.NOT_FOUND);
+        }
+        if (!MerchantAppEnvEnum.TEST.code().equals(testApp.getAppEnv())) {
+            throw new GkException("only TEST app can create PROD app");
+        }
+        Long existed = baseDao.selectCount(new QueryWrapper<MerchantAppEntity>()
+                .eq("tenant_id", testApp.getTenantId())
+                .eq("merchant_id", testApp.getMerchantId())
+                .eq("app_env", MerchantAppEnvEnum.PROD.code()));
+        if (existed != null && existed > 0) {
+            throw new GkException("PROD app already exists");
+        }
+
+        MerchantAppDTO dto = ConvertUtils.sourceToTarget(testApp, MerchantAppDTO.class);
+        dto.setId(null);
+        dto.setAppId(null);
+        dto.setApiSecret(null);
+        dto.setAppEnv(MerchantAppEnvEnum.PROD.code());
+        save(dto);
+        return dto;
+    }
+
     private void applyCreateDefaults(MerchantAppEntity entity) {
         if (entity.getStatus() == null) {
             entity.setStatus(DEFAULT_STATUS);
         }
         if (StrUtil.isBlank(entity.getAppType())) {
             entity.setAppType(MerchantAppTypeEnum.API.code());
+        }
+        if (StrUtil.isBlank(entity.getAppEnv())) {
+            entity.setAppEnv(MerchantAppEnvEnum.TEST.code());
         }
         if (StrUtil.isBlank(entity.getSignType())) {
             entity.setSignType(SignTypeEnum.HMAC_SHA256.code());

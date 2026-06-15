@@ -10,4 +10,9 @@ public interface MerchantAppService extends CrudService<MerchantAppEntity, Merch
      * 重置 API 密钥，返回含明文 apiSecret 的 DTO（仅此一次可见）。
      */
     MerchantAppDTO resetApiSecret(Long id);
+
+    /**
+     * 从测试 APP 创建正式 APP。
+     */
+    MerchantAppDTO createProductionApp(Long testAppId);
 }

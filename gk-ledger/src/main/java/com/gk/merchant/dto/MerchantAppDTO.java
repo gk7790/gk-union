@@ -18,6 +18,8 @@ public class MerchantAppDTO {
     private String appName;
     @Schema(title = "应用类型")
     private String appType;
+    @Schema(title = "应用环境")
+    private String appEnv;
     @Schema(title = "状态")
     private Integer status;
     @Schema(title = "签名类型")

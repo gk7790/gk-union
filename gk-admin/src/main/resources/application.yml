@@ -73,3 +73,10 @@ mybatis-plus:
 xss:
   exclude:
     path-list: /devtools/template,/survey/callbacktemplate
+
+gk:
+  merchant:
+    defaults:
+      timezone: ${MERCHANT_DEFAULT_TIMEZONE:Asia/Shanghai}
+      lang: ${MERCHANT_DEFAULT_LANG:zh-CN}
+      config-json: '${MERCHANT_DEFAULT_CONFIG_JSON:{}}'

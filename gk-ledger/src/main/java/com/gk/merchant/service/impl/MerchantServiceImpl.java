@@ -12,6 +12,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.ledger.service.LedgerAccountService;
+import com.gk.merchant.config.MerchantDefaultsProperties;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
 import com.gk.merchant.enums.MerchantSettleCycleEnum;
 import com.gk.merchant.enums.MerchantSettleModeEnum;
@@ -31,14 +32,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEntity, MerchantDTO> implements MerchantService {
 
-    private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
-    private static final String DEFAULT_LANG = "zh-CN";
-    private static final String DEFAULT_CONFIG_JSON = "{}";
     private static final int DEFAULT_STATUS = 1;
     private static final int MERCHANT_NO_GENERATE_MAX_ATTEMPTS = 5;
 
     private final MerchantAppService merchantAppService;
     private final LedgerAccountService ledgerAccountService;
+    private final MerchantDefaultsProperties merchantDefaultsProperties;
 
     @Override
     public QueryWrapper<MerchantEntity> getWrapper(DynMap params) {
@@ -118,10 +117,10 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setRiskStatus(MerchantRiskStatusEnum.NORMAL.code());
         }
         if (StrUtil.isBlank(entity.getTimezone())) {
-            entity.setTimezone(DEFAULT_TIMEZONE);
+            entity.setTimezone(merchantDefaultsProperties.getTimezone());
         }
         if (StrUtil.isBlank(entity.getLang())) {
-            entity.setLang(DEFAULT_LANG);
+            entity.setLang(merchantDefaultsProperties.getLang());
         }
         if (StrUtil.isBlank(entity.getSettleMode())) {
             entity.setSettleMode(MerchantSettleModeEnum.MANUAL.code());
@@ -130,7 +129,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setSettleCycle(MerchantSettleCycleEnum.T1.code());
         }
         if (StrUtil.isBlank(entity.getConfigJson())) {
-            entity.setConfigJson(DEFAULT_CONFIG_JSON);
+            entity.setConfigJson(merchantDefaultsProperties.getConfigJson());
         }
     }
 

@@ -28,7 +28,6 @@ import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
-import com.gk.psp.constant.PspConstants;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.fee.PspFeeResult;

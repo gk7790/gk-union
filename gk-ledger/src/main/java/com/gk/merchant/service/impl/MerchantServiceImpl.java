@@ -33,6 +33,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
 
     private static final String DEFAULT_TIMEZONE = "Asia/Shanghai";
     private static final String DEFAULT_LANG = "zh-CN";
+    private static final String DEFAULT_CONFIG_JSON = "{}";
     private static final int DEFAULT_STATUS = 1;
     private static final int MERCHANT_NO_GENERATE_MAX_ATTEMPTS = 5;
 
@@ -71,7 +72,6 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
 
         AssertUtils.isNull(dto.getTenantId(), "tenantId");
         AssertUtils.isBlank(dto.getMerchantName(), "merchantName");
-        AssertUtils.isBlank(dto.getCountryCode(), "countryCode");
         AssertUtils.isBlank(dto.getDefaultCurrency(), "defaultCurrency");
 
         MerchantEntity entity = ConvertUtils.sourceToTarget(dto, MerchantEntity.class);
@@ -128,6 +128,9 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         }
         if (StrUtil.isBlank(entity.getSettleCycle())) {
             entity.setSettleCycle(MerchantSettleCycleEnum.T1.code());
+        }
+        if (StrUtil.isBlank(entity.getConfigJson())) {
+            entity.setConfigJson(DEFAULT_CONFIG_JSON);
         }
     }
 

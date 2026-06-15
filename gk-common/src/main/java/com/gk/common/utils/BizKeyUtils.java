@@ -11,7 +11,6 @@ public class BizKeyUtils {
     private static final char[] BASE32_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
 
     private static final int APP_ID_RANDOM_LENGTH = 26;
-    private static final int MERCHANT_NO_RANDOM_LENGTH = 15;
     private static final int PSP_NO_RANDOM_LENGTH = 15;
     private static final int SHORT_CODE_LENGTH = 8;
     private static final int NONCE_LENGTH = 16;
@@ -25,7 +24,7 @@ public class BizKeyUtils {
     }
 
     public static String genMerchantNo() {
-        return "M" + randomUpperCode(MERCHANT_NO_RANDOM_LENGTH);
+        return "M" + encodeId(IdWorker.getId());
     }
 
     public static String genPspNo() {

@@ -10,6 +10,7 @@ import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.service.TgChatService;
+import com.gk.telegram.support.TgConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -88,7 +89,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
             entity.setChatId(chatId);
             entity.setChatType(normalizedType);
             entity.setTitle(title);
-            entity.setPurpose("NOTIFY");
+            entity.setPurpose(TgConstants.ChatPurpose.NOTIFY);
             entity.setLang(lang);
             entity.setStatus(1);
             entity.setCreatedAt(now);

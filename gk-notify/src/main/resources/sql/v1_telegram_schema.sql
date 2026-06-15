@@ -61,7 +61,7 @@ CREATE TABLE `tg_chat`  (
   `chat_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '类型: PRIVATE/GROUP/SUPERGROUP/CHANNEL',
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '群/频道名称',
   `purpose` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NOTIFY' COMMENT '用途: NOTIFY/OPS/CUSTOMER',
-  `event_types` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订阅事件(逗号分隔, 空=全部): PAY_SUCCESS,PAYOUT_SUCCESS,PAYOUT_FAILED,RISK_ALERT',
+  `event_types` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订阅事件(逗号分隔, 空=全部): SYSTEM_ERROR,SYSTEM_WARN,PAY_SUCCESS,PAYOUT_SUCCESS,PAYOUT_FAILED,RISK_ALERT',
   `lang` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'en-US' COMMENT '消息语言',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
@@ -81,7 +81,7 @@ CREATE TABLE `tg_chat`  (
 DROP TABLE IF EXISTS `tg_message_task`;
 CREATE TABLE `tg_message_task`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID; 平台级消息为空',
   `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID',
   `bot_id` bigint NOT NULL COMMENT '机器人ID, 关联tg_bot.id',
   `chat_id` bigint NOT NULL COMMENT '目标ChatId',

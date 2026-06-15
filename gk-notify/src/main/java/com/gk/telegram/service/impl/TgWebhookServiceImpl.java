@@ -15,6 +15,7 @@ import com.gk.telegram.service.TgBotService;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.service.TgUpdateLogService;
 import com.gk.telegram.service.TgWebhookService;
+import com.gk.telegram.support.TgConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -37,7 +38,6 @@ public class TgWebhookServiceImpl implements TgWebhookService {
     /** 机器人启用状态 */
     private static final int BOT_ENABLED = 1;
     /** webhook 直返消息的渲染模式(各指令回复均输出 HTML, 动态值经 TgHtml 转义) */
-    private static final String REPLY_PARSE_MODE = "HTML";
 
     private final TgBotService tgBotService;
     private final TgAccountService tgAccountService;
@@ -171,7 +171,7 @@ public class TgWebhookServiceImpl implements TgWebhookService {
         reply.put("method", "sendMessage");
         reply.put("chat_id", chatId);
         reply.put("text", text);
-        reply.put("parse_mode", REPLY_PARSE_MODE);
+        reply.put("parse_mode", TgConstants.ParseMode.HTML);
         return reply;
     }
 

@@ -3,13 +3,17 @@ package com.gk.merchant.controller;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
+import com.gk.infra.telegram.TgBindPurpose;
+import com.gk.infra.telegram.TgBindTicket;
+import com.gk.infra.telegram.TgBindTicketCreateRequest;
+import com.gk.infra.telegram.TgBindTicketService;
 import com.gk.merchant.dto.MerchantDTO;
 import com.gk.merchant.service.MerchantService;
-import com.gk.merchant.support.MerchantTgBindCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -25,7 +29,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MerchantController {
     private final MerchantService merchantService;
-    private final MerchantTgBindCodeService merchantTgBindCodeService;
+    private final TgBindTicketService tgBindTicketService;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -49,9 +53,25 @@ public class MerchantController {
         Long subjectId = ReqContextHolder.getSubjectId();
         Long merchantId = ReqContextHolder.getMerchantId();
         if (data != null && data.getId() != null && subjectId != null && data.getId().equals(merchantId)) {
-            data.setTgBindCode(merchantTgBindCodeService.generate(subjectId));
+            data.setTgBindCode(generateTicket(data, TgBindPurpose.ACCOUNT).getCode());
         }
         return R.ok(data);
+    }
+
+    @PostMapping("{id}/tg-bind-ticket")
+    @Operation(summary = "生成Telegram绑定码")
+    @PreAuthorize("hasAuthority('merchant:info')")
+    public R<?> generateTgBindTicket(@PathVariable("id") Long id,
+                                     @RequestParam(defaultValue = "ACCOUNT") String purpose) {
+        MerchantDTO data = merchantService.get(id);
+        if (data == null || data.getId() == null) {
+            throw new GkException("商户不存在");
+        }
+        TgBindTicket ticket = generateTicket(data, TgBindPurpose.parse(purpose));
+        DynMap result = new DynMap();
+        result.put("code", ticket.getCode());
+        result.put("purpose", ticket.getPurpose());
+        return R.ok(result);
     }
 
     @PostMapping
@@ -79,5 +99,22 @@ public class MerchantController {
         AssertUtils.isArrayEmpty(ids, "id");
         merchantService.delete(ids);
         return R.ok();
+    }
+
+    private TgBindTicket generateTicket(MerchantDTO merchant, TgBindPurpose purpose) {
+        Long currentMerchantId = ReqContextHolder.getMerchantId();
+        Long subjectId = ReqContextHolder.getSubjectId();
+        Long userId = ReqContextHolder.getUserId();
+        Long tenantId = ReqContextHolder.getTenantId();
+        if (merchant == null || merchant.getId() == null || !merchant.getId().equals(currentMerchantId)) {
+            throw new GkException("只能为当前登录商户生成Telegram绑定码");
+        }
+        return tgBindTicketService.generate(TgBindTicketCreateRequest.builder()
+                .purpose(purpose)
+                .tenantId(tenantId != null ? tenantId : merchant.getTenantId())
+                .merchantId(merchant.getId())
+                .subjectId(subjectId)
+                .userId(userId)
+                .build());
     }
 }

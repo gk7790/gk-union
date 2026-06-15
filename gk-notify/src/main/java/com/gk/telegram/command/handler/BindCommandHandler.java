@@ -2,9 +2,11 @@ package com.gk.telegram.command.handler;
 
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
+import com.gk.infra.telegram.TgBindPurpose;
+import com.gk.infra.telegram.TgBindTicket;
+import com.gk.infra.telegram.TgBindTicketService;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.merchant.support.MerchantTgBindCodeService;
 import com.gk.platform.entity.SysUserSubjectEntity;
 import com.gk.platform.service.SysUserSubjectService;
 import com.gk.telegram.command.TgCommandContext;
@@ -16,15 +18,18 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * /bind 指令处理器。
- * <p>把当前 Telegram 用户绑定到系统商户主体，后续业务指令通过 subject_id 解析商户范围。</p>
+ *
+ * <p>只消费 ACCOUNT 用途的绑定票据，把当前 Telegram 用户绑定到票据对应的商户主体。</p>
  */
 @Component
 @RequiredArgsConstructor
 public class BindCommandHandler implements TgCommandHandler {
     private final MerchantDao merchantDao;
-    private final MerchantTgBindCodeService merchantTgBindCodeService;
+    private final TgBindTicketService tgBindTicketService;
     private final SysUserSubjectService sysUserSubjectService;
     private final TgAccountService tgAccountService;
 
@@ -65,21 +70,37 @@ public class BindCommandHandler implements TgCommandHandler {
     }
 
     private BindingTarget consumeTarget(TgCommandContext ctx, String code) {
+        validateTelegramContext(ctx);
+        TgBindTicket ticket = tgBindTicketService.consume(code, TgBindPurpose.ACCOUNT);
+        if (ticket == null || ticket.getSubjectId() == null) {
+            throw new GkException("绑定码无效、用途不匹配或已过期，请重新生成");
+        }
+        SysUserSubjectEntity subject = sysUserSubjectService.selectById(ticket.getSubjectId());
+        validateTicket(ticket, subject);
+        validateSubject(subject, ctx.getBot());
+        MerchantEntity merchant = merchantDao.selectById(subject.getMerchantId());
+        validateMerchant(subject, merchant);
+        return new BindingTarget(subject, merchant);
+    }
+
+    private void validateTelegramContext(TgCommandContext ctx) {
         if (ctx.getBot() == null || ctx.getBot().getId() == null) {
             throw new GkException("Telegram 机器人信息无效");
         }
         if (ctx.getTgUserId() == null || ctx.getTgUserId() <= 0) {
             throw new GkException("Telegram 用户信息无效");
         }
-        Long subjectId = merchantTgBindCodeService.consume(code);
-        if (subjectId == null) {
-            throw new GkException("绑定码无效或已过期，请重新生成");
+    }
+
+    private void validateTicket(TgBindTicket ticket, SysUserSubjectEntity subject) {
+        if (subject == null) {
+            return;
         }
-        SysUserSubjectEntity subject = sysUserSubjectService.selectById(subjectId);
-        validateSubject(subject, ctx.getBot());
-        MerchantEntity merchant = merchantDao.selectById(subject.getMerchantId());
-        validateMerchant(subject, merchant);
-        return new BindingTarget(subject, merchant);
+        if (!Objects.equals(ticket.getTenantId(), subject.getTenantId())
+                || !Objects.equals(ticket.getMerchantId(), subject.getMerchantId())
+                || !Objects.equals(ticket.getUserId(), subject.getUserId())) {
+            throw new GkException("绑定码与商户主体不匹配，请重新生成");
+        }
     }
 
     private void validateSubject(SysUserSubjectEntity subject, TgBotEntity bot) {

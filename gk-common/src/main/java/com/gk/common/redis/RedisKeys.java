@@ -140,7 +140,7 @@ public class RedisKeys {
         return "merchant:api-ip-whitelist:*";
     }
 
-    public static String getTgMerchantBindCodeKey(String code) {
+    public static String getTgBindTicketKey(String code) {
         return "tg:merchant:bind:" + code;
     }
 

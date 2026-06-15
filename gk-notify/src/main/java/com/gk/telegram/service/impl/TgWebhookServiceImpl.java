@@ -117,11 +117,13 @@ public class TgWebhookServiceImpl implements TgWebhookService {
 
         String replyText;
         try {
-            // 私聊场景通过 tg_account 鉴权，群场景通过 tg_chat 鉴权；两者都放进上下文给 dispatcher 判断。
-            TgAccountEntity account = tgUserId != null
+            // 私聊只走个人绑定，群/超级群只走群绑定，避免群指令被发送人的个人账号范围覆盖。
+            boolean privateChat = "private".equalsIgnoreCase(chatType);
+            boolean groupChat = "group".equalsIgnoreCase(chatType) || "supergroup".equalsIgnoreCase(chatType);
+            TgAccountEntity account = privateChat && tgUserId != null
                     ? tgAccountService.getActiveBinding(bot.getId(), tgUserId)
                     : null;
-            TgChatEntity boundChat = chatId != null
+            TgChatEntity boundChat = groupChat && chatId != null
                     ? tgChatService.getActiveChat(bot.getId(), chatId)
                     : null;
             SysUserSubjectEntity subject = account != null && account.getSubjectId() != null

@@ -56,15 +56,8 @@ public class TgBindTicketService {
             return null;
         }
         String key = RedisKeys.getTgBindTicketKey(normalized);
-        TgBindTicket ticket = parseTicket(redisUtils.get(key));
-        if (!matches(ticket, expectedPurpose)) {
-            return null;
-        }
-        TgBindTicket consumed = parseTicket(redisUtils.getAndDelete(key));
-        if (!matches(consumed, expectedPurpose)) {
-            return null;
-        }
-        return consumed;
+        TgBindTicket ticket = parseTicket(redisUtils.getAndDelete(key));
+        return matches(ticket, expectedPurpose) ? ticket : null;
     }
 
     private void validateCreateRequest(TgBindPurpose purpose, String subjectType,

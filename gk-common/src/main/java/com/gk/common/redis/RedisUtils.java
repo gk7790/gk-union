@@ -127,7 +127,11 @@ public class RedisUtils {
     }
 
     public Object getAndDelete(String key) {
-        return redisTemplate.opsForValue().getAndDelete(key);
+        Object value = redisTemplate.opsForValue().get(key);
+        if (value != null) {
+            redisTemplate.delete(key);
+        }
+        return value;
     }
 
     /**

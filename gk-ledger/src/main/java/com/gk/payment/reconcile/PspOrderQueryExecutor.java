@@ -2,6 +2,7 @@ package com.gk.payment.reconcile;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.constant.Constant;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
@@ -66,6 +67,7 @@ public class PspOrderQueryExecutor {
         Instant now = Instant.now();
         List<PayOrderEntity> orders = payOrderDao.selectList(new QueryWrapper<PayOrderEntity>()
                 .eq("status", PayOrderStatusEnum.PROCESSING.code())
+                .and(wrapper -> wrapper.ne("psp_code", Constant.SANDBOX).or().isNull("psp_code"))
                 .and(wrapper -> wrapper.lt("query_count", MAX_QUERY_COUNT).or().isNull("query_count"))
                 .and(wrapper -> wrapper.le("next_query_at", now).or().isNull("next_query_at"))
                 .orderByAsc("next_query_at", "id")
@@ -80,6 +82,7 @@ public class PspOrderQueryExecutor {
         Instant now = Instant.now();
         List<PayoutOrderEntity> orders = payoutOrderDao.selectList(new QueryWrapper<PayoutOrderEntity>()
                 .eq("status", PayoutOrderStatusEnum.PROCESSING.code())
+                .and(wrapper -> wrapper.ne("psp_code", Constant.SANDBOX).or().isNull("psp_code"))
                 .and(wrapper -> wrapper.lt("query_count", MAX_QUERY_COUNT).or().isNull("query_count"))
                 .and(wrapper -> wrapper.le("next_query_at", now).or().isNull("next_query_at"))
                 .orderByAsc("next_query_at", "id")

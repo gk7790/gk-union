@@ -55,6 +55,10 @@ public interface Constant {
      */
     String USER_KEY = "userId";
     /**
+     * 沙箱测试环境
+     */
+    String SANDBOX = "SANDBOX";
+    /**
      * admin
      */
     String ADMIN = "ADMIN";

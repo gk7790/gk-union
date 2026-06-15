@@ -4,12 +4,14 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.alibaba.fastjson2.JSON;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.constant.Constant;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
@@ -26,6 +28,7 @@ import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
+import com.gk.psp.constant.PspConstants;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.fee.PspFeeResult;
@@ -56,7 +59,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
-
     private final PayoutOrderDao payoutOrderDao;
     private final MerchantFeeRuleService merchantFeeRuleService;
     private final PspRouteSelector pspRouteSelector;
@@ -139,6 +141,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
         boolean created = insertOrder(entity);
         if (!created) {
+            return toResponse(entity);
+        }
+        if (isTestApp(context.getMerchantApp())) {
+            submitToSandbox(entity);
             return toResponse(entity);
         }
         try {
@@ -244,6 +250,24 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
             throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
         }
+    }
+
+    private void submitToSandbox(PayoutOrderEntity order) {
+        String fromStatus = order.getStatus();
+        order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
+        order.setPspCode(Constant.SANDBOX);
+        order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayoutOrderNo());
+        order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
+        order.setPspRawStatus(PayoutOrderStatusEnum.PROCESSING.code());
+        order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
+        order.setSubmittedAt(Instant.now());
+        order.setNextQueryAt(null);
+        payoutOrderDao.updateById(order);
+        recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
+    }
+
+    private boolean isTestApp(MerchantAppEntity app) {
+        return app != null && MerchantAppEnvEnum.TEST.code().equals(app.getAppEnv());
     }
 
     /**

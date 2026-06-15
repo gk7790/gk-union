@@ -2,9 +2,11 @@ package com.gk.openapi.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.constant.Constant;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.openapi.dto.PayOrderCreateRequest;
 import com.gk.openapi.dto.PayOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
@@ -49,7 +51,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class OpenPayOrderServiceImpl implements OpenPayOrderService {
-
     private final PayOrderDao payOrderDao;
     private final MerchantFeeRuleService merchantFeeRuleService;
     private final PspRouteSelector pspRouteSelector;
@@ -138,6 +139,10 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         if (!created) {
             return toResponse(entity);
         }
+        if (isTestApp(context.getMerchantApp())) {
+            submitToSandbox(entity);
+            return toResponse(entity);
+        }
         // 提交上游 PSP 成功后，订单进入 PROCESSING，等待 PSP 回调或查单补偿推进终态。
         submitToPsp(entity);
         return toResponse(entity);
@@ -198,6 +203,24 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage());
             throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
         }
+    }
+
+    private void submitToSandbox(PayOrderEntity order) {
+        String fromStatus = order.getStatus();
+        order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
+        order.setPspCode(Constant.SANDBOX);
+        order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayOrderNo());
+        order.setPspPayUrl("/sandbox/pay/" + order.getPayOrderNo());
+        order.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
+        order.setPspRawStatus(PayOrderStatusEnum.PROCESSING.code());
+        order.setStatus(PayOrderStatusEnum.PROCESSING.code());
+        order.setNextQueryAt(null);
+        payOrderDao.updateById(order);
+        recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
+    }
+
+    private boolean isTestApp(MerchantAppEntity app) {
+        return app != null && MerchantAppEnvEnum.TEST.code().equals(app.getAppEnv());
     }
 
     /**

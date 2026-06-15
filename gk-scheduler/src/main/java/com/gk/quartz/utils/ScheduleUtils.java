@@ -5,6 +5,7 @@ import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.quartz.entity.ScheduleJobEntity;
 import org.quartz.*;
+import org.quartz.impl.jdbcjobstore.NoRecordFoundException;
 
 /**
  * 定时任务工具类
@@ -36,9 +37,14 @@ public class ScheduleUtils {
      * 获取表达式触发器
      */
     public static CronTrigger getCronTrigger(Scheduler scheduler, Long jobId) {
+        TriggerKey triggerKey = getTriggerKey(jobId);
         try {
-            return (CronTrigger) scheduler.getTrigger(getTriggerKey(jobId));
+            return (CronTrigger) scheduler.getTrigger(triggerKey);
         } catch (SchedulerException e) {
+            if (isNoRecordFoundException(e)) {
+                cleanScheduleJob(scheduler, jobId, e);
+                return null;
+            }
             throw new GkException(ErrorCode.JOB_ERROR, e);
         }
     }
@@ -84,6 +90,10 @@ public class ScheduleUtils {
             		.withMisfireHandlingInstructionDoNothing();
 
             CronTrigger trigger = getCronTrigger(scheduler, scheduleJob.getId());
+            if (trigger == null) {
+                createScheduleJob(scheduler, scheduleJob);
+                return;
+            }
             
             //按新的cronExpression表达式重新构建trigger
             trigger = trigger.getTriggerBuilder().withIdentity(triggerKey).withSchedule(scheduleBuilder).build();
@@ -101,6 +111,25 @@ public class ScheduleUtils {
         } catch (SchedulerException e) {
             throw new GkException(ErrorCode.JOB_ERROR, e);
         }
+    }
+
+    private static void cleanScheduleJob(Scheduler scheduler, Long jobId, SchedulerException cause) {
+        try {
+            scheduler.deleteJob(getJobKey(jobId));
+        } catch (SchedulerException e) {
+            e.addSuppressed(cause);
+            throw new GkException(ErrorCode.JOB_ERROR, e);
+        }
+    }
+
+    private static boolean isNoRecordFoundException(Throwable throwable) {
+        while (throwable != null) {
+            if (throwable instanceof NoRecordFoundException) {
+                return true;
+            }
+            throwable = throwable.getCause();
+        }
+        return false;
     }
 
     /**

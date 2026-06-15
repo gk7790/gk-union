@@ -2,7 +2,9 @@ package com.gk.merchant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
@@ -63,6 +65,10 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(MerchantDTO dto) {
+        if (SubjectTypeEnum.TENANT.matches(ReqContextHolder.getSubjectType())) {
+            dto.setTenantId(ReqContextHolder.getTenantId());
+        }
+
         AssertUtils.isNull(dto.getTenantId(), "tenantId");
         AssertUtils.isBlank(dto.getMerchantName(), "merchantName");
         AssertUtils.isBlank(dto.getCountryCode(), "countryCode");

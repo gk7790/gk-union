@@ -92,18 +92,8 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
                 entity.getId(),
                 entity.getDefaultCurrency()
         );
-
-        MerchantAppDTO apiApp = dto.getApiApp();
-        if (apiApp != null) {
-            apiApp.setId(null);
-            apiApp.setTenantId(entity.getTenantId());
-            apiApp.setMerchantId(entity.getId());
-            if (StrUtil.isBlank(apiApp.getAppName())) {
-                apiApp.setAppName(entity.getMerchantName() + " API");
-            }
-            merchantAppService.save(apiApp);
-            dto.setApiApp(apiApp);
-        }
+        // 初始化商户APP
+        createDefaultApiApp(dto, entity);
     }
 
     private void applyCreateDefaults(MerchantEntity entity) {
@@ -162,5 +152,23 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             }
         }
         throw new GkException(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * 默认初始化商户APP
+     */
+    private void createDefaultApiApp(MerchantDTO dto, MerchantEntity entity) {
+        MerchantAppDTO apiApp = dto.getApiApp();
+        if (apiApp == null) {
+            apiApp = new MerchantAppDTO();
+        }
+        apiApp.setId(null);
+        apiApp.setTenantId(entity.getTenantId());
+        apiApp.setMerchantId(entity.getId());
+        if (StrUtil.isBlank(apiApp.getAppName())) {
+            apiApp.setAppName(entity.getMerchantName() + " API");
+        }
+        merchantAppService.save(apiApp);
+        dto.setApiApp(apiApp);
     }
 }

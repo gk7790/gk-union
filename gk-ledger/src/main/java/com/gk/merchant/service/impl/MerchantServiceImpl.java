@@ -122,6 +122,9 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         if (StrUtil.isBlank(entity.getLang())) {
             entity.setLang(merchantDefaultsProperties.getLang());
         }
+        if (StrUtil.isBlank(entity.getCountryCode())) {
+            entity.setCountryCode(merchantDefaultsProperties.getCountryCode());
+        }
         if (StrUtil.isBlank(entity.getSettleMode())) {
             entity.setSettleMode(MerchantSettleModeEnum.MANUAL.code());
         }

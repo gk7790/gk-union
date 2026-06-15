@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "gk.merchant.defaults")
 public class MerchantDefaultsProperties {
+    private String countryCode = "PH";
     private String timezone = "Asia/Shanghai";
     private String lang = "zh-CN";
     private String configJson = "{}";

@@ -79,4 +79,5 @@ gk:
     defaults:
       timezone: ${MERCHANT_DEFAULT_TIMEZONE:Asia/Shanghai}
       lang: ${MERCHANT_DEFAULT_LANG:zh-CN}
+      countryCode: ${MERCHANT_DEFAULT_COUNTRY_CODE:PH}
       config-json: '${MERCHANT_DEFAULT_CONFIG_JSON:{}}'

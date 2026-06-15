@@ -4,8 +4,19 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.quartz.entity.ScheduleJobEntity;
-import org.quartz.*;
+import org.quartz.CronScheduleBuilder;
+import org.quartz.CronTrigger;
+import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.impl.jdbcjobstore.NoRecordFoundException;
+
+import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
  * 定时任务工具类
@@ -18,14 +29,14 @@ public class ScheduleUtils {
      * 任务调度参数key
      */
     public static final String JOB_PARAM_KEY = "JOB_PARAM_KEY";
-    
+
     /**
      * 获取触发器key
      */
     public static TriggerKey getTriggerKey(Long jobId) {
         return TriggerKey.triggerKey(JOB_NAME + jobId);
     }
-    
+
     /**
      * 获取jobKey
      */
@@ -54,30 +65,17 @@ public class ScheduleUtils {
      */
     public static void createScheduleJob(Scheduler scheduler, ScheduleJobEntity scheduleJob) {
         try {
-        	//构建job信息
-            JobDetail jobDetail = JobBuilder.newJob(ScheduleJob.class).withIdentity(getJobKey(scheduleJob.getId())).build();
-
-            //表达式调度构建器
-            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(scheduleJob.getCronExpression())
-            		.withMisfireHandlingInstructionDoNothing();
-
-            //按新的cronExpression表达式构建一个新的trigger
-            CronTrigger trigger = TriggerBuilder.newTrigger().withIdentity(getTriggerKey(scheduleJob.getId())).withSchedule(scheduleBuilder).build();
-
-            //放入参数，运行时的方法可以获取
-            jobDetail.getJobDataMap().put(JOB_PARAM_KEY, scheduleJob);
-
-            scheduler.scheduleJob(jobDetail, trigger);
-            
-            //暂停任务
-            if(scheduleJob.getStatus() == StatusEnum.PAUSE.code()){
-            	pauseJob(scheduler, scheduleJob.getId());
-            }
+            doCreateScheduleJob(scheduler, scheduleJob);
         } catch (SchedulerException e) {
+            if (isDuplicateQuartzStateException(e)) {
+                cleanScheduleJob(scheduler, scheduleJob.getId(), e);
+                retryCreateScheduleJob(scheduler, scheduleJob, e);
+                return;
+            }
             throw new GkException(ErrorCode.JOB_ERROR, e);
         }
     }
-    
+
     /**
      * 更新定时任务
      */
@@ -85,30 +83,60 @@ public class ScheduleUtils {
         try {
             TriggerKey triggerKey = getTriggerKey(scheduleJob.getId());
 
-            //表达式调度构建器
             CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(scheduleJob.getCronExpression())
-            		.withMisfireHandlingInstructionDoNothing();
+                    .withMisfireHandlingInstructionDoNothing();
 
             CronTrigger trigger = getCronTrigger(scheduler, scheduleJob.getId());
             if (trigger == null) {
                 createScheduleJob(scheduler, scheduleJob);
                 return;
             }
-            
-            //按新的cronExpression表达式重新构建trigger
+
             trigger = trigger.getTriggerBuilder().withIdentity(triggerKey).withSchedule(scheduleBuilder).build();
-            
-            //参数
+
             trigger.getJobDataMap().put(JOB_PARAM_KEY, scheduleJob);
-            
+
             scheduler.rescheduleJob(triggerKey, trigger);
-            
-            //暂停任务
-            if(scheduleJob.getStatus() == StatusEnum.PAUSE.code()){
-            	pauseJob(scheduler, scheduleJob.getId());
+
+            if (scheduleJob.getStatus() == StatusEnum.PAUSE.code()) {
+                pauseJob(scheduler, scheduleJob.getId());
             }
-            
+
         } catch (SchedulerException e) {
+            if (isDuplicateQuartzStateException(e)) {
+                cleanScheduleJob(scheduler, scheduleJob.getId(), e);
+                createScheduleJob(scheduler, scheduleJob);
+                return;
+            }
+            throw new GkException(ErrorCode.JOB_ERROR, e);
+        }
+    }
+
+    private static void doCreateScheduleJob(Scheduler scheduler, ScheduleJobEntity scheduleJob) throws SchedulerException {
+        JobDetail jobDetail = JobBuilder.newJob(ScheduleJob.class).withIdentity(getJobKey(scheduleJob.getId())).build();
+
+        CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(scheduleJob.getCronExpression())
+                .withMisfireHandlingInstructionDoNothing();
+
+        CronTrigger trigger = TriggerBuilder.newTrigger()
+                .withIdentity(getTriggerKey(scheduleJob.getId()))
+                .withSchedule(scheduleBuilder)
+                .build();
+
+        jobDetail.getJobDataMap().put(JOB_PARAM_KEY, scheduleJob);
+
+        scheduler.scheduleJob(jobDetail, trigger);
+
+        if (scheduleJob.getStatus() == StatusEnum.PAUSE.code()) {
+            pauseJob(scheduler, scheduleJob.getId());
+        }
+    }
+
+    private static void retryCreateScheduleJob(Scheduler scheduler, ScheduleJobEntity scheduleJob, SchedulerException original) {
+        try {
+            doCreateScheduleJob(scheduler, scheduleJob);
+        } catch (SchedulerException e) {
+            e.addSuppressed(original);
             throw new GkException(ErrorCode.JOB_ERROR, e);
         }
     }
@@ -132,14 +160,27 @@ public class ScheduleUtils {
         return false;
     }
 
+    private static boolean isDuplicateQuartzStateException(Throwable throwable) {
+        while (throwable != null) {
+            if (throwable instanceof SQLIntegrityConstraintViolationException) {
+                return true;
+            }
+            String message = throwable.getMessage();
+            if (message != null && message.contains("Duplicate entry") && message.toLowerCase().contains("qrtz_")) {
+                return true;
+            }
+            throwable = throwable.getCause();
+        }
+        return false;
+    }
+
     /**
      * 立即执行任务
      */
     public static void run(Scheduler scheduler, ScheduleJobEntity scheduleJob) {
         try {
-        	//参数
-        	JobDataMap dataMap = new JobDataMap();
-        	dataMap.put(JOB_PARAM_KEY, scheduleJob);
+            JobDataMap dataMap = new JobDataMap();
+            dataMap.put(JOB_PARAM_KEY, scheduleJob);
             scheduler.triggerJob(getJobKey(scheduleJob.getId()), dataMap);
         } catch (SchedulerException e) {
             throw new GkException(ErrorCode.JOB_ERROR, e);

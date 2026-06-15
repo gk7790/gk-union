@@ -1,6 +1,7 @@
 package com.gk.psp.adapter.world;
 
 import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
@@ -15,81 +16,88 @@ import java.util.Map;
 public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     @Override
     public boolean supports(String pspCode) {
-        if (StringUtils.isBlank(pspCode)) {
-            return false;
-        }
-        return StringUtils.containsAnyIgnoreCase(pspCode, "WORLD", "WP001");
+        return StringUtils.isNotBlank(pspCode)
+                && StringUtils.containsAnyIgnoreCase(pspCode, "WORLD", "WP001");
     }
 
     @Override
     public PspCallbackResult parsePayCallback(PspCallbackRequest request) {
-        return parse(request);
+        return parse(request, true);
     }
 
     @Override
     public PspCallbackResult parsePayoutCallback(PspCallbackRequest request) {
-        return parse(request);
+        return parse(request, false);
     }
 
     @Override
     public boolean verifySign(PspCallbackRequest request) {
         return StringUtils.isNotBlank(request.getApiSecret())
-                && WorldPspSignUtils.verify(request.getParams(), request.getApiSecret(), text(request.getParams(), "sign", "signature"));
+                && WorldPspSignUtils.verify(request.getParams(), request.getApiSecret(), text(request.getParams(), "sign"));
     }
 
-    private PspCallbackResult parse(PspCallbackRequest request) {
+    private PspCallbackResult parse(PspCallbackRequest request, boolean payOrder) {
         Map<String, Object> params = request.getParams();
+        String pspStatus = text(params, "order_status", "status");
+
         PspCallbackResult result = new PspCallbackResult();
         result.setPspCode(request.getPspCode());
         result.setBizType(request.getBizType());
-        result.setSystemOrderNo(text(params, "merchant_order_id", "pay_order_no", "payout_order_no"));
+        result.setSystemOrderNo(text(params, "merchant_order_id"));
         result.setMerchantOrderNo(text(params, "merchant_order_no"));
-        result.setPspOrderNo(text(params, "system_order_id", "psp_order_no", "order_id", "transaction_id"));
-        result.setPspStatus(text(params, "status", "order_status", "trade_status"));
-        result.setOrderStatus(toOrderStatus(result.getPspStatus()));
-        result.setAmount(decimal(params, "amount", "paid_amount"));
+        result.setPspOrderNo(text(params, "system_order_id"));
+        result.setPspStatus(pspStatus);
+        result.setOrderStatus(payOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus));
+        result.setAmount(decimal(params, "amount"));
         result.setCurrency(text(params, "currency"));
-        result.setCallbackId(text(params, "callback_id", "notify_id"));
-        result.setCallbackType(StringUtils.defaultIfBlank(text(params, "callback_type", "event_type"), request.getBizType()));
-        result.setSignature(text(params, "sign", "signature"));
-        result.setErrorCode(text(params, "error_code", "fail_code"));
-        result.setErrorMessage(text(params, "error_message", "fail_msg", "message"));
+        result.setSignature(text(params, "sign"));
+        result.setErrorMessage(text(params, "msg", "message"));
         result.setSuccessResponse("success");
         result.setFailResponse("fail");
         return result;
     }
 
-    private String toOrderStatus(String pspStatus) {
-        String normalized = StringUtils.defaultString(pspStatus).trim().toUpperCase(Locale.ROOT);
-        if (StringUtils.equalsAny(normalized, "SUCCESS", "SUCCEEDED", "PAID", "COMPLETED", "DONE")) {
+    private String toPayStatus(String status) {
+        String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
+        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED")) {
             return PayOrderStatusEnum.SUCCESS.code();
         }
-        if (StringUtils.equalsAny(normalized, "FAILED", "FAIL", "CLOSED", "CANCELLED", "REJECTED")) {
+        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED")) {
             return PayOrderStatusEnum.FAILED.code();
         }
         return PayOrderStatusEnum.PROCESSING.code();
     }
 
+    private String toPayoutStatus(String status) {
+        String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
+        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "COMPLETED")) {
+            return PayoutOrderStatusEnum.SUCCESS.code();
+        }
+        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "REJECTED")) {
+            return PayoutOrderStatusEnum.FAILED.code();
+        }
+        if (StringUtils.equalsAny(value, "CANCELLED", "CANCELED")) {
+            return PayoutOrderStatusEnum.CANCELLED.code();
+        }
+        return PayoutOrderStatusEnum.PROCESSING.code();
+    }
+
     private BigDecimal decimal(Map<String, Object> params, String... names) {
         String value = text(params, names);
-        if (StringUtils.isBlank(value)) {
-            return null;
-        }
-        return new BigDecimal(value);
+        return StringUtils.isBlank(value) ? null : new BigDecimal(value);
     }
 
     private String text(Map<String, Object> params, String... names) {
-        if (params == null || names == null) {
+        if (params == null) {
             return null;
         }
         for (String name : names) {
             Object value = params.get(name);
-            if (value == null) {
-                continue;
-            }
-            String text = StringUtils.trimToNull(String.valueOf(value));
-            if (text != null) {
-                return text;
+            if (value != null) {
+                String text = StringUtils.trimToNull(String.valueOf(value));
+                if (text != null) {
+                    return text;
+                }
             }
         }
         return null;

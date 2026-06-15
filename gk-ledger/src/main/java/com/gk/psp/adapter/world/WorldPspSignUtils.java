@@ -1,57 +1,57 @@
 package com.gk.psp.adapter.world;
 
+import com.gk.openapi.util.ApiSignUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public final class WorldPspSignUtils {
     private WorldPspSignUtils() {
     }
 
     public static String sign(Map<String, ?> params, String secret) {
-        String signText = canonicalText(params) + "&key=" + StringUtils.defaultString(secret);
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(StringUtils.defaultString(secret).getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            return HexFormat.of().formatHex(mac.doFinal(signText.getBytes(StandardCharsets.UTF_8))).toLowerCase();
-        } catch (Exception ex) {
-            throw new IllegalStateException("HmacSHA256 is not available", ex);
-        }
+        return ApiSignUtils.createMd5Sign(params, secret);
     }
 
     public static boolean verify(Map<String, ?> params, String secret, String signature) {
-        if (StringUtils.isBlank(signature)) {
-            return false;
-        }
-        return StringUtils.equalsIgnoreCase(sign(params, secret), signature);
+        return ApiSignUtils.verifyMd5Sign(params, secret, signature);
     }
 
     public static String canonicalText(Map<String, ?> params) {
+        return ApiSignUtils.buildSortedParamString(params);
+    }
+
+    public static Map<String, Object> withSign(Map<String, Object> params, String secret) {
+        Map<String, Object> signed = new LinkedHashMap<>(params);
+        signed.put("sign", sign(signed, secret));
+        return signed;
+    }
+
+    public static String formBody(Map<String, ?> params) {
         if (params == null || params.isEmpty()) {
             return "";
         }
-        TreeMap<String, String> sorted = new TreeMap<>();
-        params.forEach((key, value) -> {
-            if (StringUtils.isBlank(key) || value == null) {
-                return;
-            }
-            String normalizedKey = key.trim();
-            if ("sign".equalsIgnoreCase(normalizedKey) || "signature".equalsIgnoreCase(normalizedKey)) {
-                return;
-            }
-            String text = StringUtils.trimToNull(String.valueOf(value));
-            if (text != null) {
-                sorted.put(normalizedKey, text);
-            }
-        });
-        return sorted.entrySet().stream()
-                .map(item -> item.getKey() + "=" + item.getValue())
-                .reduce((left, right) -> left + "&" + right)
-                .orElse("");
+        return params.entrySet().stream()
+                .filter(entry -> StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(formValue(entry.getValue())))
+                .map(entry -> encode(entry.getKey().trim()) + "=" + encode(formValue(entry.getValue())))
+                .collect(Collectors.joining("&"));
+    }
+
+    private static String formValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof CharSequence text) {
+            return text.toString().trim();
+        }
+        return String.valueOf(value);
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(StringUtils.defaultString(value), StandardCharsets.UTF_8);
     }
 }

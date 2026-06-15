@@ -1,6 +1,7 @@
 package com.gk.telegram.service;
 
 import com.gk.common.core.service.CrudService;
+import com.gk.merchant.entity.MerchantEntity;
 import com.gk.telegram.dto.TgAccountDTO;
 import com.gk.telegram.entity.TgAccountEntity;
 
@@ -16,6 +17,13 @@ public interface TgAccountService extends CrudService<TgAccountEntity, TgAccount
      * @return 绑定记录, 未绑定返回null
      */
     TgAccountEntity getActiveBinding(Long botId, Long tgUserId);
+
+    /**
+     * 将 Telegram 用户绑定到商户所属租户，供 /bind 和 /merchant 写入 tg_account。
+     *
+     * @return 新增或恢复后的绑定记录
+     */
+    TgAccountEntity bindMerchantAccount(Long botId, Long tgUserId, String tgUsername, String languageCode, MerchantEntity merchant);
 
     /**
      * 解绑(置为status=0)

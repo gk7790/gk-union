@@ -18,6 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Telegram 机器人配置后台管理接口。
+ * <p>负责维护 bot token、启停状态、Webhook 设置和连通性测试。</p>
+ */
 @Tag(name = "Telegram机器人-配置管理")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -26,6 +30,9 @@ import org.springframework.web.bind.annotation.*;
 public class TgBotController {
     private final TgBotService tgBotService;
 
+    /**
+     * 分页查询 Telegram 机器人配置。
+     */
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
@@ -40,6 +47,9 @@ public class TgBotController {
         return R.ok(page);
     }
 
+    /**
+     * 查询单个 Telegram 机器人配置详情。
+     */
     @GetMapping("{id}")
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('tg:bot:info')")
@@ -47,6 +57,9 @@ public class TgBotController {
         return R.ok(tgBotService.get(id));
     }
 
+    /**
+     * 新增机器人配置；token 明文只在请求中出现，保存时会加密并清空 DTO token。
+     */
     @PostMapping
     @Operation(summary = "新增机器人", description = "提交Bot Token明文, 后端加密落库并getMe回填username")
     @PreAuthorize("hasAuthority('tg:bot:save')")
@@ -55,6 +68,9 @@ public class TgBotController {
         return R.ok(dto);
     }
 
+    /**
+     * 修改机器人配置；token 为空表示保留原 token。
+     */
     @PutMapping("{id}")
     @Operation(summary = "修改", description = "token留空表示不修改Token")
     @PreAuthorize("hasAuthority('tg:bot:update')")
@@ -65,6 +81,9 @@ public class TgBotController {
         return R.ok();
     }
 
+    /**
+     * 删除机器人配置。
+     */
     @DeleteMapping
     @Operation(summary = "删除")
     @PreAuthorize("hasAuthority('tg:bot:delete')")
@@ -74,6 +93,9 @@ public class TgBotController {
         return R.ok();
     }
 
+    /**
+     * 将本系统 webhook 地址注册到 Telegram。
+     */
     @PostMapping("{id}/webhook")
     @Operation(summary = "设置Webhook", description = "向Telegram注册回调地址并下发secret_token")
     @PreAuthorize("hasAuthority('tg:bot:update')")
@@ -81,6 +103,9 @@ public class TgBotController {
         return R.fromResult(tgBotService.setupWebhook(id));
     }
 
+    /**
+     * 调用 Telegram getMe 测试机器人连通性。
+     */
     @GetMapping("{id}/test")
     @Operation(summary = "连通测试", description = "调用getMe校验Token并回填username/botUserId")
     @PreAuthorize("hasAuthority('tg:bot:info')")

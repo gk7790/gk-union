@@ -18,6 +18,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Telegram 群/会话绑定后台管理接口。
+ * <p>用于查看和维护群绑定、通知用途、事件订阅范围以及群解绑操作。</p>
+ */
 @Tag(name = "Telegram机器人-推送会话")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -26,6 +30,9 @@ import org.springframework.web.bind.annotation.*;
 public class TgChatController {
     private final TgChatService tgChatService;
 
+    /**
+     * 分页查询 Telegram 会话/群绑定记录。
+     */
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
@@ -40,6 +47,9 @@ public class TgChatController {
         return R.ok(page);
     }
 
+    /**
+     * 查询单个 Telegram 会话/群绑定详情。
+     */
     @GetMapping("{id}")
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('tg:chat:info')")
@@ -47,6 +57,9 @@ public class TgChatController {
         return R.ok(tgChatService.get(id));
     }
 
+    /**
+     * 后台手动登记 Telegram 推送会话。
+     */
     @PostMapping
     @Operation(summary = "保存", description = "登记推送目标会话/群, 可设置订阅事件event_types")
     @PreAuthorize("hasAuthority('tg:chat:save')")
@@ -55,6 +68,9 @@ public class TgChatController {
         return R.ok();
     }
 
+    /**
+     * 修改 Telegram 会话/群绑定配置。
+     */
     @PutMapping("{id}")
     @Operation(summary = "修改")
     @PreAuthorize("hasAuthority('tg:chat:update')")
@@ -65,6 +81,9 @@ public class TgChatController {
         return R.ok();
     }
 
+    /**
+     * 删除 Telegram 会话/群绑定配置。
+     */
     @DeleteMapping
     @Operation(summary = "删除")
     @PreAuthorize("hasAuthority('tg:chat:delete')")

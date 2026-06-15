@@ -26,7 +26,7 @@ public class TgBotEntity extends SimpleEntity {
     private String tokenCipher;
     /** Token哈希(查重/校验) */
     private String tokenHash;
-    /** Webhook secret_token */
+    /** Webhook secret_token, Telegram 回调时会放入 X-Telegram-Bot-Api-Secret-Token 请求头 */
     private String secretToken;
     /** 已设置的Webhook地址 */
     private String webhookUrl;

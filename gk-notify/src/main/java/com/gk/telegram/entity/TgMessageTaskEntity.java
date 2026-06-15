@@ -31,6 +31,7 @@ public class TgMessageTaskEntity extends SimpleEntity {
     /** 触发事件 */
     private String eventType;
     /** 来源Outbox事件ID(幂等) */
+    // 来源事件ID用于和业务 outbox 做幂等关联，避免同一事件重复生成发送任务。
     private String sourceEventId;
     /** 解析模式: MarkdownV2/HTML/NONE */
     private String parseMode;
@@ -39,6 +40,7 @@ public class TgMessageTaskEntity extends SimpleEntity {
     /** 内容哈希(防重复发送) */
     private String payloadHash;
     /** 状态: INIT/PROCESSING/SUCCESS/FAILED/DEAD */
+    // 任务状态驱动发送机调度，失败达到上限后进入 DEAD。
     private String status;
     /** 已重试次数 */
     private Integer retryCount;
@@ -55,6 +57,7 @@ public class TgMessageTaskEntity extends SimpleEntity {
     /** 最后尝试时间 */
     private Instant lastAttemptAt;
     /** 锁定节点 */
+    // 多节点发送时用 lockedBy + lockUntil 抢占任务，避免并发重复发送。
     private String lockedBy;
     /** 锁定过期时间 */
     private Instant lockUntil;

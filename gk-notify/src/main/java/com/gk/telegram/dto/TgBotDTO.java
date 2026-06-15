@@ -5,6 +5,10 @@ import lombok.Data;
 
 import java.time.Instant;
 
+/**
+ * Telegram 机器人配置前后端传输对象。
+ * <p>token 只作为写入字段接收，保存后会加密落库，不再明文返回。</p>
+ */
 @Data
 @Schema(description = "Telegram机器人")
 public class TgBotDTO {

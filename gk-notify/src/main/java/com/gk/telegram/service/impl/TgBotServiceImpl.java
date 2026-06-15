@@ -22,15 +22,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+/**
+ * Telegram 机器人配置服务实现。
+ * <p>负责 token 加密落库、Webhook 注册、连通性检测以及 sys_params 基础配置读取。</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgBotDTO> implements TgBotService {
+    /** 系统内部 Telegram 机器人编号前缀。 */
     private static final String BOT_NO_PREFIX = "TG";
 
     private final TgTokenCipher tokenCipher;
     private final TgBotApiClient botApiClient;
     private final SysParamsService sysParamsService;
 
+    /**
+     * 构造后台机器人列表的查询条件。
+     */
     @Override
     public QueryWrapper<TgBotEntity> getWrapper(DynMap params) {
         QueryWrapper<TgBotEntity> wrapper = new QueryWrapper<>();
@@ -48,6 +56,9 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         return wrapper;
     }
 
+    /**
+     * 根据 webhook 路径中的 botNo 查询机器人配置。
+     */
     @Override
     public TgBotEntity getByBotNo(String botNo) {
         return baseDao.selectOne(new QueryWrapper<TgBotEntity>()
@@ -55,6 +66,11 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
                 .last("limit 1"));
     }
 
+    /**
+     * 新增机器人配置。
+     * <p>
+     * 保存前会加密 token、生成 token_hash 和 webhook secret，并调用 getMe 校验 token 可用性。
+     */
     @Override
     public void save(TgBotDTO dto) {
         if (StrUtil.isBlank(dto.getToken())) {
@@ -72,6 +88,7 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         entity.setMode(StrUtil.isNotBlank(dto.getMode()) ? dto.getMode() : "WEBHOOK");
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);
 
+        // getMe 成功才能证明 token 可用，同时可回填 bot_user_id 和 username。
         Result<JSONObject> getMeResult = botApiClient.getMe(dto.getToken());
         JSONObject me = getMeResult.getData();
         if (getMeResult.isSuccess() && me != null) {
@@ -90,6 +107,10 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         dto.setToken(null);
     }
 
+    /**
+     * 修改机器人配置。
+     * <p>只有传入新 token 时才重新生成密文和 hash，避免空 token 覆盖原配置。</p>
+     */
     @Override
     public void update(TgBotDTO dto) {
         TgBotEntity entity = new TgBotEntity();
@@ -102,6 +123,9 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         dto.setToken(null);
     }
 
+    /**
+     * 调用 Telegram setWebhook，并把已设置的 webhookUrl 回写到 tg_bot。
+     */
     @Override
     public Result<String> setupWebhook(Long id) {
         TgBotEntity bot = baseDao.selectById(id);
@@ -115,6 +139,7 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
             return Result.fail("Missing TELEGRAM_BASE_CONFIG_KEY.webhookBaseUrl");
         }
         String token = tokenCipher.decrypt(bot.getTokenCipher());
+        // webhookBaseUrl 由 sys_params 管理，botNo 用于路由到具体机器人配置。
         String url = webhookBaseUrl.replaceAll("/+$", "") + "/tg/webhook/" + bot.getBotNo();
         Result<JSONObject> webhookResult = botApiClient.setWebhook(token, url, bot.getSecretToken());
         if (webhookResult.isFail()) {
@@ -128,6 +153,9 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         return Result.success(url, "Webhook set successfully");
     }
 
+    /**
+     * 使用已保存的 token 调用 getMe，验证机器人与 Telegram API 的连通性。
+     */
     @Override
     public Result<String> testConnectivity(Long id) {
         TgBotEntity bot = baseDao.selectById(id);
@@ -144,6 +172,7 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
             return Result.fail("Telegram API result is empty");
         }
 
+        // 连通性测试成功时顺手刷新 bot_user_id 和 username，避免 Telegram 侧信息变更后本地陈旧。
         TgBotEntity update = new TgBotEntity();
         update.setId(id);
         update.setBotUserId(me.getLong("id"));

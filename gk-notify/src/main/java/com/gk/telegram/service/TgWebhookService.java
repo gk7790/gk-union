@@ -24,10 +24,16 @@ public interface TgWebhookService {
      * @param reply      可选回复体(Telegram webhook 直返 sendMessage), 无回复为null
      */
     record Result(boolean authorized, Map<String, Object> reply) {
+        /**
+         * 机器人不存在、停用或 secret_token 校验失败时返回未授权。
+         */
         public static Result unauthorized() {
             return new Result(false, null);
         }
 
+        /**
+         * webhook 处理成功；reply 为空时表示无需回复 Telegram 消息。
+         */
         public static Result ok(Map<String, Object> reply) {
             return new Result(true, reply);
         }

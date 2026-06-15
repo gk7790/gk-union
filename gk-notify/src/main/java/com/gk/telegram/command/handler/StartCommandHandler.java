@@ -11,21 +11,33 @@ import org.springframework.stereotype.Component;
 @Component
 public class StartCommandHandler implements TgCommandHandler {
 
+    /**
+     * 当前处理器绑定的 Telegram 指令。
+     */
     @Override
     public String command() {
         return "/start";
     }
 
+    /**
+     * /help 中展示的指令说明。
+     */
     @Override
     public String description() {
         return "开始 / 查看绑定状态";
     }
 
+    /**
+     * 欢迎入口允许任何 Telegram 用户调用。
+     */
     @Override
     public boolean requireBinding() {
         return false;
     }
 
+    /**
+     * 根据当前用户是否已绑定，返回不同的新手引导文案。
+     */
     @Override
     public String handle(TgCommandContext ctx) {
         if (ctx.getAccount() != null) {

@@ -14,8 +14,12 @@ import java.util.Map;
 @Slf4j
 @Component
 public class TgCommandDispatcher {
+    /** command -> handler 的有序映射，LinkedHashMap 用于保持 /help 输出顺序稳定。 */
     private final Map<String, TgCommandHandler> handlers = new LinkedHashMap<>();
 
+    /**
+     * Spring 注入所有 {@link TgCommandHandler} 后，在启动时建立命令路由表。
+     */
     public TgCommandDispatcher(List<TgCommandHandler> handlerList) {
         for (TgCommandHandler handler : handlerList) {
             handlers.put(handler.command().toLowerCase(), handler);
@@ -39,7 +43,8 @@ public class TgCommandDispatcher {
         if (handler == null) {
             return "未识别的指令: " + TgHtml.code(command) + "\n\n" + helpText();
         }
-        if (handler.requireBinding() && ctx.getAccount() == null) {
+        // 默认保护查询类指令：用户私聊绑定或群绑定任一存在，才允许继续执行。
+        if (handler.requireBinding() && !ctx.hasBoundTarget()) {
             return "当前 Telegram 未绑定系统账号, 暂无法使用该指令。请联系管理员处理账号绑定。";
         }
         try {
@@ -57,6 +62,7 @@ public class TgCommandDispatcher {
         StringBuilder sb = new StringBuilder(TgHtml.bold("可用指令")).append("\n");
         sb.append(TgHtml.code("/help")).append(" - 查看帮助\n");
         for (TgCommandHandler handler : handlers.values()) {
+            // /help 是 dispatcher 内置指令，避免未来若存在同名 handler 时重复展示。
             if ("/help".equalsIgnoreCase(handler.command())) {
                 continue;
             }

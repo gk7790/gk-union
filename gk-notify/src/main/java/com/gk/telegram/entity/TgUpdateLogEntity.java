@@ -14,6 +14,7 @@ import java.time.Instant;
 @Data
 @TableName("tg_update_log")
 public class TgUpdateLogEntity implements Serializable {
+    /** 主键ID */
     @TableId
     private Long id;
     /** 机器人ID, 关联tg_bot.id */

@@ -6,9 +6,11 @@ import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandDispatcher;
 import com.gk.telegram.entity.TgAccountEntity;
 import com.gk.telegram.entity.TgBotEntity;
+import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.entity.TgUpdateLogEntity;
 import com.gk.telegram.service.TgAccountService;
 import com.gk.telegram.service.TgBotService;
+import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.service.TgUpdateLogService;
 import com.gk.telegram.service.TgWebhookService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Telegram Webhook 入站处理服务实现。
+ * <p>负责机器人鉴权、update 幂等登记、命令上下文构建、指令分发和 webhook 直回消息封装。</p>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,9 +39,15 @@ public class TgWebhookServiceImpl implements TgWebhookService {
 
     private final TgBotService tgBotService;
     private final TgAccountService tgAccountService;
+    private final TgChatService tgChatService;
     private final TgUpdateLogService tgUpdateLogService;
     private final TgCommandDispatcher commandDispatcher;
 
+    /**
+     * 处理 Telegram webhook 推送的一条 Update。
+     * <p>
+     * 入口职责包括机器人鉴权、Update 幂等登记、解析命令上下文、分发指令并构造 Telegram webhook 直返响应。
+     */
     @Override
     public Result handle(String botNo, String secretToken, String rawBody) {
         TgBotEntity bot = tgBotService.getByBotNo(botNo);
@@ -73,6 +85,8 @@ public class TgWebhookServiceImpl implements TgWebhookService {
 
         Long tgUserId = from != null ? from.getLong("id") : null;
         Long chatId = chat != null ? chat.getLong("id") : null;
+        String chatType = chat != null ? chat.getString("type") : null;
+        String chatTitle = chat != null ? chat.getString("title") : null;
         String tgUsername = from != null ? from.getString("username") : null;
         String languageCode = from != null ? from.getString("language_code") : null;
         String command = parseCommand(text);
@@ -100,8 +114,12 @@ public class TgWebhookServiceImpl implements TgWebhookService {
 
         String replyText;
         try {
+            // 私聊场景通过 tg_account 鉴权，群场景通过 tg_chat 鉴权；两者都放进上下文给 dispatcher 判断。
             TgAccountEntity account = tgUserId != null
                     ? tgAccountService.getActiveBinding(bot.getId(), tgUserId)
+                    : null;
+            TgChatEntity boundChat = chatId != null
+                    ? tgChatService.getActiveChat(bot.getId(), chatId)
                     : null;
             TgCommandContext ctx = TgCommandContext.builder()
                     .bot(bot)
@@ -109,11 +127,15 @@ public class TgWebhookServiceImpl implements TgWebhookService {
                     .tgUsername(tgUsername)
                     .languageCode(languageCode)
                     .chatId(chatId)
+                    .chatType(chatType)
+                    .chatTitle(chatTitle)
                     .rawText(text)
                     .command(command)
                     .args(parseArgs(text))
                     .account(account)
+                    .chat(boundChat)
                     .build();
+            // 指令自身只返回回复文本，webhook 层负责包装成 Telegram sendMessage 响应体。
             replyText = commandDispatcher.dispatch(ctx);
             tgUpdateLogService.markResult(logEntity.getId(), 1, null);
         } catch (Exception e) {
@@ -133,6 +155,7 @@ public class TgWebhookServiceImpl implements TgWebhookService {
             return null;
         }
         Map<String, Object> reply = new LinkedHashMap<>();
+        // Telegram 支持 webhook 响应体直接声明要执行的 Bot API 方法，这里用来省一次 sendMessage HTTP 调用。
         reply.put("method", "sendMessage");
         reply.put("chat_id", chatId);
         reply.put("text", text);
@@ -152,6 +175,7 @@ public class TgWebhookServiceImpl implements TgWebhookService {
             return null;
         }
         String first = trimmed.split("\\s+")[0];
+        // 群里用户可能发送 /order@bot_username，这里去掉 bot 后缀后再匹配本地指令。
         int at = first.indexOf('@');
         if (at > 0) {
             first = first.substring(0, at);
@@ -173,6 +197,9 @@ public class TgWebhookServiceImpl implements TgWebhookService {
         return new ArrayList<>(Arrays.asList(parts).subList(1, parts.length));
     }
 
+    /**
+     * 识别当前暂未处理的 Telegram Update 类型，主要用于 tg_update_log 审计排查。
+     */
     private String resolveType(JSONObject root) {
         if (root.containsKey("callback_query")) {
             return "callback_query";

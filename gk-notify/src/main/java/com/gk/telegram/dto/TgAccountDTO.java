@@ -5,6 +5,10 @@ import lombok.Data;
 
 import java.time.Instant;
 
+/**
+ * Telegram 个人账号绑定前后端传输对象。
+ * <p>用于后台页面展示绑定关系，以及执行解绑等管理操作。</p>
+ */
 @Data
 @Schema(description = "Telegram账号绑定")
 public class TgAccountDTO {

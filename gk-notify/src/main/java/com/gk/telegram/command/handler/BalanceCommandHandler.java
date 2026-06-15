@@ -19,29 +19,40 @@ import java.util.List;
 public class BalanceCommandHandler implements TgCommandHandler {
     private final LedgerBalanceService ledgerBalanceService;
 
+    /**
+     * 当前处理器绑定的 Telegram 指令。
+     */
     @Override
     public String command() {
         return "/balance";
     }
 
+    /**
+     * /help 中展示的指令说明。
+     */
     @Override
     public String description() {
         return "查询账户余额";
     }
 
+    /**
+     * 查询当前绑定目标所属租户下的账务余额。
+     */
     @Override
     public String handle(TgCommandContext ctx) {
-        Long tenantId = ctx.getAccount().getTenantId();
+        Long tenantId = ctx.targetTenantId();
         if (tenantId == null) {
             return "当前绑定账号未关联租户, 无法查询余额。";
         }
         DynMap params = new DynMap();
         params.put("tenantId", tenantId);
+        // LedgerBalanceService 当前只支持 tenant/account/currency 维度，这里先按租户查询。
         List<LedgerBalanceDTO> balances = ledgerBalanceService.list(params);
         if (balances == null || balances.isEmpty()) {
             return "未查询到余额账户。";
         }
         StringBuilder sb = new StringBuilder(TgHtml.bold("账户余额")).append("\n");
+        // Telegram 消息不适合输出过长列表，最多展示前 20 条余额。
         int limit = Math.min(balances.size(), 20);
         for (int i = 0; i < limit; i++) {
             LedgerBalanceDTO b = balances.get(i);

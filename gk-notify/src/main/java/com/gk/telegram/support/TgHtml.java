@@ -7,6 +7,9 @@ package com.gk.telegram.support;
  * 必须经过 {@link #escape} 转义, 否则其中的 {@code < > &} 会被当作标签解析, 导致 sendMessage 返回 400。
  */
 public final class TgHtml {
+    /**
+     * 工具类不允许实例化。
+     */
     private TgHtml() {
     }
 
@@ -17,6 +20,7 @@ public final class TgHtml {
         if (text == null) {
             return "";
         }
+        // Telegram HTML 模式只需要转义这三个字符，避免用户输入被当成标签解析。
         return text.replace("&", "&amp;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;");

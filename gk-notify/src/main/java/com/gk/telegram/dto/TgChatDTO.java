@@ -5,6 +5,10 @@ import lombok.Data;
 
 import java.time.Instant;
 
+/**
+ * Telegram 群/会话绑定前后端传输对象。
+ * <p>用于后台查看群绑定关系、通知用途和订阅事件范围。</p>
+ */
 @Data
 @Schema(description = "Telegram会话/群组")
 public class TgChatDTO {

@@ -17,6 +17,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Telegram 个人账号绑定后台管理接口。
+ * <p>用于查看 Telegram 用户与系统租户/商户账号的绑定关系，并支持后台解绑。</p>
+ */
 @Tag(name = "Telegram机器人-账号绑定")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
@@ -25,6 +29,9 @@ import org.springframework.web.bind.annotation.*;
 public class TgAccountController {
     private final TgAccountService tgAccountService;
 
+    /**
+     * 分页查询 Telegram 用户绑定记录，供后台管理和排查绑定关系使用。
+     */
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
@@ -39,6 +46,9 @@ public class TgAccountController {
         return R.ok(page);
     }
 
+    /**
+     * 查询单条 Telegram 用户绑定详情。
+     */
     @GetMapping("{id}")
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('tg:account:info')")
@@ -46,6 +56,9 @@ public class TgAccountController {
         return R.ok(tgAccountService.get(id));
     }
 
+    /**
+     * 后台手动解绑 Telegram 用户绑定。
+     */
     @PostMapping("{id}/unbind")
     @Operation(summary = "解绑", description = "将绑定置为失效(status=0)")
     @PreAuthorize("hasAuthority('tg:account:update')")

@@ -19,6 +19,7 @@ public class TgChatEntity extends SimpleEntity {
     /** 所属机器人ID, 关联tg_bot.id */
     private Long botId;
     /** Telegram ChatId(群为负数) */
+    // 群组/supergroup 的 chatId 通常是负数，不能按普通用户ID处理。
     private Long chatId;
     /** 类型: PRIVATE/GROUP/SUPERGROUP/CHANNEL */
     private String chatType;

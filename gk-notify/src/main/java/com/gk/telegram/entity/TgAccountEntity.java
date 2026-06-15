@@ -14,6 +14,7 @@ import java.time.Instant;
 @Data
 @TableName("tg_account")
 public class TgAccountEntity implements Serializable {
+    /** 主键ID */
     @TableId
     private Long id;
     /** 租户ID */

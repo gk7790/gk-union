@@ -36,6 +36,7 @@ public class JobCommandLineRunner implements CommandLineRunner {
     private final Scheduler scheduler;
     private final ScheduleJobDao scheduleJobDao;
     private final DataSource dataSource;
+    private final QuartzStateRepairer quartzStateRepairer;
 
     @Override
     public void run(String... args) {
@@ -47,6 +48,7 @@ public class JobCommandLineRunner implements CommandLineRunner {
                     log.warn("Skip schedule job initialization because startup lock was not acquired: {}", STARTUP_LOCK_NAME);
                     return;
                 }
+                quartzStateRepairer.repair(connection);
                 syncScheduleJobs();
             } finally {
                 if (locked) {

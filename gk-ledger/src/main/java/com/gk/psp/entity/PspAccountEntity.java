@@ -17,8 +17,6 @@ public class PspAccountEntity extends SimpleEntity {
     private String secretType;
     private String apiKey;
     private String apiSecret;
-    private String merchantPrivateKeyRef;
-    private String pspPublicKey;
     private String callbackSecret;
     private String configJson;
     private String remark;

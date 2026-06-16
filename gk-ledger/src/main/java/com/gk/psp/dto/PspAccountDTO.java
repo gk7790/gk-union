@@ -19,16 +19,12 @@ public class PspAccountDTO {
     private String pspAccountName;
     @Schema(title = "状态: 1正常 2暂停 3停用")
     private Integer status;
-    @Schema(title = "密钥类型: HMAC/RSA/BASIC/TOKEN")
+    @Schema(title = "密钥类型: HMAC/BASIC/TOKEN")
     private String secretType;
     @Schema(title = "PSP API Key")
     private String apiKey;
     @Schema(title = "PSP API Secret")
     private String apiSecret;
-    @Schema(title = "平台侧私钥引用")
-    private String merchantPrivateKeyRef;
-    @Schema(title = "PSP公钥")
-    private String pspPublicKey;
     @Schema(title = "回调验签密钥")
     private String callbackSecret;
     @Schema(title = "扩展配置JSON")

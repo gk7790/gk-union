@@ -18,6 +18,20 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
     }
 
     @Override
+    public SysUserSubjectEntity getActiveSubject(String subjectType, Long tenantId, Long merchantId,
+                                                 Long subjectId, Long userId) {
+        QueryWrapper<SysUserSubjectEntity> wrapper = new QueryWrapper<SysUserSubjectEntity>()
+                .eq("subject_type", subjectType)
+                .eq("status", StatusEnum.NORMAL.code())
+                .eq(subjectId != null, "id", subjectId)
+                .eq(userId != null, "user_id", userId)
+                .eq(tenantId != null, "tenant_id", tenantId)
+                .eq(merchantId != null, "merchant_id", merchantId)
+                .last("limit 1");
+        return baseDao.selectOne(wrapper);
+    }
+
+    @Override
     public SysUserSubjectEntity saveOrUpdate(Long userId, SysUserSubjectEntity subject) {
         if (subject == null) {
             return null;

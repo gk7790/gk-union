@@ -4,7 +4,7 @@ import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.infra.telegram.alert.TgAlertService;
+import com.gk.infra.telegram.TgAlertService;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.entity.TgChatEntity;

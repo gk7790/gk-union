@@ -1,4 +1,4 @@
-package com.gk.infra.telegram.alert;
+package com.gk.infra.telegram;
 
 /**
  * Telegram 系统预警服务接口。

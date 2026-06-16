@@ -1,6 +1,6 @@
 package com.gk.openapi.error;
 
-import com.gk.infra.telegram.alert.TgAlertService;
+import com.gk.infra.telegram.TgAlertService;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.tools.ApiR;

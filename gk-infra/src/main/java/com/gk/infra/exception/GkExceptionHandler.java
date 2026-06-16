@@ -10,7 +10,7 @@ import com.gk.common.exception.GkExceptionCoreHandler;
 import com.gk.common.model.R;
 import com.gk.infra.log.entity.LogErrorEntity;
 import com.gk.infra.log.service.LogErrorService;
-import com.gk.infra.telegram.alert.TgAlertService;
+import com.gk.infra.telegram.TgAlertService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

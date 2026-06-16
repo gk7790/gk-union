@@ -353,16 +353,6 @@ public class SysRoleServiceImpl extends BaseServiceImpl<SysRoleDao, SysRoleEntit
 	 */
 	private void assertRoleTenantScope(SysRoleEntity entity) {
 		Long tenantId = entity.getTenantId();
-		String roleScope = entity.getRoleScope();
-
-		if (Constant.PLATFORM_TENANT_ID.equals(tenantId)
-				&& !SubjectTypeEnum.PLATFORM.matches(roleScope)) {
-			throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
-		}
-		if (SubjectTypeEnum.PLATFORM.matches(roleScope)
-				&& tenantId > Constant.PLATFORM_TENANT_ID) {
-			throw new GkException(ErrorCode.ROLE_SUBJECT_MISMATCH);
-		}
 		if (!ReqContextHolder.isSuperAdmin() && !ReqContextHolder.isPlatform()
 				&& tenantId <= Constant.PLATFORM_TENANT_ID) {
 			throw new GkException(ErrorCode.FORBIDDEN);

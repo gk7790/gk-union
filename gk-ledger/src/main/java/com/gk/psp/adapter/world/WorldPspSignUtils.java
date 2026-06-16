@@ -1,10 +1,12 @@
 package com.gk.psp.adapter.world;
 
+import com.alibaba.fastjson2.JSONObject;
 import com.gk.openapi.util.ApiSignUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,5 +55,19 @@ public final class WorldPspSignUtils {
 
     private static String encode(String value) {
         return URLEncoder.encode(StringUtils.defaultString(value), StandardCharsets.UTF_8);
+    }
+
+    public static void main(String[] args) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("app_id", "bc1cce3335a84a21a9556b92ec64b47b");
+        params.put("merchant_order_id", "546dcec158c24a4cb439360e4db86415");
+        params.put("amount", "100.00");
+        params.put("pay_channel", "PHI_MAYA");
+        params.put("notify_url", "http://mqmq.vip.cpolar.cn/psp/callback/WP001/pay");
+        params.put("page_return_url", "http://mqmq.vip.cpolar.cn/sys/page");
+
+        String secret = "31Lskdca7sflDiBncR1Ljgzo8Tij11o8XlI301";
+
+        System.out.println(JSONObject.toJSONString(withSign(params, secret)));
     }
 }

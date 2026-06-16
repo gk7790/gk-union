@@ -235,6 +235,7 @@ public class PspCallbackService {
         PaySuccessPostingRequest request = new PaySuccessPostingRequest();
         request.setTenantId(order.tenantId());
         request.setMerchantId(order.merchantId());
+        request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
         request.setPayOrderNo(order.orderNo());
         request.setCurrency(order.currency());
@@ -256,6 +257,7 @@ public class PspCallbackService {
         PayoutPostingRequest request = new PayoutPostingRequest();
         request.setTenantId(order.tenantId());
         request.setMerchantId(order.merchantId());
+        request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
         request.setPayoutOrderNo(order.orderNo());
         request.setCurrency(order.currency());

@@ -4,14 +4,20 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.ledger.service.LedgerAccountService;
 import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.dto.PspRouteRuleDTO;
 import com.gk.psp.entity.PspRouteRuleEntity;
 import com.gk.psp.service.PspRouteRuleService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, PspRouteRuleEntity, PspRouteRuleDTO> implements PspRouteRuleService {
+
+    private final LedgerAccountService ledgerAccountService;
 
     @Override
     public QueryWrapper<PspRouteRuleEntity> getWrapper(DynMap params) {
@@ -44,5 +50,26 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", methodCode);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", direction);
         return wrapper;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void save(PspRouteRuleDTO dto) {
+        super.save(dto);
+        provisionPspLedgerAccounts(dto);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(PspRouteRuleDTO dto) {
+        super.update(dto);
+        provisionPspLedgerAccounts(dto);
+    }
+
+    private void provisionPspLedgerAccounts(PspRouteRuleDTO dto) {
+        if (dto == null || dto.getTenantId() == null || dto.getPspAccountId() == null || StrUtil.isBlank(dto.getCurrency())) {
+            return;
+        }
+        ledgerAccountService.provisionPspAccounts(dto.getTenantId(), dto.getPspAccountId(), dto.getCurrency());
     }
 }

@@ -10,6 +10,7 @@ public class PspRouteResult {
     private String pspCode;
     private String pspBaseUrl;
     private String providerConfigJson;
+    private String pspCallbackUrl;
 
     private Long pspMethodId;
     private String pspMethodCode;

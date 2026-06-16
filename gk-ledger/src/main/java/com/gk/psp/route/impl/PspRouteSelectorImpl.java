@@ -10,6 +10,7 @@ import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.dao.PspRouteRuleDao;
+import com.gk.psp.callback.support.PspCallbackUrlBuilder;
 import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
@@ -33,6 +34,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private final PspProviderDao pspProviderDao;
     private final PspMethodDao pspMethodDao;
     private final PspAccountDao pspAccountDao;
+    private final PspCallbackUrlBuilder callbackUrlBuilder;
     private final ConcurrentHashMap<Long, CacheEntry<PspProviderEntity>> providerCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, CacheEntry<PspMethodEntity>> methodCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, CacheEntry<PspAccountEntity>> accountCache = new ConcurrentHashMap<>();
@@ -100,6 +102,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         result.setPspCode(provider.getPspCode());
         result.setPspBaseUrl(provider.getBaseUrl());
         result.setProviderConfigJson(provider.getConfigJson());
+        result.setPspCallbackUrl(platformCallbackUrl(provider.getPspCode(), direction));
         result.setPspMethodId(method.getId());
         result.setPspMethodCode(method.getPspMethodCode());
         result.setMethodConfigJson(method.getConfigJson());
@@ -109,6 +112,13 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         result.setPspAccountApiSecret(account.getApiSecret());
         result.setAccountConfigJson(account.getConfigJson());
         return result;
+    }
+
+    private String platformCallbackUrl(String pspCode, String direction) {
+        if (PayDirectionEnum.PAYOUT.code().equals(direction)) {
+            return callbackUrlBuilder.payoutCallbackUrl(pspCode);
+        }
+        return callbackUrlBuilder.payCallbackUrl(pspCode);
     }
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {

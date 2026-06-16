@@ -75,6 +75,9 @@ xss:
     path-list: /devtools/template,/survey/callbacktemplate
 
 gk:
+  psp:
+    callback:
+      base-url: ${PSP_CALLBACK_BASE_URL:http://mqmq.vip.cpolar.cn}
   merchant:
     defaults:
       timezone: ${MERCHANT_DEFAULT_TIMEZONE:Asia/Shanghai}

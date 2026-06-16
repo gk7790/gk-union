@@ -82,7 +82,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         params.put("merchant_order_id", order.getPayOrderNo());
         params.put("amount", amount(order.getAmount()));
         params.put("pay_channel", channel(route, order.getMethodCode()));
-        params.put("notify_url", order.getNotifyUrl());
+        params.put("notify_url", route.getPspCallbackUrl());
         params.put("page_return_url", order.getReturnUrl());
         mergeJson(params, order.getPayerJson());
         mergeJson(params, order.getExtraJson());
@@ -103,7 +103,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         params.put("amount", amount(order.getAmount()));
         params.put("payout_mode", channel(route, order.getMethodCode()));
         params.put("customer_account_no", accountNo);
-        params.put("notify_url", order.getNotifyUrl());
+        params.put("notify_url", route.getPspCallbackUrl());
         putIfBlank(params, "customer_name", firstText(extra, payee, "customer_name", "name", order.getPayeeName()));
         putIfBlank(params, "customer_account_type", firstText(extra, payee, "customer_account_type", "wallet_type", order.getPayeeWalletType()));
         mergeJson(params, payee);

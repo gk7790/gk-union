@@ -19,7 +19,7 @@ public class MerchantFeeRuleEntity extends SimpleEntity {
     private String orderType;
     private String countryCode;
     private String currency;
-    private String payChannel;
+    private String methodCode;
     private BigDecimal minAmount;
     private BigDecimal maxAmount;
     private String feeMode;

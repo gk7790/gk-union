@@ -24,7 +24,7 @@ public class MerchantFeeRuleDTO {
     @Schema(title = "币种")
     private String currency;
     @Schema(title = "支付方式")
-    private String payChannel;
+    private String methodCode;
     @Schema(title = "订单最小金额")
     private BigDecimal minAmount;
     @Schema(title = "订单最大金额")

@@ -51,7 +51,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         String orderType = params.getStr("orderType");
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
-        String payChannel = params.getStr("payChannel");
+        String methodCode = params.getStr("methodCode");
         String feeMode = params.getStr("feeMode");
         String feeBearer = params.getStr("feeBearer");
 
@@ -63,7 +63,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         wrapper.eq(StrUtil.isNotBlank(orderType), "order_type", normalize(orderType));
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
-        wrapper.eq(StrUtil.isNotBlank(payChannel), "pay_channel", normalize(payChannel));
+        wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
         wrapper.eq(StrUtil.isNotBlank(feeMode), "fee_mode", normalize(feeMode));
         wrapper.eq(StrUtil.isNotBlank(feeBearer), "fee_bearer", normalize(feeBearer));
         return wrapper;
@@ -119,7 +119,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             BigDecimal orderAmount,
             String orderType
     ) {
-        // 先按商户、币种、方向、通道、金额区间等条件选中一条有效规则，再交给纯计算器算金额。
+        // 先按商户、币种、方向、支付方式、金额区间等条件选中一条有效规则，再交给纯计算器算金额。
         MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, orderType);
         MerchantFeeAmount amount;
         try {
@@ -160,10 +160,10 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 .eq("order_type", orderType)
                 .eq("currency", normalize(currency))
                 .eq("status", StatusEnum.NORMAL.code())
-                // merchant_app_id / country_code / pay_channel 为空表示通用规则；不为空表示更精确的专属规则。
+                // merchant_app_id / country_code / method_code 为空表示通用规则；不为空表示更精确的专属规则。
                 .and(w -> w.eq("merchant_app_id", merchantAppId).or().isNull("merchant_app_id"))
                 .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
-                .and(w -> w.eq("pay_channel", normalize(methodCode)).or().isNull("pay_channel"))
+                .and(w -> w.eq("method_code", normalize(methodCode)).or().isNull("method_code"))
                 // 金额区间为空表示不限制；有值时订单金额必须落在区间内。
                 .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
                 .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
@@ -193,7 +193,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), countryCode)) {
             score += 4;
         }
-        if (StringUtils.equalsIgnoreCase(rule.getPayChannel(), methodCode)) {
+        if (StringUtils.equalsIgnoreCase(rule.getMethodCode(), methodCode)) {
             score += 2;
         }
         if (rule.getMinAmount() != null || rule.getMaxAmount() != null) {
@@ -221,7 +221,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         snapshot.put("orderType", rule.getOrderType());
         snapshot.put("countryCode", rule.getCountryCode());
         snapshot.put("currency", rule.getCurrency());
-        snapshot.put("payChannel", rule.getPayChannel());
+        snapshot.put("methodCode", rule.getMethodCode());
         snapshot.put("feeMode", rule.getFeeMode());
         snapshot.put("feeRate", decimalText(rule.getFeeRate()));
         snapshot.put("feeFixed", decimalText(rule.getFeeFixed()));

@@ -107,7 +107,7 @@ CREATE TABLE `merchant_fee_rule`  (
   `order_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单类型: PAYIN/PAYOUT',
   `country_code` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '国家编码，NULL表示不限国家',
   `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
-  `pay_channel` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '商户支付方式，NULL表示不限支付方式',
+  `method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '平台统一支付方式编码，NULL表示不限支付方式',
   `min_amount` decimal(24, 8) NULL DEFAULT NULL COMMENT '订单最小金额',
   `max_amount` decimal(24, 8) NULL DEFAULT NULL COMMENT '订单最大金额',
   `fee_mode` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '手续费模式: RATE/FIXED/RATE_FIXED',
@@ -129,7 +129,7 @@ CREATE TABLE `merchant_fee_rule`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_fee_rule_merchant`(`tenant_id` ASC, `merchant_id` ASC, `order_type` ASC, `currency` ASC, `status` ASC) USING BTREE,
   INDEX `idx_fee_rule_app`(`tenant_id` ASC, `merchant_app_id` ASC, `order_type` ASC, `currency` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_fee_rule_match`(`tenant_id` ASC, `merchant_id` ASC, `order_type` ASC, `country_code` ASC, `currency` ASC, `pay_channel` ASC, `status` ASC, `priority` ASC) USING BTREE,
+  INDEX `idx_fee_rule_match`(`tenant_id` ASC, `merchant_id` ASC, `order_type` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC, `status` ASC, `priority` ASC) USING BTREE,
   INDEX `idx_fee_rule_effective`(`tenant_id` ASC, `status` ASC, `effective_at` ASC, `expire_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2064008047517700099 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '商户手续费规则' ROW_FORMAT = Dynamic;
 

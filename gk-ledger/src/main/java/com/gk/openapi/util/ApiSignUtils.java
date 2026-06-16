@@ -1,10 +1,13 @@
 package com.gk.openapi.util;
 
+import com.alibaba.fastjson2.JSON;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.*;
 
 public class ApiSignUtils {
@@ -120,5 +123,22 @@ public class ApiSignUtils {
             result[i * 2 + 1] = HEX[v & 0x0f];
         }
         return new String(result);
+    }
+
+    public static void main(String[] args) {
+        Map<String, String> params = new HashMap<>();
+        params.put("app_id", "GP4338P2WVC9NZ9F2ZR8NUYFJZZ");
+        params.put("timestamp", Instant.now().toEpochMilli() + "");
+
+        params.put("merchant_order_id", "M20260681012");
+        params.put("amount", "100.00");
+        params.put("method_code", "GCASH");
+        params.put("notify_url", "https://merchant.example.com/notify");
+        params.put("return_url", "https://merchant.example.com/return");
+
+
+        String sign = createMd5Sign(params, "e5vuBT7Dd7vwWBqG1-R_-EFKm7ynICE2tIPzeKHFW4w");
+        params.put("sign", sign);
+        System.out.println(JSON.toJSONString(params));
     }
 }

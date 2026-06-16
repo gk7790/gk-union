@@ -25,9 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -154,59 +152,22 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             String orderType
     ) {
         Instant now = Instant.now();
-        QueryWrapper<MerchantFeeRuleEntity> wrapper = new QueryWrapper<MerchantFeeRuleEntity>()
-                .eq("tenant_id", tenantId)
-                .eq("merchant_id", merchantId)
-                .eq("order_type", orderType)
-                .eq("currency", normalize(currency))
-                .eq("status", StatusEnum.NORMAL.code())
-                // merchant_app_id / country_code / method_code 为空表示通用规则；不为空表示更精确的专属规则。
-                .and(w -> w.eq("merchant_app_id", merchantAppId).or().isNull("merchant_app_id"))
-                .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
-                .and(w -> w.eq("method_code", normalize(methodCode)).or().isNull("method_code"))
-                // 金额区间为空表示不限制；有值时订单金额必须落在区间内。
-                .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
-                .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
-                // 生效时间为空表示立即生效，失效时间为空表示长期有效。
-                .and(w -> w.le("effective_at", now).or().isNull("effective_at"))
-                .and(w -> w.gt("expire_at", now).or().isNull("expire_at"));
-
-        List<MerchantFeeRuleEntity> rules = baseDao.selectList(wrapper);
-        return rules.stream()
-                // matchScore 越高表示规则越精确；priority 数字越小越优先，因此这里取负数参与 max 比较。
-                .max(Comparator
-                        .comparingInt((MerchantFeeRuleEntity rule) -> matchScore(rule, merchantAppId, countryCode, methodCode))
-                        .thenComparing(rule -> -defaultPriority(rule.getPriority())))
-                .orElseThrow(() -> new ApiException(ApiErrorCode.INVALID_REQUEST, "Merchant fee rule is not configured"));
-    }
-
-    /**
-     * 计算规则精确度分数。
-     * <p>
-     * 应用专属权重最高，其次是国家、支付方式、金额区间；分数越高越优先。
-     */
-    private int matchScore(MerchantFeeRuleEntity rule, Long merchantAppId, String countryCode, String methodCode) {
-        int score = 0;
-        if (rule.getMerchantAppId() != null && rule.getMerchantAppId().equals(merchantAppId)) {
-            score += 8;
+        MerchantFeeRuleEntity rule = baseDao.selectBestMatchForOrder(
+                tenantId,
+                merchantId,
+                merchantAppId,
+                normalize(countryCode),
+                normalize(currency),
+                normalize(methodCode),
+                orderAmount,
+                orderType,
+                now,
+                StatusEnum.NORMAL.code()
+        );
+        if (rule == null) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Merchant fee rule is not configured");
         }
-        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), countryCode)) {
-            score += 4;
-        }
-        if (StringUtils.equalsIgnoreCase(rule.getMethodCode(), methodCode)) {
-            score += 2;
-        }
-        if (rule.getMinAmount() != null || rule.getMaxAmount() != null) {
-            score += 1;
-        }
-        return score;
-    }
-
-    /**
-     * 未配置 priority 时按 100 处理，与表默认值保持一致。
-     */
-    private int defaultPriority(Integer priority) {
-        return priority == null ? 100 : priority;
+        return rule;
     }
 
     /**

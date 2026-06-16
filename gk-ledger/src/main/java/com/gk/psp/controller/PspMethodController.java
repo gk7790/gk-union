@@ -6,6 +6,7 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
+import com.gk.common.dto.LabelDTO;
 import com.gk.psp.dto.PspMethodDTO;
 import com.gk.psp.service.PspMethodService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "PSP支付方式")
 @RestController
@@ -36,6 +39,13 @@ public class PspMethodController {
     public R<?> page(@RequestMap DynMap params) {
         PageData<PspMethodDTO> page = pspMethodService.page(params);
         return R.ok(page);
+    }
+
+    @GetMapping("dict")
+    @Operation(summary = "支付方式字典")
+    public R<?> dict(@RequestMap DynMap params) {
+        List<LabelDTO> list = pspMethodService.getMethodCodeDict(params);
+        return R.ok(list);
     }
 
     @GetMapping("{id}")

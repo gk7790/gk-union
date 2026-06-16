@@ -1,6 +1,5 @@
 package com.gk.psp.route.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
@@ -20,18 +19,23 @@ import com.gk.psp.route.PspRouteSelector;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
 public class PspRouteSelectorImpl implements PspRouteSelector {
+    private static final long RESOURCE_CACHE_TTL_MILLIS = Duration.ofSeconds(30).toMillis();
+
     private final PspRouteRuleDao pspRouteRuleDao;
     private final PspProviderDao pspProviderDao;
     private final PspMethodDao pspMethodDao;
     private final PspAccountDao pspAccountDao;
+    private final ConcurrentHashMap<Long, CacheEntry<PspProviderEntity>> providerCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, CacheEntry<PspMethodEntity>> methodCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, CacheEntry<PspAccountEntity>> accountCache = new ConcurrentHashMap<>();
 
     @Override
     public PspRouteResult selectPayin(PayOrderEntity order) {
@@ -71,31 +75,25 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
             java.math.BigDecimal amount,
             String direction
     ) {
-        List<PspRouteRuleEntity> rules = pspRouteRuleDao.selectList(
-                new QueryWrapper<PspRouteRuleEntity>()
-                        .eq("tenant_id", tenantId)
-                        .eq("country_code", countryCode)
-                        .eq("currency", currency)
-                        .eq("method_code", methodCode)
-                        .eq("direction", direction)
-                        .eq("status", StatusEnum.NORMAL.code())
-                        .and(wrapper -> wrapper.isNull("merchant_id").or().eq("merchant_id", merchantId))
-                        .and(wrapper -> wrapper.isNull("merchant_app_id").or().eq("merchant_app_id", merchantAppId))
-                        .and(wrapper -> wrapper.isNull("min_amount").or().le("min_amount", amount))
-                        .and(wrapper -> wrapper.isNull("max_amount").or().ge("max_amount", amount))
-                        .orderByAsc("priority", "id")
+        PspRouteRuleEntity rule = pspRouteRuleDao.selectBestRouteRuleForOrder(
+                tenantId,
+                merchantId,
+                merchantAppId,
+                countryCode,
+                currency,
+                methodCode,
+                amount,
+                direction,
+                LocalTime.now(),
+                StatusEnum.NORMAL.code()
         );
-
-        PspRouteRuleEntity rule = rules.stream()
-                .filter(this::matchesTimeWindow)
-                .min(Comparator.comparingInt((PspRouteRuleEntity item) -> scopeScore(item, merchantId, merchantAppId))
-                        .thenComparing(item -> item.getPriority() == null ? Integer.MAX_VALUE : item.getPriority())
-                        .thenComparing(PspRouteRuleEntity::getId))
-                .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "No available PSP route"));
-
+        if (rule == null) {
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "No available PSP route");
+        }
         PspProviderEntity provider = requireProvider(rule.getPspId(), direction);
         PspMethodEntity method = requireMethod(rule.getPspMethodId());
         PspAccountEntity account = requirePspAccount(rule.getPspAccountId());
+
         PspRouteResult result = new PspRouteResult();
         result.setRouteRuleId(rule.getId());
         result.setPspId(provider.getId());
@@ -114,7 +112,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     }
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {
-        PspProviderEntity provider = pspProviderDao.selectById(pspId);
+        PspProviderEntity provider = cached(providerCache, pspId, pspProviderDao::selectById);
         if (provider == null || !StatusEnum.NORMAL.code().equals(provider.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
         }
@@ -128,7 +126,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     }
 
     private PspMethodEntity requireMethod(Long pspMethodId) {
-        PspMethodEntity method = pspMethodDao.selectById(pspMethodId);
+        PspMethodEntity method = cached(methodCache, pspMethodId, pspMethodDao::selectById);
         if (method == null || !StatusEnum.NORMAL.code().equals(method.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP method is not available");
         }
@@ -136,41 +134,31 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     }
 
     private PspAccountEntity requirePspAccount(Long pspAccountId) {
-        PspAccountEntity account = pspAccountDao.selectById(pspAccountId);
+        PspAccountEntity account = cached(accountCache, pspAccountId, pspAccountDao::selectById);
         if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP account is not available");
         }
         return account;
     }
 
-    private boolean matchesTimeWindow(PspRouteRuleEntity rule) {
-        LocalTime start = rule.getStartTime();
-        LocalTime end = rule.getEndTime();
-        if (start == null || end == null) {
-            return true;
+    private <T> T cached(ConcurrentHashMap<Long, CacheEntry<T>> cache, Long id, Function<Long, T> loader) {
+        if (id == null) {
+            return null;
         }
-        LocalTime now = LocalTime.now();
-        if (start.equals(end)) {
-            return true;
+        long now = System.currentTimeMillis();
+        CacheEntry<T> cached = cache.get(id);
+        if (cached != null && cached.expiresAtMillis() > now) {
+            return cached.value();
         }
-        if (start.isBefore(end)) {
-            return !now.isBefore(start) && !now.isAfter(end);
+        T value = loader.apply(id);
+        if (value != null) {
+            cache.put(id, new CacheEntry<>(value, now + RESOURCE_CACHE_TTL_MILLIS));
+        } else {
+            cache.remove(id);
         }
-        return !now.isBefore(start) || !now.isAfter(end);
+        return value;
     }
 
-    private int scopeScore(PspRouteRuleEntity rule, Long merchantId, Long merchantAppId) {
-        boolean merchantMatched = Objects.equals(rule.getMerchantId(), merchantId);
-        boolean appMatched = Objects.equals(rule.getMerchantAppId(), merchantAppId);
-        if (merchantMatched && appMatched) {
-            return 0;
-        }
-        if (merchantMatched && rule.getMerchantAppId() == null) {
-            return 10;
-        }
-        if (rule.getMerchantId() == null && rule.getMerchantAppId() == null) {
-            return 20;
-        }
-        return 100;
+    private record CacheEntry<T>(T value, long expiresAtMillis) {
     }
 }

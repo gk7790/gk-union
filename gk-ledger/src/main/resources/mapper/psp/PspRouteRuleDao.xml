@@ -2,4 +2,34 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.gk.psp.dao.PspRouteRuleDao">
+    <select id="selectBestRouteRuleForOrder" resultType="com.gk.psp.entity.PspRouteRuleEntity">
+        SELECT r.* FROM psp_route_rule r
+        WHERE r.tenant_id = #{tenantId}
+          AND r.country_code = #{countryCode}
+          AND r.currency = #{currency}
+          AND r.method_code = #{methodCode}
+          AND r.direction = #{direction}
+          AND r.status = #{status}
+          AND (r.merchant_id IS NULL OR r.merchant_id = #{merchantId})
+          AND (r.merchant_app_id IS NULL OR r.merchant_app_id = #{merchantAppId})
+          AND (r.min_amount IS NULL OR r.min_amount &lt;= #{amount})
+          AND (r.max_amount IS NULL OR r.max_amount &gt;= #{amount})
+          AND (
+                r.start_time IS NULL
+                OR r.end_time IS NULL
+                OR r.start_time = r.end_time
+                OR (r.start_time &lt; r.end_time AND #{nowTime} &gt;= r.start_time AND #{nowTime} &lt;= r.end_time)
+                OR (r.start_time &gt; r.end_time AND (#{nowTime} &gt;= r.start_time OR #{nowTime} &lt;= r.end_time))
+          )
+        ORDER BY
+            CASE
+                WHEN r.merchant_id = #{merchantId} AND r.merchant_app_id = #{merchantAppId} THEN 0
+                WHEN r.merchant_id = #{merchantId} AND r.merchant_app_id IS NULL THEN 10
+                WHEN r.merchant_id IS NULL AND r.merchant_app_id IS NULL THEN 20
+                ELSE 100
+            END ASC,
+            COALESCE(r.priority, 100) ASC,
+            r.id ASC
+        LIMIT 1
+    </select>
 </mapper>

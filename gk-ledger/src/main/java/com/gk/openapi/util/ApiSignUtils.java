@@ -130,9 +130,10 @@ public class ApiSignUtils {
         params.put("app_id", "GP4338P2WVC9NZ9F2ZR8NUYFJZZ");
         params.put("timestamp", Instant.now().toEpochMilli() + "");
 
-        params.put("merchant_order_id", "M20260681012");
+        params.put("merchant_order_id", "M2026068101245");
         params.put("amount", "100.00");
-        params.put("method_code", "GCASH");
+        params.put("currency", "PHP");
+        params.put("method_code", "MAYA");
         params.put("notify_url", "https://merchant.example.com/notify");
         params.put("return_url", "https://merchant.example.com/return");
 

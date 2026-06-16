@@ -248,6 +248,7 @@ CREATE TABLE `psp_route_rule`  (
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_psp_route_match`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC, `direction` ASC, `status` ASC, `priority` ASC) USING BTREE,
+  INDEX `idx_psp_route_order_match`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC, `direction` ASC, `status` ASC, `merchant_id` ASC, `merchant_app_id` ASC, `priority` ASC, `id` ASC) USING BTREE,
   INDEX `idx_psp_route_merchant`(`tenant_id` ASC, `merchant_id` ASC, `merchant_app_id` ASC, `status` ASC) USING BTREE,
   INDEX `idx_psp_route_psp`(`psp_id` ASC, `psp_method_id` ASC, `psp_account_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1990654400050675714 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'PSP路由规则' ROW_FORMAT = Dynamic;

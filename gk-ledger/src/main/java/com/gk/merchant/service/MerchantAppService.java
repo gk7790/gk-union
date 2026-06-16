@@ -1,8 +1,11 @@
 package com.gk.merchant.service;
 
 import com.gk.common.core.service.CrudService;
+import com.gk.common.model.DynMap;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
+
+import java.util.List;
 
 public interface MerchantAppService extends CrudService<MerchantAppEntity, MerchantAppDTO> {
 
@@ -15,4 +18,6 @@ public interface MerchantAppService extends CrudService<MerchantAppEntity, Merch
      * 从测试 APP 创建正式 APP。
      */
     MerchantAppDTO createProductionApp(Long testAppId);
+
+    List<MerchantAppDTO> getDict(DynMap params);
 }

@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "商户应用管理")
 @RestController
 @RequestMapping("/merchant/app")
@@ -52,6 +54,13 @@ public class MerchantAppController {
     public R<?> save(@RequestBody MerchantAppDTO dto) {
         merchantAppService.save(dto);
         return R.ok(dto);
+    }
+
+    @GetMapping("dict")
+    @Operation(summary = "保存")
+    public R<?> dict(@RequestMap DynMap params) {
+        List<MerchantAppDTO> list = merchantAppService.getDict(params);
+        return R.ok(list);
     }
 
     @PostMapping("{id}/reset-secret")

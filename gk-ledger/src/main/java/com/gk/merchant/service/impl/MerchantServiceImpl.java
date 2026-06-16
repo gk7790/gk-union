@@ -2,6 +2,7 @@ package com.gk.merchant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
@@ -11,8 +12,10 @@ import com.gk.common.model.DynMap;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.merchant.config.MerchantDefaultsProperties;
+import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
 import com.gk.merchant.enums.MerchantSettleCycleEnum;
@@ -28,6 +31,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -61,6 +66,22 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         wrapper.eq(StrUtil.isNotBlank(riskStatus), "risk_status", riskStatus);
 
         return wrapper;
+    }
+
+    @Override
+    public List<MerchantDTO> getDict(DynMap params) {
+        QueryWrapper<MerchantEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "merchant_name", "merchant_short_name", "remark");
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        ReqContext context = ReqContextHolder.get();
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            Long tenantId = params.getLong("tenantId", context.getTenantId());
+            wrapper.eq("tenant_id", tenantId);
+        } else {
+            wrapper.eq("tenant_id", context.getTenantId());
+        }
+        List<MerchantEntity> list = baseDao.selectList(wrapper);
+        return ConvertUtils.sourceToTarget(list,  MerchantDTO.class);
     }
 
     @Override

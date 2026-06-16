@@ -19,6 +19,7 @@ public class LabelDTO {
     private String label;
     private String attrType;
     private String i18nKey;
+    private String remark;
     private List<LabelDTO> children;
 
     public LabelDTO() {

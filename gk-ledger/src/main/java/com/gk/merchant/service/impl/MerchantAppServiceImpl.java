@@ -1,16 +1,24 @@
 package com.gk.merchant.service.impl;
 
+import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContext;
+import com.gk.common.context.ReqContextHolder;
+import com.gk.common.core.entity.BaseEntity;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.common.utils.NumberUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.common.enums.SignTypeEnum;
+import com.gk.infra.enums.ScopeEnum;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.EncryptTypeEnum;
 import com.gk.merchant.enums.MerchantAppTypeEnum;
@@ -27,8 +35,6 @@ import java.util.List;
 
 @Service
 public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, MerchantAppEntity, MerchantAppDTO> implements MerchantAppService {
-
-    private static final int DEFAULT_STATUS = 1;
     private static final int DEFAULT_RATE_LIMIT_QPS = 50;
     private static final int DEFAULT_NONCE_TTL_SECONDS = 300;
     private static final int APP_ID_GENERATE_MAX_ATTEMPTS = 5;
@@ -68,6 +74,29 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Override
     public MerchantAppDTO get(Long id) {
         return super.get(id);
+    }
+
+    @Override
+    public List<MerchantAppDTO> getDict(DynMap params) {
+        QueryWrapper<MerchantAppEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "app_id", "app_name", "app_type", "app_env");
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        ReqContext context = ReqContextHolder.get();
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            Long tenantId = params.getLong("tenantId", context.getTenantId());
+            Long merchantId = params.getLong("merchantId", context.getMerchantId());
+            wrapper.eq("tenant_id", tenantId);
+            wrapper.eq("merchant_id", merchantId);
+        } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
+            wrapper.eq("tenant_id", context.getTenantId());
+            Long merchantId = params.getLong("merchantId", context.getMerchantId());
+            wrapper.eq("merchant_id", merchantId);
+        } else {
+            wrapper.eq("tenant_id", context.getTenantId());
+            wrapper.eq("merchant_id", context.getMerchantId());
+        }
+        List<MerchantAppEntity> list = baseDao.selectList(wrapper);
+        return ConvertUtils.sourceToTarget(list,  MerchantAppDTO.class);
     }
 
     @Override
@@ -171,7 +200,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
     private void applyCreateDefaults(MerchantAppEntity entity) {
         if (entity.getStatus() == null) {
-            entity.setStatus(DEFAULT_STATUS);
+            entity.setStatus(StatusEnum.NORMAL.code());
         }
         if (StrUtil.isBlank(entity.getAppType())) {
             entity.setAppType(MerchantAppTypeEnum.API.code());

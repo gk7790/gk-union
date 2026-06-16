@@ -11,6 +11,7 @@ import com.gk.common.validator.AssertUtils;
 import com.gk.infra.telegram.TgBindPurpose;
 import com.gk.infra.telegram.TgBindTicket;
 import com.gk.infra.telegram.TgBindTicketService;
+import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.dto.MerchantDTO;
 import com.gk.merchant.service.MerchantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "商户管理")
 @RestController
@@ -49,6 +52,13 @@ public class MerchantController {
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(merchantService.get(id));
+    }
+
+    @GetMapping("dict")
+    @Operation(summary = "保存")
+    public R<?> dict(@RequestMap DynMap params) {
+        List<MerchantDTO> list = merchantService.getDict(params);
+        return R.ok(list);
     }
 
     @PostMapping("{id}/tg-bind-ticket")

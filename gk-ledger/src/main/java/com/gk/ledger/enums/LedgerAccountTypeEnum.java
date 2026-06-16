@@ -12,6 +12,7 @@ public enum LedgerAccountTypeEnum implements StringCodeEnum {
     MERCHANT_PENDING_SETTLE("MERCHANT_PENDING_SETTLE", "商户待结算", "enum.ledgerAccountType.merchantPendingSettle"),
     MERCHANT_FROZEN("MERCHANT_FROZEN", "商户冻结", "enum.ledgerAccountType.merchantFrozen"),
     SYSTEM_CLEARING("SYSTEM_CLEARING", "系统清算", "enum.ledgerAccountType.systemClearing"),
+    PSP_CLEARING("PSP_CLEARING", "PSP清算", "enum.ledgerAccountType.pspClearing"),
     PLATFORM_FEE_INCOME("PLATFORM_FEE_INCOME", "平台手续费收入", "enum.ledgerAccountType.platformFeeIncome");
 
     private final String code;

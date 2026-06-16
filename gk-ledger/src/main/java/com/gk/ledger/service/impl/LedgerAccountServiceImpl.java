@@ -11,6 +11,7 @@ import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dto.LedgerAccountDTO;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.enums.LedgerDirectionEnum;
+import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.service.LedgerAccountService;
@@ -97,11 +98,60 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return account;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void provisionPspAccounts(Long tenantId, Long pspAccountId, String currency) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.PSP_CLEARING.code(), normalizedCurrency);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerAccountEntity requirePspAccount(Long tenantId, Long pspAccountId, String accountType, String currency) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        LedgerAccountEntity account = findPspAccount(tenantId, pspAccountId, accountType, normalizedCurrency);
+        if (account != null) {
+            ensureBalance(account);
+            return account;
+        }
+        account = new LedgerAccountEntity();
+        account.setTenantId(tenantId);
+        account.setOwnerType(LedgerOwnerTypeEnum.PSP.code());
+        account.setOwnerId(pspAccountId);
+        account.setAccountType(accountType);
+        account.setCurrency(normalizedCurrency);
+        account.setAccountNo(buildPspAccountNo(tenantId, pspAccountId, accountType, normalizedCurrency));
+        account.setNormalSide(LedgerDirectionEnum.DEBIT.code());
+        account.setAllowNegative(1);
+        account.setStatus(StatusEnum.NORMAL.code());
+        try {
+            baseDao.insert(account);
+        } catch (DuplicateKeyException ex) {
+            account = findPspAccount(tenantId, pspAccountId, accountType, normalizedCurrency);
+            if (account == null) {
+                throw ex;
+            }
+        }
+        ensureBalance(account);
+        return account;
+    }
+
     private LedgerAccountEntity findMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency) {
         return baseDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
                 .eq("tenant_id", tenantId)
                 .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
                 .eq("owner_id", merchantId)
+                .eq("account_type", accountType)
+                .eq("currency", currency)
+                .eq("status", StatusEnum.NORMAL.code())
+                .last("limit 1"));
+    }
+
+    private LedgerAccountEntity findPspAccount(Long tenantId, Long pspAccountId, String accountType, String currency) {
+        return baseDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
+                .eq("tenant_id", tenantId)
+                .eq("owner_type", LedgerOwnerTypeEnum.PSP.code())
+                .eq("owner_id", pspAccountId)
                 .eq("account_type", accountType)
                 .eq("currency", currency)
                 .eq("status", StatusEnum.NORMAL.code())
@@ -136,7 +186,14 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return "T" + tenantId + "-M" + merchantId + "-" + accountTypeToken(accountType) + "-" + currency;
     }
 
+    static String buildPspAccountNo(Long tenantId, Long pspAccountId, String accountType, String currency) {
+        return "T" + tenantId + "-PSP" + pspAccountId + "-" + accountTypeToken(accountType) + "-" + currency;
+    }
+
     private static String accountTypeToken(String accountType) {
+        if (LedgerAccountTypeEnum.PSP_CLEARING.matches(accountType)) {
+            return "CLR";
+        }
         if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {
             return "FRZ";
         }

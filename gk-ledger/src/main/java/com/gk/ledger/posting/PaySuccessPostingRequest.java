@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class PaySuccessPostingRequest {
     private Long tenantId;
     private Long merchantId;
+    private Long pspAccountId;
     private Long bizId;
     private String payOrderNo;
     private String currency;

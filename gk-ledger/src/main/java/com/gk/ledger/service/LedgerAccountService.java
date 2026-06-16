@@ -15,4 +15,14 @@ public interface LedgerAccountService extends CrudService<LedgerAccountEntity, L
      * 获取商户账户；不存在时幂等创建。
      */
     LedgerAccountEntity requireMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency);
+
+    /**
+     * PSP账户初始化：创建默认清算账户及余额行。
+     */
+    void provisionPspAccounts(Long tenantId, Long pspAccountId, String currency);
+
+    /**
+     * 获取PSP账户；不存在时幂等创建。
+     */
+    LedgerAccountEntity requirePspAccount(Long tenantId, Long pspAccountId, String accountType, String currency);
 }

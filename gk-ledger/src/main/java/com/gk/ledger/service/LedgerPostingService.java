@@ -10,7 +10,7 @@ public interface LedgerPostingService {
     /**
      * PAY_SUCCESS — 代收成功入账至待结算账户（非可用）。
      * 借贷分录：
-     * SYSTEM_CLEARING 借 settleAmount + feeAmount
+     * PSP_CLEARING 借 settleAmount + feeAmount；历史/沙箱订单没有pspAccountId时回退SYSTEM_CLEARING
      * MERCHANT_PENDING_SETTLE 贷 settleAmount
      * PLATFORM_FEE_INCOME 贷 merchantFeeAmount
      */

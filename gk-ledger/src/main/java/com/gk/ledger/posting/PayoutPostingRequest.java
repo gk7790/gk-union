@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class PayoutPostingRequest {
     private Long tenantId;
     private Long merchantId;
+    private Long pspAccountId;
     private Long bizId;
     private String payoutOrderNo;
     private String currency;

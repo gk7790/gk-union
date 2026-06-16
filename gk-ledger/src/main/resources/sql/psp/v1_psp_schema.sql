@@ -24,8 +24,6 @@ DROP TABLE IF EXISTS `psp_account`;
 CREATE TABLE `psp_account`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
-  `merchant_id` bigint NULL DEFAULT NULL COMMENT '平台商户ID，NULL表示租户级默认PSP账户',
-  `merchant_scope_id` bigint NOT NULL DEFAULT 0 COMMENT '商户作用域ID，租户级默认配置为0，商户专属配置为merchant_id',
   `psp_id` bigint NOT NULL COMMENT 'PSP ID',
   `psp_account_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PSP账户号/商户号',
   `psp_account_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP账户名称',
@@ -43,9 +41,8 @@ CREATE TABLE `psp_account`  (
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_psp_account_scope`(`tenant_id` ASC, `merchant_scope_id` ASC, `psp_id` ASC, `psp_account_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_psp_account_scope`(`tenant_id` ASC, `psp_id` ASC, `psp_account_no` ASC) USING BTREE,
   INDEX `idx_psp_account_tenant`(`tenant_id` ASC, `psp_id` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_psp_account_merchant`(`tenant_id` ASC, `merchant_id` ASC, `status` ASC) USING BTREE,
   INDEX `idx_psp_account_no`(`psp_id` ASC, `psp_account_no` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2063994839394340866 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'PSP账户配置' ROW_FORMAT = Dynamic;
 

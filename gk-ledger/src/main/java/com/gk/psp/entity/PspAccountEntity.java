@@ -10,8 +10,6 @@ import lombok.EqualsAndHashCode;
 @TableName("psp_account")
 public class PspAccountEntity extends SimpleEntity {
     private Long tenantId;
-    private Long merchantId;
-    private Long merchantScopeId;
     private Long pspId;
     private String pspAccountNo;
     private String pspAccountName;

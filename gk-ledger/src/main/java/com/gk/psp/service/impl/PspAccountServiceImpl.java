@@ -17,8 +17,6 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
     public QueryWrapper<PspAccountEntity> getWrapper(DynMap params) {
         QueryWrapper<PspAccountEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
-        Long merchantId = params.getLong("merchantId", null);
-        Long merchantScopeId = params.getLong("merchantScopeId", null);
         Long pspId = params.getLong("pspId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String pspAccountNo = params.getStr("pspAccountNo");
@@ -26,8 +24,6 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         String secretType = params.getStr("secretType");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(merchantId != null, "merchant_id", merchantId);
-        wrapper.eq(merchantScopeId != null, "merchant_scope_id", merchantScopeId);
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(status != null, "status", status);
         wrapper.eq(StrUtil.isNotBlank(pspAccountNo), "psp_account_no", pspAccountNo);

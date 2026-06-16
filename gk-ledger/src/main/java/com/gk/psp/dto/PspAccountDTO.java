@@ -11,17 +11,13 @@ public class PspAccountDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "平台商户ID")
-    private Long merchantId;
-    @Schema(title = "商户作用域ID")
-    private Long merchantScopeId;
     @Schema(title = "PSP ID")
     private Long pspId;
     @Schema(title = "PSP账户号/商户号")
     private String pspAccountNo;
     @Schema(title = "PSP账户名称")
     private String pspAccountName;
-    @Schema(title = "状态: 0禁用 1启用")
+    @Schema(title = "状态: 1正常 2暂停 3停用")
     private Integer status;
     @Schema(title = "密钥类型: HMAC/RSA/BASIC/TOKEN")
     private String secretType;

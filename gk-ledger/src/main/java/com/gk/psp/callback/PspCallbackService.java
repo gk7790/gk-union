@@ -106,7 +106,9 @@ public class PspCallbackService {
                 throw PspCallbackException.forbidden("PSP callback IP is not allowed", failResponse);
             }
             // 3. 使用 PSP 适配器把原始回调解析成统一结果模型，包括订单号、状态、金额、币种等。
-            PspCallbackResult result = parseCallbackOrder(adapter, bizType, request);
+            PspCallbackResult result = BizTypeEnum.PAY_ORDER.matches(bizType) ?
+                    adapter.parsePayCallback(request) : adapter.parsePayoutCallback(request);
+
             failResponse = failBody(result);
             // 4. 根据回调结果定位平台侧订单，并拿到订单快照、商户、金额、手续费、PSP 账户等信息。
             PspCallbackOrder order = orderResolver.resolve(bizType, result);
@@ -209,21 +211,6 @@ public class PspCallbackService {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
         }
-    }
-
-    /**
-     * 按业务类型调用 PSP 适配器解析回调报文。
-     *
-     * @param adapter PSP 回调适配器
-     * @param bizType 业务类型：PAY_ORDER 或 PAYOUT_ORDER
-     * @param request 统一回调请求模型
-     * @return 统一回调结果模型
-     */
-    private PspCallbackResult parseCallbackOrder(PspCallbackAdapter adapter, String bizType, PspCallbackRequest request) {
-        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
-            return adapter.parsePayCallback(request);
-        }
-        return adapter.parsePayoutCallback(request);
     }
 
     /**

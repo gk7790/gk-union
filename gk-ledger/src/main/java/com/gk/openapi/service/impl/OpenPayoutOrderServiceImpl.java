@@ -452,7 +452,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
                 || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
                 || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), sha256Hex(request.getCustomerAccountNo()))) {
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), sha256Hex(requestPayeeAccountNo(request)))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -512,15 +512,16 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 保存收款人信息。
      * <p>
-     * 兼容新结构 payee 和历史 customer_* 字段；敏感账号、手机号、邮箱只保存掩码和 hash。
+     * 使用 payee 结构保存收款人信息。
+     * <p>
+     * 独立检索列只保存账号、手机号、邮箱的掩码和 hash；payee_json 保留提交 PSP 所需的标准字段快照。
      */
     private void applyPayee(PayoutOrderEntity entity, PayoutOrderCreateRequest request) {
         PayoutOrderCreateRequest.Payee payee = request.getPayee();
-        // 新 payee 字段优先，历史 customer_* 字段作为兼容兜底。
-        String payeeName = firstNotBlank(payee == null ? null : payee.getName(), request.getCustomerName());
-        String accountNo = firstNotBlank(payee == null ? null : payee.getAccountNo(), request.getCustomerAccountNo());
-        String bankCode = firstNotBlank(payee == null ? null : payee.getBankCode(), request.getCustomerAccountBankCci());
-        String walletType = firstNotBlank(payee == null ? null : payee.getWalletType(), request.getCustomerAccountType());
+        String payeeName = payee == null ? null : StringUtils.trimToNull(payee.getName());
+        String accountNo = payee == null ? null : StringUtils.trimToNull(payee.getAccountNo());
+        String bankCode = payee == null ? null : StringUtils.trimToNull(payee.getBankCode());
+        String walletType = payee == null ? null : StringUtils.trimToNull(payee.getWalletType());
         String phone = payee == null ? null : payee.getPhone();
         String email = payee == null ? null : payee.getEmail();
 
@@ -542,13 +543,21 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 构建可落库的收款人脱敏快照。
      */
-    private Map<String, Object> payeeSnapshot(String name, String accountNo, String bankCode, String walletType, String phone, String email) {
+    private Map<String, Object> payeeSnapshot(String name,
+                                              String accountNo,
+                                              String bankCode,
+                                              String walletType,
+                                              String phone,
+                                              String email) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("name", name);
+        snapshot.put("account_no", accountNo);
         snapshot.put("account_mask", mask(accountNo, 4, 4));
         snapshot.put("bank_code", bankCode);
         snapshot.put("wallet_type", walletType);
+        snapshot.put("phone", phone);
         snapshot.put("phone_mask", mask(phone, 3, 4));
+        snapshot.put("email", email);
         snapshot.put("email_mask", maskEmail(email));
         return snapshot;
     }
@@ -672,6 +681,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             }
         }
         return null;
+    }
+
+    private String requestPayeeAccountNo(PayoutOrderCreateRequest request) {
+        PayoutOrderCreateRequest.Payee payee = request == null ? null : request.getPayee();
+        return payee == null ? null : StringUtils.trimToNull(payee.getAccountNo());
     }
 
     /**

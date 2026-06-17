@@ -92,9 +92,9 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private Map<String, Object> payoutParams(PayoutOrderEntity order, PspRouteResult route) {
         Map<String, Object> extra = jsonMap(order.getExtraJson());
         Map<String, Object> payee = jsonMap(order.getPayeeJson());
-        String accountNo = firstText(extra, payee, "customer_account_no", "account_no");
+        String accountNo = firstText(payee, extra, "account_no", "customer_account_no");
         if (StringUtils.isBlank(accountNo)) {
-            throw new IllegalStateException("World PSP payout requires customer_account_no in order extra");
+            throw new IllegalStateException("World PSP payout requires payee.account_no");
         }
 
         Map<String, Object> params = new LinkedHashMap<>();
@@ -104,8 +104,8 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         params.put("payout_mode", channel(route, order.getMethodCode()));
         params.put("customer_account_no", accountNo);
         params.put("notify_url", route.getPspCallbackUrl());
-        putIfBlank(params, "customer_name", firstText(extra, payee, "customer_name", "name", order.getPayeeName()));
-        putIfBlank(params, "customer_account_type", firstText(extra, payee, "customer_account_type", "wallet_type", order.getPayeeWalletType()));
+        putIfBlank(params, "customer_name", StringUtils.defaultIfBlank(firstText(payee, extra, "name", "customer_name"), order.getPayeeName()));
+        putIfBlank(params, "customer_account_type", StringUtils.defaultIfBlank(firstText(payee, extra, "wallet_type", "customer_account_type"), order.getPayeeWalletType()));
         mergeJson(params, payee);
         mergeJson(params, extra);
         params.remove("account_no");

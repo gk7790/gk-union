@@ -59,12 +59,28 @@ public final class WorldPspSignUtils {
 
     public static void main(String[] args) {
         Map<String, Object> params = new HashMap<>();
-        params.put("app_id", "bc1cce3335a84a21a9556b92ec64b47b");
-        params.put("merchant_order_id", "546dcec158c24a4cb439360e4db86415");
+        params.put("app_id", "G87QQS3WPWQ7EKTXE79FG57N3CX");
+
+//        params.put("merchant_order_id", "546dcec158c24a4cb439360e4db86415");
+//        params.put("amount", "100.00");
+//        params.put("pay_channel", "PHI_MAYA");
+//        params.put("notify_url", "http://mqmq.vip.cpolar.cn/psp/callback/WP001/pay");
+//        params.put("page_return_url", "http://mqmq.vip.cpolar.cn/sys/page");
+
+//        params.put("merchant_order_id", "W4894651654654121");
+//        params.put("amount", "100.00");
+//        params.put("payout_mode", "PHI_MAYA");
+//        params.put("customer_account_type", "");
+//        params.put("customer_account_no", "01234567890");
+//        params.put("notify_url", "https://merchant.example.com/return");
+
+
+        params.put("merchant_order_id", "S4894651654654121");
         params.put("amount", "100.00");
-        params.put("pay_channel", "PHI_MAYA");
-        params.put("notify_url", "http://mqmq.vip.cpolar.cn/psp/callback/WP001/pay");
-        params.put("page_return_url", "http://mqmq.vip.cpolar.cn/sys/page");
+        params.put("payout_mode", "PHI_MAYA");
+        params.put("customer_account_type", "");
+        params.put("customer_account_no", "01234567890");
+        params.put("notify_url", "https://merchant.example.com/return");
 
         String secret = "31Lskdca7sflDiBncR1Ljgzo8Tij11o8XlI301";
 

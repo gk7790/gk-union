@@ -1,6 +1,7 @@
 package com.gk.openapi.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -23,19 +24,17 @@ public class PayoutOrderCreateRequest {
     private String purpose;
     @NotBlank(message = "notify_url is required")
     private String notifyUrl;
-    private String customerName;
-    private String customerAccountType;
-    @NotBlank(message = "customer_account_no is required")
-    private String customerAccountNo;
-    private String customerAccountCardType;
-    private String customerAccountBankCci;
+    @Valid
+    @NotNull(message = "payee is required")
     private Payee payee;
     private Map<String, Object> extra;
 
     @Data
     @OpenApiModel
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Payee {
         private String name;
+        @NotBlank(message = "payee.account_no is required")
         private String accountNo;
         private String bankCode;
         private String walletType;

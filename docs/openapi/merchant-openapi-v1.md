@@ -262,6 +262,9 @@ POST /api/v1/payout/create
 | `phone` | 否 | string | 手机号 |
 | `email` | 否 | string | 邮箱 |
 
+`payee` 支持透传国家或 PSP 特有字段，例如 `document_type`、`document_no`、`branch_code`、`bank_cci`、`account_card_type` 等。系统会优先使用标准字段，其他字段会进入代付订单的 `payee_json`，供具体 PSP 适配器读取。
+
+
 ### 请求示例
 
 ```json
@@ -496,5 +499,3 @@ POST /api/v1/methods
 - 商户应保存平台订单号和商户订单号，用于问题排查。
 - 生产环境应配置固定服务器出口 IP，并在平台后台维护 IP 白名单。
 - `app_id`、`timestamp`、业务参数都参与签名；如果传入 `nonce`，`nonce` 也参与签名；`sign` 不参与签名。
-
-

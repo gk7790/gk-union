@@ -10,6 +10,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
+import com.gk.ledger.service.LedgerAccountService;
 import com.gk.platform.dto.SysDeptDTO;
 import com.gk.platform.dto.SysRoleDTO;
 import com.gk.platform.dto.SysUserDTO;
@@ -45,6 +46,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     private final SysRoleService sysRoleService;
     private final SysRoleMenuService sysRoleMenuService;
     private final SysUserService sysUserService;
+    private final LedgerAccountService ledgerAccountService;
 
     @Override
     public QueryWrapper<SysTenantEntity> getWrapper(DynMap params) {
@@ -68,6 +70,23 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         List<SysTenantEntity> result = baseDao.selectList(wrapper);
 
         return result.stream().map(item -> new LabelDTO(item.getId(), item.getName())).toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void save(SysTenantDTO dto) {
+        super.save(dto);
+        provisionLedgerAccounts(dto.getId(), dto.getCurrency());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(SysTenantDTO dto) {
+        super.update(dto);
+        SysTenantEntity tenant = baseDao.selectById(dto.getId());
+        if (tenant != null) {
+            provisionLedgerAccounts(tenant.getId(), tenant.getCurrency());
+        }
     }
 
     @Override
@@ -165,5 +184,12 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     private boolean isRoleTemplate(SysRoleEntity role) {
         Long tenantId = role.getTenantId();
         return tenantId == null || Constant.DEFAULT_TENANT_ID.equals(tenantId);
+    }
+
+    private void provisionLedgerAccounts(Long tenantId, String currency) {
+        if (tenantId == null || StringUtils.isBlank(currency)) {
+            return;
+        }
+        ledgerAccountService.provisionTenantAccounts(tenantId, currency);
     }
 }

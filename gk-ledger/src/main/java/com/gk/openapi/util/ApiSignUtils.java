@@ -1,16 +1,14 @@
 package com.gk.openapi.util;
 
+import com.alibaba.fastjson2.JSON;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.TreeMap;
+import java.time.Instant;
+import java.util.*;
 
 /**
  * OpenAPI 签名工具。
@@ -24,9 +22,11 @@ import java.util.TreeMap;
  * Canonical JSON 规则：
  * <ul>
  *   <li>去掉 sign / signature</li>
- *   <li>去掉 null 字段（递归）</li>
+ *   <li>递归忽略 null、空白字符串、空对象 {}、空数组 []</li>
  *   <li>对象 key 递归按 ASCII 排序</li>
- *   <li>数组保持原顺序</li>
+ *   <li>数组保持原顺序，仅保留非空元素</li>
+ *   <li>数组元素全部被忽略时，整个数组字段不参与签名</li>
+ *   <li>对象字段全部被忽略时，整个对象字段不参与签名</li>
  *   <li>紧凑输出，无多余空白</li>
  * </ul>
  */
@@ -42,7 +42,7 @@ public final class ApiSignUtils {
         }
         TreeMap<String, Object> payload = new TreeMap<>();
         params.forEach((key, value) -> {
-            if (key == null || isSignField(key) || value == null) {
+            if (key == null || isSignField(key) || shouldOmitValue(value)) {
                 return;
             }
             String normalizedKey = key.trim();
@@ -50,7 +50,8 @@ public final class ApiSignUtils {
                 payload.put(normalizedKey, value);
             }
         });
-        return canonicalJson(payload);
+        String json = canonicalJsonFragment(payload);
+        return json == null ? "{}" : json;
     }
 
     public static String createMd5Sign(Map<String, ?> params, String apiSecret) {
@@ -70,9 +71,12 @@ public final class ApiSignUtils {
     }
 
     public static String canonicalJson(Object value) {
+        if (shouldOmitValue(value)) {
+            throw new IllegalArgumentException("Sign payload value is empty");
+        }
         String json = canonicalJsonFragment(value);
         if (json == null) {
-            throw new IllegalArgumentException("Sign payload value cannot be null");
+            throw new IllegalArgumentException("Sign payload value is empty");
         }
         return json;
     }
@@ -109,8 +113,55 @@ public final class ApiSignUtils {
         return "sign".equalsIgnoreCase(key) || "signature".equalsIgnoreCase(key);
     }
 
-    private static String canonicalJsonFragment(Object value) {
+    static boolean shouldOmitValue(Object value) {
         if (value == null) {
+            return true;
+        }
+        if (value instanceof CharSequence text) {
+            return text.toString().trim().isEmpty();
+        }
+        if (value instanceof Map<?, ?> map) {
+            if (map.isEmpty()) {
+                return true;
+            }
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() == null) {
+                    continue;
+                }
+                if (!shouldOmitValue(entry.getValue())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (value instanceof Collection<?> collection) {
+            if (collection.isEmpty()) {
+                return true;
+            }
+            for (Object item : collection) {
+                if (!shouldOmitValue(item)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (value.getClass().isArray()) {
+            int length = java.lang.reflect.Array.getLength(value);
+            if (length == 0) {
+                return true;
+            }
+            for (int i = 0; i < length; i++) {
+                if (!shouldOmitValue(java.lang.reflect.Array.get(value, i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static String canonicalJsonFragment(Object value) {
+        if (shouldOmitValue(value)) {
             return null;
         }
         if (value instanceof Map<?, ?> map) {
@@ -123,7 +174,7 @@ public final class ApiSignUtils {
             return canonicalJsonArray(arrayToList(value));
         }
         if (value instanceof CharSequence text) {
-            return quote(text.toString());
+            return quote(text.toString().trim());
         }
         if (value instanceof BigDecimal decimal) {
             return decimal.toPlainString();
@@ -131,13 +182,13 @@ public final class ApiSignUtils {
         if (value instanceof Boolean || value instanceof Number) {
             return String.valueOf(value);
         }
-        return quote(String.valueOf(value));
+        return quote(String.valueOf(value).trim());
     }
 
     private static String canonicalJsonObject(Map<?, ?> map) {
         TreeMap<String, Object> sorted = new TreeMap<>();
         map.forEach((key, value) -> {
-            if (key == null || value == null) {
+            if (key == null || shouldOmitValue(value)) {
                 return;
             }
             String text = String.valueOf(key).trim();
@@ -146,7 +197,7 @@ public final class ApiSignUtils {
             }
         });
         if (sorted.isEmpty()) {
-            return "{}";
+            return null;
         }
         StringBuilder builder = new StringBuilder("{");
         boolean first = true;
@@ -162,6 +213,9 @@ public final class ApiSignUtils {
             first = false;
         }
         builder.append('}');
+        if (first) {
+            return null;
+        }
         return builder.toString();
     }
 
@@ -178,6 +232,9 @@ public final class ApiSignUtils {
             }
             builder.append(fragment);
             first = false;
+        }
+        if (first) {
+            return null;
         }
         builder.append(']');
         return builder.toString();
@@ -226,5 +283,30 @@ public final class ApiSignUtils {
             result[i * 2 + 1] = HEX[v & 0x0f];
         }
         return new String(result);
+    }
+    public static void main(String[] args) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("app_id", "GP4338P2WVC9NZ9F2ZR8NUYFJZZ");
+        params.put("timestamp", Instant.now().toEpochMilli() + "");
+
+//        params.put("merchant_order_id", "M2026068101245");
+//        params.put("amount", "100.00");
+//        params.put("currency", "PHP");
+//        params.put("method_code", "MAYA");
+//        params.put("notify_url", "https://merchant.example.com/notify");
+//        params.put("return_url", "https://merchant.example.com/return");
+
+
+        params.put("merchant_order_id", "OUT2026068101245");
+        params.put("amount", "100.00");
+        params.put("currency", "PHP");
+        params.put("method_code", "MAYA");
+        params.put("notify_url", "https://merchant.example.com/notify");
+        params.put("payee", Map.of("account_no", "0454349876543654"));
+
+
+        String sign = createMd5Sign(params, "e5vuBT7Dd7vwWBqG1-R_-EFKm7ynICE2tIPzeKHFW4w");
+        params.put("sign", sign);
+        System.out.println(JSON.toJSONString(params));
     }
 }

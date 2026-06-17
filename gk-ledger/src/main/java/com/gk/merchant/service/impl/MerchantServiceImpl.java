@@ -118,6 +118,20 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         createDefaultApiApp(dto, entity);
     }
 
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(MerchantDTO dto) {
+        MerchantEntity entity = ConvertUtils.sourceToTarget(dto, MerchantEntity.class);
+        updateById(entity);
+        MerchantEntity merchant = baseDao.selectById(entity.getId());
+        ledgerAccountService.provisionMerchantAccounts(
+                merchant.getTenantId(),
+                merchant.getId(),
+                entity.getDefaultCurrency()
+        );
+    }
+
     private void applyCreateDefaults(MerchantEntity entity) {
         if (entity.getStatus() == null) {
             entity.setStatus(DEFAULT_STATUS);

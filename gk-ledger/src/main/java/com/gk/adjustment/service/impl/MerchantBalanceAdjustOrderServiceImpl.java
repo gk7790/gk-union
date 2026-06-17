@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -69,10 +70,10 @@ public class MerchantBalanceAdjustOrderServiceImpl extends CrudServiceImpl<Merch
         MerchantBalanceAdjustTypeEnum adjustType = validateSubmit(dto);
         MerchantEntity merchant = merchantDao.selectById(dto.getMerchantId());
         if (merchant == null) {
-            throw new IllegalArgumentException("Merchant not found: " + dto.getMerchantId());
+            throw new GkException("Merchant not found: " + dto.getMerchantId());
         }
         if (!dto.getTenantId().equals(merchant.getTenantId())) {
-            throw new IllegalArgumentException("Merchant tenant does not match");
+            throw new GkException("Merchant tenant does not match");
         }
 
         MerchantBalanceAdjustOrderEntity entity = ConvertUtils.sourceToTarget(dto, MerchantBalanceAdjustOrderEntity.class);
@@ -98,11 +99,11 @@ public class MerchantBalanceAdjustOrderServiceImpl extends CrudServiceImpl<Merch
         if (dto == null || dto.getTenantId() == null || dto.getMerchantId() == null
                 || StringUtils.isBlank(dto.getCurrency()) || dto.getAmount() == null
                 || dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Invalid merchant balance adjust order");
+            throw new GkException("Invalid merchant balance adjust order");
         }
         MerchantBalanceAdjustTypeEnum adjustType = StringCodeEnum.fromCode(MerchantBalanceAdjustTypeEnum.class, dto.getAdjustType());
         if (adjustType == null) {
-            throw new IllegalArgumentException("Invalid merchant balance adjust type");
+            throw new GkException("Invalid merchant balance adjust type");
         }
         return adjustType;
     }

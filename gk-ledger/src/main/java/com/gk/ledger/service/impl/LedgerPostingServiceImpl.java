@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.GkException;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
@@ -140,7 +141,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         BigDecimal settleAmount = amountOrDefault(request.getSettleAmount(), request.getAmount().subtract(defaultZero(request.getMerchantFeeAmount())));
         requireNonNegative(settleAmount, "settleAmount");
         if (!positive(settleAmount)) {
-            throw new IllegalArgumentException("Invalid settle release amount");
+            throw new GkException("Invalid settle release amount");
         }
         // 借：商户待结算；贷：商户可用。
         LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
@@ -190,7 +191,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         // 冻结总额默认等于代付本金 + 商户手续费。
         BigDecimal totalDebitAmount = payoutTotalDebit(request);
         if (totalDebitAmount.compareTo(scale(request.getAmount())) < 0) {
-            throw new IllegalArgumentException("Invalid payout posting request: totalDebitAmount must be greater than or equal to amount");
+            throw new GkException("Invalid payout posting request: totalDebitAmount must be greater than or equal to amount");
         }
         // 借：商户可用；贷：商户冻结。
         LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
@@ -583,7 +584,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 .eq("status", StatusEnum.NORMAL.code())
                 .last("limit 1"));
         if (account == null) {
-            throw new IllegalStateException("Ledger account is not configured: " + ownerType + "/" + accountType + "/" + currency);
+            throw new GkException("Ledger account is not configured: " + ownerType + "/" + accountType + "/" + currency);
         }
         return account;
     }
@@ -686,7 +687,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      */
     private void requireNonNegative(BigDecimal value, String field) {
         if (scale(value).compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Invalid posting amount: " + field);
+            throw new GkException("Invalid posting amount: " + field);
         }
     }
 
@@ -696,7 +697,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private void validatePaySuccess(PaySuccessPostingRequest request) {
         if (request == null || request.getTenantId() == null || request.getMerchantId() == null || StringUtils.isBlank(request.getPayOrderNo())
                 || StringUtils.isBlank(request.getCurrency()) || !positive(request.getAmount())) {
-            throw new IllegalArgumentException("Invalid pay success posting request");
+            throw new GkException("Invalid pay success posting request");
         }
     }
 
@@ -706,11 +707,11 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private void validatePayout(PayoutPostingRequest request) {
         if (request == null || request.getTenantId() == null || request.getMerchantId() == null || StringUtils.isBlank(request.getPayoutOrderNo())
                 || StringUtils.isBlank(request.getCurrency()) || !positive(request.getAmount())) {
-            throw new IllegalArgumentException("Invalid payout posting request");
+            throw new GkException("Invalid payout posting request");
         }
         requireNonNegative(defaultZero(request.getMerchantFeeAmount()), "merchantFeeAmount");
         if (request.getTotalDebitAmount() != null && !positive(request.getTotalDebitAmount())) {
-            throw new IllegalArgumentException("Invalid payout posting request: totalDebitAmount");
+            throw new GkException("Invalid payout posting request: totalDebitAmount");
         }
     }
 
@@ -721,11 +722,11 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (request == null || request.getTenantId() == null || request.getMerchantId() == null
                 || StringUtils.isBlank(request.getAdjustOrderNo()) || StringUtils.isBlank(request.getCurrency())
                 || !positive(request.getAmount())) {
-            throw new IllegalArgumentException("Invalid merchant balance adjust posting request");
+            throw new GkException("Invalid merchant balance adjust posting request");
         }
         MerchantBalanceAdjustTypeEnum adjustType = StringCodeEnum.fromCode(MerchantBalanceAdjustTypeEnum.class, request.getAdjustType());
         if (adjustType == null) {
-            throw new IllegalArgumentException("Invalid merchant balance adjust type");
+            throw new GkException("Invalid merchant balance adjust type");
         }
         return adjustType;
     }

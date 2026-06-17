@@ -136,11 +136,83 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return account;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void provisionTenantAccounts(Long tenantId, String currency) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        requireSystemAccount(tenantId, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), normalizedCurrency);
+        requirePlatformAccount(tenantId, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), normalizedCurrency);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerAccountEntity requireSystemAccount(Long tenantId, String accountType, String currency) {
+        return requireOwnerAccount(
+                tenantId,
+                LedgerOwnerTypeEnum.SYSTEM.code(),
+                0L,
+                accountType,
+                currency,
+                buildSystemAccountNo(tenantId, accountType, currency),
+                LedgerDirectionEnum.DEBIT.code(),
+                1
+        );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LedgerAccountEntity requirePlatformAccount(Long tenantId, String accountType, String currency) {
+        return requireOwnerAccount(
+                tenantId,
+                SubjectTypeEnum.PLATFORM.code(),
+                0L,
+                accountType,
+                currency,
+                buildPlatformAccountNo(tenantId, accountType, currency),
+                LedgerDirectionEnum.CREDIT.code(),
+                0
+        );
+    }
+
+    private LedgerAccountEntity requireOwnerAccount(Long tenantId, String ownerType, Long ownerId, String accountType,
+                                                    String currency, String accountNo, String normalSide, int allowNegative) {
+        String normalizedCurrency = normalizeCurrency(currency);
+        LedgerAccountEntity account = findOwnerAccount(tenantId, ownerType, ownerId, accountType, normalizedCurrency);
+        if (account != null) {
+            ensureBalance(account);
+            return account;
+        }
+        account = new LedgerAccountEntity();
+        account.setTenantId(tenantId);
+        account.setOwnerType(ownerType);
+        account.setOwnerId(ownerId);
+        account.setAccountType(accountType);
+        account.setCurrency(normalizedCurrency);
+        account.setAccountNo(accountNo);
+        account.setNormalSide(normalSide);
+        account.setAllowNegative(allowNegative);
+        account.setStatus(StatusEnum.NORMAL.code());
+        try {
+            baseDao.insert(account);
+        } catch (DuplicateKeyException ex) {
+            account = findOwnerAccount(tenantId, ownerType, ownerId, accountType, normalizedCurrency);
+            if (account == null) {
+                throw ex;
+            }
+        }
+        ensureBalance(account);
+        return account;
+    }
+
     private LedgerAccountEntity findMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency) {
+        return findOwnerAccount(tenantId, SubjectTypeEnum.MERCHANT.code(), merchantId, accountType, currency);
+    }
+
+    private LedgerAccountEntity findOwnerAccount(Long tenantId, String ownerType, Long ownerId, String accountType, String currency) {
         return baseDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
                 .eq("tenant_id", tenantId)
-                .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
-                .eq("owner_id", merchantId)
+                .eq("owner_type", ownerType)
+                .eq("owner_id", ownerId)
                 .eq("account_type", accountType)
                 .eq("currency", currency)
                 .eq("status", StatusEnum.NORMAL.code())
@@ -190,9 +262,21 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return "T" + tenantId + "-PSP" + pspAccountId + "-" + accountTypeToken(accountType) + "-" + currency;
     }
 
+    static String buildSystemAccountNo(Long tenantId, String accountType, String currency) {
+        return "T" + tenantId + "-SYS-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
+    }
+
+    static String buildPlatformAccountNo(Long tenantId, String accountType, String currency) {
+        return "T" + tenantId + "-PLT-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
+    }
+
     private static String accountTypeToken(String accountType) {
-        if (LedgerAccountTypeEnum.PSP_CLEARING.matches(accountType)) {
+        if (LedgerAccountTypeEnum.PSP_CLEARING.matches(accountType)
+                || LedgerAccountTypeEnum.SYSTEM_CLEARING.matches(accountType)) {
             return "CLR";
+        }
+        if (LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.matches(accountType)) {
+            return "FEE";
         }
         if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {
             return "FRZ";

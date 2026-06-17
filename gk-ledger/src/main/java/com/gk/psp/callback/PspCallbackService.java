@@ -13,11 +13,15 @@ import com.gk.psp.enums.PspCallbackProcessStatusEnum;
 import com.gk.psp.enums.PspCallbackVerifyStatusEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackRequest;
+import com.gk.psp.callback.model.PspCallbackResponse;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.*;
 import com.gk.psp.entity.PspCallbackLogEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
@@ -34,6 +38,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PspCallbackService {
     private final List<PspCallbackAdapter> adapters;
     private final PspCallbackRequestFactory requestFactory;
@@ -54,10 +59,10 @@ public class PspCallbackService {
      * @param pspCode PSP 编码，用于选择对应回调适配器
      * @param request HTTP 请求对象，包含 headers、query、form 等原始回调信息
      * @param rawBody 原始请求体，用于验签、日志和部分 JSON 回调解析
-     * @return 返回给 PSP 的响应内容，通常是 success/fail 或 PSP 要求的固定字符串
+     * @return 成功时 data 为返回给 PSP 的响应内容；失败时 success=false 并携带错误信息
      */
     @Transactional(rollbackFor = Exception.class)
-    public String handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
+    public PspCallbackResponse handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
         return handle(pspCode, BizTypeEnum.PAY_ORDER.code(), request, rawBody);
     }
 
@@ -69,10 +74,10 @@ public class PspCallbackService {
      * @param pspCode PSP 编码，用于选择对应回调适配器
      * @param request HTTP 请求对象，包含 headers、query、form 等原始回调信息
      * @param rawBody 原始请求体，用于验签、日志和部分 JSON 回调解析
-     * @return 返回给 PSP 的响应内容，通常是 success/fail 或 PSP 要求的固定字符串
+     * @return 成功时 data 为返回给 PSP 的响应内容；失败时 success=false 并携带错误信息
      */
     @Transactional(rollbackFor = Exception.class)
-    public String handlePayoutCallback(String pspCode, HttpServletRequest request, String rawBody) {
+    public PspCallbackResponse handlePayoutCallback(String pspCode, HttpServletRequest request, String rawBody) {
         return handle(pspCode, BizTypeEnum.PAYOUT_ORDER.code(), request, rawBody);
     }
 
@@ -82,11 +87,11 @@ public class PspCallbackService {
      * 代收和代付回调都会走这里，通过 bizType 区分订单类型。方法要保证：
      * 回调日志可追溯、重复回调幂等、终态回调才触发账务、订单状态和账务凭证一致。
      */
-    private String handle(String pspCode, String bizType, HttpServletRequest servletRequest, String rawBody) {
+    private PspCallbackResponse handle(String pspCode, String bizType, HttpServletRequest servletRequest, String rawBody) {
         // 1. 根据 PSP 编码找到对应适配器；适配器负责该 PSP 的报文解析和验签规则。
         PspCallbackAdapter adapter = findAdapter(pspCode);
         if (adapter == null) {
-            return "fail";
+            return PspCallbackResponse.badRequest(PspCallbackResponse.DEFAULT_FAIL_BODY);
         }
 
         // 2. 把 HTTP 请求转换成内部统一回调请求模型，保留原始 body、headers、参数等信息。
@@ -95,12 +100,14 @@ public class PspCallbackService {
         PspCallbackLogEntity logEntity = null;
         // 标记订单是否已经发生状态变更；若后续账务或通知失败，需要把事务标记回滚。
         boolean orderChanged = false;
+        String failResponse = PspCallbackResponse.DEFAULT_FAIL_BODY;
         try {
             if (!pspCallbackIpWhitelistService.isPspCallbackAllowed(request.getPspCode(), request.getClientIp())) {
-                throw new IllegalStateException("PSP callback IP is not allowed");
+                throw PspCallbackException.forbidden("PSP callback IP is not allowed", failResponse);
             }
             // 3. 使用 PSP 适配器把原始回调解析成统一结果模型，包括订单号、状态、金额、币种等。
             PspCallbackResult result = parse(adapter, bizType, request);
+            failResponse = failBody(result);
             // 4. 根据回调结果定位平台侧订单，并拿到订单快照、商户、金额、手续费、PSP 账户等信息。
             PspCallbackOrder order = orderResolver.resolve(bizType, result);
             // 5. 回填 PSP 账户密钥到请求模型，后续验签需要使用它。
@@ -111,7 +118,7 @@ public class PspCallbackService {
             // 7. 验签失败不更新订单、不入账，只把回调日志标记为验签失败，并按 PSP 协议返回失败响应。
             if (!adapter.verifySign(request)) {
                 logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.FAILED.code(), PspCallbackProcessStatusEnum.FAILED.code(), "Invalid PSP callback signature");
-                return result.getFailResponse();
+                return PspCallbackResponse.unauthorized(failResponse);
             }
 
             // 8. 判断 PSP 回调状态是否为终态；只有 SUCCESS/FAILED/CLOSED 等终态才需要金额/币种强校验和账务动作。
@@ -139,7 +146,7 @@ public class PspCallbackService {
             // 15. 标记回调日志处理完成；重复回调或无状态变化记为 IGNORED。
             logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.SUCCESS.code(), orderChanged ? PspCallbackProcessStatusEnum.SUCCESS.code() : PspCallbackProcessStatusEnum.IGNORED.code(), null);
             // 16. 返回 PSP 适配器解析出的成功响应，满足不同 PSP 对回调响应内容的要求。
-            return result.getSuccessResponse();
+            return PspCallbackResponse.ok(result.getSuccessResponse());
         } catch (Exception ex) {
             if (orderChanged) {
                 // 订单已经更新但后续账务/通知失败时，回滚整个事务，避免订单终态和账务不一致。
@@ -151,7 +158,9 @@ public class PspCallbackService {
             }
             // 统一把回调日志标记为失败，并把异常信息写入日志。
             logRecorder.finish(logEntity, PspCallbackVerifyStatusEnum.FAILED.code(), PspCallbackProcessStatusEnum.FAILED.code(), ex.getMessage());
-            return "fail";
+            PspCallbackResponse response = failureResponse(ex, failResponse);
+            logFailure(pspCode, bizType, response.status(), ex);
+            return response;
         }
     }
 
@@ -160,6 +169,42 @@ public class PspCallbackService {
      * <p>
      * 用于订单已经发生状态变更，但后续账务或通知创建失败的场景，避免部分成功。
      */
+    private String failBody(PspCallbackResult result) {
+        if (result == null) {
+            return PspCallbackResponse.DEFAULT_FAIL_BODY;
+        }
+        return StringUtils.defaultIfBlank(result.getFailResponse(), PspCallbackResponse.DEFAULT_FAIL_BODY);
+    }
+
+    private PspCallbackResponse failureResponse(Exception ex, String failResponse) {
+        if (ex instanceof PspCallbackException callbackException) {
+            return callbackException.toResponse();
+        }
+        if (ex instanceof IllegalArgumentException || isRejectedCallback(ex)) {
+            return PspCallbackResponse.badRequest(failResponse);
+        }
+        if (ex instanceof SecurityException) {
+            return PspCallbackResponse.forbidden(failResponse);
+        }
+        return PspCallbackResponse.internalServerError(failResponse);
+    }
+
+    private boolean isRejectedCallback(Exception ex) {
+        String message = StringUtils.defaultString(ex.getMessage());
+        return StringUtils.containsIgnoreCase(message, "not found")
+                || StringUtils.containsIgnoreCase(message, "mismatch")
+                || StringUtils.containsIgnoreCase(message, "Invalid PSP callback context");
+    }
+
+    private void logFailure(String pspCode, String bizType, HttpStatus status, Exception ex) {
+        if (status.is5xxServerError()) {
+            log.error("PSP callback failed, pspCode={}, bizType={}, status={}", pspCode, bizType, status.value(), ex);
+            return;
+        }
+        log.warn("PSP callback rejected, pspCode={}, bizType={}, status={}, reason={}",
+                pspCode, bizType, status.value(), ex.getMessage());
+    }
+
     private void rollbackIfActive() {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();

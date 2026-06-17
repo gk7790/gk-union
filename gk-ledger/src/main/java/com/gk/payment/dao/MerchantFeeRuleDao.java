@@ -18,7 +18,7 @@ public interface MerchantFeeRuleDao extends BaseDao<MerchantFeeRuleEntity> {
             @Param("currency") String currency,
             @Param("methodCode") String methodCode,
             @Param("orderAmount") BigDecimal orderAmount,
-            @Param("orderType") String orderType,
+            @Param("direction") String direction,
             @Param("now") Instant now,
             @Param("status") Integer status
     );

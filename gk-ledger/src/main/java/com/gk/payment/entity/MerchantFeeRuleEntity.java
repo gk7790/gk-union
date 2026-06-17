@@ -16,7 +16,7 @@ public class MerchantFeeRuleEntity extends SimpleEntity {
     private Long merchantId;
     private Long merchantAppId;
     private String ruleName;
-    private String orderType;
+    private String direction;
     private String countryCode;
     private String currency;
     private String methodCode;

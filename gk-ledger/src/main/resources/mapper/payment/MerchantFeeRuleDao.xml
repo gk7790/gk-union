@@ -6,7 +6,7 @@
         SELECT * FROM merchant_fee_rule
         WHERE tenant_id = #{tenantId}
           AND merchant_id = #{merchantId}
-          AND order_type = #{orderType}
+          AND direction = #{direction}
           AND currency = #{currency}
           AND status = #{status}
           AND (merchant_app_id = #{merchantAppId} OR merchant_app_id IS NULL)

@@ -60,7 +60,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         Long merchantAppId = params.getLong("merchantAppId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String ruleName = params.getStr("ruleName");
-        String orderType = params.getStr("orderType");
+        String direction = params.getStr("direction");
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String methodCode = params.getStr("methodCode");
@@ -72,7 +72,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
-        wrapper.eq(StrUtil.isNotBlank(orderType), "order_type", normalize(orderType));
+        wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
@@ -129,10 +129,10 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             String currency,
             String methodCode,
             BigDecimal orderAmount,
-            String orderType
+            String direction
     ) {
         // 先按商户、币种、方向、支付方式、金额区间等条件选中一条有效规则，再交给纯计算器算金额。
-        MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, orderType);
+        MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, direction);
         MerchantFeeAmount amount;
         try {
             amount = MerchantFeeCalculator.calculate(orderAmount, rule);
@@ -163,7 +163,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             String currency,
             String methodCode,
             BigDecimal orderAmount,
-            String orderType
+            String direction
     ) {
         Instant now = Instant.now();
         MerchantFeeRuleEntity rule = baseDao.selectBestMatchForOrder(
@@ -174,7 +174,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 normalize(currency),
                 normalize(methodCode),
                 orderAmount,
-                orderType,
+                direction,
                 now,
                 StatusEnum.NORMAL.code()
         );
@@ -193,7 +193,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ruleId", rule.getId());
         snapshot.put("ruleName", rule.getRuleName());
-        snapshot.put("orderType", rule.getOrderType());
+        snapshot.put("direction", rule.getDirection());
         snapshot.put("countryCode", rule.getCountryCode());
         snapshot.put("currency", rule.getCurrency());
         snapshot.put("methodCode", rule.getMethodCode());
@@ -219,16 +219,16 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             return;
         }
         dto.setFeeBearer(null);
-        String orderType = StringUtils.defaultIfBlank(dto.getOrderType(), currentOrderType(dto.getId()));
-        dto.setSettleMode(PayDirectionEnum.PAYOUT.matches(orderType) ? SETTLE_MODE_ADD : SETTLE_MODE_DEDUCT);
+        String direction = StringUtils.defaultIfBlank(dto.getDirection(), currentDirection(dto.getId()));
+        dto.setSettleMode(PayDirectionEnum.PAYOUT.matches(direction) ? SETTLE_MODE_ADD : SETTLE_MODE_DEDUCT);
     }
 
-    private String currentOrderType(Long id) {
+    private String currentDirection(Long id) {
         if (id == null) {
             return null;
         }
         MerchantFeeRuleEntity entity = baseDao.selectById(id);
-        return entity == null ? null : entity.getOrderType();
+        return entity == null ? null : entity.getDirection();
     }
 
     /**

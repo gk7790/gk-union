@@ -18,7 +18,7 @@ public class MerchantFeeRuleDTO {
     @Schema(title = "规则名称")
     private String ruleName;
     @Schema(title = "订单类型: PAYIN/PAYOUT")
-    private String orderType;
+    private String direction;
     @Schema(title = "国家编码")
     private String countryCode;
     @Schema(title = "币种")

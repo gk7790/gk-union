@@ -32,6 +32,20 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleDao, MerchantFeeRuleEntity, MerchantFeeRuleDTO> implements MerchantFeeRuleService {
+    private static final String SETTLE_MODE_DEDUCT = "DEDUCT";
+    private static final String SETTLE_MODE_ADD = "ADD";
+
+    @Override
+    public void save(MerchantFeeRuleDTO dto) {
+        normalizePersistFields(dto);
+        super.save(dto);
+    }
+
+    @Override
+    public void update(MerchantFeeRuleDTO dto) {
+        normalizePersistFields(dto);
+        super.update(dto);
+    }
 
     /**
      * 后台管理页的查询条件组装。
@@ -198,6 +212,23 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
      */
     private String decimalText(BigDecimal value) {
         return value == null ? null : value.toPlainString();
+    }
+
+    private void normalizePersistFields(MerchantFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        dto.setFeeBearer(null);
+        String orderType = StringUtils.defaultIfBlank(dto.getOrderType(), currentOrderType(dto.getId()));
+        dto.setSettleMode(PayDirectionEnum.PAYOUT.matches(orderType) ? SETTLE_MODE_ADD : SETTLE_MODE_DEDUCT);
+    }
+
+    private String currentOrderType(Long id) {
+        if (id == null) {
+            return null;
+        }
+        MerchantFeeRuleEntity entity = baseDao.selectById(id);
+        return entity == null ? null : entity.getOrderType();
     }
 
     /**

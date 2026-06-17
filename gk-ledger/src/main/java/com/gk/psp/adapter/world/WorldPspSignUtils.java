@@ -1,30 +1,38 @@
 package com.gk.psp.adapter.world;
 
-import com.alibaba.fastjson2.JSONObject;
-import com.gk.openapi.util.ApiSignUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.security.MessageDigest;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+/**
+ * World PSP 扁平参数 MD5 签名，与 OpenAPI Canonical JSON 签名无关。
+ */
 public final class WorldPspSignUtils {
+    private static final char[] HEX = "0123456789abcdef".toCharArray();
+
     private WorldPspSignUtils() {
     }
 
     public static String sign(Map<String, ?> params, String secret) {
-        return ApiSignUtils.createMd5Sign(params, secret);
+        return md5Hex(flatSignText(params) + "&key=" + StringUtils.defaultString(secret)).toLowerCase(Locale.ROOT);
     }
 
     public static boolean verify(Map<String, ?> params, String secret, String signature) {
-        return ApiSignUtils.verifyMd5Sign(params, secret, signature);
+        if (StringUtils.isBlank(signature)) {
+            return false;
+        }
+        return StringUtils.equalsIgnoreCase(sign(params, secret), signature);
     }
 
     public static String canonicalText(Map<String, ?> params) {
-        return ApiSignUtils.buildSortedParamString(params);
+        return flatSignText(params);
     }
 
     public static Map<String, Object> withSign(Map<String, Object> params, String secret) {
@@ -38,52 +46,47 @@ public final class WorldPspSignUtils {
             return "";
         }
         return params.entrySet().stream()
-                .filter(entry -> StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(formValue(entry.getValue())))
-                .map(entry -> encode(entry.getKey().trim()) + "=" + encode(formValue(entry.getValue())))
+                .filter(entry -> StringUtils.isNotBlank(entry.getKey()) && entry.getValue() != null)
+                .map(entry -> encode(entry.getKey().trim()) + "=" + encode(String.valueOf(entry.getValue())))
                 .collect(Collectors.joining("&"));
     }
 
-    private static String formValue(Object value) {
-        if (value == null) {
-            return null;
+    private static String flatSignText(Map<String, ?> params) {
+        if (params == null || params.isEmpty()) {
+            return "";
         }
-        if (value instanceof CharSequence text) {
-            return text.toString().trim();
+        TreeMap<String, String> sorted = new TreeMap<>();
+        params.forEach((key, value) -> {
+            if (StringUtils.isBlank(key) || value == null || "sign".equalsIgnoreCase(key.trim())) {
+                return;
+            }
+            String text = String.valueOf(value).trim();
+            if (!text.isEmpty()) {
+                sorted.put(key.trim(), text);
+            }
+        });
+        return sorted.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("&"));
+    }
+
+    private static String md5Hex(String data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
+            char[] result = new char[hash.length * 2];
+            for (int i = 0; i < hash.length; i++) {
+                int v = hash[i] & 0xff;
+                result[i * 2] = HEX[v >>> 4];
+                result[i * 2 + 1] = HEX[v & 0x0f];
+            }
+            return new String(result);
+        } catch (Exception ex) {
+            throw new IllegalStateException("MD5 sign failed", ex);
         }
-        return String.valueOf(value);
     }
 
     private static String encode(String value) {
         return URLEncoder.encode(StringUtils.defaultString(value), StandardCharsets.UTF_8);
-    }
-
-    public static void main(String[] args) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("app_id", "G87QQS3WPWQ7EKTXE79FG57N3CX");
-
-//        params.put("merchant_order_id", "546dcec158c24a4cb439360e4db86415");
-//        params.put("amount", "100.00");
-//        params.put("pay_channel", "PHI_MAYA");
-//        params.put("notify_url", "http://mqmq.vip.cpolar.cn/psp/callback/WP001/pay");
-//        params.put("page_return_url", "http://mqmq.vip.cpolar.cn/sys/page");
-
-//        params.put("merchant_order_id", "W4894651654654121");
-//        params.put("amount", "100.00");
-//        params.put("payout_mode", "PHI_MAYA");
-//        params.put("customer_account_type", "");
-//        params.put("customer_account_no", "01234567890");
-//        params.put("notify_url", "https://merchant.example.com/return");
-
-
-        params.put("merchant_order_id", "S4894651654654121");
-        params.put("amount", "100.00");
-        params.put("payout_mode", "PHI_MAYA");
-        params.put("customer_account_type", "");
-        params.put("customer_account_no", "01234567890");
-        params.put("notify_url", "https://merchant.example.com/return");
-
-        String secret = "31Lskdca7sflDiBncR1Ljgzo8Tij11o8XlI301";
-
-        System.out.println(JSONObject.toJSONString(withSign(params, secret)));
     }
 }

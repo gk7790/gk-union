@@ -29,8 +29,10 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -222,6 +224,16 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         if (node == null || node.isNull()) {
             return null;
         }
+        if (node.isObject()) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            node.fields().forEachRemaining(entry -> map.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
+            return map;
+        }
+        if (node.isArray()) {
+            List<Object> values = new ArrayList<>(node.size());
+            node.forEach(item -> values.add(jsonNodeToSignValue(item)));
+            return values;
+        }
         if (node.isTextual()) {
             return node.asText();
         }
@@ -231,7 +243,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         if (node.isBoolean()) {
             return node.asBoolean();
         }
-        return node.toString();
+        return node.asText();
     }
 
     private Map<String, Object> parseFormBody(String body) {

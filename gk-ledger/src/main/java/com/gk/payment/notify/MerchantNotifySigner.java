@@ -12,24 +12,16 @@ import java.util.Map;
 /**
  * 商户通知签名器。
  * <p>
- * 采用传统支付"排序参数签名"方式, 签名直接写入报文体的 {@code sign} 字段(不放请求头):
+ * 与 OpenAPI 请求验签一致，采用 Canonical JSON：
  * <pre>
- *   signText = key1=value1&key2=value2... (按 key 升序, 跳过空值与 sign 本身)
- *   MD5:          sign = md5(signText + "&key=" + apiSecret)
+ *   signText = canonicalJson(body without sign)
+ *   MD5:          sign = md5(signText + apiSecret)
  *   HMAC_SHA256:  sign = hmacSha256(signText, apiSecret)
  * </pre>
- * 商户用同样算法对收到的字段(去掉 sign)重算并比对即可验签。
  */
 @Component
 public class MerchantNotifySigner {
 
-    /**
-     * 对通知报文签名, 并把 sign 注入 body。
-     *
-     * @param payloadJson 不含 sign 的业务报文
-     * @param apiSecret   商户密钥
-     * @param signType    MD5 / HMAC_SHA256
-     */
     public MerchantNotifySigned sign(String payloadJson, String apiSecret, String signType) {
         Map<String, Object> body = parse(payloadJson);
         body.remove("sign");

@@ -1,9 +1,13 @@
 package com.gk.psp.service.impl;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONException;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
 import com.gk.psp.dao.PspMethodDao;
@@ -12,12 +16,14 @@ import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.service.PspMethodService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
 
 @Service
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
+    private static final String EMPTY_CONFIG_JSON = "{}";
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -63,6 +69,37 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         return baseDao.selectList(wrapper).stream()
                 .map(item -> new LabelDTO(item.getMethodCode(), StringUtils.defaultIfBlank(item.getMethodName(), item.getMethodCode())))
                 .toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void save(PspMethodDTO dto) {
+        normalizeConfigJson(dto);
+        super.save(dto);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(PspMethodDTO dto) {
+        normalizeConfigJson(dto);
+        super.update(dto);
+    }
+
+    private void normalizeConfigJson(PspMethodDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        String configJson = StringUtils.trimToNull(dto.getConfigJson());
+        if (configJson == null) {
+            dto.setConfigJson(EMPTY_CONFIG_JSON);
+            return;
+        }
+        try {
+            JSON.parse(configJson);
+            dto.setConfigJson(configJson);
+        } catch (JSONException ex) {
+            throw new GkException(ErrorCode.JSON_FORMAT_ERROR, ex, "configJson");
+        }
     }
 
     private String normalize(String value) {

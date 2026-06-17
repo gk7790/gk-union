@@ -260,6 +260,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         if (result.isSuccess()) {
             entity.setStatus(PayOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
+            entity.setSubmittedAt(Instant.now());
             // 设置下一次主动查单时间，兜底处理 PSP 回调丢失或延迟。
             entity.setNextQueryAt(Instant.now().plusSeconds(60));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");

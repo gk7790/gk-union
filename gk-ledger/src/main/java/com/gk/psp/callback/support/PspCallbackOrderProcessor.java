@@ -6,6 +6,7 @@ import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.service.OrderStatusLogService;
@@ -44,7 +45,9 @@ public class PspCallbackOrderProcessor {
         String fromStatus = order.status();
         String targetStatus = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
         if (PayOrderStatusEnum.PROCESSING.code().equals(targetStatus)) {
-            if (PspCallbackUtils.isTerminal(fromStatus)) {
+            if (PspCallbackUtils.isFinalTerminal(fromStatus)
+                    || PayOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)
+                    || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)) {
                 return false;
             }
             // 中间态只允许 CREATED/PROCESSING 继续推进，不触发账务和商户通知终态逻辑。
@@ -57,8 +60,8 @@ public class PspCallbackOrderProcessor {
         if (!PspCallbackUtils.isTerminal(targetStatus)) {
             throw new IllegalStateException("Unsupported callback order status");
         }
-        if (targetStatus.equals(fromStatus) || PspCallbackUtils.isTerminal(fromStatus)) {
-            // 同状态重复回调或已终态订单直接忽略，保证回调幂等。
+        if (targetStatus.equals(fromStatus) || PspCallbackUtils.isFinalTerminal(fromStatus)) {
+            // 同状态重复回调或已最终终态订单直接忽略，保证回调幂等。
             return false;
         }
         boolean updated = update(bizType, order.id(), wrapper -> applyTerminal(bizType, wrapper, result, order, targetStatus, postingResult));
@@ -162,7 +165,11 @@ public class PspCallbackOrderProcessor {
     private <T> boolean update(BaseMapper<T> dao, Long id, Consumer<UpdateWrapper<?>> setter) {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
-                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code());
+                .in("status",
+                        PayOrderStatusEnum.CREATED.code(),
+                        PayOrderStatusEnum.PROCESSING.code(),
+                        PayOrderStatusEnum.MANUAL_REVIEW.code(),
+                        PayoutOrderStatusEnum.MANUAL_REVIEW.code());
         setter.accept(wrapper);
         return dao.update(null, wrapper) > 0;
     }

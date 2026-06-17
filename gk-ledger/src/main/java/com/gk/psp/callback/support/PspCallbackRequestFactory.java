@@ -2,6 +2,7 @@ package com.gk.psp.callback.support;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.model.DynMap;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +52,8 @@ public class PspCallbackRequestFactory {
      * <p>
      * JSON body 会解析成 Map；非 JSON body 按 form-urlencoded 方式解析。
      */
-    private Map<String, Object> params(HttpServletRequest request, String rawBody) {
-        Map<String, Object> params = new LinkedHashMap<>();
+    private DynMap params(HttpServletRequest request, String rawBody) {
+        DynMap params = new DynMap();
         // 先放 query string，再放 body；同名字段以 body 中的值为准。
         appendFormParams(params, request.getQueryString());
         String body = StringUtils.trimToNull(rawBody);
@@ -96,8 +97,8 @@ public class PspCallbackRequestFactory {
     /**
      * 复制请求头。
      */
-    private Map<String, String> headers(HttpServletRequest request) {
-        Map<String, String> headers = new LinkedHashMap<>();
+    private DynMap headers(HttpServletRequest request) {
+        DynMap headers = new DynMap();
         Enumeration<String> names = request.getHeaderNames();
         while (names != null && names.hasMoreElements()) {
             String name = names.nextElement();

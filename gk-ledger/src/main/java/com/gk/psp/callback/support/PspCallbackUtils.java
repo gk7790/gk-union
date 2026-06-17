@@ -19,17 +19,28 @@ public final class PspCallbackUtils {
     }
 
     /**
-     * 判断订单状态是否已经进入终态。
+     * 判断订单状态是否已进入终态（含待人工处理）。
      * <p>
-     * 终态订单不允许被后续重复回调覆盖，保障回调处理幂等。
+     * 用于查单/回调是否继续推进；{@link #isFinalTerminal(String)} 用于不可再变更的终态。
      */
     public static boolean isTerminal(String status) {
+        String normalized = normalizeStatus(status);
+        return isFinalTerminal(normalized)
+                || PayOrderStatusEnum.MANUAL_REVIEW.code().equals(normalized)
+                || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(normalized);
+    }
+
+    /**
+     * 判断订单是否处于不可再变更的最终终态。
+     */
+    public static boolean isFinalTerminal(String status) {
         String normalized = normalizeStatus(status);
         return PayOrderStatusEnum.SUCCESS.code().equals(normalized)
                 || PayOrderStatusEnum.FAILED.code().equals(normalized)
                 || PayOrderStatusEnum.CLOSED.code().equals(normalized)
-                || PayoutOrderStatusEnum.CANCELLED.code().equals(normalized)
-                || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(normalized);
+                || PayoutOrderStatusEnum.SUCCESS.code().equals(normalized)
+                || PayoutOrderStatusEnum.FAILED.code().equals(normalized)
+                || PayoutOrderStatusEnum.CANCELLED.code().equals(normalized);
     }
 
     /**

@@ -34,7 +34,11 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
 
     private static final int SETTLE_DRAIN_BATCH = 50;
     private static final int EXPIRE_DRAIN_BATCH = 50;
+    private static final int MANUAL_REVIEW_DRAIN_BATCH = 50;
+    private static final int MAX_ACTIVE_QUERY_COUNT = 30;
+    private static final long PROCESSING_SLA_SECONDS = 2 * 60 * 60;
     private static final String PAY_ORDER_EXPIRED_REASON = "Pay order expired";
+    private static final String MANUAL_REVIEW_REASON = "Pay order exceeded active query limit or SLA";
 
     private final MerchantDao merchantDao;
     private final LedgerPostingService ledgerPostingService;
@@ -205,6 +209,59 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
             }
         }
         return closed;
+    }
+
+    /**
+     * 扫描长时间处理中的代收订单并转人工处理。
+     * <p>
+     * 触发条件与代付一致：主动查单次数达到上限，或提交 PSP 后超过 SLA 仍未终态。
+     */
+    @Override
+    public int drainLongProcessingOrders() {
+        Instant now = Instant.now();
+        Instant slaTime = now.minusSeconds(PROCESSING_SLA_SECONDS);
+        List<PayOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayOrderEntity>()
+                .eq("status", PayOrderStatusEnum.PROCESSING.code())
+                .and(wrapper -> wrapper.ge("query_count", MAX_ACTIVE_QUERY_COUNT)
+                        .or()
+                        .isNotNull("submitted_at").le("submitted_at", slaTime))
+                .orderByAsc("submitted_at", "id")
+                .last("limit " + MANUAL_REVIEW_DRAIN_BATCH));
+        int marked = 0;
+        for (PayOrderEntity order : orders) {
+            if (markManualReview(order)) {
+                marked++;
+            }
+        }
+        return marked;
+    }
+
+    private boolean markManualReview(PayOrderEntity order) {
+        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", order.getId())
+                .eq("status", PayOrderStatusEnum.PROCESSING.code())
+                .set("status", PayOrderStatusEnum.MANUAL_REVIEW.code())
+                .set("status_reason", MANUAL_REVIEW_REASON)
+                .set("next_query_at", null);
+        if (baseDao.update(null, wrapper) == 0) {
+            return false;
+        }
+        orderStatusLogService.recordChange(
+                "PAY",
+                order.getTenantId(),
+                order.getMerchantId(),
+                order.getId(),
+                order.getPayOrderNo(),
+                order.getStatus(),
+                PayOrderStatusEnum.MANUAL_REVIEW.code(),
+                "PAY_MANUAL_REVIEW",
+                MANUAL_REVIEW_REASON,
+                "SYSTEM",
+                null,
+                order.getMerchantOrderNo(),
+                null
+        );
+        return true;
     }
 
     /**

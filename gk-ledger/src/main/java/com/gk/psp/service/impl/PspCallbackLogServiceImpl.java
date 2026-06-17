@@ -8,9 +8,12 @@ import com.gk.psp.dao.PspCallbackLogDao;
 import com.gk.psp.dto.PspCallbackLogDTO;
 import com.gk.psp.entity.PspCallbackLogEntity;
 import com.gk.psp.service.PspCallbackLogService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class PspCallbackLogServiceImpl extends CrudServiceImpl<PspCallbackLogDao, PspCallbackLogEntity, PspCallbackLogDTO> implements PspCallbackLogService {
 
     @Override
@@ -44,5 +47,19 @@ public class PspCallbackLogServiceImpl extends CrudServiceImpl<PspCallbackLogDao
         wrapper.eq(StrUtil.isNotBlank(verifyStatus), "verify_status", verifyStatus);
         wrapper.eq(StrUtil.isNotBlank(processStatus), "process_status", processStatus);
         return wrapper;
+    }
+
+    @Override
+    public void record(PspCallbackLogEntity entity) {
+        if (entity == null) {
+            return;
+        }
+        try {
+            baseDao.insert(entity);
+        } catch (DuplicateKeyException ignored) {
+            // 重复回调保留首条日志，与同步 insert 行为一致。
+        } catch (Exception ex) {
+            log.warn("Save PSP callback log failed: {}", ex.getMessage());
+        }
     }
 }

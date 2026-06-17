@@ -16,6 +16,9 @@ public enum PayOrderStatusEnum implements StringCodeEnum {
     @Style(StyleType.PRIMARY)
     PROCESSING("PROCESSING", "处理中", "enum.payOrderStatus.processing"),
 
+    @Style(StyleType.WARNING)
+    MANUAL_REVIEW("MANUAL_REVIEW", "待人工处理", "enum.payOrderStatus.manualReview"),
+
     @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.payOrderStatus.success"),
 

@@ -1,10 +1,13 @@
 package com.gk.psp.adapter.world;
 
+import com.gk.common.model.Result;
 import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
+import com.gk.psp.callback.support.PspCallbackAckMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -21,40 +24,54 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     }
 
     @Override
-    public PspCallbackResult parsePayCallback(PspCallbackRequest request) {
+    public Result<PspCallbackResult> parsePayCallback(PspCallbackRequest request) {
         return parse(request, true);
     }
 
     @Override
-    public PspCallbackResult parsePayoutCallback(PspCallbackRequest request) {
+    public Result<PspCallbackResult> parsePayoutCallback(PspCallbackRequest request) {
         return parse(request, false);
     }
 
     @Override
-    public boolean verifySign(PspCallbackRequest request) {
-        return StringUtils.isNotBlank(request.getApiSecret())
-                && WorldPspSignUtils.verify(request.getParams(), request.getApiSecret(), text(request.getParams(), "sign"));
+    public Result<Void> verifySign(PspCallbackRequest request, PspCallbackOrder order) {
+        String apiSecret = order == null ? null : order.apiSecret();
+        if (StringUtils.isBlank(apiSecret)) {
+            return Result.fail(PspCallbackAckMapper.SIGN_INVALID);
+        }
+        String signature = text(request.getParams(), "sign");
+        if (StringUtils.isBlank(signature)) {
+            return Result.fail(PspCallbackAckMapper.SIGN_INVALID);
+        }
+        if (!WorldPspSignUtils.verify(request.getParams(), apiSecret, signature)) {
+            return Result.fail(PspCallbackAckMapper.SIGN_INVALID);
+        }
+        return Result.success(null);
     }
 
-    private PspCallbackResult parse(PspCallbackRequest request, boolean payOrder) {
-        Map<String, Object> params = request.getParams();
-        String pspStatus = text(params, "order_status", "status");
+    private Result<PspCallbackResult> parse(PspCallbackRequest request, boolean payOrder) {
+        try {
+            Map<String, Object> params = request.getParams();
+            String pspStatus = text(params, "order_status", "status");
 
-        PspCallbackResult result = new PspCallbackResult();
-        result.setPspCode(request.getPspCode());
-        result.setBizType(request.getBizType());
-        result.setSystemOrderNo(text(params, "merchant_order_id"));
-        result.setMerchantOrderNo(text(params, "merchant_order_no"));
-        result.setPspOrderNo(text(params, "system_order_id"));
-        result.setPspStatus(pspStatus);
-        result.setOrderStatus(payOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus));
-        result.setAmount(decimal(params, "amount"));
-        result.setCurrency(text(params, "currency"));
-        result.setSignature(text(params, "sign"));
-        result.setErrorMessage(text(params, "msg", "message"));
-        result.setSuccessResponse("success");
-        result.setFailResponse("fail");
-        return result;
+            PspCallbackResult result = new PspCallbackResult();
+            result.setPspCode(request.getPspCode());
+            result.setBizType(request.getBizType());
+            result.setSystemOrderNo(text(params, "merchant_order_id"));
+            result.setMerchantOrderNo(text(params, "merchant_order_no"));
+            result.setPspOrderNo(text(params, "system_order_id"));
+            result.setPspStatus(pspStatus);
+            result.setOrderStatus(payOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus));
+            result.setAmount(decimal(params, "amount"));
+            result.setCurrency(text(params, "currency"));
+            result.setSignature(text(params, "sign"));
+            result.setErrorMessage(text(params, "msg", "message"));
+            result.setSuccessResponse("success");
+            result.setFailResponse("fail");
+            return Result.success(result);
+        } catch (Exception ex) {
+            return Result.fail(PspCallbackAckMapper.PARSE_FAILED);
+        }
     }
 
     private String toPayStatus(String status) {

@@ -4,9 +4,14 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContext;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.utils.ConvertUtils;
+import com.gk.common.utils.NumberUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -20,15 +25,12 @@ import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +62,19 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
         wrapper.eq(StrUtil.isNotBlank(feeMode), "fee_mode", normalize(feeMode));
         return wrapper;
+    }
+
+    @Override
+    public void save(PspFeeRuleDTO dto) {
+        PspFeeRuleEntity entity = ConvertUtils.sourceToTarget(dto, PspFeeRuleEntity.class);
+        ReqContext context = ReqContextHolder.get();
+        entity.setTenantId(context.getTenantId());
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            if (!NumberUtils.isPositive(entity.getTenantId())) {
+                entity.setTenantId(context.getTenantId());
+            }
+        }
+        insert(entity);
     }
 
     @Override

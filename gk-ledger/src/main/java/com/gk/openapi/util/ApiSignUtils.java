@@ -126,16 +126,24 @@ public class ApiSignUtils {
     }
 
     public static void main(String[] args) {
-        Map<String, String> params = new HashMap<>();
+        Map<String, Object> params = new HashMap<>();
         params.put("app_id", "GP4338P2WVC9NZ9F2ZR8NUYFJZZ");
         params.put("timestamp", Instant.now().toEpochMilli() + "");
 
-        params.put("merchant_order_id", "M2026068101245");
+//        params.put("merchant_order_id", "M2026068101245");
+//        params.put("amount", "100.00");
+//        params.put("currency", "PHP");
+//        params.put("method_code", "MAYA");
+//        params.put("notify_url", "https://merchant.example.com/notify");
+//        params.put("return_url", "https://merchant.example.com/return");
+
+
+        params.put("merchant_order_id", "OUT2026068101245");
         params.put("amount", "100.00");
         params.put("currency", "PHP");
         params.put("method_code", "MAYA");
         params.put("notify_url", "https://merchant.example.com/notify");
-        params.put("return_url", "https://merchant.example.com/return");
+        params.put("payee", Map.of("account_no", "0454349876543654"));
 
 
         String sign = createMd5Sign(params, "e5vuBT7Dd7vwWBqG1-R_-EFKm7ynICE2tIPzeKHFW4w");

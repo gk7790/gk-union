@@ -71,12 +71,12 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     @Override
     public List<MerchantDTO> getDict(DynMap params) {
         QueryWrapper<MerchantEntity> wrapper = new QueryWrapper<>();
-        wrapper.select("id", "merchant_name", "merchant_short_name", "remark");
+        wrapper.select("id", "tenant_id", "merchant_no", "merchant_name", "merchant_short_name", "remark");
         wrapper.eq("status", StatusEnum.NORMAL.code());
         ReqContext context = ReqContextHolder.get();
         if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
-            Long tenantId = params.getLong("tenantId", context.getTenantId());
-            wrapper.eq("tenant_id", tenantId);
+            Long tenantId = params.getLong("tenantId", null);
+            wrapper.eq(tenantId != null, "tenant_id", tenantId);
         } else {
             wrapper.eq("tenant_id", context.getTenantId());
         }

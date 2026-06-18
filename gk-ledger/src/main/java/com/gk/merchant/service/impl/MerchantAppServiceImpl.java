@@ -79,18 +79,18 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Override
     public List<MerchantAppDTO> getDict(DynMap params) {
         QueryWrapper<MerchantAppEntity> wrapper = new QueryWrapper<>();
-        wrapper.select("id", "app_id", "app_name", "app_type", "app_env");
+        wrapper.select("id", "tenant_id", "merchant_id", "app_id", "app_name", "app_type", "app_env");
         wrapper.eq("status", StatusEnum.NORMAL.code());
         ReqContext context = ReqContextHolder.get();
         if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
-            Long tenantId = params.getLong("tenantId", context.getTenantId());
-            Long merchantId = params.getLong("merchantId", context.getMerchantId());
-            wrapper.eq("tenant_id", tenantId);
-            wrapper.eq("merchant_id", merchantId);
+            Long tenantId = params.getLong("tenantId", 0L);
+            Long merchantId = params.getLong("merchantId", 0L);
+            wrapper.eq(tenantId > 0, "tenant_id", tenantId);
+            wrapper.eq(merchantId > 0, "merchant_id", merchantId);
         } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
             wrapper.eq("tenant_id", context.getTenantId());
-            Long merchantId = params.getLong("merchantId", context.getMerchantId());
-            wrapper.eq("merchant_id", merchantId);
+            Long merchantId = params.getLong("merchantId", 0L);
+            wrapper.eq(merchantId > 0, "merchant_id", merchantId);
         } else {
             wrapper.eq("tenant_id", context.getTenantId());
             wrapper.eq("merchant_id", context.getMerchantId());

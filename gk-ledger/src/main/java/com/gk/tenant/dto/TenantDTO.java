@@ -7,7 +7,7 @@ import java.time.Instant;
 
 @Data
 @Schema(title = "租户资料", description = "租户基础信息")
-public class SysTenantDTO {
+public class TenantDTO {
     @Schema(title = "租户ID", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
     @Schema(title = "租户公司名称", requiredMode = Schema.RequiredMode.REQUIRED, example = "Acme Payments")

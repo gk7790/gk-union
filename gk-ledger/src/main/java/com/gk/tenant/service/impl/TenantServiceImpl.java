@@ -8,8 +8,8 @@ import com.gk.common.dto.LabelDTO;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
-import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.platform.dto.SysDeptDTO;
 import com.gk.platform.dto.SysRoleDTO;
@@ -19,12 +19,12 @@ import com.gk.platform.service.SysDeptService;
 import com.gk.platform.service.SysRoleMenuService;
 import com.gk.platform.service.SysRoleService;
 import com.gk.platform.service.SysUserService;
-import com.gk.tenant.dao.SysTenantDao;
-import com.gk.tenant.dto.SysTenantDTO;
+import com.gk.tenant.dao.TenantDao;
+import com.gk.tenant.dto.TenantDTO;
 import com.gk.tenant.dto.TenantOnboardRequest;
 import com.gk.tenant.dto.TenantOnboardResult;
-import com.gk.tenant.entity.SysTenantEntity;
-import com.gk.tenant.service.SysTenantService;
+import com.gk.tenant.entity.TenantEntity;
+import com.gk.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -33,15 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * 参数管理
- *
- * @author Lowen
- * @since 1.0.0
- */
 @Service
 @RequiredArgsConstructor
-public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenantEntity, SysTenantDTO> implements SysTenantService {
+public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, TenantDTO> implements TenantService {
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
     private final SysRoleMenuService sysRoleMenuService;
@@ -49,8 +43,8 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     private final LedgerAccountService ledgerAccountService;
 
     @Override
-    public QueryWrapper<SysTenantEntity> getWrapper(DynMap params) {
-        QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
+    public QueryWrapper<TenantEntity> getWrapper(DynMap params) {
+        QueryWrapper<TenantEntity> wrapper = new QueryWrapper<>();
         if (!ReqContextHolder.isSuperAdmin()) {
             wrapper.ge("id", Constant.MIN_SYS_ID);
         }
@@ -61,29 +55,29 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
     public List<LabelDTO> getDict(DynMap params) {
         List<Integer> list = params.getList("status", Integer.class, StatusEnum.defaultStatus());
 
-        QueryWrapper<SysTenantEntity> wrapper = new QueryWrapper<>();
+        QueryWrapper<TenantEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");
         if (!ReqContextHolder.isSuperAdmin()) {
             wrapper.ge("id", Constant.MIN_SYS_ID);
         }
         wrapper.in("status", list);
-        List<SysTenantEntity> result = baseDao.selectList(wrapper);
+        List<TenantEntity> result = baseDao.selectList(wrapper);
 
         return result.stream().map(item -> new LabelDTO(item.getId(), item.getName())).toList();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void save(SysTenantDTO dto) {
+    public void save(TenantDTO dto) {
         super.save(dto);
         provisionLedgerAccounts(dto.getId(), dto.getCurrency());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void update(SysTenantDTO dto) {
+    public void update(TenantDTO dto) {
         super.update(dto);
-        SysTenantEntity tenant = baseDao.selectById(dto.getId());
+        TenantEntity tenant = baseDao.selectById(dto.getId());
         if (tenant != null) {
             provisionLedgerAccounts(tenant.getId(), tenant.getCurrency());
         }
@@ -95,7 +89,7 @@ public class SysTenantServiceImpl extends CrudServiceImpl<SysTenantDao, SysTenan
         requirePlatformSubject();
         validateRequest(request);
 
-        SysTenantDTO tenant = request.getTenant();
+        TenantDTO tenant = request.getTenant();
         if (tenant.getStatus() == null) {
             tenant.setStatus(StatusEnum.NORMAL.code());
         }

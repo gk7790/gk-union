@@ -8,7 +8,7 @@ import lombok.Data;
 @Schema(title = "租户开户请求", description = "平台创建租户时同步创建默认部门、租户管理员账号和租户角色绑定")
 public class TenantOnboardRequest {
     @Schema(title = "租户资料", description = "租户名称、编码、币种、时区、语言等基础信息", requiredMode = Schema.RequiredMode.REQUIRED)
-    private SysTenantDTO tenant;
+    private TenantDTO tenant;
 
     @Schema(title = "租户管理员账号", description = "开户时创建的租户管理员登录账号", requiredMode = Schema.RequiredMode.REQUIRED)
     private SysUserDTO adminUser;

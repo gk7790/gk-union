@@ -1,4 +1,4 @@
-package com.gk.infra.dict.dto;
+package com.gk.meta.dto;
 
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;

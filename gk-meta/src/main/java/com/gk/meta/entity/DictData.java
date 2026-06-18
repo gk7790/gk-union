@@ -1,4 +1,4 @@
-package com.gk.infra.dict.entity;
+package com.gk.meta.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;

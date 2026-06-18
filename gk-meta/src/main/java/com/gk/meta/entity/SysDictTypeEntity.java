@@ -1,4 +1,4 @@
-package com.gk.infra.dict.entity;
+package com.gk.meta.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -8,37 +8,26 @@ import com.gk.common.core.entity.SimpleEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
- * 数据字典
+ * 字典类型
  *
  * @author Lowen
  */
 @Data
 @EqualsAndHashCode(callSuper=false)
-@TableName("sys_dict_data")
-public class SysDictDataEntity extends SimpleEntity {
+@TableName("sys_dict_type")
+public class SysDictTypeEntity extends SimpleEntity {
 	/**
-	 * 字典类型ID
+	 * 字典类型
 	 */
-	private Long dictTypeId;
+	private String dictType;
 	/**
-	 * 字典标签
+	 * 字典名称
 	 */
-	private String dictLabel;
-	/**
-	 * 字典值
-	 */
-	private String dictValue;
-    /**
-     * 国际化字段
-     */
-    private String i18nKey;
-	/**
-	 * 回显样式
-	 */
-	private String attrType;
+	private String dictName;
 	/**
 	 * 备注
 	 */

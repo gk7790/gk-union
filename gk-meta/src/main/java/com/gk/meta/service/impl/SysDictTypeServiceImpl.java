@@ -1,4 +1,4 @@
-package com.gk.infra.dict.service.impl;
+package com.gk.meta.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -8,13 +8,13 @@ import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
-import com.gk.infra.dict.dao.SysDictDataDao;
-import com.gk.infra.dict.dao.SysDictTypeDao;
-import com.gk.infra.dict.dto.SysDictTypeDTO;
-import com.gk.infra.dict.entity.DictData;
-import com.gk.infra.dict.entity.DictType;
-import com.gk.infra.dict.entity.SysDictTypeEntity;
-import com.gk.infra.dict.service.SysDictTypeService;
+import com.gk.meta.dao.SysDictDataDao;
+import com.gk.meta.dao.SysDictTypeDao;
+import com.gk.meta.dto.SysDictTypeDTO;
+import com.gk.meta.entity.DictData;
+import com.gk.meta.entity.DictType;
+import com.gk.meta.entity.SysDictTypeEntity;
+import com.gk.meta.service.SysDictTypeService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;

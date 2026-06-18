@@ -1,4 +1,4 @@
-package com.gk.infra.dict.controller;
+package com.gk.meta.controller;
 
 
 import com.gk.common.annotation.RequestMap;
@@ -8,10 +8,10 @@ import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
-import com.gk.infra.dict.dto.SysDictTypeDTO;
-import com.gk.infra.dict.entity.DictData;
-import com.gk.infra.dict.entity.DictType;
-import com.gk.infra.dict.service.SysDictTypeService;
+import com.gk.meta.dto.SysDictTypeDTO;
+import com.gk.meta.entity.DictData;
+import com.gk.meta.entity.DictType;
+import com.gk.meta.service.SysDictTypeService;
 import com.gk.infra.enumdict.EnumDictProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

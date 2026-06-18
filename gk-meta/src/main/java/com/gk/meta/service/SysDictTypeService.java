@@ -1,12 +1,12 @@
-package com.gk.infra.dict.service;
+package com.gk.meta.service;
 
 import com.gk.common.core.service.BaseService;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
-import com.gk.infra.dict.dto.SysDictTypeDTO;
-import com.gk.infra.dict.entity.DictType;
-import com.gk.infra.dict.entity.SysDictTypeEntity;
+import com.gk.meta.dto.SysDictTypeDTO;
+import com.gk.meta.entity.DictType;
+import com.gk.meta.entity.SysDictTypeEntity;
 
 import java.util.List;
 

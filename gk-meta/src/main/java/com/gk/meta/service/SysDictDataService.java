@@ -1,10 +1,10 @@
-package com.gk.infra.dict.service;
+package com.gk.meta.service;
 
 import com.gk.common.core.service.BaseService;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
-import com.gk.infra.dict.dto.SysDictDataDTO;
-import com.gk.infra.dict.entity.SysDictDataEntity;
+import com.gk.meta.dto.SysDictDataDTO;
+import com.gk.meta.entity.SysDictDataEntity;
 
 /**
  * 数据字典

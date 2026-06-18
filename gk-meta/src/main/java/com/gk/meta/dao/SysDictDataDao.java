@@ -1,8 +1,8 @@
-package com.gk.infra.dict.dao;
+package com.gk.meta.dao;
 
 import com.gk.common.core.dao.BaseDao;
-import com.gk.infra.dict.entity.DictData;
-import com.gk.infra.dict.entity.SysDictDataEntity;
+import com.gk.meta.entity.DictData;
+import com.gk.meta.entity.SysDictDataEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.gk.infra.dict.dao.SysDictDataDao">
+<mapper namespace="com.gk.meta.dao.SysDictDataDao">
 
-    <select id="getList" resultType="com.gk.infra.dict.entity.SysDictDataEntity">
+    <select id="getList" resultType="com.gk.meta.entity.SysDictDataEntity">
         SELECT
             d.id,
             d.dict_type_id,
@@ -30,7 +30,7 @@
         ORDER BY d.sort ASC
     </select>
 
-    <select id="getDictDataList" resultType="com.gk.infra.dict.entity.DictData">
+    <select id="getDictDataList" resultType="com.gk.meta.entity.DictData">
         SELECT d.dict_type_id, d.dict_label as 'dictLabel', d.dict_value, d.attr_type, d.i18n_key
         FROM sys_dict_data d
         <if test="dictType != null and dictType != ''">

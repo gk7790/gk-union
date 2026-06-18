@@ -1,4 +1,4 @@
-package com.gk.infra.dict.dto;
+package com.gk.meta.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;

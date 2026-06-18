@@ -56,7 +56,7 @@ public class PspBankMappingController {
     @PreAuthorize("hasAuthority('psp:bank-mapping:page')")
     public R<List<PspBankMappingDTO>> matrix(@RequestParam Long pspId,
                                              @RequestParam String countryCode,
-                                             @RequestParam String currency) {
+                                             @RequestParam(required = false) String currency) {
         return R.ok(pspBankMappingService.getMatrix(pspId, countryCode, currency));
     }
 
@@ -65,7 +65,7 @@ public class PspBankMappingController {
     @PreAuthorize("hasAuthority('psp:bank-mapping:update')")
     public R<Void> saveMatrix(@RequestParam Long pspId,
                               @RequestParam String countryCode,
-                              @RequestParam String currency,
+                              @RequestParam(required = false) String currency,
                               @RequestBody List<PspBankMappingDTO> items) {
         pspBankMappingService.saveMatrix(pspId, countryCode, currency, items);
         return R.ok();

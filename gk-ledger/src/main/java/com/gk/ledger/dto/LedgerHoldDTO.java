@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
+@Schema(name = "LedgerHoldDTO", description = "冻结记录")
 public class LedgerHoldDTO {
     private Long id;
     @Schema(title = "租户ID")

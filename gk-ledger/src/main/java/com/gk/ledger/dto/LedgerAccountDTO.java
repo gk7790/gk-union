@@ -6,6 +6,7 @@ import lombok.Data;
 import java.time.Instant;
 
 @Data
+@Schema(name = "LedgerAccountDTO", description = "钱包账户")
 public class LedgerAccountDTO {
     private Long id;
     @Schema(title = "租户ID")

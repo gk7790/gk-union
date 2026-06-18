@@ -2,6 +2,8 @@ package com.gk.ledger.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.context.ReqContext;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
@@ -36,7 +38,6 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Override
     public QueryWrapper<LedgerAccountEntity> getWrapper(DynMap params) {
         QueryWrapper<LedgerAccountEntity> wrapper = new QueryWrapper<>();
-        Long tenantId = params.getLong("tenantId", null);
         Long ownerId = params.getLong("ownerId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         Integer allowNegative = params.containsKey("allowNegative") ? params.getInt("allowNegative") : null;
@@ -45,8 +46,33 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         String accountType = params.getStr("accountType");
         String currency = params.getStr("currency");
         String normalSide = params.getStr("normalSide");
+        ReqContext context = ReqContextHolder.get();
 
-        wrapper.eq(tenantId != null, "tenant_id", tenantId);
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            Long tenantId = params.getLong("tenantId", 0L);
+            wrapper.eq(tenantId > 0, "tenant_id", tenantId);
+
+        } else {
+            wrapper.eq("tenant_id", context.getTenantId());
+        }
+
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            Long tenantId = params.getLong("tenantId", 0L);
+            Long merchantId = params.getLong("merchantId", 0L);
+            wrapper.eq(tenantId > 0, "tenant_id", tenantId);
+            wrapper.eq(merchantId > 0, "owner_id", merchantId);
+        } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
+            wrapper.eq("tenant_id", context.getTenantId());
+            Long merchantId = params.getLong("merchantId", 0L);
+            wrapper.eq(merchantId > 0, "owner_id", merchantId);
+        } else {
+
+            wrapper.eq("tenant_id", context.getTenantId());
+            wrapper.eq("merchant_id", context.getMerchantId());
+        }
+
+
+
         wrapper.eq(ownerId != null, "owner_id", ownerId);
         wrapper.eq(status != null, "status", status);
         wrapper.eq(allowNegative != null, "allow_negative", allowNegative);

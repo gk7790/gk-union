@@ -50,14 +50,6 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
 
         if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
             Long tenantId = params.getLong("tenantId", 0L);
-            wrapper.eq(tenantId > 0, "tenant_id", tenantId);
-
-        } else {
-            wrapper.eq("tenant_id", context.getTenantId());
-        }
-
-        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
-            Long tenantId = params.getLong("tenantId", 0L);
             Long merchantId = params.getLong("merchantId", 0L);
             wrapper.eq(tenantId > 0, "tenant_id", tenantId);
             wrapper.eq(merchantId > 0, "owner_id", merchantId);
@@ -66,12 +58,10 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
             Long merchantId = params.getLong("merchantId", 0L);
             wrapper.eq(merchantId > 0, "owner_id", merchantId);
         } else {
-
+            ownerType = LedgerOwnerTypeEnum.MERCHANT.code();
             wrapper.eq("tenant_id", context.getTenantId());
             wrapper.eq("merchant_id", context.getMerchantId());
         }
-
-
 
         wrapper.eq(ownerId != null, "owner_id", ownerId);
         wrapper.eq(status != null, "status", status);

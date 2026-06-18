@@ -8,6 +8,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.utils.NumberUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.meta.dao.SysBankDao;
@@ -172,16 +173,12 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         if (entity.getSort() == null) {
             entity.setSort(100);
         }
-        insert(entity);
+        if (NumberUtils.isPositive(entity.getId())) {
+            updateById(entity);
+        } else {
+            insert(entity);
+        }
         dto.setMappingId(entity.getId());
-    }
-
-    @Override
-    public void update(PspBankMappingDTO dto) {
-        normalize(dto);
-        validate(dto);
-        AssertUtils.isNull(dto.getMappingId(), "mappingId");
-        updateById(toEntity(dto));
     }
 
     private PspBankMappingDTO toDto(PspBankMappingEntity entity) {

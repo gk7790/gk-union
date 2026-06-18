@@ -86,16 +86,6 @@ public class PspBankMappingController {
         return R.ok();
     }
 
-    @PutMapping("{id}")
-    @Operation(summary = "修改")
-    @PreAuthorize("hasAuthority('psp:bank-mapping:update')")
-    public R<Void> update(@PathVariable("id") Long id, @RequestBody PspBankMappingDTO dto) {
-        AssertUtils.isReserved(id);
-        dto.setMappingId(id);
-        pspBankMappingService.update(dto);
-        return R.ok();
-    }
-
     @DeleteMapping
     @Operation(summary = "删除")
     @PreAuthorize("hasAuthority('psp:bank-mapping:delete')")

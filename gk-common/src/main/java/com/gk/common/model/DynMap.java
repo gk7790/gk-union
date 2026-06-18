@@ -53,6 +53,13 @@ public class DynMap extends HashMap<String, Object> {
         return MapUtil.getDouble(this, key, 0.0);
     }
 
+    /**
+     * 空参数对象。
+     */
+    public static DynMap empty() {
+        return new DynMap();
+    }
+
     public Date getDate(String key, String format) {
         String val = getStr(key);
         if (StrUtil.isEmpty(val)) return null;

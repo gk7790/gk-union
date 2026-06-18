@@ -19,9 +19,8 @@ public class MerchantOptionsController {
 
     private final MerchantOptionsService merchantOptionsService;
 
-    @GetMapping("subject-options")
+    @GetMapping("options")
     @Operation(summary = "商户主体范围下拉选项")
-    @SecurityRequirement(name = "bearerAuth")
     public R<MerchantOptionsDTO> subjectOptions() {
         return R.ok(merchantOptionsService.options());
     }

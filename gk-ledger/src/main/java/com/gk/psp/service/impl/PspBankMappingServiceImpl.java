@@ -216,7 +216,7 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
     private List<SysBankEntity> listEnabledBanks(String countryCode, String currency) {
         QueryWrapper<SysBankEntity> wrapper = new QueryWrapper<>();
         wrapper.eq("country_code", countryCode);
-        wrapper.eq("currency", currency);
+        wrapper.eq(StringUtils.isNotBlank(currency),"currency", currency);
         wrapper.in("status", StatusEnum.defaultStatus());
         wrapper.orderByAsc("sort").orderByAsc("bank_code");
         return sysBankDao.selectList(wrapper);
@@ -226,7 +226,7 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         QueryWrapper<PspBankMappingEntity> wrapper = new QueryWrapper<>();
         wrapper.eq("psp_id", pspId);
         wrapper.eq("country_code", countryCode);
-        wrapper.eq("currency", currency);
+        wrapper.eq(StringUtils.isNotBlank(currency), "currency", currency);
         wrapper.orderByAsc("sort").orderByAsc("bank_code");
         return baseDao.selectList(wrapper);
     }
@@ -236,7 +236,6 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         countryCode = StringUtils.trimToNull(countryCode);
         currency = StringUtils.trimToNull(currency);
         AssertUtils.isBlank(countryCode, "countryCode");
-        AssertUtils.isBlank(currency, "currency");
         return new MatrixScope(pspId, countryCode, currency);
     }
 
@@ -251,13 +250,11 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
     private void validate(PspBankMappingDTO dto) {
         AssertUtils.isNull(dto.getPspId(), "pspId");
         AssertUtils.isBlank(dto.getCountryCode(), "countryCode");
-        AssertUtils.isBlank(dto.getCurrency(), "currency");
         AssertUtils.isBlank(dto.getBankCode(), "bankCode");
         AssertUtils.isBlank(dto.getPspBankCode(), "pspBankCode");
 
         QueryWrapper<SysBankEntity> wrapper = new QueryWrapper<>();
         wrapper.eq("country_code", dto.getCountryCode());
-        wrapper.eq("currency", dto.getCurrency());
         wrapper.eq("bank_code", dto.getBankCode());
         wrapper.in("status", StatusEnum.defaultStatus());
         if (sysBankDao.selectCount(wrapper) <= 0) {

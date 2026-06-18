@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
+import java.awt.*;
 import java.util.List;
 
 @Data
@@ -39,5 +40,9 @@ public class LabelDTO {
         this.value = value;
         this.label = label;
         this.i18nKey = i18nKey;
+    }
+
+    public static LabelDTO of(String value, String label) {
+        return new LabelDTO(value,  label);
     }
 }

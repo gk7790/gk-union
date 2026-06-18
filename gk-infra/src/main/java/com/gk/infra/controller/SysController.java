@@ -4,7 +4,7 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.R;
-import com.gk.infra.enumdict.EnumDictProvider;
+import com.gk.common.provider.EnumDictProvider;
 import com.gk.infra.i18n.service.I18nService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;

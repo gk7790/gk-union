@@ -2,6 +2,7 @@ package com.gk.meta.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
+import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
@@ -42,7 +43,7 @@ public class SysCurrencyController {
 
     @GetMapping("dict")
     @Operation(summary = "平台币种字典", description = "查询平台启用的币种列表，供下拉选择使用")
-    public R<List<SysCurrencyDTO>> dict(@RequestMap DynMap params) {
+    public R<List<LabelDTO>> dict(@RequestMap DynMap params) {
         return R.ok(sysCurrencyService.getDict(params));
     }
 

@@ -72,8 +72,7 @@ public class TenantCurrencyServiceImpl extends CrudServiceImpl<TenantCurrencyDao
                 .collect(Collectors.toMap(TenantCurrencyEntity::getCurrency, TenantCurrencyEntity::getSort, (a, b) -> a));
 
         QueryWrapper<SysCurrencyEntity> currencyWrapper = new QueryWrapper<>();
-        currencyWrapper.select("id", "currency", "currency_name", "currency_symbol", "numeric_code", "minor_unit", "sort", "remark");
-        currencyWrapper.in("currency", currencies);
+        currencyWrapper.select("id", "currency");
         currencyWrapper.in("status", statusList);
         List<SysCurrencyEntity> currencyEntities = sysCurrencyDao.selectList(currencyWrapper);
         if (CollectionUtils.isEmpty(currencyEntities)) {
@@ -94,6 +93,14 @@ public class TenantCurrencyServiceImpl extends CrudServiceImpl<TenantCurrencyDao
                 .sorted(Comparator.comparing(SysCurrencyDTO::getSort, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(SysCurrencyDTO::getCurrency, Comparator.nullsLast(String::compareTo)))
                 .toList();
+    }
+
+    @Override
+    public List<TenantCurrencyEntity> getProviderDict(Long tenantId) {
+        QueryWrapper<TenantCurrencyEntity> wrapper = new QueryWrapper<>();
+        wrapper.select( "currency");
+        wrapper.eq("tenant_id", tenantId);
+        return baseDao.selectList(wrapper);
     }
 
     @Override

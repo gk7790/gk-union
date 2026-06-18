@@ -3,6 +3,7 @@ package com.gk.meta.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
@@ -13,6 +14,8 @@ import com.gk.meta.service.SysCurrencyService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class SysCurrencyServiceImpl extends CrudServiceImpl<SysCurrencyDao, SysCurrencyEntity, SysCurrencyDTO> implements SysCurrencyService {
@@ -32,15 +35,12 @@ public class SysCurrencyServiceImpl extends CrudServiceImpl<SysCurrencyDao, SysC
     }
 
     @Override
-    public List<SysCurrencyDTO> getDict(DynMap params) {
-        List<Integer> statusList = params.getList("status", Integer.class, StatusEnum.defaultStatus());
-
+    public List<LabelDTO> getDict(DynMap params) {
         QueryWrapper<SysCurrencyEntity> wrapper = new QueryWrapper<>();
-        wrapper.select("id", "currency", "currency_name", "currency_symbol", "numeric_code", "minor_unit", "sort", "remark");
-        wrapper.in("status", statusList);
+        wrapper.select("currency");
+        wrapper.in("status", StatusEnum.defaultStatus());
         wrapper.orderByAsc("sort").orderByAsc("currency");
-
         List<SysCurrencyEntity> list = baseDao.selectList(wrapper);
-        return ConvertUtils.sourceToTarget(list, SysCurrencyDTO.class);
+        return list.stream().map(e -> LabelDTO.of(e.getCurrency(), e.getCurrency())).toList();
     }
 }

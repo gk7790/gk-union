@@ -1,4 +1,4 @@
-package com.gk.infra.enumdict;
+package com.gk.common.provider;
 
 import com.gk.common.annotation.EnumDict;
 import com.gk.common.dto.LabelDTO;

@@ -7,12 +7,13 @@ import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
+import com.gk.common.provider.DynamicDictRegistry;
 import com.gk.common.validator.AssertUtils;
 import com.gk.meta.dto.SysDictTypeDTO;
 import com.gk.meta.entity.DictData;
 import com.gk.meta.entity.DictType;
 import com.gk.meta.service.SysDictTypeService;
-import com.gk.infra.enumdict.EnumDictProvider;
+import com.gk.common.provider.EnumDictProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -39,6 +40,7 @@ import java.util.Map;
 public class SysDictTypeController {
     private final SysDictTypeService sysDictTypeService;
     private final EnumDictProvider enumDictProvider;
+    private final DynamicDictRegistry dynamicDictRegistry;
 
     @GetMapping("page")
     @Operation(summary = "字典类型")
@@ -110,15 +112,19 @@ public class SysDictTypeController {
         for (DictType item : list) {
             dictMap.put(item.getDictType(), item);
         }
-        enumDictProvider.list(null).forEach((dictType, dataList) -> {
-            DictType item = dictMap.computeIfAbsent(dictType, key -> {
-                DictType dict = new DictType();
-                dict.setDictType(key);
-                return dict;
-            });
-            item.getDataList().addAll(dataList.stream().map(this::toDictData).toList());
-        });
+        enumDictProvider.list(null).forEach((dictType, labels) -> mergeIntoDictMap(dictMap, dictType, labels));
+        dynamicDictRegistry.list(null, DynMap.empty())
+                .forEach((dictType, labels) -> mergeIntoDictMap(dictMap, dictType, labels));
         return R.ok(dictMap.values().stream().toList());
+    }
+
+    private void mergeIntoDictMap(Map<String, DictType> dictMap, String dictType, List<LabelDTO> labels) {
+        DictType item = dictMap.computeIfAbsent(dictType, key -> {
+            DictType dict = new DictType();
+            dict.setDictType(key);
+            return dict;
+        });
+        item.getDataList().addAll(labels.stream().map(this::toDictData).toList());
     }
 
     private DictData toDictData(LabelDTO label) {

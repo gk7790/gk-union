@@ -2,8 +2,8 @@ package com.gk.telegram.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
-import com.gk.platform.entity.SysUserSubjectEntity;
-import com.gk.platform.service.SysUserSubjectService;
+import com.gk.iam.entity.SysUserSubjectEntity;
+import com.gk.iam.service.SysUserSubjectService;
 import com.gk.telegram.command.TgCommandContext;
 import com.gk.telegram.command.TgCommandDispatcher;
 import com.gk.telegram.entity.TgAccountEntity;

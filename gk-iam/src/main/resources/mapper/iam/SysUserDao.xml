@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.iam.dao.SysUserDao">
+
+	<select id="getList" resultType="com.gk.iam.entity.SysUserEntity">
+		select t1.*,
+			   s.subject_type as subjectType,
+			   s.id as subjectId,
+			   s.tenant_id as tenantId,
+			   s.merchant_id as merchantId,
+			   s.dept_id as deptId,
+			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
+			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName,
+        	   (SELECT t3.NAME FROM sys_tenant t3 WHERE t3.id = s.tenant_id) tenantName
+			from sys_user t1
+			left join sys_user_subject s on s.user_id = t1.id
+			where 1 = 1
+		<if test="username != null and username.trim() != ''">
+			and t1.username like #{username}
+		</if>
+		<if test="deptId != null and deptId.trim() != ''">
+			and s.dept_id = #{deptId}
+		</if>
+        <if test="tenantId != null">
+            and s.tenant_id = #{tenantId}
+        </if>
+        <if test="merchantId != null">
+            and s.merchant_id = #{merchantId}
+        </if>
+		<if test="gender != null and gender.trim() != ''">
+			and t1.gender = #{gender}
+		</if>
+		<if test="selfId != null">
+			and t1.id != #{selfId}
+		</if>
+		<if test="deptIdList != null">
+			and s.dept_id in
+			<foreach item="id" collection="deptIdList" open="(" separator="," close=")">
+				#{id}
+			</foreach>
+		</if>
+        <if test="tenantIdList != null">
+            and s.tenant_id in
+            <foreach item="id" collection="tenantIdList" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+	</select>
+
+	<select id="getById" resultType="com.gk.iam.entity.SysUserEntity">
+		select t1.*,
+			   s.subject_type as subjectType,
+			   s.id as subjectId,
+			   s.tenant_id as tenantId,
+			   s.merchant_id as merchantId,
+			   s.dept_id as deptId,
+			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
+			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName
+			from sys_user t1
+			left join sys_user_subject s on s.user_id = t1.id
+			where t1.id = #{id}
+	</select>
+
+	<select id="getByUsername" resultType="com.gk.iam.entity.SysUserEntity">
+		select * from sys_user where username = #{username}
+	</select>
+
+	<update id="updatePassword">
+		update sys_user set password = #{newPassword} where id = #{id}
+	</update>
+
+	<select id="getCountByDeptId" resultType="int">
+		select count(*) from sys_user_subject where dept_id = #{value}
+	</select>
+
+	<select id="getUserIdListByDeptId" resultType="Long">
+		select user_id from sys_user_subject where dept_id in
+			<foreach item="deptId" collection="list" open="(" separator="," close=")">
+				#{deptId}
+			</foreach>
+	</select>
+</mapper>

@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
-import com.gk.platform.entity.SysUserSubjectEntity;
+import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;

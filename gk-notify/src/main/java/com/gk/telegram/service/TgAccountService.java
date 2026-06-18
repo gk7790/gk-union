@@ -1,7 +1,7 @@
 package com.gk.telegram.service;
 
 import com.gk.common.core.service.CrudService;
-import com.gk.platform.entity.SysUserSubjectEntity;
+import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.telegram.dto.TgAccountDTO;
 import com.gk.telegram.entity.TgAccountEntity;
 

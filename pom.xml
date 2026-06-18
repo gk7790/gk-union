@@ -23,7 +23,7 @@
         <module>gk-scheduler</module>
         <module>gk-auth</module>
         <module>gk-devtools</module>
-        <module>gk-platform</module>
+        <module>gk-iam</module>
         <module>gk-cloak</module>
         <module>gk-notify</module>
         <module>gk-ledger</module>

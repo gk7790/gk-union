@@ -40,6 +40,14 @@ public class SysBankController {
         return R.ok(sysBankService.page(params));
     }
 
+    @GetMapping("list")
+    @Operation(summary = "集合")
+    @PreAuthorize("hasAuthority('sys:bank:list')")
+    public R<List<SysBankDTO>> list(@RequestMap DynMap params) {
+        return R.ok(sysBankService.list(params));
+    }
+
+
     @GetMapping("dict")
     @Operation(summary = "银行字典", description = "按国家/币种查询可用银行列表")
     @Parameters({

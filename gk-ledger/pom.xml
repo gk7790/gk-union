@@ -20,7 +20,12 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-platform</artifactId>
+            <artifactId>gk-meta</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-iam</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -1,6 +1,6 @@
 package com.gk.tenant.dto;
 
-import com.gk.platform.dto.SysUserDTO;
+import com.gk.iam.dto.SysUserDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 

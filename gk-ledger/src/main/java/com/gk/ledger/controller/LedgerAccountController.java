@@ -32,7 +32,7 @@ public class LedgerAccountController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('ledger:account:page')")
-    public R<?> page(@RequestMap DynMap params) {
+    public R<PageData<LedgerAccountDTO>> page(@RequestMap DynMap params) {
         PageData<LedgerAccountDTO> page = ledgerAccountService.page(params);
         return R.ok(page);
     }

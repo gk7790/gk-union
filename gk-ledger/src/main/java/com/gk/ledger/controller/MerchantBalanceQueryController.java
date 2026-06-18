@@ -36,7 +36,7 @@ public class MerchantBalanceQueryController {
             @Parameter(name = "currency", description = "币种", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('ledger:merchant-balance:page')")
-    public R<?> page(@RequestMap DynMap params) {
+    public R<PageData<MerchantBalanceDTO>> page(@RequestMap DynMap params) {
         PageData<MerchantBalanceDTO> page = merchantBalanceQueryService.page(params);
         return R.ok(page);
     }

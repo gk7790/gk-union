@@ -32,7 +32,7 @@ public class LedgerJournalController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('ledger:journal:page')")
-    public R<?> page(@RequestMap DynMap params) {
+    public R<PageData<LedgerJournalDTO>> page(@RequestMap DynMap params) {
         PageData<LedgerJournalDTO> page = ledgerJournalService.page(params);
         return R.ok(page);
     }

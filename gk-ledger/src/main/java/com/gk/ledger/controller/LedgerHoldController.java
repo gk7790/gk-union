@@ -32,7 +32,7 @@ public class LedgerHoldController {
             @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('ledger:hold:page')")
-    public R<?> page(@RequestMap DynMap params) {
+    public R<PageData<LedgerHoldDTO>> page(@RequestMap DynMap params) {
         PageData<LedgerHoldDTO> page = ledgerHoldService.page(params);
         return R.ok(page);
     }

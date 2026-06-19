@@ -6,6 +6,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.dashboard.dao.TenantDashboardDao;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.tenant.dto.TenantDTO;
 import com.gk.tenant.service.TenantService;
@@ -31,6 +32,7 @@ public class TenantDashboardService {
 
     private static final int MONEY_SCALE = 8;
     private static final int RATE_SCALE = 2;
+    private static final int TODO_LIMIT_MAX = 50;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final TenantDashboardDao tenantDashboardDao;
@@ -103,6 +105,59 @@ public class TenantDashboardService {
         trend.setTimezone(timezone);
         trend.setPoints(mergeTrendPoints(window, zoneId, payTrend, payoutTrend));
         return trend;
+    }
+
+    public TenantDashboardTodoDTO todos(String type, String currency, int limit) {
+        assertTenantScope();
+        String todoType = parseTodoType(type);
+        if (todoType == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST);
+        }
+
+        Long tenantId = ReqContextHolder.getTenantId();
+        TenantDTO tenant = tenantService.get(tenantId);
+        if (tenant == null) {
+            throw new GkException(ErrorCode.NOT_FOUND);
+        }
+
+        String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
+        int resolvedLimit = Math.min(Math.max(limit, 1), TODO_LIMIT_MAX);
+        List<TenantDashboardTodoDTO.TodoItem> items = tenantDashboardDao.listTodos(
+                tenantId, resolvedCurrency, todoType, resolvedLimit);
+        if (items == null) {
+            items = List.of();
+        } else {
+            items.forEach(this::normalizeTodoItem);
+        }
+
+        TenantDashboardTodoDTO result = new TenantDashboardTodoDTO();
+        result.setType(todoType);
+        result.setCurrency(resolvedCurrency);
+        result.setItems(items);
+        return result;
+    }
+
+    private String parseTodoType(String type) {
+        if (StringUtils.isBlank(type)) {
+            return null;
+        }
+        return switch (type.trim()) {
+            case "MANUAL_REVIEW", "manualReview" -> "MANUAL_REVIEW";
+            case "NOTIFY_FAILED", "notifyFailed" -> "NOTIFY_FAILED";
+            case "SETTLE_DUE", "settleDue" -> "SETTLE_DUE";
+            case "PROCESSING_PAY", "processingPay" -> "PROCESSING_PAY";
+            case "PROCESSING_PAYOUT", "processingPayout" -> "PROCESSING_PAYOUT";
+            default -> null;
+        };
+    }
+
+    private void normalizeTodoItem(TenantDashboardTodoDTO.TodoItem item) {
+        item.setAmount(money(item.getAmount()));
+        if ("PAY".equalsIgnoreCase(item.getBizType())) {
+            item.setRoutePath("/payment/pay-order/detail?id=" + item.getOrderId());
+        } else if ("PAYOUT".equalsIgnoreCase(item.getBizType())) {
+            item.setRoutePath("/payment/payout-order/detail?id=" + item.getOrderId());
+        }
     }
 
     private String normalizeTrendRange(String range) {

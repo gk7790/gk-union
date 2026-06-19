@@ -1,6 +1,7 @@
 package com.gk.dashboard.dao;
 
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -45,4 +46,9 @@ public interface TenantDashboardDao {
                                                                @Param("rangeStart") Instant rangeStart,
                                                                @Param("rangeEnd") Instant rangeEnd,
                                                                @Param("tzOffset") String tzOffset);
+
+    List<TenantDashboardTodoDTO.TodoItem> listTodos(@Param("tenantId") Long tenantId,
+                                                    @Param("currency") String currency,
+                                                    @Param("type") String type,
+                                                    @Param("limit") int limit);
 }

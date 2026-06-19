@@ -2,6 +2,7 @@ package com.gk.dashboard.controller;
 
 import com.gk.common.model.R;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.dashboard.service.TenantDashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,5 +42,17 @@ public class TenantDashboardController {
             @RequestParam(defaultValue = "last7d") String range,
             @RequestParam(required = false) String currency) {
         return R.ok(tenantDashboardService.trend(range, currency));
+    }
+
+    @GetMapping("todos")
+    @Operation(summary = "待办明细")
+    @PreAuthorize("hasAuthority('dashboard:tenant:view')")
+    public R<TenantDashboardTodoDTO> todos(
+            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/SETTLE_DUE/PROCESSING_PAY/PROCESSING_PAYOUT，也支持 summary.todos 的 camelCase")
+            @RequestParam String type,
+            @RequestParam(required = false) String currency,
+            @Parameter(description = "默认10，最大50")
+            @RequestParam(defaultValue = "10") int limit) {
+        return R.ok(tenantDashboardService.todos(type, currency, limit));
     }
 }

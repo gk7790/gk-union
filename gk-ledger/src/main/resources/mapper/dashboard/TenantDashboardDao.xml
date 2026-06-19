@@ -201,4 +201,171 @@
         GROUP BY DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d')
         ORDER BY date ASC
     </select>
+
+    <select id="listTodos" resultType="com.gk.dashboard.dto.TenantDashboardTodoDTO$TodoItem">
+        <choose>
+            <when test="type == 'MANUAL_REVIEW'">
+                SELECT * FROM (
+                    SELECT
+                        'PAY' AS bizType,
+                        o.id AS orderId,
+                        o.pay_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.status AS status,
+                        o.updated_at AS eventAt,
+                        o.status_reason AS reason
+                    FROM pay_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.currency = #{currency}
+                      AND o.status = 'MANUAL_REVIEW'
+                    UNION ALL
+                    SELECT
+                        'PAYOUT' AS bizType,
+                        o.id AS orderId,
+                        o.payout_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.status AS status,
+                        o.updated_at AS eventAt,
+                        COALESCE(o.status_reason, o.fail_msg) AS reason
+                    FROM payout_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.currency = #{currency}
+                      AND o.status = 'MANUAL_REVIEW'
+                ) todos
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'NOTIFY_FAILED'">
+                SELECT * FROM (
+                    SELECT
+                        'PAY' AS bizType,
+                        o.id AS orderId,
+                        o.pay_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.status AS status,
+                        o.merchant_notify_at AS eventAt,
+                        o.status_reason AS reason
+                    FROM pay_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.currency = #{currency}
+                      AND o.merchant_notify_status = 'FAILED'
+                    UNION ALL
+                    SELECT
+                        'PAYOUT' AS bizType,
+                        o.id AS orderId,
+                        o.payout_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.status AS status,
+                        o.merchant_notify_at AS eventAt,
+                        COALESCE(o.status_reason, o.fail_msg) AS reason
+                    FROM payout_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.currency = #{currency}
+                      AND o.merchant_notify_status = 'FAILED'
+                ) todos
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'SETTLE_DUE'">
+                SELECT
+                    'PAY' AS bizType,
+                    o.id AS orderId,
+                    o.pay_order_no AS orderNo,
+                    o.merchant_id AS merchantId,
+                    o.merchant_no AS merchantNo,
+                    m.merchant_name AS merchantName,
+                    o.settle_amount AS amount,
+                    o.currency AS currency,
+                    o.status AS status,
+                    o.settle_release_at AS eventAt,
+                    o.status_reason AS reason
+                FROM pay_order o
+                LEFT JOIN merchant m
+                  ON m.tenant_id = o.tenant_id
+                 AND m.id = o.merchant_id
+                WHERE o.tenant_id = #{tenantId}
+                  AND o.currency = #{currency}
+                  AND o.status = 'SUCCESS'
+                  AND o.settle_status = 'PENDING'
+                  AND o.settle_release_at IS NOT NULL
+                  AND o.settle_release_at &lt;= UTC_TIMESTAMP(3)
+                ORDER BY eventAt ASC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'PROCESSING_PAY'">
+                SELECT
+                    'PAY' AS bizType,
+                    o.id AS orderId,
+                    o.pay_order_no AS orderNo,
+                    o.merchant_id AS merchantId,
+                    o.merchant_no AS merchantNo,
+                    m.merchant_name AS merchantName,
+                    o.amount AS amount,
+                    o.currency AS currency,
+                    o.status AS status,
+                    o.updated_at AS eventAt,
+                    o.status_reason AS reason
+                FROM pay_order o
+                LEFT JOIN merchant m
+                  ON m.tenant_id = o.tenant_id
+                 AND m.id = o.merchant_id
+                WHERE o.tenant_id = #{tenantId}
+                  AND o.currency = #{currency}
+                  AND o.status IN ('CREATED', 'PROCESSING')
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'PROCESSING_PAYOUT'">
+                SELECT
+                    'PAYOUT' AS bizType,
+                    o.id AS orderId,
+                    o.payout_order_no AS orderNo,
+                    o.merchant_id AS merchantId,
+                    o.merchant_no AS merchantNo,
+                    m.merchant_name AS merchantName,
+                    o.amount AS amount,
+                    o.currency AS currency,
+                    o.status AS status,
+                    o.updated_at AS eventAt,
+                    COALESCE(o.status_reason, o.fail_msg) AS reason
+                FROM payout_order o
+                LEFT JOIN merchant m
+                  ON m.tenant_id = o.tenant_id
+                 AND m.id = o.merchant_id
+                WHERE o.tenant_id = #{tenantId}
+                  AND o.currency = #{currency}
+                  AND o.status IN ('CREATED', 'FROZEN', 'PROCESSING')
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+        </choose>
+    </select>
 </mapper>

@@ -1,14 +1,19 @@
 package com.gk.merchant.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 商户类型。
  */
 @EnumDict("merchantType")
 public enum MerchantTypeEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     COMPANY("COMPANY", "企业", "enum.merchantType.company"),
+
+    @Style(StyleType.INFO)
     PERSON("PERSON", "个人", "enum.merchantType.person");
 
     private final String code;

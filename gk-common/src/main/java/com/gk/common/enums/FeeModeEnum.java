@@ -1,14 +1,21 @@
 package com.gk.common.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
+import com.gk.common.enums.StyleType;
 
 /**
  * 手续费计算模式。
  */
 @EnumDict("feeMode")
 public enum FeeModeEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     RATE("RATE", "比例", "enum.feeMode.rate"),
+
+    @Style(StyleType.INFO)
     FIXED("FIXED", "固定", "enum.feeMode.fixed"),
+
+    @Style(StyleType.SUCCESS)
     RATE_FIXED("RATE_FIXED", "比例+固定", "enum.feeMode.rateFixed");
 
     private final String code;

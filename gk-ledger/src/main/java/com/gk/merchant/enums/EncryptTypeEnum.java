@@ -1,15 +1,22 @@
 package com.gk.merchant.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 商户应用加密类型。
  */
 @EnumDict("encryptType")
 public enum EncryptTypeEnum implements StringCodeEnum {
+    @Style(StyleType.INFO)
     NONE("NONE", "无", "enum.encryptType.none"),
+
+    @Style(StyleType.PRIMARY)
     AES("AES", "AES", "enum.encryptType.aes"),
+
+    @Style(StyleType.SUCCESS)
     RSA("RSA", "RSA", "enum.encryptType.rsa");
 
     private final String code;

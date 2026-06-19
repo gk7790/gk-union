@@ -1,13 +1,18 @@
 package com.gk.common.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
+import com.gk.common.enums.StyleType;
 
 /**
  * 手续费承担方。
  */
 @EnumDict("feeBearer")
 public enum FeeBearerEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     MERCHANT("MERCHANT", "商户", "enum.feeBearer.merchant"),
+
+    @Style(StyleType.INFO)
     CUSTOMER("CUSTOMER", "客户", "enum.feeBearer.customer");
 
     private final String code;

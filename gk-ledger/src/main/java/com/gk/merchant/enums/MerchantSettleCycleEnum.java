@@ -1,15 +1,22 @@
 package com.gk.merchant.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 商户结算周期。
  */
 @EnumDict("merchantSettleCycle")
 public enum MerchantSettleCycleEnum implements StringCodeEnum {
+    @Style(StyleType.SUCCESS)
     T0("T0", "T+0", "enum.merchantSettleCycle.t0"),
+
+    @Style(StyleType.PRIMARY)
     T1("T1", "T+1", "enum.merchantSettleCycle.t1"),
+
+    @Style(StyleType.INFO)
     TN("TN", "T+N", "enum.merchantSettleCycle.tn");
 
     private final String code;

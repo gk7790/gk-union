@@ -1,17 +1,28 @@
 package com.gk.ledger.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 账本资金主体类型。
  */
 @EnumDict("ledgerOwnerType")
 public enum LedgerOwnerTypeEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     PLATFORM("PLATFORM", "平台", "enum.ledgerOwnerType.platform"),
+
+    @Style(StyleType.SUCCESS)
     TENANT("TENANT", "租户", "enum.ledgerOwnerType.tenant"),
+
+    @Style(StyleType.INFO)
     MERCHANT("MERCHANT", "商户", "enum.ledgerOwnerType.merchant"),
+
+    @Style(StyleType.WARNING)
     PSP("PSP", "通道", "enum.ledgerOwnerType.psp"),
+
+    @Style(StyleType.INFO)
     SYSTEM("SYSTEM", "系统", "enum.ledgerOwnerType.system");
 
     private final String code;

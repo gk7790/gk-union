@@ -1,11 +1,16 @@
 package com.gk.merchant.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 @EnumDict("merchantAppEnv")
 public enum MerchantAppEnvEnum implements StringCodeEnum {
+    @Style(StyleType.WARNING)
     TEST("TEST", "测试环境", "enum.merchantAppEnv.test"),
+
+    @Style(StyleType.SUCCESS)
     PROD("PROD", "正式环境", "enum.merchantAppEnv.prod");
 
     private final String code;

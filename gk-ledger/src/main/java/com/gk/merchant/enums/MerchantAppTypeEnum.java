@@ -1,15 +1,22 @@
 package com.gk.merchant.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 商户应用类型。
  */
 @EnumDict("merchantAppType")
 public enum MerchantAppTypeEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     API("API", "API", "enum.merchantAppType.api"),
+
+    @Style(StyleType.INFO)
     ADMIN("ADMIN", "后台", "enum.merchantAppType.admin"),
+
+    @Style(StyleType.WARNING)
     SYSTEM("SYSTEM", "系统", "enum.merchantAppType.system");
 
     private final String code;

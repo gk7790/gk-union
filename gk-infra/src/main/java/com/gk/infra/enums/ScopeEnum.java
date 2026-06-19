@@ -1,16 +1,25 @@
 package com.gk.infra.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.SimpleEnum;
+import com.gk.common.enums.StyleType;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @EnumDict("scope")
 public enum ScopeEnum implements SimpleEnum<Integer> {
+    @Style(StyleType.PRIMARY)
     PLATFORM(1, "平台", "dict.scope.platform"),
+
+    @Style(StyleType.SUCCESS)
     TENANT(3, "租户", "dict.scope.tenant"),
+
+    @Style(StyleType.INFO)
     ORG(5, "组织", "dict.scope.org"),
+
+    @Style(StyleType.WARNING)
     AGENT(7, "代理", "dict.scope.agent");
 
     private final Integer code;

@@ -1,17 +1,28 @@
 package com.gk.ledger.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 
 /**
  * 分录来源类型。
  */
 @EnumDict("ledgerJournalSource")
 public enum LedgerJournalSourceEnum implements StringCodeEnum {
+    @Style(StyleType.PRIMARY)
     ORDER("ORDER", "订单", "enum.ledgerJournalSource.order"),
+
+    @Style(StyleType.SUCCESS)
     SETTLE("SETTLE", "结算", "enum.ledgerJournalSource.settle"),
+
+    @Style(StyleType.INFO)
     RECON("RECON", "对账", "enum.ledgerJournalSource.recon"),
+
+    @Style(StyleType.WARNING)
     MANUAL("MANUAL", "手工", "enum.ledgerJournalSource.manual"),
+
+    @Style(StyleType.INFO)
     SYSTEM("SYSTEM", "系统", "enum.ledgerJournalSource.system");
 
     private final String code;

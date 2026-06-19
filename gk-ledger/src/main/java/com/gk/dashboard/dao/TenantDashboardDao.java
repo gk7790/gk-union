@@ -1,5 +1,6 @@
 package com.gk.dashboard.dao;
 
+import com.gk.dashboard.dto.TenantDashboardRecentOrderDTO;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTopMerchantDTO;
@@ -58,4 +59,12 @@ public interface TenantDashboardDao {
                                                                        @Param("rangeStart") Instant rangeStart,
                                                                        @Param("rangeEnd") Instant rangeEnd,
                                                                        @Param("limit") int limit);
+
+    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayOrders(@Param("tenantId") Long tenantId,
+                                                                          @Param("currency") String currency,
+                                                                          @Param("limit") int limit);
+
+    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayoutOrders(@Param("tenantId") Long tenantId,
+                                                                             @Param("currency") String currency,
+                                                                             @Param("limit") int limit);
 }

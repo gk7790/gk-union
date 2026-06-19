@@ -1,6 +1,7 @@
 package com.gk.dashboard.controller;
 
 import com.gk.common.model.R;
+import com.gk.dashboard.dto.TenantDashboardRecentOrderDTO;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTopMerchantDTO;
@@ -67,5 +68,17 @@ public class TenantDashboardController {
             @Parameter(description = "默认5，最大20")
             @RequestParam(defaultValue = "5") int limit) {
         return R.ok(tenantDashboardService.topMerchants(range, currency, limit));
+    }
+
+    @GetMapping("recent-orders")
+    @Operation(summary = "最近订单")
+    @PreAuthorize("hasAuthority('dashboard:tenant:view')")
+    public R<TenantDashboardRecentOrderDTO> recentOrders(
+            @Parameter(description = "PAY/PAYOUT")
+            @RequestParam String bizType,
+            @RequestParam(required = false) String currency,
+            @Parameter(description = "默认5，最大20")
+            @RequestParam(defaultValue = "5") int limit) {
+        return R.ok(tenantDashboardService.recentOrders(bizType, currency, limit));
     }
 }

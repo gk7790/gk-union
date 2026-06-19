@@ -5,6 +5,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.dashboard.dao.TenantDashboardDao;
+import com.gk.dashboard.dto.TenantDashboardRecentOrderDTO;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTodoDTO;
 import com.gk.dashboard.dto.TenantDashboardTopMerchantDTO;
@@ -35,6 +36,7 @@ public class TenantDashboardService {
     private static final int RATE_SCALE = 2;
     private static final int TODO_LIMIT_MAX = 50;
     private static final int TOP_MERCHANT_LIMIT_MAX = 20;
+    private static final int RECENT_ORDER_LIMIT_MAX = 20;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final TenantDashboardDao tenantDashboardDao;
@@ -165,6 +167,57 @@ public class TenantDashboardService {
         result.setRange(window.range);
         result.setItems(items);
         return result;
+    }
+
+    public TenantDashboardRecentOrderDTO recentOrders(String bizType, String currency, int limit) {
+        assertTenantScope();
+        String resolvedBizType = parseBizType(bizType);
+        if (resolvedBizType == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST);
+        }
+
+        Long tenantId = ReqContextHolder.getTenantId();
+        TenantDTO tenant = tenantService.get(tenantId);
+        if (tenant == null) {
+            throw new GkException(ErrorCode.NOT_FOUND);
+        }
+
+        String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
+        int resolvedLimit = Math.min(Math.max(limit, 1), RECENT_ORDER_LIMIT_MAX);
+        List<TenantDashboardRecentOrderDTO.RecentOrder> items = "PAY".equals(resolvedBizType)
+                ? tenantDashboardDao.selectRecentPayOrders(tenantId, resolvedCurrency, resolvedLimit)
+                : tenantDashboardDao.selectRecentPayoutOrders(tenantId, resolvedCurrency, resolvedLimit);
+        if (items == null) {
+            items = List.of();
+        } else {
+            items.forEach(item -> normalizeRecentOrder(item, resolvedBizType));
+        }
+
+        TenantDashboardRecentOrderDTO result = new TenantDashboardRecentOrderDTO();
+        result.setBizType(resolvedBizType);
+        result.setCurrency(resolvedCurrency);
+        result.setItems(items);
+        return result;
+    }
+
+    private String parseBizType(String bizType) {
+        if (StringUtils.isBlank(bizType)) {
+            return null;
+        }
+        return switch (bizType.trim().toUpperCase(Locale.ROOT)) {
+            case "PAY" -> "PAY";
+            case "PAYOUT" -> "PAYOUT";
+            default -> null;
+        };
+    }
+
+    private void normalizeRecentOrder(TenantDashboardRecentOrderDTO.RecentOrder item, String bizType) {
+        item.setAmount(money(item.getAmount()));
+        if ("PAY".equals(bizType)) {
+            item.setRoutePath("/payment/pay-order/detail?id=" + item.getOrderId());
+        } else {
+            item.setRoutePath("/payment/payout-order/detail?id=" + item.getOrderId());
+        }
     }
 
     private void normalizeTopMerchant(TenantDashboardTopMerchantDTO.TopMerchant item) {

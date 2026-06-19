@@ -3,12 +3,13 @@ package com.gk.psp.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.common.utils.NumberUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.meta.dao.SysBankDao;
@@ -23,8 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -75,33 +75,7 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
     @Override
     public List<PspBankMappingDTO> getMatrix(Long pspId, String countryCode, String currency) {
         MatrixScope scope = resolveScope(pspId, countryCode, currency);
-
-        List<SysBankEntity> banks = listEnabledBanks(scope.countryCode(), scope.currency());
-        Map<String, PspBankMappingEntity> mappingMap = listMappings(scope.pspId(), scope.countryCode(), scope.currency())
-                .stream()
-                .collect(Collectors.toMap(PspBankMappingEntity::getBankCode, Function.identity(), (a, b) -> a, LinkedHashMap::new));
-
-        List<PspBankMappingDTO> items = new ArrayList<>(banks.size());
-        for (SysBankEntity bank : banks) {
-            PspBankMappingDTO item = new PspBankMappingDTO();
-            item.setBankId(bank.getId());
-            item.setPspId(scope.pspId());
-            item.setCountryCode(scope.countryCode());
-            item.setCurrency(scope.currency());
-            item.setBankCode(bank.getBankCode());
-            item.setBankName(bank.getBankName());
-            item.setBankShortName(bank.getBankShortName());
-
-            PspBankMappingEntity mapping = mappingMap.get(bank.getBankCode());
-            if (mapping != null) {
-                item.setMappingId(mapping.getId());
-                item.setPspBankCode(mapping.getPspBankCode());
-                item.setStatus(mapping.getStatus());
-                item.setRemark(mapping.getRemark());
-            }
-            items.add(item);
-        }
-        return items;
+        return baseDao.selectMatrix(scope.pspId(), scope.countryCode(), scope.currency());
     }
 
     @Override
@@ -138,27 +112,20 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
                 continue;
             }
 
-            if (existing == null) {
-                PspBankMappingEntity entity = new PspBankMappingEntity();
-                entity.setPspId(scope.pspId());
-                entity.setCountryCode(scope.countryCode());
-                entity.setCurrency(scope.currency());
-                entity.setBankCode(bankCode);
-                entity.setPspBankCode(pspBankCode);
-                entity.setStatus(item.getStatus() == null ? StatusEnum.NORMAL.code() : item.getStatus());
-                entity.setSort(bank.getSort() == null ? 100 : bank.getSort());
-                entity.setRemark(StringUtils.trimToNull(item.getRemark()));
-                insert(entity);
-                mappingMap.put(bankCode, entity);
-                continue;
+            PspBankMappingEntity entity = new PspBankMappingEntity();
+            entity.setPspId(scope.pspId());
+            entity.setCountryCode(scope.countryCode());
+            entity.setCurrency(scope.currency());
+            entity.setBankCode(bankCode);
+            entity.setPspBankCode(pspBankCode);
+            entity.setStatus(item.getStatus() == null ? StatusEnum.NORMAL.code() : item.getStatus());
+            entity.setSort(bank.getSort() == null ? 100 : bank.getSort());
+            entity.setRemark(StringUtils.trimToNull(item.getRemark()));
+            if (existing != null) {
+                entity.setId(existing.getId());
             }
-
-            existing.setPspBankCode(pspBankCode);
-            if (item.getStatus() != null) {
-                existing.setStatus(item.getStatus());
-            }
-            existing.setRemark(StringUtils.trimToNull(item.getRemark()));
-            updateById(existing);
+            upsert(entity);
+            mappingMap.put(bankCode, entity);
         }
     }
 
@@ -167,18 +134,34 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         normalize(dto);
         validate(dto);
         PspBankMappingEntity entity = toEntity(dto);
+        upsert(entity);
+        dto.setMappingId(entity.getId());
+    }
+
+    private void upsert(PspBankMappingEntity entity) {
+        prepareForUpsert(entity);
+        baseDao.upsert(entity);
+    }
+
+    private void prepareForUpsert(PspBankMappingEntity entity) {
+        if (entity.getId() == null) {
+            entity.setId(IdWorker.getId());
+        }
         if (entity.getStatus() == null) {
             entity.setStatus(StatusEnum.NORMAL.code());
         }
         if (entity.getSort() == null) {
             entity.setSort(100);
         }
-        if (NumberUtils.isPositive(entity.getId())) {
-            updateById(entity);
-        } else {
-            insert(entity);
+
+        Long userId = ReqContextHolder.getUserId();
+        Instant now = Instant.now();
+        if (entity.getCreatedAt() == null) {
+            entity.setCreatedBy(userId);
+            entity.setCreatedAt(now);
         }
-        dto.setMappingId(entity.getId());
+        entity.setUpdatedBy(userId);
+        entity.setUpdatedAt(now);
     }
 
     private PspBankMappingDTO toDto(PspBankMappingEntity entity) {

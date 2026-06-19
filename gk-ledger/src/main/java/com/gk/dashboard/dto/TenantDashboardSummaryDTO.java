@@ -35,6 +35,9 @@ public class TenantDashboardSummaryDTO {
     public static class Meta {
         private Long tenantId;
         private String tenantName;
+        private Long merchantId;
+        private String merchantName;
+        private String merchantNo;
         private String timezone;
         private String currency;
         private String range;

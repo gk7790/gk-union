@@ -1,10 +1,12 @@
 package com.gk.dashboard.dao;
 
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;
+import java.util.List;
 
 @Mapper
 public interface TenantDashboardDao {
@@ -31,4 +33,16 @@ public interface TenantDashboardDao {
 
     TenantDashboardSummaryDTO.Todo selectTodoCounts(@Param("tenantId") Long tenantId,
                                                     @Param("currency") String currency);
+
+    List<TenantDashboardTrendDTO.TrendPoint> selectPayTrend(@Param("tenantId") Long tenantId,
+                                                          @Param("currency") String currency,
+                                                          @Param("rangeStart") Instant rangeStart,
+                                                          @Param("rangeEnd") Instant rangeEnd,
+                                                          @Param("tzOffset") String tzOffset);
+
+    List<TenantDashboardTrendDTO.TrendPoint> selectPayoutTrend(@Param("tenantId") Long tenantId,
+                                                               @Param("currency") String currency,
+                                                               @Param("rangeStart") Instant rangeStart,
+                                                               @Param("rangeEnd") Instant rangeEnd,
+                                                               @Param("tzOffset") String tzOffset);
 }

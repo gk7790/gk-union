@@ -171,4 +171,34 @@
                   AND status IN ('CREATED', 'FROZEN', 'PROCESSING')
             ) AS processingPayout
     </select>
+
+    <select id="selectPayTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
+            COUNT(1) AS payInCount,
+            COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount
+        FROM pay_order
+        WHERE tenant_id = #{tenantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND paid_at &gt;= #{rangeStart}
+          AND paid_at &lt; #{rangeEnd}
+        GROUP BY DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
+
+    <select id="selectPayoutTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
+            COUNT(1) AS payOutCount,
+            COALESCE(SUM(amount), 0) AS payOutAmount
+        FROM payout_order
+        WHERE tenant_id = #{tenantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+          AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+        GROUP BY DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
 </mapper>

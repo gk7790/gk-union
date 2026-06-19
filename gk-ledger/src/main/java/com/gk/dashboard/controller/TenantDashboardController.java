@@ -2,6 +2,7 @@ package com.gk.dashboard.controller;
 
 import com.gk.common.model.R;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.dashboard.service.TenantDashboardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,5 +31,15 @@ public class TenantDashboardController {
             @RequestParam(required = false) String currency,
             @RequestParam(defaultValue = "false") boolean compare) {
         return R.ok(tenantDashboardService.summary(range, currency, compare));
+    }
+
+    @GetMapping("trend")
+    @Operation(summary = "首页趋势")
+    @PreAuthorize("hasAuthority('dashboard:tenant:view')")
+    public R<TenantDashboardTrendDTO> trend(
+            @Parameter(description = "today/yesterday/last7d/last30d，默认 last7d")
+            @RequestParam(defaultValue = "last7d") String range,
+            @RequestParam(required = false) String currency) {
+        return R.ok(tenantDashboardService.trend(range, currency));
     }
 }

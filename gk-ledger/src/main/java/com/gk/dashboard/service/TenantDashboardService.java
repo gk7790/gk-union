@@ -6,6 +6,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.dashboard.dao.TenantDashboardDao;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
+import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.tenant.dto.TenantDTO;
 import com.gk.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,12 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +31,7 @@ public class TenantDashboardService {
 
     private static final int MONEY_SCALE = 8;
     private static final int RATE_SCALE = 2;
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final TenantDashboardDao tenantDashboardDao;
     private final TenantService tenantService;
@@ -68,6 +75,94 @@ public class TenantDashboardService {
         summary.setBalance(normalizeBalance(tenantDashboardDao.selectBalanceSummary(tenantId, resolvedCurrency)));
         summary.setTodos(normalizeTodo(tenantDashboardDao.selectTodoCounts(tenantId, resolvedCurrency)));
         return summary;
+    }
+
+    public TenantDashboardTrendDTO trend(String range, String currency) {
+        assertTenantScope();
+        Long tenantId = ReqContextHolder.getTenantId();
+
+        TenantDTO tenant = tenantService.get(tenantId);
+        if (tenant == null) {
+            throw new GkException(ErrorCode.NOT_FOUND);
+        }
+
+        String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
+        String timezone = StringUtils.defaultIfBlank(tenant.getTimezone(), "Asia/Shanghai");
+        ZoneId zoneId = resolveZoneId(timezone);
+        RangeWindow window = resolveRange(normalizeTrendRange(range), timezone, false);
+        String tzOffset = resolveTzOffset(zoneId, LocalDate.ofInstant(window.start, zoneId));
+
+        List<TenantDashboardTrendDTO.TrendPoint> payTrend = tenantDashboardDao.selectPayTrend(
+                tenantId, resolvedCurrency, window.start, window.end, tzOffset);
+        List<TenantDashboardTrendDTO.TrendPoint> payoutTrend = tenantDashboardDao.selectPayoutTrend(
+                tenantId, resolvedCurrency, window.start, window.end, tzOffset);
+
+        TenantDashboardTrendDTO trend = new TenantDashboardTrendDTO();
+        trend.setCurrency(resolvedCurrency);
+        trend.setRange(window.range);
+        trend.setTimezone(timezone);
+        trend.setPoints(mergeTrendPoints(window, zoneId, payTrend, payoutTrend));
+        return trend;
+    }
+
+    private String normalizeTrendRange(String range) {
+        String value = StringUtils.defaultIfBlank(range, "last7d").trim().toLowerCase(Locale.ROOT);
+        return switch (value) {
+            case "today", "yesterday", "last7d", "last30d" -> value;
+            default -> "last7d";
+        };
+    }
+
+    private List<TenantDashboardTrendDTO.TrendPoint> mergeTrendPoints(RangeWindow window,
+                                                                      ZoneId zoneId,
+                                                                      List<TenantDashboardTrendDTO.TrendPoint> payTrend,
+                                                                      List<TenantDashboardTrendDTO.TrendPoint> payoutTrend) {
+        Map<String, TenantDashboardTrendDTO.TrendPoint> pointMap = new LinkedHashMap<>();
+        LocalDate startDate = LocalDate.ofInstant(window.start, zoneId);
+        LocalDate endDate = LocalDate.ofInstant(window.end, zoneId);
+        for (LocalDate date = startDate; date.isBefore(endDate); date = date.plusDays(1)) {
+            TenantDashboardTrendDTO.TrendPoint point = new TenantDashboardTrendDTO.TrendPoint();
+            point.setDate(date.format(DATE_FORMAT));
+            point.setPayInAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            point.setPayOutAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+            point.setPayInCount(0L);
+            point.setPayOutCount(0L);
+            pointMap.put(point.getDate(), point);
+        }
+
+        if (payTrend != null) {
+            for (TenantDashboardTrendDTO.TrendPoint row : payTrend) {
+                if (row == null || StringUtils.isBlank(row.getDate())) {
+                    continue;
+                }
+                TenantDashboardTrendDTO.TrendPoint point = pointMap.get(row.getDate());
+                if (point == null) {
+                    continue;
+                }
+                point.setPayInCount(defaultLong(row.getPayInCount()));
+                point.setPayInAmount(money(row.getPayInAmount()));
+            }
+        }
+
+        if (payoutTrend != null) {
+            for (TenantDashboardTrendDTO.TrendPoint row : payoutTrend) {
+                if (row == null || StringUtils.isBlank(row.getDate())) {
+                    continue;
+                }
+                TenantDashboardTrendDTO.TrendPoint point = pointMap.get(row.getDate());
+                if (point == null) {
+                    continue;
+                }
+                point.setPayOutCount(defaultLong(row.getPayOutCount()));
+                point.setPayOutAmount(money(row.getPayOutAmount()));
+            }
+        }
+
+        return new ArrayList<>(pointMap.values());
+    }
+
+    private String resolveTzOffset(ZoneId zoneId, LocalDate date) {
+        return date.atStartOfDay(zoneId).getOffset().getId();
     }
 
     private void assertTenantScope() {

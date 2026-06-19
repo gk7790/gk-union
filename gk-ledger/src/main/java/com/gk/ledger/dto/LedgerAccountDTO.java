@@ -11,6 +11,12 @@ public class LedgerAccountDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
+    @Schema(title = "租户编码")
+    private String tenantNo;
+    @Schema(title = "租户名称")
+    private String tenantName;
+    @Schema(title = "租户显示名称")
+    private String tenantDisplayName;
     @Schema(title = "账户编号")
     private String accountNo;
     @Schema(title = "资金主体类型")

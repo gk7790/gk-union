@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 @Component
@@ -34,10 +35,17 @@ public class SubjectDisplayEnricher {
             return;
         }
         Map<SubjectRef, SubjectDisplay> displays = subjectDisplayService.batchGet(items.stream()
-                .map(item -> ref(item.getTenantId(), item.getOwnerType(), item.getOwnerId()))
+                .flatMap(item -> Stream.of(
+                        ref(item.getTenantId(), item.getOwnerType(), item.getOwnerId()),
+                        ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId())
+                ))
                 .filter(Objects::nonNull)
+                .distinct()
                 .toList());
-        items.forEach(item -> applyOwner(item, displays.get(ref(item.getTenantId(), item.getOwnerType(), item.getOwnerId()))));
+        items.forEach(item -> {
+            applyOwner(item, displays.get(ref(item.getTenantId(), item.getOwnerType(), item.getOwnerId())));
+            applyTenant(item, displays.get(ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId())));
+        });
     }
 
     public void enrichEntries(Collection<LedgerEntryDTO> items) {
@@ -129,6 +137,15 @@ public class SubjectDisplayEnricher {
         item.setOwnerName(display.getSubjectName());
         item.setOwnerShortName(display.getSubjectShortName());
         item.setOwnerDisplayName(display.getDisplayName());
+    }
+
+    private void applyTenant(LedgerAccountDTO item, SubjectDisplay display) {
+        if (display == null) {
+            return;
+        }
+        item.setTenantNo(display.getSubjectNo());
+        item.setTenantName(display.getSubjectName());
+        item.setTenantDisplayName(display.getDisplayName());
     }
 
     private void applyOwner(LedgerEntryDTO item, SubjectDisplay display) {

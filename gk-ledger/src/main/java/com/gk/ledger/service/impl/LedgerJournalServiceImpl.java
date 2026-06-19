@@ -4,14 +4,50 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.ledger.dao.LedgerJournalDao;
 import com.gk.ledger.dto.LedgerJournalDTO;
 import com.gk.ledger.entity.LedgerJournalEntity;
 import com.gk.ledger.service.LedgerJournalService;
+import com.gk.ledger.support.SubjectDisplayEnricher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class LedgerJournalServiceImpl extends CrudServiceImpl<LedgerJournalDao, LedgerJournalEntity, LedgerJournalDTO> implements LedgerJournalService {
+    @Autowired(required = false)
+    private SubjectDisplayEnricher subjectDisplayEnricher;
+
+    @Override
+    public PageData<LedgerJournalDTO> page(DynMap params) {
+        PageData<LedgerJournalDTO> page = super.page(params);
+        enrichJournals(page.getItems());
+        return page;
+    }
+
+    @Override
+    public List<LedgerJournalDTO> list(DynMap params) {
+        List<LedgerJournalDTO> items = super.list(params);
+        enrichJournals(items);
+        return items;
+    }
+
+    @Override
+    public LedgerJournalDTO get(Long id) {
+        LedgerJournalDTO dto = super.get(id);
+        if (dto != null) {
+            enrichJournals(List.of(dto));
+        }
+        return dto;
+    }
+
+    private void enrichJournals(List<LedgerJournalDTO> items) {
+        if (subjectDisplayEnricher != null) {
+            subjectDisplayEnricher.enrichJournals(items);
+        }
+    }
 
     @Override
     public QueryWrapper<LedgerJournalEntity> getWrapper(DynMap params) {

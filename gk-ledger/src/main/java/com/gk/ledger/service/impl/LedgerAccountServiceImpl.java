@@ -7,6 +7,7 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
@@ -17,14 +18,17 @@ import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.service.LedgerAccountService;
+import com.gk.ledger.support.SubjectDisplayEnricher;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -34,6 +38,37 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     private static final int MONEY_SCALE = 8;
 
     private final LedgerBalanceDao ledgerBalanceDao;
+    @Autowired(required = false)
+    private SubjectDisplayEnricher subjectDisplayEnricher;
+
+    @Override
+    public PageData<LedgerAccountDTO> page(DynMap params) {
+        PageData<LedgerAccountDTO> page = super.page(params);
+        enrichAccounts(page.getItems());
+        return page;
+    }
+
+    @Override
+    public List<LedgerAccountDTO> list(DynMap params) {
+        List<LedgerAccountDTO> items = super.list(params);
+        enrichAccounts(items);
+        return items;
+    }
+
+    @Override
+    public LedgerAccountDTO get(Long id) {
+        LedgerAccountDTO dto = super.get(id);
+        if (dto != null) {
+            enrichAccounts(List.of(dto));
+        }
+        return dto;
+    }
+
+    private void enrichAccounts(List<LedgerAccountDTO> items) {
+        if (subjectDisplayEnricher != null) {
+            subjectDisplayEnricher.enrichAccounts(items);
+        }
+    }
 
     @Override
     public QueryWrapper<LedgerAccountEntity> getWrapper(DynMap params) {

@@ -5,11 +5,14 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.ledger.dao.LedgerHoldDao;
 import com.gk.ledger.dto.LedgerHoldDTO;
 import com.gk.ledger.entity.LedgerHoldEntity;
 import com.gk.ledger.enums.LedgerHoldStatusEnum;
 import com.gk.ledger.service.LedgerHoldService;
+import com.gk.ledger.support.SubjectDisplayEnricher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -20,6 +23,37 @@ public class LedgerHoldServiceImpl extends CrudServiceImpl<LedgerHoldDao, Ledger
     private static final int EXPIRED_HOLD_DRAIN_BATCH = 50;
     private static final String ORDER_HOLD_SCOPE = "ORDER";
     private static final String EXPIRED_REASON = "Ledger hold expired and requires manual handling";
+    @Autowired(required = false)
+    private SubjectDisplayEnricher subjectDisplayEnricher;
+
+    @Override
+    public PageData<LedgerHoldDTO> page(DynMap params) {
+        PageData<LedgerHoldDTO> page = super.page(params);
+        enrichHolds(page.getItems());
+        return page;
+    }
+
+    @Override
+    public List<LedgerHoldDTO> list(DynMap params) {
+        List<LedgerHoldDTO> items = super.list(params);
+        enrichHolds(items);
+        return items;
+    }
+
+    @Override
+    public LedgerHoldDTO get(Long id) {
+        LedgerHoldDTO dto = super.get(id);
+        if (dto != null) {
+            enrichHolds(List.of(dto));
+        }
+        return dto;
+    }
+
+    private void enrichHolds(List<LedgerHoldDTO> items) {
+        if (subjectDisplayEnricher != null) {
+            subjectDisplayEnricher.enrichHolds(items);
+        }
+    }
 
     @Override
     public QueryWrapper<LedgerHoldEntity> getWrapper(DynMap params) {

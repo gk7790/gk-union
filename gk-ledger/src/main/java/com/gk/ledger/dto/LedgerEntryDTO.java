@@ -26,6 +26,14 @@ public class LedgerEntryDTO {
     private String ownerType;
     @Schema(title = "资金主体ID快照")
     private Long ownerId;
+    @Schema(title = "主体编号")
+    private String ownerNo;
+    @Schema(title = "主体名称")
+    private String ownerName;
+    @Schema(title = "主体简称")
+    private String ownerShortName;
+    @Schema(title = "主体显示名称")
+    private String ownerDisplayName;
     @Schema(title = "账户类型快照")
     private String accountType;
     @Schema(title = "币种")

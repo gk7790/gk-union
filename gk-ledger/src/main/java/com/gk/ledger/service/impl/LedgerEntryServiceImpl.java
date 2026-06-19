@@ -4,14 +4,50 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.ledger.dao.LedgerEntryDao;
 import com.gk.ledger.dto.LedgerEntryDTO;
 import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.service.LedgerEntryService;
+import com.gk.ledger.support.SubjectDisplayEnricher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class LedgerEntryServiceImpl extends CrudServiceImpl<LedgerEntryDao, LedgerEntryEntity, LedgerEntryDTO> implements LedgerEntryService {
+    @Autowired(required = false)
+    private SubjectDisplayEnricher subjectDisplayEnricher;
+
+    @Override
+    public PageData<LedgerEntryDTO> page(DynMap params) {
+        PageData<LedgerEntryDTO> page = super.page(params);
+        enrichEntries(page.getItems());
+        return page;
+    }
+
+    @Override
+    public List<LedgerEntryDTO> list(DynMap params) {
+        List<LedgerEntryDTO> items = super.list(params);
+        enrichEntries(items);
+        return items;
+    }
+
+    @Override
+    public LedgerEntryDTO get(Long id) {
+        LedgerEntryDTO dto = super.get(id);
+        if (dto != null) {
+            enrichEntries(List.of(dto));
+        }
+        return dto;
+    }
+
+    private void enrichEntries(List<LedgerEntryDTO> items) {
+        if (subjectDisplayEnricher != null) {
+            subjectDisplayEnricher.enrichEntries(items);
+        }
+    }
 
     @Override
     public QueryWrapper<LedgerEntryEntity> getWrapper(DynMap params) {

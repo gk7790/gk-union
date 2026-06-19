@@ -18,6 +18,14 @@ public class LedgerHoldDTO {
     private String ownerType;
     @Schema(title = "资金主体ID")
     private Long ownerId;
+    @Schema(title = "主体编号")
+    private String ownerNo;
+    @Schema(title = "主体名称")
+    private String ownerName;
+    @Schema(title = "主体简称")
+    private String ownerShortName;
+    @Schema(title = "主体显示名称")
+    private String ownerDisplayName;
     @Schema(title = "币种")
     private String currency;
     @Schema(title = "可用账户ID")

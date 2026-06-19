@@ -124,7 +124,6 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
     private void stripInternalFields(List<SysMenuEntity> menuList) {
         for (SysMenuEntity menu : menuList) {
-            menu.setSubjectTypes(null);
             menu.setDomain(null);
         }
     }

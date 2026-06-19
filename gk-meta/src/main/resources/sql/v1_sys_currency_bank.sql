@@ -57,9 +57,9 @@ CREATE TABLE `sys_bank` (
   `updated_by` bigint DEFAULT NULL,
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_country_currency_bank_code` (`country_code`,`currency`,`bank_code`),
+  UNIQUE KEY `uk_country_currency_bank_code` (`bank_code`,`country_code`,`currency`) USING BTREE,
   KEY `idx_country_currency_status` (`country_code`,`currency`,`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='平台标准银行表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='平台标准银行表';
 
 DROP TABLE IF EXISTS `psp_bank_mapping`;
 CREATE TABLE `psp_bank_mapping` (

@@ -368,4 +368,63 @@
             </when>
         </choose>
     </select>
+
+    <select id="selectTopMerchants" resultType="com.gk.dashboard.dto.TenantDashboardTopMerchantDTO$TopMerchant">
+        SELECT
+            m.id AS merchantId,
+            m.merchant_no AS merchantNo,
+            m.merchant_name AS merchantName,
+            COALESCE(pay.payInAmount, 0) AS payInAmount,
+            COALESCE(payout.payOutAmount, 0) AS payOutAmount,
+            COALESCE(pay.payInAmount, 0) + COALESCE(payout.payOutAmount, 0) AS totalAmount,
+            COALESCE(pay.payInCount, 0) AS payInCount,
+            COALESCE(payout.payOutCount, 0) AS payOutCount
+        FROM merchant m
+        INNER JOIN (
+            SELECT merchant_id
+            FROM pay_order
+            WHERE tenant_id = #{tenantId}
+              AND currency = #{currency}
+              AND status = 'SUCCESS'
+              AND paid_at &gt;= #{rangeStart}
+              AND paid_at &lt; #{rangeEnd}
+            UNION
+            SELECT merchant_id
+            FROM payout_order
+            WHERE tenant_id = #{tenantId}
+              AND currency = #{currency}
+              AND status = 'SUCCESS'
+              AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+              AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+        ) active ON active.merchant_id = m.id
+        LEFT JOIN (
+            SELECT
+                merchant_id,
+                COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount,
+                COUNT(1) AS payInCount
+            FROM pay_order
+            WHERE tenant_id = #{tenantId}
+              AND currency = #{currency}
+              AND status = 'SUCCESS'
+              AND paid_at &gt;= #{rangeStart}
+              AND paid_at &lt; #{rangeEnd}
+            GROUP BY merchant_id
+        ) pay ON pay.merchant_id = m.id
+        LEFT JOIN (
+            SELECT
+                merchant_id,
+                COALESCE(SUM(amount), 0) AS payOutAmount,
+                COUNT(1) AS payOutCount
+            FROM payout_order
+            WHERE tenant_id = #{tenantId}
+              AND currency = #{currency}
+              AND status = 'SUCCESS'
+              AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+              AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+            GROUP BY merchant_id
+        ) payout ON payout.merchant_id = m.id
+        WHERE m.tenant_id = #{tenantId}
+        ORDER BY totalAmount DESC, payInAmount DESC, payOutAmount DESC, m.id ASC
+        LIMIT #{limit}
+    </select>
 </mapper>

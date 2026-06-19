@@ -3,6 +3,7 @@ package com.gk.dashboard.controller;
 import com.gk.common.model.R;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTodoDTO;
+import com.gk.dashboard.dto.TenantDashboardTopMerchantDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.dashboard.service.TenantDashboardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,5 +55,17 @@ public class TenantDashboardController {
             @Parameter(description = "默认10，最大50")
             @RequestParam(defaultValue = "10") int limit) {
         return R.ok(tenantDashboardService.todos(type, currency, limit));
+    }
+
+    @GetMapping("top-merchants")
+    @Operation(summary = "Top商户排行")
+    @PreAuthorize("hasAuthority('dashboard:tenant:view')")
+    public R<TenantDashboardTopMerchantDTO> topMerchants(
+            @Parameter(description = "today/yesterday/last7d/last30d，默认 today")
+            @RequestParam(defaultValue = "today") String range,
+            @RequestParam(required = false) String currency,
+            @Parameter(description = "默认5，最大20")
+            @RequestParam(defaultValue = "5") int limit) {
+        return R.ok(tenantDashboardService.topMerchants(range, currency, limit));
     }
 }

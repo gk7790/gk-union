@@ -7,6 +7,7 @@ import com.gk.common.exception.GkException;
 import com.gk.dashboard.dao.TenantDashboardDao;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTodoDTO;
+import com.gk.dashboard.dto.TenantDashboardTopMerchantDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import com.gk.tenant.dto.TenantDTO;
 import com.gk.tenant.service.TenantService;
@@ -33,6 +34,7 @@ public class TenantDashboardService {
     private static final int MONEY_SCALE = 8;
     private static final int RATE_SCALE = 2;
     private static final int TODO_LIMIT_MAX = 50;
+    private static final int TOP_MERCHANT_LIMIT_MAX = 20;
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private final TenantDashboardDao tenantDashboardDao;
@@ -135,6 +137,42 @@ public class TenantDashboardService {
         result.setCurrency(resolvedCurrency);
         result.setItems(items);
         return result;
+    }
+
+    public TenantDashboardTopMerchantDTO topMerchants(String range, String currency, int limit) {
+        assertTenantScope();
+        Long tenantId = ReqContextHolder.getTenantId();
+
+        TenantDTO tenant = tenantService.get(tenantId);
+        if (tenant == null) {
+            throw new GkException(ErrorCode.NOT_FOUND);
+        }
+
+        String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
+        RangeWindow window = resolveRange(normalizeRange(range), tenant.getTimezone(), false);
+        int resolvedLimit = Math.min(Math.max(limit, 1), TOP_MERCHANT_LIMIT_MAX);
+
+        List<TenantDashboardTopMerchantDTO.TopMerchant> items = tenantDashboardDao.selectTopMerchants(
+                tenantId, resolvedCurrency, window.start, window.end, resolvedLimit);
+        if (items == null) {
+            items = List.of();
+        } else {
+            items.forEach(this::normalizeTopMerchant);
+        }
+
+        TenantDashboardTopMerchantDTO result = new TenantDashboardTopMerchantDTO();
+        result.setCurrency(resolvedCurrency);
+        result.setRange(window.range);
+        result.setItems(items);
+        return result;
+    }
+
+    private void normalizeTopMerchant(TenantDashboardTopMerchantDTO.TopMerchant item) {
+        item.setPayInAmount(money(item.getPayInAmount()));
+        item.setPayOutAmount(money(item.getPayOutAmount()));
+        item.setTotalAmount(money(item.getTotalAmount()));
+        item.setPayInCount(defaultLong(item.getPayInCount()));
+        item.setPayOutCount(defaultLong(item.getPayOutCount()));
     }
 
     private String parseTodoType(String type) {

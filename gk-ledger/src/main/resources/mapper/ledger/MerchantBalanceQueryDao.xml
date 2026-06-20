@@ -37,7 +37,7 @@
               ON a.tenant_id = m.tenant_id
              AND a.owner_type = 'MERCHANT'
              AND a.owner_id = m.id
-            AND a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE')
+            AND a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE')
              AND a.status = 1
             <include refid="merchantBalanceWhere"/>
             GROUP BY m.id, COALESCE(a.currency, m.default_currency)
@@ -54,11 +54,11 @@
             m.status AS status,
             m.risk_status AS riskStatus,
             COALESCE(a.currency, m.default_currency) AS currency,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_AVAILABLE' THEN b.balance ELSE 0 END), 0) AS availableBalance,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_FROZEN' THEN b.balance ELSE 0 END), 0) AS frozenBalance,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettleBalance,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_AVAILABLE' THEN b.balance ELSE 0 END), 0) AS effectiveBalance,
-            COALESCE(SUM(CASE WHEN a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS totalBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'AVAILABLE' THEN b.balance ELSE 0 END), 0) AS availableBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'FROZEN' THEN b.balance ELSE 0 END), 0) AS frozenBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettleBalance,
+            COALESCE(SUM(CASE WHEN a.account_type = 'AVAILABLE' THEN b.balance ELSE 0 END), 0) AS effectiveBalance,
+            COALESCE(SUM(CASE WHEN a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS totalBalance,
             CASE WHEN COUNT(a.id) > 0 THEN TRUE ELSE FALSE END AS hasLedgerAccount,
             MAX(b.last_posted_at) AS lastPostedAt
         FROM merchant m
@@ -66,7 +66,7 @@
           ON a.tenant_id = m.tenant_id
          AND a.owner_type = 'MERCHANT'
          AND a.owner_id = m.id
-         AND a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE')
+         AND a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE')
          AND a.status = 1
         LEFT JOIN ledger_balance b
           ON b.tenant_id = a.tenant_id

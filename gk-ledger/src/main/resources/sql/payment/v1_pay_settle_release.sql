@@ -9,5 +9,5 @@ INSERT INTO `schedule_job`
 VALUES
 (2064290000000000004, 'payment', 'paySettleReleaseTask', NULL, '0 0/1 * * * ?', 1, '代收待结算自动释放至商户可用余额', NOW());
 
--- 存量商户：按需为已有商户/币种补开 MERCHANT_PENDING_SETTLE 账户（首次入账时会懒创建，此处可选）
--- 存量 SUCCESS 且资金已在 MERCHANT_AVAILABLE 的订单需运营侧单独迁移，本脚本不自动搬余额。
+-- 存量商户：按需为已有商户/币种补开 PENDING_SETTLE 账户（首次入账时会懒创建，此处可选）
+-- 存量 SUCCESS 且资金已在 AVAILABLE 的订单需运营侧单独迁移，本脚本不自动搬余额。

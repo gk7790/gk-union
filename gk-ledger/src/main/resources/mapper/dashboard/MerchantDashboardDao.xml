@@ -72,17 +72,17 @@
 
     <select id="selectBalanceSummary" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$Balance">
         SELECT
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_AVAILABLE' THEN b.balance ELSE 0 END), 0) AS available,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_FROZEN' THEN b.balance ELSE 0 END), 0) AS frozen,
-            COALESCE(SUM(CASE WHEN a.account_type = 'MERCHANT_PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettle,
-            COALESCE(SUM(CASE WHEN a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS total,
+            COALESCE(SUM(CASE WHEN a.account_type = 'AVAILABLE' THEN b.balance ELSE 0 END), 0) AS available,
+            COALESCE(SUM(CASE WHEN a.account_type = 'FROZEN' THEN b.balance ELSE 0 END), 0) AS frozen,
+            COALESCE(SUM(CASE WHEN a.account_type = 'PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettle,
+            COALESCE(SUM(CASE WHEN a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS total,
             1 AS merchantCount
         FROM merchant m
         LEFT JOIN ledger_account a
           ON a.tenant_id = m.tenant_id
          AND a.owner_type = 'MERCHANT'
          AND a.owner_id = m.id
-         AND a.account_type IN ('MERCHANT_AVAILABLE', 'MERCHANT_FROZEN', 'MERCHANT_PENDING_SETTLE')
+         AND a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE')
          AND a.status = 1
         LEFT JOIN ledger_balance b
           ON b.tenant_id = a.tenant_id

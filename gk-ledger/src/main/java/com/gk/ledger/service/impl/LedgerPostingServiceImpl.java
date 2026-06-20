@@ -356,7 +356,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         MerchantBalanceAdjustTypeEnum adjustType = validateMerchantBalanceAdjust(request);
         String eventType = adjustType.eventType();
         // 幂等检查：同一调账单同一事件类型只允许入账一次。
-        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType);
+        LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType);
         if (existed != null) {
             return LedgerPostingResult.existed(existed.getJournalNo(), null);
         }
@@ -382,7 +382,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
 
         LedgerJournalEntity journal = createJournal(
                 request.getTenantId(),
-                BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(),
+                BizTypeEnum.BALANCE_ADJUST.code(),
                 request.getBizId(),
                 request.getAdjustOrderNo(),
                 eventType,
@@ -395,7 +395,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 request.getReverseOfJournalNo()
         );
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
         }
         postEntries(journal, lines, MerchantStatementSnapshot.adjust(request, amount));
         return LedgerPostingResult.posted(journal.getJournalNo());

@@ -27,7 +27,7 @@ CREATE TABLE `ledger_account`  (
   `account_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户编号',
   `owner_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '资金主体类型: PLATFORM/TENANT/MERCHANT/PSP/SYSTEM',
   `owner_id` bigint NOT NULL COMMENT '资金主体ID; 系统级账户可使用0',
-  `account_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户类型: MERCHANT_AVAILABLE/MERCHANT_PENDING_SETTLE/MERCHANT_FROZEN/PSP_AVAILABLE/PSP_CLEARING等',
+  `account_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户类型: AVAILABLE/PENDING_SETTLE/FROZEN/CLEARING/FEE_INCOME等',
   `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种: USD/CNY/BRL/INR等',
   `normal_side` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '账户余额方向: DEBIT/CREDIT',
   `allow_negative` tinyint NOT NULL DEFAULT 0 COMMENT '是否允许负余额: 0否 1是',

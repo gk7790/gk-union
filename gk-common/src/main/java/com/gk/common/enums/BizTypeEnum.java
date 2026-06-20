@@ -2,7 +2,6 @@ package com.gk.common.enums;
 
 import com.gk.common.annotation.EnumDict;
 import com.gk.common.annotation.Style;
-import com.gk.common.enums.StyleType;
 
 @EnumDict("bizType")
 public enum BizTypeEnum implements StringCodeEnum {
@@ -13,7 +12,7 @@ public enum BizTypeEnum implements StringCodeEnum {
     PAYOUT_ORDER("PAYOUT_ORDER", "代付订单", "enum.bizType.payoutOrder"),
 
     @Style(StyleType.INFO)
-    MERCHANT_BALANCE_ADJUST("MERCHANT_BALANCE_ADJUST", "商户余额调整单", "enum.bizType.merchantBalanceAdjust");
+    BALANCE_ADJUST("BALANCE_ADJUST", "余额调整单", "enum.bizType.balanceAdjust");
 
     private final String code;
     private final String label;

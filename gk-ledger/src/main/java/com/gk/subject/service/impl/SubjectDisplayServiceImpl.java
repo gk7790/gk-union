@@ -226,10 +226,10 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
 
     private String staticName(String subjectType) {
         if (LedgerOwnerTypeEnum.INTERNAL.code().equals(subjectType)) {
-            return LedgerOwnerTypeEnum.INTERNAL.label();
+            return "-";
         }
         if (SubjectTypeEnum.PLATFORM.matches(subjectType)) {
-            return SubjectTypeEnum.PLATFORM.label();
+            return "P";
         }
         return null;
     }

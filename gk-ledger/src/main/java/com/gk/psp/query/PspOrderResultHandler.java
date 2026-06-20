@@ -65,6 +65,9 @@ public class PspOrderResultHandler {
         PaySuccessPostingRequest request = new PaySuccessPostingRequest();
         request.setTenantId(order.tenantId());
         request.setMerchantId(order.merchantId());
+        request.setMerchantNo(order.merchantNo());
+        request.setMerchantAppId(order.merchantAppId());
+        request.setMerchantOrderNo(order.merchantOrderNo());
         request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
         request.setPayOrderNo(order.orderNo());
@@ -79,6 +82,9 @@ public class PspOrderResultHandler {
         PayoutPostingRequest request = new PayoutPostingRequest();
         request.setTenantId(order.tenantId());
         request.setMerchantId(order.merchantId());
+        request.setMerchantNo(order.merchantNo());
+        request.setMerchantAppId(order.merchantAppId());
+        request.setMerchantOrderNo(order.merchantOrderNo());
         request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
         request.setPayoutOrderNo(order.orderNo());

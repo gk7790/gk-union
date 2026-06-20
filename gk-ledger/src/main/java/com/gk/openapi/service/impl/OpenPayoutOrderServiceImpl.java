@@ -421,6 +421,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         PayoutPostingRequest request = new PayoutPostingRequest();
         request.setTenantId(entity.getTenantId());
         request.setMerchantId(entity.getMerchantId());
+        request.setMerchantNo(entity.getMerchantNo());
+        request.setMerchantAppId(entity.getMerchantAppId());
+        request.setMerchantOrderNo(entity.getMerchantOrderNo());
         request.setPspAccountId(entity.getPspAccountId());
         request.setBizId(entity.getId());
         request.setPayoutOrderNo(entity.getPayoutOrderNo());

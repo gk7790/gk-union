@@ -334,6 +334,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         PaySuccessPostingRequest request = new PaySuccessPostingRequest();
         request.setTenantId(order.getTenantId());
         request.setMerchantId(order.getMerchantId());
+        request.setMerchantNo(order.getMerchantNo());
+        request.setMerchantAppId(order.getMerchantAppId());
+        request.setMerchantOrderNo(order.getMerchantOrderNo());
         request.setPspAccountId(order.getPspAccountId());
         request.setBizId(order.getId());
         request.setPayOrderNo(order.getPayOrderNo());

@@ -20,18 +20,22 @@ import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
 import com.gk.ledger.dao.LedgerHoldDao;
 import com.gk.ledger.dao.LedgerJournalDao;
+import com.gk.ledger.dao.MerchantWalletStatementDao;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.entity.LedgerHoldEntity;
 import com.gk.ledger.entity.LedgerJournalEntity;
+import com.gk.ledger.entity.MerchantWalletStatementEntity;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.MerchantBalanceAdjustPostingRequest;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.service.LedgerPostingService;
+import com.gk.ledger.enums.MerchantWalletStatementEffectEnum;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -53,6 +57,7 @@ import java.util.Locale;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
 
@@ -62,6 +67,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private final LedgerEntryDao ledgerEntryDao;
     private final LedgerHoldDao ledgerHoldDao;
     private final LedgerAccountService ledgerAccountService;
+    private final MerchantWalletStatementDao merchantWalletStatementDao;
 
     /**
      * 代收成功入账。
@@ -118,7 +124,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
         // 真正落 ledger_entry 并更新 ledger_balance。
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -167,7 +173,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
         // 发布分录并原子更新两个账户余额。
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -216,7 +222,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
 
         // 冻结分录成功后记录 ledger_hold，后续成功消费或失败释放都以它为准。
         LedgerHoldEntity hold = new LedgerHoldEntity();
@@ -285,7 +291,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
 
         // 分录落账后把冻结记录标记为已消费，防止后续再次释放。
         hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
@@ -328,7 +334,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, amount));
 
         // 释放完成后清空 remainingAmount，并记录最后一次释放凭证号。
         hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
@@ -391,7 +397,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.MERCHANT_BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
         }
-        postEntries(journal, lines);
+        postEntries(journal, lines, MerchantStatementSnapshot.adjust(request, amount));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -460,7 +466,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      *
      * <p>每条 PostingLine 会生成一条 ledger_entry，再通过 ledgerBalanceDao.applyEntry 原子更新余额。</p>
      */
-    private void postEntries(LedgerJournalEntity journal, List<PostingLine> lines) {
+    private void postEntries(LedgerJournalEntity journal, List<PostingLine> lines, MerchantStatementSnapshot statementSnapshot) {
         int entryNo = 1;
         for (PostingLine line : lines) {
             if (!positive(line.amount())) {
@@ -497,6 +503,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             entry.setEventType(journal.getEventType());
             entry.setSummary(line.summary());
             ledgerEntryDao.insert(entry);
+            createMerchantWalletStatement(journal, entry, statementSnapshot);
 
             // applyEntry 同时累加借贷发生额，并在不允许负余额时阻止扣成负数。
             int updated = ledgerBalanceDao.applyEntry(
@@ -514,6 +521,69 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 throw new IllegalStateException("Insufficient ledger balance: " + line.account().getAccountNo());
             }
         }
+    }
+
+    private void createMerchantWalletStatement(LedgerJournalEntity journal, LedgerEntryEntity entry, MerchantStatementSnapshot snapshot) {
+        if (snapshot == null || entry == null || !isMerchantVisibleEntry(entry)) {
+            return;
+        }
+        try {
+            MerchantWalletStatementEntity statement = new MerchantWalletStatementEntity();
+            statement.setTenantId(entry.getTenantId());
+            statement.setStatementNo(BizKeyUtils.genMerchantWalletStatementNo());
+            statement.setMerchantId(entry.getOwnerId());
+            statement.setMerchantNo(snapshot.merchantNo());
+            statement.setMerchantAppId(snapshot.merchantAppId());
+            statement.setJournalId(journal.getId());
+            statement.setJournalNo(journal.getJournalNo());
+            statement.setEntryId(entry.getId());
+            statement.setBizType(entry.getBizType());
+            statement.setBizId(entry.getBizId());
+            statement.setBizNo(entry.getBizNo());
+            statement.setMerchantOrderNo(snapshot.merchantOrderNo());
+            statement.setEventType(entry.getEventType());
+            statement.setAccountId(entry.getAccountId());
+            statement.setAccountNo(entry.getAccountNo());
+            statement.setAccountType(entry.getAccountType());
+            statement.setCurrency(entry.getCurrency());
+            statement.setEffectType(effectType(entry));
+            statement.setBizAmount(scale(snapshot.bizAmount()));
+            statement.setFeeAmount(scale(snapshot.feeAmount()));
+            statement.setNetAmount(scale(snapshot.netAmount()));
+            statement.setBalanceChange(scale(entry.getBalanceChange()));
+            statement.setBalanceBefore(scale(entry.getBalanceBefore()));
+            statement.setBalanceAfter(scale(entry.getBalanceAfter()));
+            statement.setSourceType(journal.getSourceType());
+            statement.setStatus(journal.getStatus());
+            statement.setPostedAt(journal.getPostedAt());
+            statement.setTraceId(journal.getTraceId());
+            statement.setSummary(entry.getSummary());
+            statement.setRemark(journal.getRemark());
+            merchantWalletStatementDao.insert(statement);
+        } catch (Exception ex) {
+            log.warn("Create merchant wallet statement failed, journalNo={}, entryId={}, err={}",
+                    journal.getJournalNo(), entry.getId(), ex.getMessage());
+        }
+    }
+
+    private boolean isMerchantVisibleEntry(LedgerEntryEntity entry) {
+        return LedgerOwnerTypeEnum.MERCHANT.code().equals(entry.getOwnerType())
+                && LedgerAccountTypeEnum.merchantVisibleTypes().contains(entry.getAccountType());
+    }
+
+    private String effectType(LedgerEntryEntity entry) {
+        if (LedgerPostingEventEnum.PAYOUT_FREEZE.code().equals(entry.getEventType())) {
+            return MerchantWalletStatementEffectEnum.FREEZE.code();
+        }
+        if (LedgerPostingEventEnum.PAYOUT_FAILED.code().equals(entry.getEventType())) {
+            return MerchantWalletStatementEffectEnum.UNFREEZE.code();
+        }
+        if (entry.getEventType() != null && entry.getEventType().startsWith("MANUAL_")) {
+            return MerchantWalletStatementEffectEnum.ADJUST.code();
+        }
+        return scale(entry.getBalanceChange()).compareTo(BigDecimal.ZERO) >= 0
+                ? MerchantWalletStatementEffectEnum.IN.code()
+                : MerchantWalletStatementEffectEnum.OUT.code();
     }
 
     /**
@@ -778,5 +848,45 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      * @param summary 分录摘要
      */
     private record PostingLine(LedgerAccountEntity account, String direction, BigDecimal amount, String summary) {
+    }
+
+    private record MerchantStatementSnapshot(String merchantNo,
+                                             Long merchantAppId,
+                                             String merchantOrderNo,
+                                             BigDecimal bizAmount,
+                                             BigDecimal feeAmount,
+                                             BigDecimal netAmount) {
+        static MerchantStatementSnapshot pay(PaySuccessPostingRequest request, BigDecimal netAmount, BigDecimal feeAmount) {
+            return new MerchantStatementSnapshot(
+                    request.getMerchantNo(),
+                    request.getMerchantAppId(),
+                    request.getMerchantOrderNo(),
+                    request.getAmount(),
+                    feeAmount,
+                    netAmount
+            );
+        }
+
+        static MerchantStatementSnapshot payout(PayoutPostingRequest request, BigDecimal netAmount) {
+            return new MerchantStatementSnapshot(
+                    request.getMerchantNo(),
+                    request.getMerchantAppId(),
+                    request.getMerchantOrderNo(),
+                    request.getAmount(),
+                    request.getMerchantFeeAmount(),
+                    netAmount
+            );
+        }
+
+        static MerchantStatementSnapshot adjust(MerchantBalanceAdjustPostingRequest request, BigDecimal netAmount) {
+            return new MerchantStatementSnapshot(
+                    request.getMerchantNo(),
+                    request.getMerchantAppId(),
+                    request.getMerchantOrderNo(),
+                    request.getAmount(),
+                    BigDecimal.ZERO,
+                    netAmount
+            );
+        }
     }
 }

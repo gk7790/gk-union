@@ -23,7 +23,7 @@ public enum LedgerAccountTypeEnum implements StringCodeEnum {
     @Style(StyleType.PRIMARY)
     PSP_CLEARING("PSP_CLEARING", "PSP清算", "enum.ledgerAccountType.pspClearing"),
     @Style(StyleType.SUCCESS)
-    INTERNAL_FEE_INCOME("INTERNAL_FEE_INCOME", "手续费收入", "enum.ledgerAccountType.internalFeeIncome");
+    INTERNAL_FEE_INCOME("INTERNAL_FEE_INCOME", "内部手续费收入", "enum.ledgerAccountType.internalFeeIncome");
 
     private final String code;
     private final String label;

@@ -112,6 +112,7 @@ public class MerchantBalanceAdjustOrderServiceImpl extends CrudServiceImpl<Merch
         MerchantBalanceAdjustPostingRequest request = new MerchantBalanceAdjustPostingRequest();
         request.setTenantId(entity.getTenantId());
         request.setMerchantId(entity.getMerchantId());
+        request.setMerchantNo(entity.getMerchantNo());
         request.setBizId(entity.getId());
         request.setAdjustOrderNo(entity.getAdjustOrderNo());
         request.setAdjustType(entity.getAdjustType());

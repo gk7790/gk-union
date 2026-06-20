@@ -8,6 +8,9 @@ import java.math.BigDecimal;
 public class MerchantBalanceAdjustPostingRequest {
     private Long tenantId;
     private Long merchantId;
+    private String merchantNo;
+    private Long merchantAppId;
+    private String merchantOrderNo;
     private Long bizId;
     private String adjustOrderNo;
     private String adjustType;

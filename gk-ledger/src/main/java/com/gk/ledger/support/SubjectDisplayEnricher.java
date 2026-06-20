@@ -122,9 +122,7 @@ public class SubjectDisplayEnricher {
         items.forEach(item -> {
             SubjectDisplay display = displays.get(ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()));
             if (display != null) {
-                item.setTenantNo(display.getSubjectNo());
-                item.setTenantName(display.getSubjectName());
-                item.setTenantDisplayName(display.getDisplayName());
+                applyTenant(item, display);
             }
         });
     }
@@ -140,10 +138,10 @@ public class SubjectDisplayEnricher {
         if (display == null) {
             return;
         }
-        item.setOwnerNo(display.getSubjectNo());
-        item.setOwnerName(display.getSubjectName());
-        item.setOwnerShortName(display.getSubjectShortName());
-        item.setOwnerDisplayName(display.getDisplayName());
+        item.setOwnerName(ownerName(display));
+        item.setOwnerNo(null);
+        item.setOwnerShortName(null);
+        item.setOwnerDisplayName(null);
     }
 
     private void applyTenant(LedgerAccountDTO item, SubjectDisplay display) {
@@ -151,18 +149,18 @@ public class SubjectDisplayEnricher {
             return;
         }
         item.setTenantNo(display.getSubjectNo());
-        item.setTenantName(display.getSubjectName());
-        item.setTenantDisplayName(display.getDisplayName());
+        item.setTenantName(null);
+        item.setTenantDisplayName(null);
     }
 
     private void applyOwner(LedgerEntryDTO item, SubjectDisplay display) {
         if (display == null) {
             return;
         }
-        item.setOwnerNo(display.getSubjectNo());
-        item.setOwnerName(display.getSubjectName());
-        item.setOwnerShortName(display.getSubjectShortName());
-        item.setOwnerDisplayName(display.getDisplayName());
+        item.setOwnerName(ownerName(display));
+        item.setOwnerNo(null);
+        item.setOwnerShortName(null);
+        item.setOwnerDisplayName(null);
     }
 
     private void applyTenant(LedgerEntryDTO item, SubjectDisplay display) {
@@ -170,27 +168,40 @@ public class SubjectDisplayEnricher {
             return;
         }
         item.setTenantNo(display.getSubjectNo());
-        item.setTenantName(display.getSubjectName());
-        item.setTenantDisplayName(display.getDisplayName());
+        item.setTenantName(null);
+        item.setTenantDisplayName(null);
+    }
+
+    private void applyTenant(LedgerJournalDTO item, SubjectDisplay display) {
+        if (display == null) {
+            return;
+        }
+        item.setTenantNo(display.getSubjectNo());
+        item.setTenantName(null);
+        item.setTenantDisplayName(null);
     }
 
     private void applyOwner(LedgerHoldDTO item, SubjectDisplay display) {
         if (display == null) {
             return;
         }
-        item.setOwnerNo(display.getSubjectNo());
-        item.setOwnerName(display.getSubjectName());
-        item.setOwnerShortName(display.getSubjectShortName());
-        item.setOwnerDisplayName(display.getDisplayName());
+        item.setOwnerName(ownerName(display));
+        item.setOwnerNo(null);
+        item.setOwnerShortName(null);
+        item.setOwnerDisplayName(null);
     }
 
     private void applyOwner(LedgerBalanceDTO item, SubjectDisplay display) {
         if (display == null) {
             return;
         }
-        item.setOwnerNo(display.getSubjectNo());
-        item.setOwnerName(display.getSubjectName());
-        item.setOwnerShortName(display.getSubjectShortName());
-        item.setOwnerDisplayName(display.getDisplayName());
+        item.setOwnerName(ownerName(display));
+        item.setOwnerNo(null);
+        item.setOwnerShortName(null);
+        item.setOwnerDisplayName(null);
+    }
+
+    private String ownerName(SubjectDisplay display) {
+        return display.getSubjectShortName();
     }
 }

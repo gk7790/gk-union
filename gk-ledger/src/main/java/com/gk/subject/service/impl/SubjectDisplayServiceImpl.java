@@ -2,6 +2,8 @@ package com.gk.subject.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
 import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
@@ -11,9 +13,11 @@ import com.gk.subject.service.SubjectDisplayService;
 import com.gk.tenant.dao.TenantDao;
 import com.gk.tenant.entity.TenantEntity;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,9 +29,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SubjectDisplayServiceImpl implements SubjectDisplayService {
+    private static final long CACHE_EXPIRE_SECONDS = 5 * 60L;
+
     private final TenantDao tenantDao;
     private final MerchantDao merchantDao;
+    private final RedisUtils redisUtils;
 
     @Override
     public SubjectDisplay get(SubjectRef ref) {
@@ -45,9 +53,20 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
                 .filter(ref -> StrUtil.isNotBlank(ref.subjectType()) && ref.subjectId() != null)
                 .distinct()
                 .toList();
-        normalizedRefs.forEach(ref -> result.put(ref, fallback(ref)));
-        fillTenants(normalizedRefs, result);
-        fillMerchants(normalizedRefs, result);
+        Map<String, SubjectDisplay> cachedDisplays = getCached(normalizedRefs);
+        List<SubjectRef> misses = new ArrayList<>();
+        normalizedRefs.forEach(ref -> {
+            SubjectDisplay cached = cachedDisplays.get(cacheKey(ref));
+            if (cached == null) {
+                result.put(ref, fallback(ref));
+                misses.add(ref);
+            } else {
+                result.put(ref, cached);
+            }
+        });
+        fillTenants(misses, result);
+        fillMerchants(misses, result);
+        misses.forEach(ref -> cache(ref, result.get(ref)));
         return result;
     }
 
@@ -105,7 +124,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         SubjectDisplay display = base(ref, true);
         display.setSubjectNo(merchant.getMerchantNo());
         display.setSubjectName(merchant.getMerchantName());
-        display.setSubjectShortName(merchant.getMerchantShortName());
+        display.setSubjectShortName(StrUtil.blankToDefault(merchant.getMerchantShortName(), merchant.getMerchantName()));
         display.setDisplayName(StrUtil.blankToDefault(merchant.getMerchantName(), fallbackName(ref)));
         display.setStatus(merchant.getStatus());
         return display;
@@ -137,5 +156,32 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
 
     private String fallbackName(SubjectRef ref) {
         return ref.subjectType() + "#" + ref.subjectId();
+    }
+
+    private Map<String, SubjectDisplay> getCached(List<SubjectRef> refs) {
+        if (refs.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return redisUtils.getBatch(refs.stream().map(this::cacheKey).toList(), SubjectDisplay.class);
+        } catch (Exception e) {
+            log.warn("Get subject display cache batch failed: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private void cache(SubjectRef ref, SubjectDisplay display) {
+        if (display == null) {
+            return;
+        }
+        try {
+            redisUtils.set(cacheKey(ref), display, CACHE_EXPIRE_SECONDS);
+        } catch (Exception e) {
+            log.warn("Set subject display cache failed: {}", e.getMessage());
+        }
+    }
+
+    private String cacheKey(SubjectRef ref) {
+        return RedisKeys.getSubjectDisplayKey(ref.tenantId(), ref.subjectType(), ref.subjectId());
     }
 }

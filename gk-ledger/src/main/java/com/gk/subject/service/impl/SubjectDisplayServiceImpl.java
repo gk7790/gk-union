@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SubjectDisplayServiceImpl implements SubjectDisplayService {
     private static final long CACHE_EXPIRE_SECONDS = 5 * 60L;
+    private static final String UNKNOWN_DISPLAY_NAME = "-";
 
     private final TenantDao tenantDao;
     private final MerchantDao merchantDao;
@@ -130,15 +131,15 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         SubjectDisplay display = base(ref, true);
         String providerName = provider == null ? null : provider.getPspName();
         String accountName = account.getPspAccountName();
-        display.setSubjectNo(StrUtil.blankToDefault(account.getPspAccountNo(), fallbackName(ref)));
-        display.setSubjectName(StrUtil.blankToDefault(providerName, StrUtil.blankToDefault(accountName, fallbackName(ref))));
-        display.setSubjectShortName(pspDisplayName(providerName, accountName, ref));
-        display.setDisplayName(pspDisplayName(providerName, accountName, ref));
+        display.setSubjectNo(StrUtil.blankToDefault(account.getPspAccountNo(), UNKNOWN_DISPLAY_NAME));
+        display.setSubjectName(StrUtil.blankToDefault(providerName, StrUtil.blankToDefault(accountName, UNKNOWN_DISPLAY_NAME)));
+        display.setSubjectShortName(pspDisplayName(providerName, accountName));
+        display.setDisplayName(pspDisplayName(providerName, accountName));
         display.setStatus(account.getStatus() == null && provider != null ? provider.getStatus() : account.getStatus());
         return display;
     }
 
-    private String pspDisplayName(String providerName, String accountName, SubjectRef ref) {
+    private String pspDisplayName(String providerName, String accountName) {
         String providerText = StrUtil.trimToNull(providerName);
         String accountText = StrUtil.trimToNull(accountName);
         if (providerText != null) {
@@ -147,7 +148,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         if (accountText != null) {
             return accountText;
         }
-        return fallbackName(ref);
+        return UNKNOWN_DISPLAY_NAME;
     }
 
     private void fillMerchants(List<SubjectRef> refs, Map<SubjectRef, SubjectDisplay> result) {
@@ -175,7 +176,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         display.setSubjectNo(tenant.getCode());
         display.setSubjectName(tenant.getName());
         display.setSubjectShortName(tenant.getName());
-        display.setDisplayName(StrUtil.blankToDefault(tenant.getName(), fallbackName(ref)));
+        display.setDisplayName(StrUtil.blankToDefault(tenant.getName(), UNKNOWN_DISPLAY_NAME));
         display.setStatus(tenant.getStatus());
         return display;
     }
@@ -185,22 +186,28 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         display.setSubjectNo(merchant.getMerchantNo());
         display.setSubjectName(merchant.getMerchantName());
         display.setSubjectShortName(StrUtil.blankToDefault(merchant.getMerchantShortName(), merchant.getMerchantName()));
-        display.setDisplayName(StrUtil.blankToDefault(merchant.getMerchantName(), fallbackName(ref)));
+        display.setDisplayName(StrUtil.blankToDefault(merchant.getMerchantName(), UNKNOWN_DISPLAY_NAME));
         display.setStatus(merchant.getStatus());
         return display;
     }
 
     private SubjectDisplay fallback(SubjectRef ref) {
         SubjectDisplay display = base(ref, isKnownStatic(ref.subjectType()));
+        String name = defaultDisplayName(ref);
+        fillDisplayName(display, name);
+        return display;
+    }
+
+    private String defaultDisplayName(SubjectRef ref) {
         String name = staticName(ref.subjectType());
-        if (name == null) {
-            name = fallbackName(ref);
-        }
+        return name == null ? UNKNOWN_DISPLAY_NAME : name;
+    }
+
+    private void fillDisplayName(SubjectDisplay display, String name) {
         display.setSubjectNo(name);
         display.setSubjectName(name);
         display.setSubjectShortName(name);
         display.setDisplayName(name);
-        return display;
     }
 
     private SubjectDisplay base(SubjectRef ref, boolean found) {
@@ -225,10 +232,6 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
             return SubjectTypeEnum.PLATFORM.label();
         }
         return null;
-    }
-
-    private String fallbackName(SubjectRef ref) {
-        return ref.subjectType() + "#" + ref.subjectId();
     }
 
     private Map<String, SubjectDisplay> getCached(List<SubjectRef> refs) {

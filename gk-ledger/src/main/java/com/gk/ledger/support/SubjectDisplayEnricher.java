@@ -56,8 +56,7 @@ public class SubjectDisplayEnricher {
                 .flatMap(item -> Stream.of(
                         ref(item.getTenantId(), item.getOwnerType(), item.getOwnerId()),
                         ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId())
-                ))
-                .filter(Objects::nonNull)
+                )).filter(Objects::nonNull)
                 .distinct()
                 .toList());
         items.forEach(item -> {

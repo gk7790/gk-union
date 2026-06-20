@@ -23,7 +23,7 @@ public enum LedgerOwnerTypeEnum implements StringCodeEnum {
     PSP("PSP", "通道", "enum.ledgerOwnerType.psp"),
 
     @Style(StyleType.INFO)
-    SYSTEM("SYSTEM", "系统", "enum.ledgerOwnerType.system");
+    INTERNAL("INTERNAL", "内部户", "enum.ledgerOwnerType.internal");
 
     private final String code;
     private final String label;

@@ -32,9 +32,9 @@ public interface LedgerAccountService extends CrudService<LedgerAccountEntity, L
     void provisionTenantAccounts(Long tenantId, String currency);
 
     /**
-     * 获取系统级账户；不存在时幂等创建。
+     * 获取内部户账户；不存在时幂等创建。
      */
-    LedgerAccountEntity requireSystemAccount(Long tenantId, String accountType, String currency);
+    LedgerAccountEntity requireInternalAccount(Long tenantId, String accountType, String currency);
 
     /**
      * 获取平台级账户；不存在时幂等创建。

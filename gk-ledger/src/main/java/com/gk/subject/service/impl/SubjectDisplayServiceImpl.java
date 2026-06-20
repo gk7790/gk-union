@@ -192,7 +192,10 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
 
     private SubjectDisplay fallback(SubjectRef ref) {
         SubjectDisplay display = base(ref, isKnownStatic(ref.subjectType()));
-        String name = isKnownStatic(ref.subjectType()) ? ref.subjectType() : fallbackName(ref);
+        String name = staticName(ref.subjectType());
+        if (name == null) {
+            name = fallbackName(ref);
+        }
         display.setSubjectNo(name);
         display.setSubjectName(name);
         display.setSubjectShortName(name);
@@ -211,7 +214,17 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
 
     private boolean isKnownStatic(String subjectType) {
         return SubjectTypeEnum.PLATFORM.matches(subjectType)
-                || LedgerOwnerTypeEnum.SYSTEM.code().equals(subjectType);
+                || LedgerOwnerTypeEnum.INTERNAL.code().equals(subjectType);
+    }
+
+    private String staticName(String subjectType) {
+        if (LedgerOwnerTypeEnum.INTERNAL.code().equals(subjectType)) {
+            return LedgerOwnerTypeEnum.INTERNAL.label();
+        }
+        if (SubjectTypeEnum.PLATFORM.matches(subjectType)) {
+            return SubjectTypeEnum.PLATFORM.label();
+        }
+        return null;
     }
 
     private String fallbackName(SubjectRef ref) {

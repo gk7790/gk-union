@@ -197,22 +197,23 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Transactional(rollbackFor = Exception.class)
     public void provisionTenantAccounts(Long tenantId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
-        requireSystemAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), normalizedCurrency);
-        requirePlatformAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), normalizedCurrency);
+        requireInternalAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), normalizedCurrency);
+        requireInternalAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), normalizedCurrency);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public LedgerAccountEntity requireSystemAccount(Long tenantId, String accountType, String currency) {
+    public LedgerAccountEntity requireInternalAccount(Long tenantId, String accountType, String currency) {
+        boolean feeIncome = LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.matches(accountType);
         return requireOwnerAccount(
                 tenantId,
-                LedgerOwnerTypeEnum.SYSTEM.code(),
+                LedgerOwnerTypeEnum.INTERNAL.code(),
                 0L,
                 accountType,
                 currency,
                 buildInternalAccountNo(tenantId, accountType, currency),
-                LedgerDirectionEnum.DEBIT.code(),
-                1
+                feeIncome ? LedgerDirectionEnum.CREDIT.code() : LedgerDirectionEnum.DEBIT.code(),
+                feeIncome ? 0 : 1
         );
     }
 

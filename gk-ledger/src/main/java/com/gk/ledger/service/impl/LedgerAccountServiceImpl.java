@@ -119,9 +119,9 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Transactional(rollbackFor = Exception.class)
     public void provisionMerchantAccounts(Long tenantId, Long merchantId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
-        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), normalizedCurrency);
-        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), normalizedCurrency);
-        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.MERCHANT_FROZEN.code(), normalizedCurrency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.AVAILABLE.code(), normalizedCurrency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.PENDING_SETTLE.code(), normalizedCurrency);
+        requireMerchantAccount(tenantId, merchantId, LedgerAccountTypeEnum.FROZEN.code(), normalizedCurrency);
     }
 
     @Override
@@ -159,7 +159,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Transactional(rollbackFor = Exception.class)
     public void provisionPspAccounts(Long tenantId, Long pspAccountId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
-        requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.PSP_CLEARING.code(), normalizedCurrency);
+        requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.CLEARING.code(), normalizedCurrency);
     }
 
     @Override
@@ -197,14 +197,14 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Transactional(rollbackFor = Exception.class)
     public void provisionTenantAccounts(Long tenantId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
-        requireInternalAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), normalizedCurrency);
-        requireInternalAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), normalizedCurrency);
+        requireInternalAccount(tenantId, LedgerAccountTypeEnum.CLEARING.code(), normalizedCurrency);
+        requireInternalAccount(tenantId, LedgerAccountTypeEnum.FEE_INCOME.code(), normalizedCurrency);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public LedgerAccountEntity requireInternalAccount(Long tenantId, String accountType, String currency) {
-        boolean feeIncome = LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.matches(accountType);
+        boolean feeIncome = LedgerAccountTypeEnum.FEE_INCOME.matches(accountType);
         return requireOwnerAccount(
                 tenantId,
                 LedgerOwnerTypeEnum.INTERNAL.code(),
@@ -325,17 +325,16 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     }
 
     private static String accountTypeToken(String accountType) {
-        if (LedgerAccountTypeEnum.PSP_CLEARING.matches(accountType)
-                || LedgerAccountTypeEnum.INTERNAL_CLEARING.matches(accountType)) {
+        if (LedgerAccountTypeEnum.CLEARING.matches(accountType)) {
             return "CLR";
         }
-        if (LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.matches(accountType)) {
+        if (LedgerAccountTypeEnum.FEE_INCOME.matches(accountType)) {
             return "FEE";
         }
-        if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {
+        if (LedgerAccountTypeEnum.FROZEN.matches(accountType)) {
             return "FRZ";
         }
-        if (LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(accountType)) {
+        if (LedgerAccountTypeEnum.PENDING_SETTLE.matches(accountType)) {
             return "PND";
         }
         return "AVL";

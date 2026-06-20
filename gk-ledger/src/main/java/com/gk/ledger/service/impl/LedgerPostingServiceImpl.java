@@ -95,7 +95,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         List<PostingLine> lines = new ArrayList<>();
         // 有 pspAccountId 时走 PSP 清算账；历史/沙箱订单没有时回退内部清算账。
         LedgerAccountEntity clearing = clearingAccount(request.getTenantId(), request.getPspAccountId(), request.getCurrency());
-        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.PENDING_SETTLE.code(), request.getCurrency());
         if (positive(clearingAmount)) {
             lines.add(new PostingLine(clearing, LedgerDirectionEnum.DEBIT.code(), clearingAmount, "Pay success PSP clearing"));
         }
@@ -103,7 +103,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             lines.add(new PostingLine(merchantPending, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Pay success pending settlement"));
         }
         if (positive(feeAmount)) {
-            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), request.getCurrency());
+            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.FEE_INCOME.code(), request.getCurrency());
             lines.add(new PostingLine(internalFeeIncome, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Pay success merchant fee"));
         }
 
@@ -131,7 +131,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     /**
      * 释放代收待结算金额到商户可用余额。
      *
-     * <p>通常由结算释放任务调用，把 MERCHANT_PENDING_SETTLE 转到 MERCHANT_AVAILABLE。</p>
+     * <p>通常由结算释放任务调用，把 PENDING_SETTLE 转到 AVAILABLE。</p>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -150,8 +150,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             throw new GkException("Invalid settle release amount");
         }
         // 借：商户待结算；贷：商户可用。
-        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.PENDING_SETTLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.AVAILABLE.code(), request.getCurrency());
         List<PostingLine> lines = List.of(
                 new PostingLine(merchantPending, LedgerDirectionEnum.DEBIT.code(), settleAmount, "Settle release to available"),
                 new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Settle release to available")
@@ -200,8 +200,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             throw new GkException("Invalid payout posting request: totalDebitAmount must be greater than or equal to amount");
         }
         // 借：商户可用；贷：商户冻结。
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
-        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_FROZEN.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.AVAILABLE.code(), request.getCurrency());
+        LedgerAccountEntity merchantFrozen = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.FROZEN.code(), request.getCurrency());
         List<PostingLine> lines = List.of(
                 new PostingLine(merchantAvailable, LedgerDirectionEnum.DEBIT.code(), totalDebitAmount, "Payout freeze"),
                 new PostingLine(merchantFrozen, LedgerDirectionEnum.CREDIT.code(), totalDebitAmount, "Payout freeze")
@@ -283,7 +283,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         lines.add(new PostingLine(merchantFrozen, LedgerDirectionEnum.DEBIT.code(), totalDebitAmount, "Payout consume frozen amount"));
         lines.add(new PostingLine(clearing, LedgerDirectionEnum.CREDIT.code(), payoutAmount, "Payout principal PSP clearing"));
         if (positive(feeAmount)) {
-            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), request.getCurrency());
+            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.FEE_INCOME.code(), request.getCurrency());
             lines.add(new PostingLine(internalFeeIncome, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Payout merchant fee income"));
         }
         LedgerJournalEntity journal = createJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getBizId(), request.getPayoutOrderNo(), eventType,
@@ -362,8 +362,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
 
         BigDecimal amount = scale(request.getAmount());
-        LedgerAccountEntity internalClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), request.getCurrency());
-        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
+        LedgerAccountEntity internalClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.CLEARING.code(), request.getCurrency());
+        LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.AVAILABLE.code(), request.getCurrency());
 
         List<PostingLine> lines;
         if (adjustType.increase()) {
@@ -639,9 +639,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      */
     private LedgerAccountEntity account(Long tenantId, String ownerType, Long ownerId, String accountType, String currency) {
         if (SubjectTypeEnum.MERCHANT.code().equals(ownerType)
-                && (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(accountType)
-                || LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)
-                || LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(accountType))) {
+                && (LedgerAccountTypeEnum.AVAILABLE.matches(accountType)
+                || LedgerAccountTypeEnum.FROZEN.matches(accountType)
+                || LedgerAccountTypeEnum.PENDING_SETTLE.matches(accountType))) {
             // 商户开户存在补偿能力，缺失时自动创建对应账户和余额。
             return ledgerAccountService.requireMerchantAccount(tenantId, ownerId, accountType, currency);
         }
@@ -666,9 +666,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      */
     private LedgerAccountEntity clearingAccount(Long tenantId, Long pspAccountId, String currency) {
         if (pspAccountId != null) {
-            return ledgerAccountService.requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.PSP_CLEARING.code(), currency);
+            return ledgerAccountService.requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.CLEARING.code(), currency);
         }
-        return account(tenantId, LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), currency);
+        return account(tenantId, LedgerOwnerTypeEnum.INTERNAL.code(), 0L, LedgerAccountTypeEnum.CLEARING.code(), currency);
     }
 
     /**

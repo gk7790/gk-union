@@ -40,8 +40,8 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
                 .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
                 .eq("owner_id", ApiReqContextHolder.getMerchantId())
                 .in("account_type",
-                        LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(),
-                        LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code())
+                        LedgerAccountTypeEnum.AVAILABLE.code(),
+                        LedgerAccountTypeEnum.PENDING_SETTLE.code())
                 .eq("status", StatusEnum.NORMAL.code());
         if (StringUtils.isNotBlank(currency)) {
             accountWrapper.eq("currency", currency.trim().toUpperCase(Locale.ROOT));
@@ -71,10 +71,10 @@ public class OpenBalanceServiceImpl implements OpenBalanceService {
             });
             LedgerBalanceEntity balance = balanceMap.get(account.getId());
             BigDecimal amount = balance == null ? BigDecimal.ZERO : balance.getBalance();
-            if (LedgerAccountTypeEnum.MERCHANT_AVAILABLE.matches(account.getAccountType())) {
+            if (LedgerAccountTypeEnum.AVAILABLE.matches(account.getAccountType())) {
                 response.setAccountNo(account.getAccountNo());
                 response.setBalance(formatMoney(amount, account.getCurrency()));
-            } else if (LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.matches(account.getAccountType())) {
+            } else if (LedgerAccountTypeEnum.PENDING_SETTLE.matches(account.getAccountType())) {
                 response.setPendingSettleBalance(formatMoney(amount, account.getCurrency()));
             }
         }

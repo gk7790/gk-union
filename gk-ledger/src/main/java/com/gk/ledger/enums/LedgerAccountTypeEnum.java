@@ -13,17 +13,15 @@ import java.util.Set;
 @EnumDict("ledgerAccountType")
 public enum LedgerAccountTypeEnum implements StringCodeEnum {
     @Style(StyleType.SUCCESS)
-    MERCHANT_AVAILABLE("MERCHANT_AVAILABLE", "商户可用", "enum.ledgerAccountType.merchantAvailable"),
+    AVAILABLE("AVAILABLE", "可用", "enum.ledgerAccountType.available"),
     @Style(StyleType.WARNING)
-    MERCHANT_PENDING_SETTLE("MERCHANT_PENDING_SETTLE", "商户待结算", "enum.ledgerAccountType.merchantPendingSettle"),
+    PENDING_SETTLE("PENDING_SETTLE", "待结算", "enum.ledgerAccountType.pendingSettle"),
     @Style(StyleType.DANGER)
-    MERCHANT_FROZEN("MERCHANT_FROZEN", "商户冻结", "enum.ledgerAccountType.merchantFrozen"),
+    FROZEN("FROZEN", "冻结", "enum.ledgerAccountType.frozen"),
     @Style(StyleType.PRIMARY)
-    INTERNAL_CLEARING("INTERNAL_CLEARING", "内部清算", "enum.ledgerAccountType.internalClearing"),
+    CLEARING("CLEARING", "清算", "enum.ledgerAccountType.clearing"),
     @Style(StyleType.PRIMARY)
-    PSP_CLEARING("PSP_CLEARING", "PSP清算", "enum.ledgerAccountType.pspClearing"),
-    @Style(StyleType.SUCCESS)
-    INTERNAL_FEE_INCOME("INTERNAL_FEE_INCOME", "内部手续费收入", "enum.ledgerAccountType.internalFeeIncome");
+    FEE_INCOME("FEE_INCOME", "手续费收入", "enum.ledgerAccountType.feeIncome");
 
     private final String code;
     private final String label;
@@ -55,9 +53,9 @@ public enum LedgerAccountTypeEnum implements StringCodeEnum {
      */
     public static Set<String> merchantVisibleTypes() {
         return Set.of(
-                MERCHANT_AVAILABLE.code(),
-                MERCHANT_PENDING_SETTLE.code(),
-                MERCHANT_FROZEN.code()
+                AVAILABLE.code(),
+                PENDING_SETTLE.code(),
+                FROZEN.code()
         );
     }
 }

@@ -5,6 +5,8 @@ import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
+import java.util.Set;
+
 /**
  * 账本账户类型。
  */
@@ -17,11 +19,11 @@ public enum LedgerAccountTypeEnum implements StringCodeEnum {
     @Style(StyleType.DANGER)
     MERCHANT_FROZEN("MERCHANT_FROZEN", "商户冻结", "enum.ledgerAccountType.merchantFrozen"),
     @Style(StyleType.PRIMARY)
-    SYSTEM_CLEARING("SYSTEM_CLEARING", "系统清算", "enum.ledgerAccountType.systemClearing"),
+    INTERNAL_CLEARING("INTERNAL_CLEARING", "内部清算", "enum.ledgerAccountType.internalClearing"),
     @Style(StyleType.PRIMARY)
     PSP_CLEARING("PSP_CLEARING", "PSP清算", "enum.ledgerAccountType.pspClearing"),
     @Style(StyleType.SUCCESS)
-    PLATFORM_FEE_INCOME("PLATFORM_FEE_INCOME", "平台手续费收入", "enum.ledgerAccountType.platformFeeIncome");
+    INTERNAL_FEE_INCOME("INTERNAL_FEE_INCOME", "手续费收入", "enum.ledgerAccountType.internalFeeIncome");
 
     private final String code;
     private final String label;
@@ -46,5 +48,16 @@ public enum LedgerAccountTypeEnum implements StringCodeEnum {
     @Override
     public String i18nKey() {
         return i18nKey;
+    }
+
+    /**
+     * 商户可见账户类型
+     */
+    public static Set<String> merchantVisibleTypes() {
+        return Set.of(
+                MERCHANT_AVAILABLE.code(),
+                MERCHANT_PENDING_SETTLE.code(),
+                MERCHANT_FROZEN.code()
+        );
     }
 }

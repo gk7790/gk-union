@@ -10,9 +10,9 @@ public interface LedgerPostingService {
     /**
      * PAY_SUCCESS — 代收成功入账至待结算账户（非可用）。
      * 借贷分录：
-     * PSP_CLEARING 借 settleAmount + feeAmount；历史/沙箱订单没有pspAccountId时回退SYSTEM_CLEARING
+     * PSP_CLEARING 借 settleAmount + feeAmount；历史/沙箱订单没有pspAccountId时回退INTERNAL_CLEARING
      * MERCHANT_PENDING_SETTLE 贷 settleAmount
-     * PLATFORM_FEE_INCOME 贷 merchantFeeAmount
+     * INTERNAL_FEE_INCOME 贷 merchantFeeAmount
      */
     LedgerPostingResult postPaySuccess(PaySuccessPostingRequest request);
 
@@ -43,7 +43,7 @@ public interface LedgerPostingService {
      * 分录：
      *      商户冻结 MERCHANT_FROZEN ↓ totalDebitAmount
      *      PSP 清算 PSP_CLEARING ↑ amount
-     *      平台手续费收入 ↑ merchantFeeAmount
+     *      内部手续费收入 ↑ merchantFeeAmount
      *      对应 ledger_hold → CONSUMED，回填 consume_journal_no 和订单的 successJournalNo。返回 journalNo。
      * @param request 请求
      * @return 结果
@@ -70,7 +70,7 @@ public interface LedgerPostingService {
      * 2. 使用调整单号 + 事件类型做幂等控制，避免重复充值；
      * 3. 生成 ledger_journal 账务凭证，source_type = MANUAL；
      * 4. 生成两条 ledger_entry 分录：
-     *    - 借：SYSTEM_CLEARING 系统清算账户
+     *    - 借：INTERNAL_CLEARING 内部清算账户
      *    - 贷：MERCHANT_AVAILABLE 商户可用余额账户
      * 5. 更新 ledger_balance，使商户可用余额增加；
      * 6. 返回入账凭证号 journalNo，供 merchant_balance_adjust_order 回填。

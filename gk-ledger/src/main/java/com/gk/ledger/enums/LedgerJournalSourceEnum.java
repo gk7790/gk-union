@@ -5,6 +5,8 @@ import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
+import java.util.Set;
+
 /**
  * 分录来源类型。
  */
@@ -48,5 +50,9 @@ public enum LedgerJournalSourceEnum implements StringCodeEnum {
     @Override
     public String i18nKey() {
         return i18nKey;
+    }
+
+    public static Set<String> merchantVisibleCodes() {
+        return Set.of(ORDER.code(), MANUAL.code());
     }
 }

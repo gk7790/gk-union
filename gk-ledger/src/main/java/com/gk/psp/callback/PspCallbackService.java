@@ -336,7 +336,7 @@ public class PspCallbackService {
     /**
      * 根据回调终态执行账务处理。
      * <p>
-     * 代收成功：清算户 → 商户待结算 + 平台手续费；代付成功：消费冻结；代付失败：释放冻结回可用。
+     * 代收成功：清算户 → 商户待结算 + 内部手续费收入；代付成功：消费冻结；代付失败：释放冻结回可用。
      */
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());

@@ -66,7 +66,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     /**
      * 代收成功入账。
      *
-     * <p>资金进入 PSP 清算账，商户可结算金额进入待结算账户，商户手续费进入平台手续费收入账户。</p>
+     * <p>资金进入 PSP 清算账，商户可结算金额进入待结算账户，商户手续费进入内部手续费收入账户。</p>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -82,12 +82,12 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         // 结算金额默认等于订单金额减商户手续费；手续费为空时按 0 处理。
         BigDecimal settleAmount = amountOrDefault(request.getSettleAmount(), request.getAmount().subtract(defaultZero(request.getMerchantFeeAmount())));
         BigDecimal feeAmount = defaultZero(request.getMerchantFeeAmount());
-        // PSP 清算侧收到的是订单总资金：商户待结算金额 + 平台手续费收入。
+        // PSP 清算侧收到的是订单总资金：商户待结算金额 + 内部手续费收入。
         BigDecimal clearingAmount = settleAmount.add(feeAmount);
         requireNonNegative(settleAmount, "settleAmount");
         requireNonNegative(feeAmount, "merchantFeeAmount");
         List<PostingLine> lines = new ArrayList<>();
-        // 有 pspAccountId 时走 PSP 清算账；历史/沙箱订单没有时回退系统清算账。
+        // 有 pspAccountId 时走 PSP 清算账；历史/沙箱订单没有时回退内部清算账。
         LedgerAccountEntity clearing = clearingAccount(request.getTenantId(), request.getPspAccountId(), request.getCurrency());
         LedgerAccountEntity merchantPending = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_PENDING_SETTLE.code(), request.getCurrency());
         if (positive(clearingAmount)) {
@@ -97,8 +97,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             lines.add(new PostingLine(merchantPending, LedgerDirectionEnum.CREDIT.code(), settleAmount, "Pay success pending settlement"));
         }
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), request.getCurrency());
-            lines.add(new PostingLine(platformFee, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Pay success merchant fee"));
+            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), request.getCurrency());
+            lines.add(new PostingLine(internalFeeIncome, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Pay success merchant fee"));
         }
 
         LedgerJournalEntity journal = createJournal(
@@ -247,7 +247,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     /**
      * 代付成功入账。
      *
-     * <p>PSP 确认代付成功后，消费商户冻结金额，同时确认 PSP 清算侧出款和平台手续费收入。</p>
+     * <p>PSP 确认代付成功后，消费商户冻结金额，同时确认 PSP 清算侧出款和内部手续费收入。</p>
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -270,15 +270,15 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (payoutAmount.add(feeAmount).compareTo(totalDebitAmount) != 0) {
             throw new IllegalStateException("Payout posting amount does not match hold amount: " + request.getPayoutOrderNo());
         }
-        // 借：商户冻结；贷：PSP 清算本金；贷：平台手续费收入。
+        // 借：商户冻结；贷：PSP 清算本金；贷：内部手续费收入。
         LedgerAccountEntity merchantFrozen = account(hold.getFrozenAccountId());
         LedgerAccountEntity clearing = clearingAccount(request.getTenantId(), request.getPspAccountId(), request.getCurrency());
         List<PostingLine> lines = new ArrayList<>();
         lines.add(new PostingLine(merchantFrozen, LedgerDirectionEnum.DEBIT.code(), totalDebitAmount, "Payout consume frozen amount"));
         lines.add(new PostingLine(clearing, LedgerDirectionEnum.CREDIT.code(), payoutAmount, "Payout principal PSP clearing"));
         if (positive(feeAmount)) {
-            LedgerAccountEntity platformFee = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), request.getCurrency());
-            lines.add(new PostingLine(platformFee, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Payout merchant fee income"));
+            LedgerAccountEntity internalFeeIncome = account(request.getTenantId(), SubjectTypeEnum.PLATFORM.code(), 0L, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), request.getCurrency());
+            lines.add(new PostingLine(internalFeeIncome, LedgerDirectionEnum.CREDIT.code(), feeAmount, "Payout merchant fee income"));
         }
         LedgerJournalEntity journal = createJournal(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getBizId(), request.getPayoutOrderNo(), eventType,
                 request.getCurrency(), totalDebitAmount, lines.size(), request.getTraceId(), "Payout success posting");
@@ -356,21 +356,21 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
 
         BigDecimal amount = scale(request.getAmount());
-        LedgerAccountEntity systemClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), request.getCurrency());
+        LedgerAccountEntity internalClearing = account(request.getTenantId(), LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), request.getCurrency());
         LedgerAccountEntity merchantAvailable = account(request.getTenantId(), SubjectTypeEnum.MERCHANT.code(), request.getMerchantId(), LedgerAccountTypeEnum.MERCHANT_AVAILABLE.code(), request.getCurrency());
 
         List<PostingLine> lines;
         if (adjustType.increase()) {
-            // 增加余额：系统清算出资，商户可用增加。
+            // 增加余额：内部清算出资，商户可用增加。
             lines = List.of(
-                    new PostingLine(systemClearing, LedgerDirectionEnum.DEBIT.code(), amount, "Merchant balance manual increase"),
+                    new PostingLine(internalClearing, LedgerDirectionEnum.DEBIT.code(), amount, "Merchant balance manual increase"),
                     new PostingLine(merchantAvailable, LedgerDirectionEnum.CREDIT.code(), amount, "Merchant balance manual increase")
             );
         } else {
-            // 扣减余额：商户可用减少，系统清算回收。
+            // 扣减余额：商户可用减少，内部清算回收。
             lines = List.of(
                     new PostingLine(merchantAvailable, LedgerDirectionEnum.DEBIT.code(), amount, "Merchant balance manual decrease"),
-                    new PostingLine(systemClearing, LedgerDirectionEnum.CREDIT.code(), amount, "Merchant balance manual decrease")
+                    new PostingLine(internalClearing, LedgerDirectionEnum.CREDIT.code(), amount, "Merchant balance manual decrease")
             );
         }
 
@@ -592,13 +592,13 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     /**
      * 获取清算账户。
      *
-     * <p>订单携带 pspAccountId 时使用 PSP 清算账户；没有时兼容旧逻辑使用系统清算账户。</p>
+     * <p>订单携带 pspAccountId 时使用 PSP 清算账户；没有时使用内部清算账户。</p>
      */
     private LedgerAccountEntity clearingAccount(Long tenantId, Long pspAccountId, String currency) {
         if (pspAccountId != null) {
             return ledgerAccountService.requirePspAccount(tenantId, pspAccountId, LedgerAccountTypeEnum.PSP_CLEARING.code(), currency);
         }
-        return account(tenantId, LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), currency);
+        return account(tenantId, LedgerOwnerTypeEnum.SYSTEM.code(), 0L, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), currency);
     }
 
     /**

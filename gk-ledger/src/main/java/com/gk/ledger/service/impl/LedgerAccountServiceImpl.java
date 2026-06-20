@@ -197,8 +197,8 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     @Transactional(rollbackFor = Exception.class)
     public void provisionTenantAccounts(Long tenantId, String currency) {
         String normalizedCurrency = normalizeCurrency(currency);
-        requireSystemAccount(tenantId, LedgerAccountTypeEnum.SYSTEM_CLEARING.code(), normalizedCurrency);
-        requirePlatformAccount(tenantId, LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.code(), normalizedCurrency);
+        requireSystemAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_CLEARING.code(), normalizedCurrency);
+        requirePlatformAccount(tenantId, LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.code(), normalizedCurrency);
     }
 
     @Override
@@ -210,7 +210,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
                 0L,
                 accountType,
                 currency,
-                buildSystemAccountNo(tenantId, accountType, currency),
+                buildInternalAccountNo(tenantId, accountType, currency),
                 LedgerDirectionEnum.DEBIT.code(),
                 1
         );
@@ -225,7 +225,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
                 0L,
                 accountType,
                 currency,
-                buildPlatformAccountNo(tenantId, accountType, currency),
+                buildInternalAccountNo(tenantId, accountType, currency),
                 LedgerDirectionEnum.CREDIT.code(),
                 0
         );
@@ -319,20 +319,16 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return "T" + tenantId + "-PSP" + pspAccountId + "-" + accountTypeToken(accountType) + "-" + currency;
     }
 
-    static String buildSystemAccountNo(Long tenantId, String accountType, String currency) {
-        return "T" + tenantId + "-SYS-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
-    }
-
-    static String buildPlatformAccountNo(Long tenantId, String accountType, String currency) {
-        return "T" + tenantId + "-PLT-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
+    static String buildInternalAccountNo(Long tenantId, String accountType, String currency) {
+        return "T" + tenantId + "-INT-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
     }
 
     private static String accountTypeToken(String accountType) {
         if (LedgerAccountTypeEnum.PSP_CLEARING.matches(accountType)
-                || LedgerAccountTypeEnum.SYSTEM_CLEARING.matches(accountType)) {
+                || LedgerAccountTypeEnum.INTERNAL_CLEARING.matches(accountType)) {
             return "CLR";
         }
-        if (LedgerAccountTypeEnum.PLATFORM_FEE_INCOME.matches(accountType)) {
+        if (LedgerAccountTypeEnum.INTERNAL_FEE_INCOME.matches(accountType)) {
             return "FEE";
         }
         if (LedgerAccountTypeEnum.MERCHANT_FROZEN.matches(accountType)) {

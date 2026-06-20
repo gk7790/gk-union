@@ -27,7 +27,7 @@ public interface LedgerAccountService extends CrudService<LedgerAccountEntity, L
     LedgerAccountEntity requirePspAccount(Long tenantId, Long pspAccountId, String accountType, String currency);
 
     /**
-     * 租户级账户初始化：创建系统清算、平台手续费收入账户及余额行。
+     * 租户级账户初始化：创建内部清算、内部手续费收入账户及余额行。
      */
     void provisionTenantAccounts(Long tenantId, String currency);
 

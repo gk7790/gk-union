@@ -12,12 +12,8 @@ public class LedgerJournalDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "租户编号")
-    private String tenantNo;
     @Schema(title = "租户名称")
     private String tenantName;
-    @Schema(title = "租户显示名称")
-    private String tenantDisplayName;
     @Schema(title = "凭证号")
     private String journalNo;
     @Schema(title = "业务类型")

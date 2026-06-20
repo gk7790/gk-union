@@ -12,6 +12,12 @@ public class LedgerEntryDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
+    @Schema(title = "租户编号")
+    private String tenantNo;
+    @Schema(title = "租户名称")
+    private String tenantName;
+    @Schema(title = "租户显示名称")
+    private String tenantDisplayName;
     @Schema(title = "凭证ID")
     private Long journalId;
     @Schema(title = "凭证号")

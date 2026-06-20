@@ -2,6 +2,8 @@ package com.gk.ledger.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
@@ -10,21 +12,25 @@ import com.gk.ledger.dto.LedgerEntryDTO;
 import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.service.LedgerEntryService;
 import com.gk.ledger.support.SubjectDisplayEnricher;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class LedgerEntryServiceImpl extends CrudServiceImpl<LedgerEntryDao, LedgerEntryEntity, LedgerEntryDTO> implements LedgerEntryService {
-    @Autowired(required = false)
-    private SubjectDisplayEnricher subjectDisplayEnricher;
+    private final SubjectDisplayEnricher subjectDisplayEnricher;
 
     @Override
     public PageData<LedgerEntryDTO> page(DynMap params) {
-        PageData<LedgerEntryDTO> page = super.page(params);
-        enrichEntries(page.getItems());
-        return page;
+        IPage<LedgerEntryEntity> page = baseDao.selectPage(
+                getPage(params, null, false),
+                getWrapper(params)
+        );
+        PageData<LedgerEntryDTO> result = getPageData(page, currentDtoClass());
+        enrichEntries(result.getItems());
+        return result;
     }
 
     @Override
@@ -44,9 +50,7 @@ public class LedgerEntryServiceImpl extends CrudServiceImpl<LedgerEntryDao, Ledg
     }
 
     private void enrichEntries(List<LedgerEntryDTO> items) {
-        if (subjectDisplayEnricher != null) {
-            subjectDisplayEnricher.enrichEntries(items);
-        }
+        subjectDisplayEnricher.enrichEntries(items);
     }
 
     @Override
@@ -81,6 +85,9 @@ public class LedgerEntryServiceImpl extends CrudServiceImpl<LedgerEntryDao, Ledg
         wrapper.eq(StrUtil.isNotBlank(bizType), "biz_type", bizType);
         wrapper.eq(StrUtil.isNotBlank(bizNo), "biz_no", bizNo);
         wrapper.eq(StrUtil.isNotBlank(eventType), "event_type", eventType);
+        if (StrUtil.isBlank(params.getStr(Constant.ORDER_FIELD))) {
+            wrapper.orderByDesc("journal_id").orderByAsc("entry_no");
+        }
         return wrapper;
     }
 }

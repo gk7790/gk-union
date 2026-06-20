@@ -7,6 +7,10 @@ import com.gk.common.redis.RedisUtils;
 import com.gk.ledger.enums.LedgerOwnerTypeEnum;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.psp.dao.PspAccountDao;
+import com.gk.psp.dao.PspProviderDao;
+import com.gk.psp.entity.PspAccountEntity;
+import com.gk.psp.entity.PspProviderEntity;
 import com.gk.subject.model.SubjectDisplay;
 import com.gk.subject.model.SubjectRef;
 import com.gk.subject.service.SubjectDisplayService;
@@ -35,6 +39,8 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
 
     private final TenantDao tenantDao;
     private final MerchantDao merchantDao;
+    private final PspAccountDao pspAccountDao;
+    private final PspProviderDao pspProviderDao;
     private final RedisUtils redisUtils;
 
     @Override
@@ -66,6 +72,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         });
         fillTenants(misses, result);
         fillMerchants(misses, result);
+        fillPsps(misses, result);
         misses.forEach(ref -> cache(ref, result.get(ref)));
         return result;
     }
@@ -88,6 +95,59 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
                         result.put(ref, tenantDisplay(ref, tenant));
                     }
                 });
+    }
+
+    private void fillPsps(List<SubjectRef> refs, Map<SubjectRef, SubjectDisplay> result) {
+        Set<Long> pspAccountIds = refs.stream()
+                .filter(ref -> LedgerOwnerTypeEnum.PSP.code().equals(ref.subjectType()))
+                .map(SubjectRef::subjectId)
+                .collect(Collectors.toSet());
+        if (pspAccountIds.isEmpty()) {
+            return;
+        }
+        Map<Long, PspAccountEntity> accounts = pspAccountDao.selectBatchIds(pspAccountIds).stream()
+                .collect(Collectors.toMap(PspAccountEntity::getId, Function.identity(), (left, right) -> left));
+        Set<Long> pspProviderIds = accounts.values().stream()
+                .map(PspAccountEntity::getPspId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, PspProviderEntity> providers = pspProviderIds.isEmpty()
+                ? Map.of()
+                : pspProviderDao.selectBatchIds(pspProviderIds).stream()
+                .collect(Collectors.toMap(PspProviderEntity::getId, Function.identity(), (left, right) -> left));
+
+        refs.stream()
+                .filter(ref -> LedgerOwnerTypeEnum.PSP.code().equals(ref.subjectType()))
+                .forEach(ref -> {
+                    PspAccountEntity account = accounts.get(ref.subjectId());
+                    if (account != null) {
+                        result.put(ref, pspDisplay(ref, account, providers.get(account.getPspId())));
+                    }
+                });
+    }
+
+    private SubjectDisplay pspDisplay(SubjectRef ref, PspAccountEntity account, PspProviderEntity provider) {
+        SubjectDisplay display = base(ref, true);
+        String providerName = provider == null ? null : provider.getPspName();
+        String accountName = account.getPspAccountName();
+        display.setSubjectNo(StrUtil.blankToDefault(account.getPspAccountNo(), fallbackName(ref)));
+        display.setSubjectName(StrUtil.blankToDefault(providerName, StrUtil.blankToDefault(accountName, fallbackName(ref))));
+        display.setSubjectShortName(pspDisplayName(providerName, accountName, ref));
+        display.setDisplayName(pspDisplayName(providerName, accountName, ref));
+        display.setStatus(account.getStatus() == null && provider != null ? provider.getStatus() : account.getStatus());
+        return display;
+    }
+
+    private String pspDisplayName(String providerName, String accountName, SubjectRef ref) {
+        String providerText = StrUtil.trimToNull(providerName);
+        String accountText = StrUtil.trimToNull(accountName);
+        if (providerText != null) {
+            return providerText;
+        }
+        if (accountText != null) {
+            return accountText;
+        }
+        return fallbackName(ref);
     }
 
     private void fillMerchants(List<SubjectRef> refs, Map<SubjectRef, SubjectDisplay> result) {

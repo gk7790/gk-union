@@ -118,6 +118,10 @@ public class RedisKeys {
         return "openapi:rate:" + module + ":" + key;
     }
 
+    public static String getSubjectDisplayKey(Long tenantId, String subjectType, Long subjectId) {
+        return "ledger:subject-display:" + tenantId + ":" + subjectType + ":" + subjectId;
+    }
+
     public static String getLoginIpWhitelistKey(String subjectType, Long tenantId, Long merchantId, Long subjectId) {
         return "sys:login-ip-whitelist:"
                 + nullToAll(subjectType) + ":"

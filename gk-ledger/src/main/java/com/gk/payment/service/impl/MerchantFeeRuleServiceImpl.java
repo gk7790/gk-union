@@ -112,7 +112,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getMerchantAppId(),
-                order.getCountryCode(),
+                null,
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
@@ -171,7 +171,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     /**
      * 选择下单时真正生效的商户费率规则。
      * <p>
-     * 必须匹配租户、商户、订单方向、币种和启用状态；应用、国家、支付方式、金额区间、生效时间支持空值兜底。
+     * 必须匹配租户、商户、订单方向、币种和启用状态；应用、支付方式、金额区间、生效时间支持空值兜底。
      * 多条规则同时命中时，优先选择更精确的规则，再按 priority 数值越小越优先。
      */
     private MerchantFeeRuleEntity selectRule(

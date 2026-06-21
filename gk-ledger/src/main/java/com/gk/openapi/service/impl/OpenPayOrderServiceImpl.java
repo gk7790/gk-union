@@ -83,13 +83,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         ApiReqContext context = ApiReqContextHolder.get();
         MerchantEntity merchant = context.getMerchant();
 
-        // 币种和国家允许商户不传，优先使用商户默认配置兜底。
+        // 代收不再按国家匹配；countryCode 只作为订单快照字段，有传则保存，没有则留空。
         String currency = StringUtils.defaultIfBlank(request.getCurrency(), merchant.getDefaultCurrency());
         String countryCode = StringUtils.defaultIfBlank(request.getCountryCode(), merchant.getCountryCode());
-        if (StringUtils.isBlank(currency) || StringUtils.isBlank(countryCode)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency and country_code is required");
+        if (StringUtils.isBlank(currency)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is required");
         }
         String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
+        String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
         validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
 
@@ -110,7 +111,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
         entity.setOrderSource(OrderSourceEnum.API.code());
-        entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
+        entity.setCountryCode(normalizedCountryCode);
         entity.setCurrency(normalizedCurrency);
         entity.setMethodCode(normalizedMethod);
         entity.setAmount(request.getAmount());

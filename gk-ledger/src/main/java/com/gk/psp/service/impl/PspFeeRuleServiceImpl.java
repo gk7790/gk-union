@@ -108,7 +108,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 order.getPspId(),
                 order.getPspAccountId(),
                 order.getPspMethodId(),
-                order.getCountryCode(),
+                null,
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),
@@ -169,6 +169,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             String direction
     ) {
         Instant now = Instant.now();
+        boolean matchCountry = StringUtils.isNotBlank(countryCode);
         QueryWrapper<PspFeeRuleEntity> wrapper = new QueryWrapper<PspFeeRuleEntity>()
                 .eq("tenant_id", tenantId)
                 .eq("psp_id", pspId)
@@ -177,17 +178,19 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 .eq("status", StatusEnum.NORMAL.code())
                 .and(w -> w.eq("psp_account_id", pspAccountId).or().isNull("psp_account_id"))
                 .and(w -> w.eq("psp_method_id", pspMethodId).or().isNull("psp_method_id"))
-                .and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"))
                 .and(w -> w.eq("method_code", normalize(methodCode)).or().isNull("method_code"))
                 .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
                 .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
                 .and(w -> w.le("effective_at", now).or().isNull("effective_at"))
                 .and(w -> w.gt("expire_at", now).or().isNull("expire_at"));
+        if (matchCountry) {
+            wrapper.and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"));
+        }
 
         List<PspFeeRuleEntity> rules = baseDao.selectList(wrapper);
         return rules.stream()
                 .max(Comparator
-                        .comparingInt((PspFeeRuleEntity rule) -> matchScore(rule, pspAccountId, pspMethodId, countryCode, methodCode))
+                        .comparingInt((PspFeeRuleEntity rule) -> matchScore(rule, pspAccountId, pspMethodId, matchCountry ? countryCode : null, methodCode))
                         .thenComparing(rule -> -defaultPriority(rule.getPriority())))
                 .orElseThrow(() -> new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured"));
     }

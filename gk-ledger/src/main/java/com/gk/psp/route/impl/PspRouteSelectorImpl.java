@@ -45,7 +45,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getMerchantAppId(),
-                order.getCountryCode(),
+                null,
                 order.getCurrency(),
                 order.getMethodCode(),
                 order.getAmount(),

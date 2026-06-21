@@ -21,9 +21,6 @@ public class OpenPaymentMethodServiceImpl implements OpenPaymentMethodService {
     @Override
     public List<PaymentMethodResponse> list(String countryCode, String currency, String direction) {
         QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<PspMethodEntity>().eq("status", StatusEnum.NORMAL.code());
-        if (StringUtils.isNotBlank(countryCode)) {
-            wrapper.eq("country_code", countryCode);
-        }
         if (StringUtils.isNotBlank(currency)) {
             wrapper.eq("currency", currency);
         }

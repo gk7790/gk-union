@@ -59,13 +59,11 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Override
     public List<LabelDTO> getMethodCodeDict(DynMap params) {
         QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
-        String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String direction = params.getStr("direction");
 
         wrapper.select("method_code", "MIN(method_name) AS method_name");
         wrapper.eq("status", StatusEnum.NORMAL.code());
-        wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.groupBy("method_code");

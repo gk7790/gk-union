@@ -5,7 +5,9 @@
     <select id="selectBestRouteRuleForOrder" resultType="com.gk.psp.entity.PspRouteRuleEntity">
         SELECT r.* FROM psp_route_rule r
         WHERE r.tenant_id = #{tenantId}
+          <if test="countryCode != null and countryCode != ''">
           AND r.country_code = #{countryCode}
+          </if>
           AND r.currency = #{currency}
           AND r.method_code = #{methodCode}
           AND r.direction = #{direction}

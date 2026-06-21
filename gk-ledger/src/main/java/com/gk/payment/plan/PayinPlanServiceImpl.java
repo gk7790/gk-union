@@ -149,9 +149,6 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         if (request.getMerchantAppId() == null) {
             result.addError("MERCHANT_APP_ID_REQUIRED", "merchantAppId is required");
         }
-        if (StringUtils.isBlank(request.getCountryCode())) {
-            result.addError("COUNTRY_CODE_REQUIRED", "countryCode is required");
-        }
         if (StringUtils.isBlank(request.getCurrency())) {
             result.addError("CURRENCY_REQUIRED", "currency is required");
         }
@@ -277,7 +274,6 @@ public class PayinPlanServiceImpl implements PayinPlanService {
                 String.valueOf(order.getTenantId()),
                 String.valueOf(order.getMerchantId()),
                 String.valueOf(order.getMerchantAppId()),
-                normalize(order.getCountryCode()),
                 normalize(order.getCurrency()),
                 normalize(order.getMethodCode()),
                 order.getAmount() == null ? "" : order.getAmount().stripTrailingZeros().toPlainString()

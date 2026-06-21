@@ -35,6 +35,11 @@ public class SysController {
         return R.ok(messages);
     }
 
+    @GetMapping("/i18n/all")
+    public R<?> getI18nList(@RequestParam String lang) {
+        Map<String, Object> messages = i18nService.getMessagesAll(lang);
+        return R.ok(messages);
+    }
 
     @GetMapping("/enum/{key}")
     public R<?> getEnumDict(@PathVariable("key") String key) {

@@ -18,7 +18,9 @@ public interface SysI18nDao extends BaseDao<SysI18nEntity> {
 
     List<SysI18nEntity> getPageList(Map<String, Object> params);
 
-    List<SysI18nEntity> selectByLang(String type, String lang);
+    List<SysI18nEntity> selectByLang(String lang);
+
+    List<SysI18nEntity> selectByTypeAndLang(String type, String lang);
 
     List<SysI18nEntity> getList(Map<String, Object> params);
 }

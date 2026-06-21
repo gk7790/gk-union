@@ -27,6 +27,8 @@ import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.support.MerchantAppSecrets;
+import com.gk.payment.plan.PayinPlanCache;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +40,9 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     private static final int DEFAULT_RATE_LIMIT_QPS = 50;
     private static final int DEFAULT_NONCE_TTL_SECONDS = 300;
     private static final int APP_ID_GENERATE_MAX_ATTEMPTS = 5;
+
+    @Autowired
+    private PayinPlanCache payinPlanCache;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -124,6 +129,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         dto.setApiSecret(apiSecret);
         dto.setSecretVersion(entity.getSecretVersion());
         dto.setSecretUpdatedAt(entity.getSecretUpdatedAt());
+        evictPayinPlanCache();
     }
 
     @Override
@@ -143,6 +149,19 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
         dto.setAppId(existed.getAppId());
         dto.setApiSecret(null);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictPayinPlanCache();
     }
 
     @Override
@@ -258,5 +277,12 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             return;
         }
         dto.setApiSecret(MerchantAppSecrets.mask(dto.getApiSecret()));
+    }
+
+    private void evictPayinPlanCache() {
+        // 商户 App 的币种/方式等配置会影响 PayinPlan 命中结果，变更后必须清空缓存。
+        if (payinPlanCache != null) {
+            payinPlanCache.evictAll();
+        }
     }
 }

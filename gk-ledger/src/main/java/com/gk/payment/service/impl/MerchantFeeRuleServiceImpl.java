@@ -18,9 +18,11 @@ import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
 import com.gk.payment.fee.MerchantFeeCalculator;
 import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.service.MerchantFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -35,16 +37,33 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     private static final String SETTLE_MODE_DEDUCT = "DEDUCT";
     private static final String SETTLE_MODE_ADD = "ADD";
 
+    @Autowired
+    private PayinPlanCache payinPlanCache;
+
     @Override
     public void save(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
         super.save(dto);
+        evictPayinPlanCache();
     }
 
     @Override
     public void update(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
         super.update(dto);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictPayinPlanCache();
     }
 
     /**
@@ -236,5 +255,12 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
      */
     private String normalize(String value) {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void evictPayinPlanCache() {
+        // 商户费率会影响 PayinPlan 的手续费和结算金额，变更后必须清空缓存。
+        if (payinPlanCache != null) {
+            payinPlanCache.evictAll();
+        }
     }
 }

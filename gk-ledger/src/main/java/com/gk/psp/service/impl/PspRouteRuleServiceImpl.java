@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.service.LedgerAccountService;
+import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.dto.PspRouteRuleDTO;
 import com.gk.psp.entity.PspRouteRuleEntity;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, PspRouteRuleEntity, PspRouteRuleDTO> implements PspRouteRuleService {
 
     private final LedgerAccountService ledgerAccountService;
+    private final PayinPlanCache payinPlanCache;
 
     @Override
     public QueryWrapper<PspRouteRuleEntity> getWrapper(DynMap params) {
@@ -57,6 +59,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     public void save(PspRouteRuleDTO dto) {
         super.save(dto);
         provisionPspLedgerAccounts(dto);
+        evictPayinPlanCache();
     }
 
     @Override
@@ -64,6 +67,19 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     public void update(PspRouteRuleDTO dto) {
         super.update(dto);
         provisionPspLedgerAccounts(dto);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictPayinPlanCache();
     }
 
     private void provisionPspLedgerAccounts(PspRouteRuleDTO dto) {
@@ -71,5 +87,10 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
             return;
         }
         ledgerAccountService.provisionPspAccounts(dto.getTenantId(), dto.getPspAccountId(), dto.getCurrency());
+    }
+
+    private void evictPayinPlanCache() {
+        // PSP 路由规则决定订单走哪个上游账号，变更后必须清空 PayinPlan 缓存。
+        payinPlanCache.evictAll();
     }
 }

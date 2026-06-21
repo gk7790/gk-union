@@ -17,6 +17,7 @@ import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -30,6 +31,9 @@ import java.util.Map;
 @Component
 public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
+    // 下单需要同步拿 pay_url，超时要短而明确，避免慢 PSP 长时间占用商户请求线程。
+    private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
+    private static final int READ_TIMEOUT_MILLIS = 8_000;
     private volatile RestClient restClient;
 
     @Override
@@ -150,7 +154,12 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
             synchronized (this) {
                 current = restClient;
                 if (current == null) {
-                    current = RestClient.create();
+                    SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+                    requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
+                    requestFactory.setReadTimeout(READ_TIMEOUT_MILLIS);
+                    current = RestClient.builder()
+                            .requestFactory(requestFactory)
+                            .build();
                     restClient = current;
                 }
             }

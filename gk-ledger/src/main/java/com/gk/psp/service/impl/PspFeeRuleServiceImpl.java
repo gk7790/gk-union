@@ -15,6 +15,7 @@ import com.gk.common.utils.NumberUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspFeeRuleDao;
@@ -25,6 +26,7 @@ import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +37,9 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
+    @Autowired
+    private PayinPlanCache payinPlanCache;
+
     @Override
     public QueryWrapper<PspFeeRuleEntity> getWrapper(DynMap params) {
         QueryWrapper<PspFeeRuleEntity> wrapper = new QueryWrapper<>();
@@ -75,6 +80,25 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             }
         }
         insert(entity);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void update(PspFeeRuleDTO dto) {
+        super.update(dto);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictPayinPlanCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictPayinPlanCache();
     }
 
     @Override
@@ -217,5 +241,12 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     private String normalize(String value) {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void evictPayinPlanCache() {
+        // PSP 成本费率会影响 PayinPlan 的成本核算字段，变更后必须清空缓存。
+        if (payinPlanCache != null) {
+            payinPlanCache.evictAll();
+        }
     }
 }

@@ -21,15 +21,14 @@ import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.plan.PayinPlan;
+import com.gk.payment.plan.PayinPlanService;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayDispatchService;
-import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.route.PspRouteResult;
-import com.gk.psp.route.PspRouteSelector;
-import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -53,8 +52,7 @@ import java.util.Map;
 public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final PayOrderDao payOrderDao;
     private final MerchantFeeRuleService merchantFeeRuleService;
-    private final PspRouteSelector pspRouteSelector;
-    private final PspFeeRuleService pspFeeRuleService;
+    private final PayinPlanService payinPlanService;
     private final PspPayDispatchService pspPayDispatchService;
     private final ObjectMapper objectMapper;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
@@ -131,8 +129,16 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
 
-        // 计算商户手续费
-        applyMerchantFee(entity);
+        PayinPlan payinPlan = null;
+        if (isTestApp(context.getMerchantApp())) {
+            // 测试 App 不请求真实 PSP，只计算商户侧费率并走沙箱成功流程。
+            applyMerchantFee(entity);
+        } else {
+            // 正式 App 先解析完整 PayinPlan，确保商户费率、PSP 路由、PSP 成本费率都已准备好。
+            payinPlan = payinPlanService.resolve(entity);
+            // 解析结果立即写入订单快照，后续即使配置变化，也不影响这笔订单的审计口径。
+            applyPayinPlan(entity, payinPlan);
+        }
 
         // 先落平台订单再请求 PSP，避免 PSP 已受理但平台没有订单记录。
         boolean created = insertOrder(entity);
@@ -144,7 +150,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             return toResponse(entity);
         }
         // 提交上游 PSP 成功后，订单进入 PROCESSING，等待 PSP 回调或查单补偿推进终态。
-        submitToPsp(entity);
+        submitToPsp(entity, payinPlan);
         return toResponse(entity);
     }
 
@@ -181,14 +187,13 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      *
      * @param order 订单
      */
-    private void submitToPsp(PayOrderEntity order) {
+    private void submitToPsp(PayOrderEntity order, PayinPlan payinPlan) {
         try {
-            // 根据租户、商户、币种、国家、支付方式、金额等条件选择可用 PSP 路由。
-            PspRouteResult route = pspRouteSelector.selectPayin(order);
-            applyRoute(order, route);
-
-            // PSP 手续费用于平台成本核算，不影响商户实际请求金额。
-            applyPspFee(order);
+            if (payinPlan == null || payinPlan.getRoute() == null) {
+                throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payin plan is not resolved");
+            }
+            // PSP 提交必须使用下单前已经解析并落库的路由，避免落单后再次选路由导致订单快照不一致。
+            PspRouteResult route = payinPlan.getRoute();
 
             // 调用 PSP 分发服务，真正的 HTTP 协议由具体 PSP adapter 处理。
             PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(order, route);
@@ -425,11 +430,18 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      *
      * @param entity 订单
      */
-    private void applyPspFee(PayOrderEntity entity) {
-        PspFeeResult feeResult = pspFeeRuleService.calculatePayin(entity);
-        entity.setPspFeeAmount(feeResult.getPspFeeAmount());
-        entity.setPspFeeRuleId(feeResult.getRule().getId());
-        entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
+    private void applyPayinPlan(PayOrderEntity entity, PayinPlan plan) {
+        // 商户侧金额：展示给商户、账务入账和结算统计主要使用这一组字段。
+        entity.setMerchantFeeAmount(plan.getMerchantFeeAmount());
+        entity.setSettleAmount(plan.getSettleAmount());
+        entity.setMerchantFeeRuleId(plan.getMerchantFee().getRule().getId());
+        entity.setMerchantFeeSnapshotJson(plan.getMerchantFee().getSnapshotJson());
+        // PSP 侧路由：提交上游和后续查单/回调归属都依赖这些字段。
+        applyRoute(entity, plan.getRoute());
+        // PSP 成本：用于租户/平台侧成本核算，不改变商户实收金额。
+        entity.setPspFeeAmount(plan.getPspFeeAmount());
+        entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
+        entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
     }
 
     /**

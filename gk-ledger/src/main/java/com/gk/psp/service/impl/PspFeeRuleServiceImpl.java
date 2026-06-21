@@ -32,7 +32,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -169,54 +171,23 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             String direction
     ) {
         Instant now = Instant.now();
-        boolean matchCountry = StringUtils.isNotBlank(countryCode);
-        QueryWrapper<PspFeeRuleEntity> wrapper = new QueryWrapper<PspFeeRuleEntity>()
-                .eq("tenant_id", tenantId)
-                .eq("psp_id", pspId)
-                .eq("direction", direction)
-                .eq("currency", normalize(currency))
-                .eq("status", StatusEnum.NORMAL.code())
-                .and(w -> w.eq("psp_account_id", pspAccountId).or().isNull("psp_account_id"))
-                .and(w -> w.eq("psp_method_id", pspMethodId).or().isNull("psp_method_id"))
-                .and(w -> w.eq("method_code", normalize(methodCode)).or().isNull("method_code"))
-                .and(w -> w.le("min_amount", orderAmount).or().isNull("min_amount"))
-                .and(w -> w.ge("max_amount", orderAmount).or().isNull("max_amount"))
-                .and(w -> w.le("effective_at", now).or().isNull("effective_at"))
-                .and(w -> w.gt("expire_at", now).or().isNull("expire_at"));
-        if (matchCountry) {
-            wrapper.and(w -> w.eq("country_code", normalize(countryCode)).or().isNull("country_code"));
+        PspFeeRuleEntity rule = baseDao.selectBestMatchForOrder(
+                tenantId,
+                pspId,
+                pspAccountId,
+                pspMethodId,
+                normalize(countryCode),
+                normalize(currency),
+                normalize(methodCode),
+                orderAmount,
+                direction,
+                now,
+                StatusEnum.NORMAL.code()
+        );
+        if (rule == null) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured");
         }
-
-        List<PspFeeRuleEntity> rules = baseDao.selectList(wrapper);
-        return rules.stream()
-                .max(Comparator
-                        .comparingInt((PspFeeRuleEntity rule) -> matchScore(rule, pspAccountId, pspMethodId, matchCountry ? countryCode : null, methodCode))
-                        .thenComparing(rule -> -defaultPriority(rule.getPriority())))
-                .orElseThrow(() -> new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured"));
-    }
-
-    private int matchScore(PspFeeRuleEntity rule, Long pspAccountId, Long pspMethodId, String countryCode, String methodCode) {
-        int score = 0;
-        if (rule.getPspAccountId() != null && rule.getPspAccountId().equals(pspAccountId)) {
-            score += 16;
-        }
-        if (rule.getPspMethodId() != null && rule.getPspMethodId().equals(pspMethodId)) {
-            score += 8;
-        }
-        if (StringUtils.equalsIgnoreCase(rule.getCountryCode(), countryCode)) {
-            score += 4;
-        }
-        if (StringUtils.equalsIgnoreCase(rule.getMethodCode(), methodCode)) {
-            score += 2;
-        }
-        if (rule.getMinAmount() != null || rule.getMaxAmount() != null) {
-            score += 1;
-        }
-        return score;
-    }
-
-    private int defaultPriority(Integer priority) {
-        return priority == null ? 100 : priority;
+        return rule;
     }
 
     private String toSnapshotJson(PspFeeRuleEntity rule) {

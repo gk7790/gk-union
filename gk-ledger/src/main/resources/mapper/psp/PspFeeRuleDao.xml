@@ -2,4 +2,40 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.gk.psp.dao.PspFeeRuleDao">
+    <select id="selectBestMatchForOrder" resultType="com.gk.psp.entity.PspFeeRuleEntity">
+        SELECT * FROM psp_fee_rule
+        WHERE tenant_id = #{tenantId}
+          AND psp_id = #{pspId}
+          AND direction = #{direction}
+          AND currency = #{currency}
+          AND status = #{status}
+          AND (psp_account_id = #{pspAccountId} OR psp_account_id IS NULL)
+          AND (psp_method_id = #{pspMethodId} OR psp_method_id IS NULL)
+          <choose>
+              <when test="countryCode != null and countryCode != ''">
+          AND (country_code = #{countryCode} OR country_code IS NULL OR country_code = '')
+              </when>
+              <otherwise>
+          AND (country_code IS NULL OR country_code = '')
+              </otherwise>
+          </choose>
+          AND (method_code = #{methodCode} OR method_code IS NULL OR method_code = '')
+          AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL)
+          AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL)
+          AND (effective_at &lt;= #{now} OR effective_at IS NULL)
+          AND (expire_at &gt; #{now} OR expire_at IS NULL)
+        ORDER BY
+            (
+                CASE WHEN psp_account_id = #{pspAccountId} THEN 16 ELSE 0 END +
+                CASE WHEN psp_method_id = #{pspMethodId} THEN 8 ELSE 0 END +
+                <if test="countryCode != null and countryCode != ''">
+                CASE WHEN country_code = #{countryCode} THEN 4 ELSE 0 END +
+                </if>
+                CASE WHEN method_code = #{methodCode} THEN 2 ELSE 0 END +
+                CASE WHEN min_amount IS NOT NULL OR max_amount IS NOT NULL THEN 1 ELSE 0 END
+            ) DESC,
+            COALESCE(priority, 100) ASC,
+            id DESC
+        LIMIT 1
+    </select>
 </mapper>

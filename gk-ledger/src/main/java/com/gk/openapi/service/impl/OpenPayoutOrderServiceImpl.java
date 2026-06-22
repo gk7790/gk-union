@@ -42,9 +42,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -135,7 +133,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
 
-        // 收款人敏感信息只保存掩码和 hash；用于展示、幂等校验和问题排查。
+        // 新系统阶段直接保存收款人明文信息，便于代付提交 PSP 和后台排查。
         applyPayee(entity, request);
         PaymentPlan paymentPlan = null;
         if (!isTestApp(context.getMerchantApp())) {
@@ -485,7 +483,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 校验重复商户订单号对应的请求参数是否一致。
      * <p>
-     * 代付额外校验收款账号 hash，避免同一商户订单号被用于不同收款人。
+     * 代付额外校验收款账号，避免同一商户订单号被用于不同收款人。
      */
     private void validateIdempotentRequest(PayoutOrderEntity existed, PayoutOrderCreateRequest request, String currency, String methodCode) {
         if (existed.getAmount() == null || request.getAmount() == null
@@ -493,7 +491,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
                 || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
                 || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), sha256Hex(requestPayeeAccountNo(request)))) {
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(requestPayeeAccountNo(request)))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -507,7 +505,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
                 || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
                 || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountHash()), StringUtils.trimToEmpty(entity.getPayeeAccountHash()))) {
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(entity.getPayeeAccountNo()))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -555,7 +553,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * <p>
      * 使用 payee 结构保存收款人信息。
      * <p>
-     * 独立检索列只保存账号、手机号、邮箱的掩码和 hash；payee_json 保留提交 PSP 所需的标准字段快照。
+     * 独立列保存账号、手机号、邮箱明文；payee_json 保留提交 PSP 所需的标准字段快照。
      */
     private void applyPayee(PayoutOrderEntity entity, PayoutOrderCreateRequest request) {
         PayoutOrderCreateRequest.Payee payee = request.getPayee();
@@ -567,14 +565,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String email = payee == null ? null : payee.getEmail();
 
         entity.setPayeeName(payeeName);
-        entity.setPayeeAccountMask(mask(accountNo, 4, 4));
-        entity.setPayeeAccountHash(sha256Hex(accountNo));
+        entity.setPayeeAccountNo(accountNo);
         entity.setPayeeBankCode(bankCode);
         entity.setPayeeWalletType(walletType);
-        entity.setPayeePhoneMask(mask(phone, 3, 4));
-        entity.setPayeePhoneHash(sha256Hex(phone));
-        entity.setPayeeEmailMask(maskEmail(email));
-        entity.setPayeeEmailHash(sha256Hex(email));
+        entity.setPayeePhone(StringUtils.trimToNull(phone));
+        entity.setPayeeEmail(StringUtils.trimToNull(email));
         entity.setPayeeJson(JSON.toJSONString(
                 payeeSnapshot(payeeName, accountNo, bankCode, walletType, phone, email),
                 JSONWriter.Feature.WriteMapNullValue
@@ -582,7 +577,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 构建可落库的收款人脱敏快照。
+     * 构建可落库的收款人明文快照。
      */
     private Map<String, Object> payeeSnapshot(String name,
                                               String accountNo,
@@ -593,13 +588,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("name", name);
         snapshot.put("account_no", accountNo);
-        snapshot.put("account_mask", mask(accountNo, 4, 4));
         snapshot.put("bank_code", bankCode);
         snapshot.put("wallet_type", walletType);
         snapshot.put("phone", phone);
-        snapshot.put("phone_mask", mask(phone, 3, 4));
         snapshot.put("email", email);
-        snapshot.put("email_mask", maskEmail(email));
         return snapshot;
     }
 
@@ -730,50 +722,4 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         return payee == null ? null : StringUtils.trimToNull(payee.getAccountNo());
     }
 
-    /**
-     * 对账号、手机号等文本做前后保留的掩码。
-     */
-    private String mask(String value, int prefix, int suffix) {
-        String text = StringUtils.trimToNull(value);
-        if (text == null) {
-            return null;
-        }
-        if (text.length() <= prefix + suffix) {
-            return "*".repeat(Math.min(text.length(), 6));
-        }
-        return text.substring(0, prefix) + "****" + text.substring(text.length() - suffix);
-    }
-
-    /**
-     * 对邮箱做脱敏。
-     */
-    private String maskEmail(String value) {
-        String email = StringUtils.trimToNull(value);
-        if (email == null) {
-            return null;
-        }
-        int atIndex = email.indexOf('@');
-        if (atIndex <= 1) {
-            return mask(email, 1, 0);
-        }
-        return email.charAt(0) + "****" + email.substring(atIndex);
-    }
-
-    /**
-     * 计算文本 SHA-256 摘要。
-     * <p>
-     * 用于收款账号、手机号、邮箱等敏感字段的幂等校验和排查定位。
-     */
-    private String sha256Hex(String value) {
-        String text = StringUtils.trimToNull(value);
-        if (text == null) {
-            return null;
-        }
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        } catch (Exception ex) {
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
-        }
-    }
 }

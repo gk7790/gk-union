@@ -96,7 +96,10 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private Map<String, Object> payoutParams(PayoutOrderEntity order, PspRouteResult route) {
         Map<String, Object> extra = jsonMap(order.getExtraJson());
         Map<String, Object> payee = jsonMap(order.getPayeeJson());
-        String accountNo = firstText(payee, extra, "account_no", "customer_account_no");
+        String accountNo = StringUtils.defaultIfBlank(
+                order.getPayeeAccountNo(),
+                firstText(payee, extra, "account_no", "customer_account_no")
+        );
         if (StringUtils.isBlank(accountNo)) {
             throw new IllegalStateException("World PSP payout requires payee.account_no");
         }

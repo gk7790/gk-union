@@ -251,7 +251,7 @@ public class PspRequestLogger {
         snapshot.put("psp_method_code", route == null ? null : route.getPspMethodCode());
         snapshot.put("psp_account_no", route == null ? null : route.getPspAccountNo());
         snapshot.put("payee_name", order == null ? null : order.getPayeeName());
-        snapshot.put("payee_account_mask", order == null ? null : order.getPayeeAccountMask());
+        snapshot.put("payee_account_no", order == null ? null : order.getPayeeAccountNo());
         snapshot.put("payee_wallet_type", order == null ? null : order.getPayeeWalletType());
         return snapshot;
     }

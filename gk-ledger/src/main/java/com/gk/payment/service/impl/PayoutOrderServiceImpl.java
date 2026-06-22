@@ -49,7 +49,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         String pspOrderNo = params.getStr("pspOrderNo");
         String pspRequestNo = params.getStr("pspRequestNo");
         String holdNo = params.getStr("holdNo");
-        String payeeAccountHash = params.getStr("payeeAccountHash");
+        String payeeAccountNo = params.getStr("payeeAccountNo");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
@@ -70,7 +70,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         wrapper.eq(StrUtil.isNotBlank(pspOrderNo), "psp_order_no", pspOrderNo);
         wrapper.eq(StrUtil.isNotBlank(pspRequestNo), "psp_request_no", pspRequestNo);
         wrapper.eq(StrUtil.isNotBlank(holdNo), "hold_no", holdNo);
-        wrapper.eq(StrUtil.isNotBlank(payeeAccountHash), "payee_account_hash", payeeAccountHash);
+        wrapper.eq(StrUtil.isNotBlank(payeeAccountNo), "payee_account_no", payeeAccountNo);
         return wrapper;
     }
 

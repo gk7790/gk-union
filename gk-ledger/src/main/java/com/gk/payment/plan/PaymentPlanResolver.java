@@ -8,6 +8,7 @@ import com.gk.common.redis.RedisUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
@@ -274,7 +275,7 @@ public class PaymentPlanResolver {
     }
 
     private Optional<PspBankMappingEntity> bankMapping(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
-        if (!PayDirectionEnum.PAYOUT.code().equals(key.direction()) || StringUtils.isBlank(bankCode)) {
+        if (!requiresBankMapping(key) || StringUtils.isBlank(bankCode)) {
             return Optional.empty();
         }
         PspBankMappingEntity mapping = pspBankMappingDao.selectOne(new QueryWrapper<PspBankMappingEntity>()
@@ -288,11 +289,19 @@ public class PaymentPlanResolver {
     }
 
     private boolean bankSupported(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
-        // 非代付或没有银行编码的场景，不做银行卡映射过滤，兼容钱包类代付。
-        if (!PayDirectionEnum.PAYOUT.code().equals(key.direction()) || StringUtils.isBlank(bankCode)) {
+        // 只有银行卡代付才需要用商户侧银行编码过滤 PSP 路由。
+        if (!requiresBankMapping(key)) {
             return true;
         }
+        if (StringUtils.isBlank(bankCode)) {
+            return false;
+        }
         return bankMapping(key, option, bankCode).isPresent();
+    }
+
+    private boolean requiresBankMapping(PaymentPlanKey key) {
+        return PayDirectionEnum.PAYOUT.code().equals(key.direction())
+                && PaymentMethodCodes.isBankCard(key.methodCode());
     }
 
     private String platformCallbackUrl(String pspCode, String direction) {

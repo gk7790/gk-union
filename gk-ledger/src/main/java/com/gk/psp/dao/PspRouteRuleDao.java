@@ -17,6 +17,7 @@ public interface PspRouteRuleDao extends BaseDao<PspRouteRuleEntity> {
             @Param("countryCode") String countryCode,
             @Param("currency") String currency,
             @Param("methodCode") String methodCode,
+            @Param("bankCode") String bankCode,
             @Param("amount") BigDecimal amount,
             @Param("direction") String direction,
             @Param("nowTime") LocalTime nowTime,

@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.enums.StatusEnum;
+import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
@@ -175,6 +176,10 @@ public class PaymentPlanCompiler {
             result.addWarning("PSP_RESOURCE_UNAVAILABLE", "PSP resource is unavailable for route rule " + rule.getId());
             return null;
         }
+        if (!routeMethodMatches(request, method)) {
+            result.addWarning("PSP_METHOD_NOT_MATCH", "PSP method does not match request method for route rule " + rule.getId());
+            return null;
+        }
 
         if (requiresBankMapping(request) && !hasAnyBankMapping(request, rule.getPspId())) {
             result.addWarning("PSP_BANK_MAPPING_MISSING", "PSP bank mapping is not configured for PSP " + rule.getPspId());
@@ -333,9 +338,9 @@ public class PaymentPlanCompiler {
         QueryWrapper<PspRouteRuleEntity> wrapper = new QueryWrapper<PspRouteRuleEntity>()
                 .eq("tenant_id", request.getTenantId())
                 .eq("currency", request.getCurrency())
-                .eq("method_code", request.getMethodCode())
                 .eq("direction", request.getDirection())
                 .eq("status", StatusEnum.NORMAL.code())
+                .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
                 .and(item -> item.eq("merchant_id", request.getMerchantId()).or().isNull("merchant_id"))
                 .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
                 .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
@@ -484,8 +489,7 @@ public class PaymentPlanCompiler {
 
     private boolean requiresBankMapping(PaymentPlanCompileRequest request) {
         return PayDirectionEnum.PAYOUT.code().equals(request.getDirection())
-                && (StringUtils.containsIgnoreCase(request.getMethodCode(), "BANK")
-                || StringUtils.containsIgnoreCase(request.getMethodCode(), "CARD"));
+                && PaymentMethodCodes.isBankCard(request.getMethodCode());
     }
 
     private boolean timeAvailable(PspRouteRuleEntity rule) {
@@ -512,17 +516,35 @@ public class PaymentPlanCompiler {
     }
 
     private int routeSpecificity(PspRouteRuleEntity rule, PaymentPlanCompileRequest request) {
+        int methodOffset = StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getMethodCode()), request.getMethodCode()) ? 0 : 1;
         if (Objects.equals(rule.getMerchantId(), request.getMerchantId())
                 && Objects.equals(rule.getMerchantAppId(), request.getMerchantAppId())) {
-            return 0;
+            return methodOffset;
         }
         if (Objects.equals(rule.getMerchantId(), request.getMerchantId()) && rule.getMerchantAppId() == null) {
-            return 10;
+            return 10 + methodOffset;
         }
         if (rule.getMerchantId() == null && rule.getMerchantAppId() == null) {
-            return 20;
+            return 20 + methodOffset;
         }
         return DEFAULT_PRIORITY;
+    }
+
+    private boolean routeMethodMatches(PaymentPlanCompileRequest request, PspMethodEntity method) {
+        if (method == null) {
+            return false;
+        }
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getMethodCode()), StringUtils.trim(method.getMethodCode()))) {
+            return false;
+        }
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getDirection()), StringUtils.trim(method.getDirection()))) {
+            return false;
+        }
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCurrency()), StringUtils.trim(method.getCurrency()))) {
+            return false;
+        }
+        return StringUtils.isBlank(request.getCountryCode())
+                || StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCountryCode()), StringUtils.trim(method.getCountryCode()));
     }
 
     private String merchantSnapshotJson(MerchantFeeRuleEntity rule) {

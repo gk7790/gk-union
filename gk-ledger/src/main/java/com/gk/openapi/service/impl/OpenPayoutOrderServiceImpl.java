@@ -21,6 +21,7 @@ import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.common.enums.OrderSourceEnum;
+import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
@@ -100,6 +101,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
         validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
+        validatePayoutPayee(request, normalizedMethod);
 
         if (existed != null) {
             // 同一商户订单号再次请求时，金额、币种、方式、通知地址、收款账号必须一致。
@@ -491,7 +493,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
                 || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
                 || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(requestPayeeAccountNo(request)))) {
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(requestPayeeAccountNo(request)))
+                || !StringUtils.equalsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(requestPayeeBankCode(request)))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -505,7 +508,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
                 || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
                 || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(entity.getPayeeAccountNo()))) {
+                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(entity.getPayeeAccountNo()))
+                || !StringUtils.equalsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(entity.getPayeeBankCode()))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -519,6 +523,19 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         }
         if (!allowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
+        }
+    }
+
+    /**
+     * 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping。
+     */
+    private void validatePayoutPayee(PayoutOrderCreateRequest request, String methodCode) {
+        if (!PaymentMethodCodes.isBankCard(methodCode)) {
+            return;
+        }
+        PayoutOrderCreateRequest.Payee payee = request == null ? null : request.getPayee();
+        if (payee == null || StringUtils.isBlank(payee.getBankCode())) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "payee.bank_code is required for BANK_CARD payout");
         }
     }
 
@@ -720,6 +737,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private String requestPayeeAccountNo(PayoutOrderCreateRequest request) {
         PayoutOrderCreateRequest.Payee payee = request == null ? null : request.getPayee();
         return payee == null ? null : StringUtils.trimToNull(payee.getAccountNo());
+    }
+
+    private String requestPayeeBankCode(PayoutOrderCreateRequest request) {
+        PayoutOrderCreateRequest.Payee payee = request == null ? null : request.getPayee();
+        return payee == null ? null : StringUtils.trimToNull(payee.getBankCode());
     }
 
 }

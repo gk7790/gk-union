@@ -230,7 +230,7 @@ CREATE TABLE `psp_route_rule`  (
   `route_mode` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PRIORITY' COMMENT '路由模式: PRIORITY/WEIGHT',
   `country_code` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '国家编码',
   `currency` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
-  `method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台统一支付方式编码',
+  `method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '平台统一支付方式编码，NULL表示不限支付方式',
   `direction` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '方向: PAYIN/PAYOUT',
   `psp_id` bigint NOT NULL COMMENT 'PSP ID',
   `psp_method_id` bigint NOT NULL COMMENT 'PSP支付方式ID',

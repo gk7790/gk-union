@@ -3,15 +3,22 @@ package com.gk.psp.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
+import com.gk.psp.dao.PspAccountDao;
+import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.dto.PspRouteRuleDTO;
+import com.gk.psp.entity.PspAccountEntity;
+import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspRouteRuleEntity;
 import com.gk.psp.service.PspRouteRuleService;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +29,8 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     private final LedgerAccountService ledgerAccountService;
     private final PayinPlanCache payinPlanCache;
     private final PaymentPlanCacheService paymentPlanCacheService;
+    private final PspMethodDao pspMethodDao;
+    private final PspAccountDao pspAccountDao;
 
     @Override
     public QueryWrapper<PspRouteRuleEntity> getWrapper(DynMap params) {
@@ -59,6 +68,8 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(PspRouteRuleDTO dto) {
+        normalizeNullableFields(dto);
+        validateRouteBinding(dto);
         super.save(dto);
         provisionPspLedgerAccounts(dto);
         evictPayinPlanCache();
@@ -67,6 +78,8 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(PspRouteRuleDTO dto) {
+        normalizeNullableFields(dto);
+        validateRouteBinding(dto);
         super.update(dto);
         provisionPspLedgerAccounts(dto);
         evictPayinPlanCache();
@@ -91,8 +104,57 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         ledgerAccountService.provisionPspAccounts(dto.getTenantId(), dto.getPspAccountId(), dto.getCurrency());
     }
 
+    private void normalizeNullableFields(PspRouteRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        String methodCode = StrUtil.trim(dto.getMethodCode());
+        dto.setMethodCode(StrUtil.isBlank(methodCode) ? null : methodCode);
+    }
+
+    private void validateRouteBinding(PspRouteRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        PspMethodEntity method = dto.getPspMethodId() == null ? null : pspMethodDao.selectById(dto.getPspMethodId());
+        if (method == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不存在");
+        }
+        if (!equalsLong(dto.getPspId(), method.getPspId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP支付方式不一致");
+        }
+        if (StringUtils.isNotBlank(dto.getMethodCode()) && !equalsCode(dto.getMethodCode(), method.getMethodCode())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的支付方式必须与PSP支付方式的平台支付方式一致");
+        }
+        if (!equalsCode(dto.getCurrency(), method.getCurrency())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的币种必须与PSP支付方式一致");
+        }
+        if (!equalsCode(dto.getDirection(), method.getDirection())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的方向必须与PSP支付方式一致");
+        }
+        if (StringUtils.isNotBlank(dto.getCountryCode()) && !equalsCode(dto.getCountryCode(), method.getCountryCode())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的国家/地区必须与PSP支付方式一致");
+        }
+
+        PspAccountEntity account = dto.getPspAccountId() == null ? null : pspAccountDao.selectById(dto.getPspAccountId());
+        if (account == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不存在");
+        }
+        if (!equalsLong(dto.getPspId(), account.getPspId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP账号不一致");
+        }
+    }
+
+    private boolean equalsCode(String left, String right) {
+        return StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
+    }
+
+    private boolean equalsLong(Long left, Long right) {
+        return left != null && left.equals(right);
+    }
+
     private void evictPayinPlanCache() {
-        // PSP 路由规则决定订单走哪个上游账号，变更后必须清空 PayinPlan 缓存。
+        // PSP route rules affect upstream selection, so config changes must clear plan caches.
         payinPlanCache.evictAll();
         paymentPlanCacheService.evictAll();
     }

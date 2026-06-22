@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.service.LedgerAccountService;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.dto.PspRouteRuleDTO;
@@ -20,6 +21,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
 
     private final LedgerAccountService ledgerAccountService;
     private final PayinPlanCache payinPlanCache;
+    private final PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspRouteRuleEntity> getWrapper(DynMap params) {
@@ -92,5 +94,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     private void evictPayinPlanCache() {
         // PSP 路由规则决定订单走哪个上游账号，变更后必须清空 PayinPlan 缓存。
         payinPlanCache.evictAll();
+        paymentPlanCacheService.evictAll();
     }
 }

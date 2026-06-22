@@ -34,7 +34,8 @@ public class PayinPlanServiceImpl implements PayinPlanService {
     private final PspRouteSelector pspRouteSelector;
     private final PspFeeRuleService pspFeeRuleService;
     private final ObjectMapper objectMapper;
-    private final PayinPlanCache payinPlanCache;
+    private final PaymentPlanResolver paymentPlanResolver;
+    private final PaymentPlanCacheService paymentPlanCacheService;
 
     /**
      * 代收下单主链路使用的方案解析入口。
@@ -43,16 +44,13 @@ public class PayinPlanServiceImpl implements PayinPlanService {
      */
     @Override
     public PayinPlan resolve(PayOrderEntity order) {
-        String key = cacheKey(order);
-        // 同一业务维度短时间内通常会连续下单，命中缓存可以减少规则表查询和路由匹配成本。
-        PayinPlan cached = payinPlanCache.get(key);
-        if (cached != null) {
-            return cached;
+        // 优先读取后台已经发布的支付决策表；没有 ACTIVE 版本时，平滑降级到旧的实时解析逻辑。
+        PaymentPlan compiledPlan = paymentPlanResolver.resolvePayin(order).orElse(null);
+        if (compiledPlan != null) {
+            return toPayinPlan(compiledPlan);
         }
         // 下单链路要求 PSP 成本费率完整；配置不完整时直接失败，避免生成不可核算的订单。
-        PayinPlan plan = buildPlan(order, true);
-        payinPlanCache.put(key, plan);
-        return plan;
+        return buildPlan(order, true);
     }
 
     /**
@@ -91,7 +89,8 @@ public class PayinPlanServiceImpl implements PayinPlanService {
 
     @Override
     public void evictAll() {
-        payinPlanCache.evictAll();
+        // 同时清理旧本地缓存和新的 Redis 决策表缓存，兼容迁移期间两套解析路径。
+        paymentPlanCacheService.evictAll();
     }
 
     private PayinPlan buildPlan(PayOrderEntity order, boolean requirePspFee) {
@@ -268,15 +267,14 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }
 
-    private String cacheKey(PayOrderEntity order) {
-        // 金额参与缓存 key，因为费率和路由都可能按金额区间命中不同规则。
-        return String.join(":",
-                String.valueOf(order.getTenantId()),
-                String.valueOf(order.getMerchantId()),
-                String.valueOf(order.getMerchantAppId()),
-                normalize(order.getCurrency()),
-                normalize(order.getMethodCode()),
-                order.getAmount() == null ? "" : order.getAmount().stripTrailingZeros().toPlainString()
-        );
+    private PayinPlan toPayinPlan(PaymentPlan paymentPlan) {
+        PayinPlan plan = new PayinPlan();
+        plan.setMerchantFee(paymentPlan.getMerchantFee());
+        plan.setRoute(paymentPlan.getRoute());
+        plan.setPspFee(paymentPlan.getPspFee());
+        plan.setMerchantFeeAmount(paymentPlan.getMerchantFeeAmount());
+        plan.setSettleAmount(paymentPlan.getSettleAmount());
+        plan.setPspFeeAmount(paymentPlan.getPspFeeAmount());
+        return plan;
     }
 }

@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.dto.PspProviderDTO;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
 public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspProviderEntity, PspProviderDTO> implements PspProviderService {
     @Autowired
     private PayinPlanCache payinPlanCache;
+    @Autowired
+    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspProviderEntity> getWrapper(DynMap params) {
@@ -60,6 +63,9 @@ public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspP
         // PSP Provider 配置会影响路由可用性，变更后必须清空 PayinPlan 缓存。
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
+        }
+        if (paymentPlanCacheService != null) {
+            paymentPlanCacheService.evictAll();
         }
     }
 }

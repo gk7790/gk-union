@@ -16,6 +16,7 @@ import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.plan.PayinPlanCache;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspFeeRuleDao;
@@ -41,6 +42,8 @@ import java.util.Map;
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
     @Autowired
     private PayinPlanCache payinPlanCache;
+    @Autowired
+    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspFeeRuleEntity> getWrapper(DynMap params) {
@@ -221,6 +224,9 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         // PSP 成本费率会影响 PayinPlan 的成本核算字段，变更后必须清空缓存。
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
+        }
+        if (paymentPlanCacheService != null) {
+            paymentPlanCacheService.evictAll();
         }
     }
 }

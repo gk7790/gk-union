@@ -156,6 +156,61 @@ public class RedisKeys {
         return "psp:callback-ip-whitelist:*";
     }
 
+    /**
+     * 当前生效的支付决策表缓存 Key。
+     * <p>
+     * key 只包含配置维度，不包含订单金额；金额在决策表内部按 bucket 命中。
+     */
+    public static String getPaymentPlanActiveKey(Long tenantId, Long merchantId, Long merchantAppId,
+                                                 String direction, String countryCode, String currency, String methodCode) {
+        return "payment:plan:active:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(merchantId) + ":"
+                + nullToAll(merchantAppId) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(countryCode) + ":"
+                + nullToAll(currency) + ":"
+                + nullToAll(methodCode);
+    }
+
+    public static String getPaymentPlanActivePattern() {
+        return "payment:plan:active:*";
+    }
+
+    /**
+     * PSP 紧急停用 Key。
+     */
+    public static String getPaymentPspDisableKey(Long tenantId, String direction, Long pspId) {
+        return "payment:psp:disable:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(pspId);
+    }
+
+    /**
+     * PSP Account 紧急停用 Key。
+     */
+    public static String getPaymentPspAccountDisableKey(Long tenantId, String direction, Long pspAccountId) {
+        return "payment:psp-account:disable:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(pspAccountId);
+    }
+
+    public static String getPaymentPspHealthKey(Long tenantId, String direction, Long pspId) {
+        return "payment:psp:health:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(pspId);
+    }
+
+    public static String getPaymentPspAccountHealthKey(Long tenantId, String direction, Long pspAccountId) {
+        return "payment:psp-account:health:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(pspAccountId);
+    }
+
     private static String nullToAll(Object value) {
         return value == null ? "*" : String.valueOf(value);
     }

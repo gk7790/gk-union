@@ -18,6 +18,7 @@ import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
 import com.gk.payment.fee.MerchantFeeCalculator;
 import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.service.MerchantFeeRuleService;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,8 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
 
     @Autowired
     private PayinPlanCache payinPlanCache;
+    @Autowired
+    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public void save(MerchantFeeRuleDTO dto) {
@@ -261,6 +264,9 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         // 商户费率会影响 PayinPlan 的手续费和结算金额，变更后必须清空缓存。
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
+        }
+        if (paymentPlanCacheService != null) {
+            paymentPlanCacheService.evictAll();
         }
     }
 }

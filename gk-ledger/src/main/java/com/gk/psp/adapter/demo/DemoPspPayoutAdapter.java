@@ -37,7 +37,8 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
         result.setRequestHeadersJson("{\"Content-Type\":\"application/json\"}");
         result.setRequestBody("{\"merchant_order_id\":\"" + order.getPayoutOrderNo() + "\",\"amount\":\""
                 + order.getAmount() + "\",\"currency\":\"" + order.getCurrency()
-                + "\",\"account_no\":\"" + StringUtils.defaultString(order.getPayeeAccountMask()) + "\"}");
+                + "\",\"account_no\":\"" + StringUtils.defaultString(order.getPayeeAccountMask())
+                + "\",\"bank_code\":\"" + StringUtils.defaultIfBlank(route.getPspBankCode(), order.getPayeeBankCode()) + "\"}");
         result.setResponseStatus(200);
         result.setPspOrderNo("PSP" + order.getPayoutOrderNo());
         result.setPspMerchantOrderNo(order.getPayoutOrderNo());

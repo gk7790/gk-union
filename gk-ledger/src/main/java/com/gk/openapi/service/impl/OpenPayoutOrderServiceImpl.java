@@ -25,6 +25,8 @@ import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.fee.MerchantFeeResult;
+import com.gk.payment.plan.PaymentPlan;
+import com.gk.payment.plan.PaymentPlanResolver;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
@@ -62,6 +64,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final MerchantFeeRuleService merchantFeeRuleService;
     private final PspRouteSelector pspRouteSelector;
     private final PspFeeRuleService pspFeeRuleService;
+    private final PaymentPlanResolver paymentPlanResolver;
     private final PspPayoutDispatchService pspPayoutDispatchService;
     private final LedgerPostingService ledgerPostingService;
     private final ObjectMapper objectMapper;
@@ -134,8 +137,17 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
 
         // 收款人敏感信息只保存掩码和 hash；用于展示、幂等校验和问题排查。
         applyPayee(entity, request);
-        // 商户手续费会计入 totalDebitAmount，冻结时按“代付金额 + 商户手续费”冻结。
-        applyMerchantFee(entity);
+        PaymentPlan paymentPlan = null;
+        if (!isTestApp(context.getMerchantApp())) {
+            // 正式代付优先读取后台发布的支付决策表；未发布时继续走旧实时规则，确保迁移不影响现有业务。
+            paymentPlan = paymentPlanResolver.resolvePayout(entity).orElse(null);
+        }
+        if (paymentPlan != null) {
+            applyPaymentPlan(entity, paymentPlan);
+        } else {
+            // 商户手续费会计入 totalDebitAmount，冻结时按“代付金额 + 商户手续费”冻结。
+            applyMerchantFee(entity);
+        }
 
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
         boolean created = insertOrder(entity);
@@ -161,7 +173,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         }
 
         // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结。
-        submitToPsp(entity);
+        submitToPsp(entity, paymentPlan);
 
         return toResponse(entity);
     }
@@ -223,13 +235,18 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新。
      * 任何提交阶段异常都会先尝试释放冻结资金，再把订单标记为失败。
      */
-    private void submitToPsp(PayoutOrderEntity order) {
+    private void submitToPsp(PayoutOrderEntity order, PaymentPlan paymentPlan) {
         try {
-            // 根据租户、商户、币种、国家、代付方式、金额等条件选择 PSP 路由。
-            PspRouteResult route = pspRouteSelector.selectPayout(order);
-            applyRoute(order, route);
-            // PSP 手续费用于平台成本核算，不参与本次商户冻结金额。
-            applyPspFee(order);
+            PspRouteResult route;
+            if (paymentPlan != null && paymentPlan.getRoute() != null) {
+                // 使用下单前已经命中的决策表路由，避免冻结后再次实时选路由导致快照不一致。
+                route = paymentPlan.getRoute();
+            } else {
+                // 未发布决策表时保留旧逻辑：冻结成功后实时选择 PSP 路由并计算 PSP 成本。
+                route = pspRouteSelector.selectPayout(order);
+                applyRoute(order, route);
+                applyPspFee(order);
+            }
 
             // 调用 PSP 分发服务，具体 PSP 协议由对应 adapter 处理。
             PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(order, route);
@@ -377,6 +394,27 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setTotalDebitAmount(entity.getAmount().add(feeAmount));
         entity.setMerchantFeeRuleId(feeResult.getRule().getId());
         entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
+    }
+
+    /**
+     * 应用已发布支付决策表命中的代付方案。
+     * <p>
+     * 决策表同时给出商户费率、PSP 路由和 PSP 成本，订单只保存快照字段。
+     */
+    private void applyPaymentPlan(PayoutOrderEntity entity, PaymentPlan plan) {
+        BigDecimal feeAmount = defaultZero(plan.getMerchantFeeAmount());
+        entity.setMerchantFeeAmount(feeAmount);
+        entity.setTotalDebitAmount(entity.getAmount().add(feeAmount));
+        entity.setMerchantFeeRuleId(plan.getMerchantFee().getRule().getId());
+        entity.setMerchantFeeSnapshotJson(plan.getMerchantFee().getSnapshotJson());
+
+        applyRoute(entity, plan.getRoute());
+
+        entity.setPspFeeAmount(plan.getPspFeeAmount());
+        if (plan.getPspFee() != null && plan.getPspFee().getRule() != null) {
+            entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
+            entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
+        }
     }
 
     /**
@@ -577,6 +615,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         snapshot.put("pspMethodCode", route.getPspMethodCode());
         snapshot.put("pspAccountId", route.getPspAccountId());
         snapshot.put("pspAccountNo", route.getPspAccountNo());
+        snapshot.put("pspBankCode", route.getPspBankCode());
         return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
     }
 

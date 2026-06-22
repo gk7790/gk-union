@@ -10,6 +10,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dto.PspMethodDTO;
@@ -29,6 +30,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     @Autowired
     private PayinPlanCache payinPlanCache;
+    @Autowired
+    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -127,6 +130,9 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         // PSP Method 配置会影响路由和上游提交参数，变更后必须清空 PayinPlan 缓存。
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
+        }
+        if (paymentPlanCacheService != null) {
+            paymentPlanCacheService.evictAll();
         }
     }
 }

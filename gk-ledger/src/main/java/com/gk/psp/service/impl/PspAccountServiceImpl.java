@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dto.PspAccountDTO;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
 public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAccountEntity, PspAccountDTO> implements PspAccountService {
     @Autowired
     private PayinPlanCache payinPlanCache;
+    @Autowired
+    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspAccountEntity> getWrapper(DynMap params) {
@@ -64,6 +67,9 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         // PSP Account 配置会影响路由账号和密钥，变更后必须清空 PayinPlan 缓存。
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
+        }
+        if (paymentPlanCacheService != null) {
+            paymentPlanCacheService.evictAll();
         }
     }
 }

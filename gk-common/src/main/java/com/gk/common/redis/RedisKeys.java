@@ -122,6 +122,31 @@ public class RedisKeys {
         return "ledger:subject-display:" + tenantId + ":" + subjectType + ":" + subjectId;
     }
 
+    /**
+     * 租户下拉字典缓存 Key。
+     */
+    public static String getTenantDictKey(String statusKey, boolean includeSystemTenant) {
+        return "sys:tenant:dict:" + nullToAll(statusKey) + ":" + includeSystemTenant;
+    }
+
+    public static String getTenantDictPattern() {
+        return "sys:tenant:dict:*";
+    }
+
+    /**
+     * PSP 支付方式下拉字典缓存 Key。
+     */
+    public static String getPspMethodDictKey(String countryCode, String currency, String direction) {
+        return "psp:method:dict:"
+                + nullToAll(countryCode) + ":"
+                + nullToAll(currency) + ":"
+                + nullToAll(direction);
+    }
+
+    public static String getPspMethodDictPattern() {
+        return "psp:method:dict:*";
+    }
+
     public static String getLoginIpWhitelistKey(String subjectType, Long tenantId, Long merchantId, Long subjectId) {
         return "sys:login-ip-whitelist:"
                 + nullToAll(subjectType) + ":"

@@ -86,7 +86,7 @@ public class PaymentPlanCompiler {
         int bucketSort = 0;
         int routeOptionCount = 0;
         for (PaymentPlanAmountRange range : ranges) {
-            PaymentPlanCompileResult.CompiledBucket compiledBucket = compileBucket(request, range, bucketSort++, routeRules, result);
+            PaymentPlanCompileResult.CompiledBucket compiledBucket = compileBucket(request, range, bucketSort++, merchantRules, routeRules, result);
             if (compiledBucket != null) {
                 routeOptionCount += compiledBucket.getRouteOptions().size();
                 result.getBuckets().add(compiledBucket);
@@ -107,21 +107,11 @@ public class PaymentPlanCompiler {
     private PaymentPlanCompileResult.CompiledBucket compileBucket(PaymentPlanCompileRequest request,
                                                                  PaymentPlanAmountRange range,
                                                                  int bucketSort,
+                                                                 List<MerchantFeeRuleEntity> merchantRules,
                                                                  List<PspRouteRuleEntity> routeRules,
                                                                  PaymentPlanCompileResult result) {
         BigDecimal sampleAmount = range.startAmount();
-        MerchantFeeRuleEntity merchantRule = merchantFeeRuleDao.selectBestMatchForOrder(
-                request.getTenantId(),
-                request.getMerchantId(),
-                request.getMerchantAppId(),
-                request.getCountryCode(),
-                request.getCurrency(),
-                request.getMethodCode(),
-                sampleAmount,
-                request.getDirection(),
-                Instant.now(),
-                StatusEnum.NORMAL.code()
-        );
+        MerchantFeeRuleEntity merchantRule = merchantRule(request, merchantRules, sampleAmount);
         if (merchantRule == null) {
             result.addError("MERCHANT_FEE_RULE_MISSING", "Merchant fee rule is not configured for amount " + sampleAmount);
             return null;
@@ -148,6 +138,30 @@ public class PaymentPlanCompiler {
         compiledBucket.setBucket(bucket);
         compiledBucket.setRouteOptions(routeOptions);
         return compiledBucket;
+    }
+
+    private MerchantFeeRuleEntity merchantRule(PaymentPlanCompileRequest request,
+                                               List<MerchantFeeRuleEntity> merchantRules,
+                                               BigDecimal sampleAmount) {
+        if (request.getMerchantFeeRuleId() != null) {
+            return merchantRules.stream()
+                    .filter(rule -> Objects.equals(rule.getId(), request.getMerchantFeeRuleId()))
+                    .filter(rule -> contains(rule.getMinAmount(), rule.getMaxAmount(), sampleAmount))
+                    .findFirst()
+                    .orElse(null);
+        }
+        return merchantFeeRuleDao.selectBestMatchForOrder(
+                request.getTenantId(),
+                request.getMerchantId(),
+                request.getMerchantAppId(),
+                request.getCountryCode(),
+                request.getCurrency(),
+                request.getMethodCode(),
+                sampleAmount,
+                request.getDirection(),
+                Instant.now(),
+                StatusEnum.NORMAL.code()
+        );
     }
 
     private PaymentPlanRouteOptionEntity routeOption(PaymentPlanCompileRequest request,
@@ -306,6 +320,11 @@ public class PaymentPlanCompiler {
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"));
         if (StringUtils.isNotBlank(request.getCountryCode())) {
             wrapper.and(item -> item.eq("country_code", request.getCountryCode()).or().isNull("country_code").or().eq("country_code", ""));
+        } else {
+            wrapper.and(item -> item.isNull("country_code").or().eq("country_code", ""));
+        }
+        if (request.getMerchantFeeRuleId() != null) {
+            wrapper.eq("id", request.getMerchantFeeRuleId());
         }
         return merchantFeeRuleDao.selectList(wrapper);
     }
@@ -325,6 +344,8 @@ public class PaymentPlanCompiler {
                 .orderByAsc("id");
         if (StringUtils.isNotBlank(request.getCountryCode())) {
             wrapper.eq("country_code", request.getCountryCode());
+        } else {
+            wrapper.and(item -> item.isNull("country_code").or().eq("country_code", ""));
         }
         return pspRouteRuleDao.selectList(wrapper).stream()
                 .filter(this::timeAvailable)
@@ -371,7 +392,7 @@ public class PaymentPlanCompiler {
         PaymentPlanCatalogEntity catalog = new PaymentPlanCatalogEntity();
         catalog.setTenantId(request.getTenantId());
         catalog.setMerchantId(request.getMerchantId());
-        catalog.setMerchantAppId(request.getMerchantAppId());
+        catalog.setMerchantAppId(catalogMerchantAppId(request.getMerchantAppId()));
         catalog.setDirection(request.getDirection());
         catalog.setCountryCode(request.getCountryCode());
         catalog.setCurrency(request.getCurrency());
@@ -393,9 +414,6 @@ public class PaymentPlanCompiler {
         if (request.getMerchantId() == null) {
             result.addError("MERCHANT_ID_REQUIRED", "merchantId is required");
         }
-        if (request.getMerchantAppId() == null) {
-            result.addError("MERCHANT_APP_ID_REQUIRED", "merchantAppId is required");
-        }
         if (!PayDirectionEnum.PAYIN.code().equals(request.getDirection()) && !PayDirectionEnum.PAYOUT.code().equals(request.getDirection())) {
             result.addError("DIRECTION_INVALID", "direction must be PAYIN or PAYOUT");
         }
@@ -405,11 +423,8 @@ public class PaymentPlanCompiler {
         if (StringUtils.isBlank(request.getMethodCode())) {
             result.addError("METHOD_CODE_REQUIRED", "methodCode is required");
         }
-        if (PayDirectionEnum.PAYOUT.code().equals(request.getDirection()) && StringUtils.isBlank(request.getCountryCode())) {
-            result.addError("COUNTRY_CODE_REQUIRED", "countryCode is required for payout");
-        }
-        if (request.getMinAmount() == null || request.getMinAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            result.addError("MIN_AMOUNT_INVALID", "minAmount must be greater than 0");
+        if (request.getMinAmount() == null || request.getMinAmount().compareTo(BigDecimal.ZERO) < 0) {
+            result.addError("MIN_AMOUNT_INVALID", "minAmount must be greater than or equal to 0");
         }
         if (request.getMaxAmount() == null || request.getMaxAmount().compareTo(BigDecimal.ZERO) <= 0) {
             result.addError("MAX_AMOUNT_INVALID", "maxAmount must be greater than 0");
@@ -427,11 +442,20 @@ public class PaymentPlanCompiler {
         request.setDirection(normalize(request.getDirection()));
         request.setCurrency(normalize(request.getCurrency()));
         request.setMethodCode(normalize(request.getMethodCode()));
-        String countryCode = PayDirectionEnum.PAYIN.code().equals(request.getDirection()) ? "" : normalize(request.getCountryCode());
-        request.setCountryCode(countryCode);
+        request.setCountryCode(normalize(request.getCountryCode()));
+        if (request.getMerchantAppId() != null && request.getMerchantAppId() <= 0) {
+            request.setMerchantAppId(null);
+        }
+        if (request.getMinAmount() == null) {
+            request.setMinAmount(BigDecimal.ZERO);
+        }
         if (request.getPspFeeRequired() == null) {
             request.setPspFeeRequired(Boolean.TRUE);
         }
+    }
+
+    private Long catalogMerchantAppId(Long merchantAppId) {
+        return merchantAppId == null || merchantAppId <= 0 ? 0L : merchantAppId;
     }
 
     private boolean resourceAvailable(String direction,

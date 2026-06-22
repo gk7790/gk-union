@@ -1,6 +1,7 @@
 package com.gk.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
@@ -9,6 +10,9 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
+import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.iam.dto.SysDeptDTO;
@@ -26,21 +30,29 @@ import com.gk.tenant.dto.TenantOnboardResult;
 import com.gk.tenant.entity.TenantEntity;
 import com.gk.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, TenantDTO> implements TenantService {
+    private static final long TENANT_DICT_CACHE_SECONDS = 60 * 60L;
+
     private final SysDeptService sysDeptService;
     private final SysRoleService sysRoleService;
     private final SysRoleMenuService sysRoleMenuService;
     private final SysUserService sysUserService;
     private final LedgerAccountService ledgerAccountService;
+    private final RedisUtils redisUtils;
 
     @Override
     public QueryWrapper<TenantEntity> getWrapper(DynMap params) {
@@ -54,22 +66,33 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     @Override
     public List<LabelDTO> getDict(DynMap params) {
         List<Integer> list = params.getList("status", Integer.class, StatusEnum.defaultStatus());
+        boolean includeSystemTenant = ReqContextHolder.isSuperAdmin();
+        String cacheKey = RedisKeys.getTenantDictKey(statusCacheKey(list), includeSystemTenant);
+        List<LabelDTO> cached = getCachedDict(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
 
         QueryWrapper<TenantEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "name");
-        if (!ReqContextHolder.isSuperAdmin()) {
+        if (!includeSystemTenant) {
             wrapper.ge("id", Constant.MIN_SYS_ID);
         }
         wrapper.in("status", list);
         List<TenantEntity> result = baseDao.selectList(wrapper);
 
-        return result.stream().map(item -> new LabelDTO(item.getId(), item.getName())).toList();
+        List<LabelDTO> dict = result.stream()
+                .map(item -> new LabelDTO(item.getId(), item.getName()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        cacheDict(cacheKey, dict);
+        return dict;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(TenantDTO dto) {
         super.save(dto);
+        evictTenantDictCache();
         provisionLedgerAccounts(dto.getId(), dto.getCurrency());
     }
 
@@ -77,10 +100,23 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     @Transactional(rollbackFor = Exception.class)
     public void update(TenantDTO dto) {
         super.update(dto);
+        evictTenantDictCache();
         TenantEntity tenant = baseDao.selectById(dto.getId());
         if (tenant != null) {
             provisionLedgerAccounts(tenant.getId(), tenant.getCurrency());
         }
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictTenantDictCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictTenantDictCache();
     }
 
     @Override
@@ -185,5 +221,62 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
             return;
         }
         ledgerAccountService.provisionTenantAccounts(tenantId, currency);
+    }
+
+    private List<LabelDTO> getCachedDict(String cacheKey) {
+        try {
+            Object cached = redisUtils.get(cacheKey);
+            if (cached == null) {
+                return null;
+            }
+            if (cached instanceof String text) {
+                return JSON.parseArray(text, LabelDTO.class);
+            }
+            if (cached instanceof List<?> list) {
+                List<LabelDTO> result = new ArrayList<>(list.size());
+                for (Object item : list) {
+                    LabelDTO dto = ConvertUtils.sourceToTarget(item, LabelDTO.class);
+                    if (dto != null) {
+                        result.add(dto);
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Get tenant dict cache failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void cacheDict(String cacheKey, List<LabelDTO> dict) {
+        try {
+            redisUtils.set(cacheKey, dict, TENANT_DICT_CACHE_SECONDS);
+        } catch (Exception e) {
+            log.warn("Set tenant dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private void evictTenantDictCache() {
+        try {
+            Set<String> keys = redisUtils.keys(RedisKeys.getTenantDictPattern());
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Evict tenant dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private String statusCacheKey(List<Integer> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return "none";
+        }
+        return statuses.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .map(String::valueOf)
+                .reduce((left, right) -> left + "," + right)
+                .orElse("none");
     }
 }

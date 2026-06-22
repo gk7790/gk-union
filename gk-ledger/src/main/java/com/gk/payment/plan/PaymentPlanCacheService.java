@@ -119,17 +119,17 @@ public class PaymentPlanCacheService {
     }
 
     private PaymentPlanCatalog loadActiveFromDb(PaymentPlanKey key) {
-        PaymentPlanCatalogEntity catalog = paymentPlanCatalogDao.selectOne(new QueryWrapper<PaymentPlanCatalogEntity>()
-                .eq("tenant_id", key.tenantId())
-                .eq("merchant_id", key.merchantId())
-                .eq("merchant_app_id", key.merchantAppId())
-                .eq("direction", key.direction())
-                .eq("country_code", key.countryCode())
-                .eq("currency", key.currency())
-                .eq("method_code", key.methodCode())
-                .eq("status", PaymentPlanStatus.ACTIVE)
-                .orderByDesc("version")
-                .last("limit 1"));
+        PaymentPlanCatalogEntity catalog = selectActiveCatalog(key, key.merchantAppId(), key.countryCode());
+        if (catalog == null && key.countryCode() != null && !key.countryCode().isBlank()) {
+            catalog = selectActiveCatalog(key, key.merchantAppId(), "");
+        }
+        if (catalog == null && key.merchantAppId() != null && key.merchantAppId() > 0) {
+            catalog = selectActiveCatalog(key, null, key.countryCode());
+        }
+        if (catalog == null && key.merchantAppId() != null && key.merchantAppId() > 0
+                && key.countryCode() != null && !key.countryCode().isBlank()) {
+            catalog = selectActiveCatalog(key, null, "");
+        }
         if (catalog == null) {
             return null;
         }
@@ -163,6 +163,21 @@ public class PaymentPlanCacheService {
                 .map(bucket -> planBucket(bucket, routeOptionMap.get(bucket.getId())))
                 .toList());
         return result;
+    }
+
+    private PaymentPlanCatalogEntity selectActiveCatalog(PaymentPlanKey key, Long merchantAppId, String countryCode) {
+        QueryWrapper<PaymentPlanCatalogEntity> wrapper = new QueryWrapper<PaymentPlanCatalogEntity>()
+                .eq("tenant_id", key.tenantId())
+                .eq("merchant_id", key.merchantId())
+                .eq("direction", key.direction())
+                .eq("country_code", countryCode == null ? "" : countryCode)
+                .eq("currency", key.currency())
+                .eq("method_code", key.methodCode())
+                .eq("status", PaymentPlanStatus.ACTIVE)
+                .orderByDesc("version");
+        wrapper.eq("merchant_app_id", merchantAppId == null || merchantAppId <= 0 ? 0L : merchantAppId);
+        wrapper.last("limit 1");
+        return paymentPlanCatalogDao.selectOne(wrapper);
     }
 
     private PaymentPlanBucket planBucket(PaymentPlanBucketEntity bucket, List<PaymentPlanRouteOptionEntity> routeOptions) {

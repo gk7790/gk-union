@@ -121,9 +121,14 @@
           AND currency = #{currency}
           AND status = #{status}
           AND (merchant_app_id = #{merchantAppId} OR merchant_app_id IS NULL)
-          <if test="countryCode != null and countryCode != ''">
+          <choose>
+              <when test="countryCode != null and countryCode != ''">
           AND (country_code = #{countryCode} OR country_code IS NULL OR country_code = '')
-          </if>
+              </when>
+              <otherwise>
+          AND (country_code IS NULL OR country_code = '')
+              </otherwise>
+          </choose>
           AND (method_code = #{methodCode} OR method_code IS NULL OR method_code = '')
           AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL)
           AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL)

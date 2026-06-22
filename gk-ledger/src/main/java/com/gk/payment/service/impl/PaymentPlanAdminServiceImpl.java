@@ -1,6 +1,7 @@
 package com.gk.payment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.payment.dao.PaymentPlanBucketDao;
 import com.gk.payment.dao.PaymentPlanCatalogDao;
@@ -20,14 +21,18 @@ import com.gk.payment.plan.PaymentPlanKey;
 import com.gk.payment.plan.PaymentPlanStatus;
 import com.gk.payment.service.PaymentPlanAdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
+    private static final BigDecimal MONEY_UNIT = new BigDecimal("0.00000001");
+
     private final PaymentPlanCompiler paymentPlanCompiler;
     private final PaymentPlanCatalogDao paymentPlanCatalogDao;
     private final PaymentPlanBucketDao paymentPlanBucketDao;
@@ -43,62 +48,70 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public PaymentPlanPublishResponse publish(PaymentPlanPublishRequest request) {
-        PaymentPlanCompileRequest compileRequest = toCompileRequest(request);
-        PaymentPlanCompileResult compileResult = paymentPlanCompiler.compile(compileRequest);
-        if (!compileResult.isValid()) {
-            throw new GkException(firstError(compileResult));
-        }
-
-        PaymentPlanCatalogEntity catalog = compileResult.getCatalog();
-        catalog.setVersion(nextVersion(catalog));
-        catalog.setStatus(PaymentPlanStatus.STAGING);
-        paymentPlanCatalogDao.insert(catalog);
-
-        for (PaymentPlanCompileResult.CompiledBucket compiledBucket : compileResult.getBuckets()) {
-            PaymentPlanBucketEntity bucket = compiledBucket.getBucket();
-            bucket.setTenantId(catalog.getTenantId());
-            bucket.setCatalogId(catalog.getId());
-            paymentPlanBucketDao.insert(bucket);
-            for (PaymentPlanRouteOptionEntity routeOption : compiledBucket.getRouteOptions()) {
-                routeOption.setTenantId(catalog.getTenantId());
-                routeOption.setCatalogId(catalog.getId());
-                routeOption.setBucketId(bucket.getId());
-                paymentPlanRouteOptionDao.insert(routeOption);
+        try {
+            PaymentPlanCompileRequest compileRequest = toCompileRequest(request);
+            PaymentPlanCompileResult compileResult = paymentPlanCompiler.compile(compileRequest);
+            if (!compileResult.isValid()) {
+                throw new GkException(firstError(compileResult));
             }
+
+            PaymentPlanCatalogEntity catalog = compileResult.getCatalog();
+            catalog.setVersion(nextVersion(catalog));
+            catalog.setStatus(PaymentPlanStatus.STAGING);
+            paymentPlanCatalogDao.insert(catalog);
+
+            for (PaymentPlanCompileResult.CompiledBucket compiledBucket : compileResult.getBuckets()) {
+                PaymentPlanBucketEntity bucket = compiledBucket.getBucket();
+                bucket.setTenantId(catalog.getTenantId());
+                bucket.setCatalogId(catalog.getId());
+                paymentPlanBucketDao.insert(bucket);
+                for (PaymentPlanRouteOptionEntity routeOption : compiledBucket.getRouteOptions()) {
+                    routeOption.setTenantId(catalog.getTenantId());
+                    routeOption.setCatalogId(catalog.getId());
+                    routeOption.setBucketId(bucket.getId());
+                    paymentPlanRouteOptionDao.insert(routeOption);
+                }
+            }
+
+            // 同一商户应用维度只允许一个 ACTIVE 决策表，先退旧版，再激活当前发布版本。
+            PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
+            retired.setStatus(PaymentPlanStatus.RETIRED);
+            paymentPlanCatalogDao.update(retired, sameCatalogWrapper(catalog)
+                    .eq("status", PaymentPlanStatus.ACTIVE)
+                    .ne("id", catalog.getId()));
+
+            PaymentPlanCatalogEntity active = new PaymentPlanCatalogEntity();
+            active.setId(catalog.getId());
+            active.setStatus(PaymentPlanStatus.ACTIVE);
+            active.setActivatedAt(Instant.now());
+            paymentPlanCatalogDao.updateById(active);
+
+            if (catalog.getMerchantAppId() == null || catalog.getMerchantAppId() <= 0) {
+                paymentPlanCacheService.evictAll();
+            } else {
+                paymentPlanCacheService.evict(PaymentPlanKey.of(
+                        catalog.getTenantId(),
+                        catalog.getMerchantId(),
+                        catalog.getMerchantAppId(),
+                        catalog.getDirection(),
+                        catalog.getCountryCode(),
+                        catalog.getCurrency(),
+                        catalog.getMethodCode()
+                ));
+            }
+
+            PaymentPlanPublishResponse response = new PaymentPlanPublishResponse();
+            response.setPublished(true);
+            response.setCatalogId(catalog.getId());
+            response.setVersionNo(catalog.getVersion());
+            response.setStatus(PaymentPlanStatus.ACTIVE);
+            response.setBucketCount(catalog.getBucketCount());
+            response.setRouteOptionCount(catalog.getRouteOptionCount());
+            response.setRedisEvicted(true);
+            return response;
+        } catch (DuplicateKeyException ex) {
+            throw new GkException(ErrorCode.DB_RECORD_EXISTS, "支付计划版本已存在，请刷新预览后重新发布", ex);
         }
-
-        // 同一商户应用维度只允许一个 ACTIVE 决策表，先退旧版，再激活当前发布版本。
-        PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
-        retired.setStatus(PaymentPlanStatus.RETIRED);
-        paymentPlanCatalogDao.update(retired, sameCatalogWrapper(catalog)
-                .eq("status", PaymentPlanStatus.ACTIVE)
-                .ne("id", catalog.getId()));
-
-        PaymentPlanCatalogEntity active = new PaymentPlanCatalogEntity();
-        active.setId(catalog.getId());
-        active.setStatus(PaymentPlanStatus.ACTIVE);
-        active.setActivatedAt(Instant.now());
-        paymentPlanCatalogDao.updateById(active);
-
-        paymentPlanCacheService.evict(PaymentPlanKey.of(
-                catalog.getTenantId(),
-                catalog.getMerchantId(),
-                catalog.getMerchantAppId(),
-                catalog.getDirection(),
-                catalog.getCountryCode(),
-                catalog.getCurrency(),
-                catalog.getMethodCode()
-        ));
-
-        PaymentPlanPublishResponse response = new PaymentPlanPublishResponse();
-        response.setPublished(true);
-        response.setCatalogId(catalog.getId());
-        response.setVersionNo(catalog.getVersion());
-        response.setStatus(PaymentPlanStatus.ACTIVE);
-        response.setBucketCount(catalog.getBucketCount());
-        response.setRouteOptionCount(catalog.getRouteOptionCount());
-        response.setRedisEvicted(true);
-        return response;
     }
 
     private Long nextVersion(PaymentPlanCatalogEntity catalog) {
@@ -109,14 +122,19 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     }
 
     private QueryWrapper<PaymentPlanCatalogEntity> sameCatalogWrapper(PaymentPlanCatalogEntity catalog) {
-        return new QueryWrapper<PaymentPlanCatalogEntity>()
+        QueryWrapper<PaymentPlanCatalogEntity> wrapper = new QueryWrapper<PaymentPlanCatalogEntity>()
                 .eq("tenant_id", catalog.getTenantId())
                 .eq("merchant_id", catalog.getMerchantId())
-                .eq("merchant_app_id", catalog.getMerchantAppId())
                 .eq("direction", catalog.getDirection())
                 .eq("country_code", catalog.getCountryCode())
                 .eq("currency", catalog.getCurrency())
                 .eq("method_code", catalog.getMethodCode());
+        wrapper.eq("merchant_app_id", catalogMerchantAppId(catalog.getMerchantAppId()));
+        return wrapper;
+    }
+
+    private Long catalogMerchantAppId(Long merchantAppId) {
+        return merchantAppId == null || merchantAppId <= 0 ? 0L : merchantAppId;
     }
 
     private PaymentPlanCompileRequest toCompileRequest(PaymentPlanPreviewRequest request) {
@@ -127,6 +145,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         compileRequest.setTenantId(request.getTenantId());
         compileRequest.setMerchantId(request.getMerchantId());
         compileRequest.setMerchantAppId(request.getMerchantAppId());
+        compileRequest.setMerchantFeeRuleId(request.getMerchantFeeRuleId());
         compileRequest.setDirection(request.getDirection());
         compileRequest.setCurrency(request.getCurrency());
         compileRequest.setCountryCode(request.getCountryCode());
@@ -156,6 +175,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         compileRequest.setTenantId(request.getTenantId());
         compileRequest.setMerchantId(request.getMerchantId());
         compileRequest.setMerchantAppId(request.getMerchantAppId());
+        compileRequest.setMerchantFeeRuleId(request.getMerchantFeeRuleId());
         compileRequest.setDirection(request.getDirection());
         compileRequest.setCurrency(request.getCurrency());
         compileRequest.setCountryCode(request.getCountryCode());
@@ -188,7 +208,8 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private PaymentPlanPreviewResponse.Bucket toBucketResponse(PaymentPlanCompileResult.CompiledBucket compiledBucket) {
         PaymentPlanPreviewResponse.Bucket bucket = new PaymentPlanPreviewResponse.Bucket();
         bucket.setStartAmount(compiledBucket.getBucket().getBucketStartAmount());
-        bucket.setEndAmount(compiledBucket.getBucket().getBucketEndAmount());
+        bucket.setEndAmount(displayEndAmount(compiledBucket.getBucket().getBucketEndAmount()));
+        bucket.setAmountRangeText(amountRangeText(bucket.getStartAmount(), bucket.getEndAmount()));
         bucket.setMerchantFeeRuleId(compiledBucket.getBucket().getMerchantFeeRuleId());
         bucket.setRouteOptions(compiledBucket.getRouteOptions().stream().map(this::toRouteOptionResponse).toList());
         return bucket;
@@ -237,5 +258,17 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         }
         PaymentPlanCompileResult.Message message = compileResult.getErrors().get(0);
         return message.code() + ": " + message.message();
+    }
+
+    private BigDecimal displayEndAmount(BigDecimal endAmount) {
+        return endAmount == null ? null : endAmount.subtract(MONEY_UNIT);
+    }
+
+    private String amountRangeText(BigDecimal startAmount, BigDecimal endAmount) {
+        return amountText(startAmount) + " - " + amountText(endAmount);
+    }
+
+    private String amountText(BigDecimal value) {
+        return value == null ? "" : value.stripTrailingZeros().toPlainString();
     }
 }

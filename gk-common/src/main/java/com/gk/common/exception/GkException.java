@@ -51,4 +51,10 @@ public class GkException extends RuntimeException {
 		this.msg = msg;
 	}
 
+	public GkException(int code, String msg, Throwable e) {
+		super(msg, e);
+		this.code = code;
+		this.msg = msg;
+	}
+
 }

@@ -36,6 +36,7 @@ public class PaymentPlanPreviewResponse {
     public static class Bucket {
         private BigDecimal startAmount;
         private BigDecimal endAmount;
+        private String amountRangeText;
         private Long merchantFeeRuleId;
         private List<RouteOption> routeOptions = new ArrayList<>();
     }

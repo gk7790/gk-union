@@ -9,6 +9,8 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
@@ -21,19 +23,25 @@ import com.gk.psp.dto.PspMethodDTO;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.service.PspMethodService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
     private static final String EMPTY_CONFIG_JSON = "{}";
+    private static final long PSP_METHOD_DICT_CACHE_SECONDS = 60 * 60L;
 
     @Autowired
     private PayinPlanCache payinPlanCache;
@@ -41,6 +49,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private PspFeeRuleDao pspFeeRuleDao;
+    @Autowired
+    private RedisUtils redisUtils;
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -88,19 +98,28 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Override
     public List<LabelDTO> getMethodCodeDict(DynMap params) {
         QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
+        String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String direction = params.getStr("direction");
+        String cacheKey = RedisKeys.getPspMethodDictKey(normalize(countryCode), normalize(currency), normalize(direction));
+        List<LabelDTO> cached = getCachedMethodDict(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
 
         wrapper.select("method_code", "MIN(method_name) AS method_name");
         wrapper.eq("status", StatusEnum.NORMAL.code());
+        wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.groupBy("method_code");
         wrapper.orderByAsc("method_code");
 
-        return baseDao.selectList(wrapper).stream()
+        List<LabelDTO> dict = baseDao.selectList(wrapper).stream()
                 .map(item -> new LabelDTO(item.getMethodCode(), StringUtils.defaultIfBlank(item.getMethodName(), item.getMethodCode())))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+        cacheMethodDict(cacheKey, dict);
+        return dict;
     }
 
     @Override
@@ -137,6 +156,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         normalizeConfigJson(dto);
         super.save(dto);
         evictPayinPlanCache();
+        evictMethodDictCache();
     }
 
     @Override
@@ -148,18 +168,21 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         PspMethodEntity after = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
         syncFeeRuleMethodSnapshot(before, after);
         evictPayinPlanCache();
+        evictMethodDictCache();
     }
 
     @Override
     public void delete(Long[] ids) {
         super.delete(ids);
         evictPayinPlanCache();
+        evictMethodDictCache();
     }
 
     @Override
     public void delete(Long id) {
         super.delete(id);
         evictPayinPlanCache();
+        evictMethodDictCache();
     }
 
     private void normalizeConfigJson(PspMethodDTO dto) {
@@ -237,6 +260,50 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         }
         if (paymentPlanCacheService != null) {
             paymentPlanCacheService.evictAll();
+        }
+    }
+
+    private List<LabelDTO> getCachedMethodDict(String cacheKey) {
+        try {
+            Object cached = redisUtils.get(cacheKey);
+            if (cached == null) {
+                return null;
+            }
+            if (cached instanceof String text) {
+                return JSON.parseArray(text, LabelDTO.class);
+            }
+            if (cached instanceof List<?> list) {
+                List<LabelDTO> result = new ArrayList<>(list.size());
+                for (Object item : list) {
+                    LabelDTO dto = ConvertUtils.sourceToTarget(item, LabelDTO.class);
+                    if (dto != null) {
+                        result.add(dto);
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Get PSP method dict cache failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void cacheMethodDict(String cacheKey, List<LabelDTO> dict) {
+        try {
+            redisUtils.set(cacheKey, dict, PSP_METHOD_DICT_CACHE_SECONDS);
+        } catch (Exception e) {
+            log.warn("Set PSP method dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private void evictMethodDictCache() {
+        try {
+            Set<String> keys = redisUtils.keys(RedisKeys.getPspMethodDictPattern());
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Evict PSP method dict cache failed: {}", e.getMessage());
         }
     }
 }

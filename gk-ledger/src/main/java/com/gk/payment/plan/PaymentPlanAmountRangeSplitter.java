@@ -32,7 +32,7 @@ public final class PaymentPlanAmountRangeSplitter {
                 }
                 addBoundary(boundaries, scale(range.startAmount()), start, endExclusive);
                 if (range.endAmount() != null) {
-                    addBoundary(boundaries, scale(range.endAmount()), start, endExclusive);
+                    addBoundary(boundaries, scale(range.endAmount()).add(UNIT), start, endExclusive);
                 }
             }
         }

@@ -11,6 +11,7 @@ public class PaymentPlanCompileRequest {
     private Long tenantId;
     private Long merchantId;
     private Long merchantAppId;
+    private Long merchantFeeRuleId;
     private String direction;
     private String countryCode;
     private String currency;

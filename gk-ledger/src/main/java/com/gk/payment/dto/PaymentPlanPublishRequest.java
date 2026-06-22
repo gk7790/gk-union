@@ -15,6 +15,8 @@ public class PaymentPlanPublishRequest {
     private Long merchantId;
     @JsonAlias("merchantAppId")
     private Long merchantAppId;
+    @JsonAlias("merchantFeeRuleId")
+    private Long merchantFeeRuleId;
     private String direction;
     private String currency;
     @JsonAlias("countryCode")

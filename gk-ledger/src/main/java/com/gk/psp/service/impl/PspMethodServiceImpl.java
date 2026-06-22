@@ -9,6 +9,7 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
 import com.gk.payment.plan.PaymentPlanCacheService;
@@ -25,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -64,6 +66,23 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", direction);
         return wrapper;
+    }
+
+    @Override
+    public List<PspMethodDTO> getPspMethodCodeDict(DynMap params) {
+        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
+        Long pspId = params.getLong("pspId", 0L);
+
+        if  (pspId <= 0) {
+            return Collections.emptyList();
+        }
+
+        wrapper.select("id", "psp_method_code", "currency", "direction", "country_code");
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        wrapper.eq("psp_id", pspId);
+
+        List<PspMethodEntity> pspMethodEntities = baseDao.selectList(wrapper);
+        return ConvertUtils.sourceToTarget(pspMethodEntities, PspMethodDTO.class);
     }
 
     @Override

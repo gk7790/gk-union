@@ -42,6 +42,13 @@ public class PspMethodController {
         return R.ok(page);
     }
 
+    @GetMapping("dict-psp")
+    @Operation(summary = "支付方式字典")
+    public R<?> pspDict(@RequestMap DynMap params) {
+        List<PspMethodDTO> list = pspMethodService.getPspMethodCodeDict(params);
+        return R.ok(list);
+    }
+
     @GetMapping("dict")
     @Operation(summary = "支付方式字典")
     public R<?> dict(@RequestMap DynMap params) {

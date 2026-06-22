@@ -1,5 +1,6 @@
 package com.gk.psp.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -7,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PspMethodDTO {
     private Long id;
     @Schema(title = "PSP ID")

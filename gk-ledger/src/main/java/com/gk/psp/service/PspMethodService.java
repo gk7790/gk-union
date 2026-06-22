@@ -13,4 +13,6 @@ public interface PspMethodService extends CrudService<PspMethodEntity, PspMethod
     List<LabelDTO> getMethodCodeDict(DynMap params);
 
     List<PspMethodDictDTO> getFeeRuleMethodDict(DynMap params);
+
+    List<PspMethodDTO> getPspMethodCodeDict(DynMap params);
 }

@@ -1,0 +1,216 @@
+package com.gk.payment.service.impl;
+
+import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.dto.LabelDTO;
+import com.gk.common.model.DynMap;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
+import com.gk.common.utils.ConvertUtils;
+import com.gk.infra.enums.StatusEnum;
+import com.gk.openapi.error.ApiErrorCode;
+import com.gk.openapi.error.ApiException;
+import com.gk.payment.dao.PaymentMethodDao;
+import com.gk.payment.dto.PaymentMethodDTO;
+import com.gk.payment.entity.PaymentMethodEntity;
+import com.gk.payment.service.PaymentMethodService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, PaymentMethodEntity, PaymentMethodDTO>
+        implements PaymentMethodService {
+    private static final long PAYMENT_METHOD_DICT_CACHE_SECONDS = 60 * 60L;
+
+    private final RedisUtils redisUtils;
+
+    @Override
+    public QueryWrapper<PaymentMethodEntity> getWrapper(DynMap params) {
+        QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
+        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        String methodCode = params.getStr("methodCode");
+        String methodName = params.getStr("methodName");
+        String methodType = params.getStr("methodType");
+        String direction = params.getStr("direction");
+        String countryCode = params.getStr("countryCode");
+        String currency = params.getStr("currency");
+
+        wrapper.eq(status != null, "status", status);
+        wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
+        wrapper.like(StrUtil.isNotBlank(methodName), "method_name", methodName);
+        wrapper.eq(StrUtil.isNotBlank(methodType), "method_type", normalize(methodType));
+        wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
+        wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
+        wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
+        wrapper.orderByAsc("sort").orderByAsc("method_code");
+        return wrapper;
+    }
+
+    @Override
+    public List<PaymentMethodDTO> getDict(DynMap params) {
+        String countryCode = normalize(params.getStr("countryCode"));
+        String currency = normalize(params.getStr("currency"));
+        String direction = normalize(params.getStr("direction"));
+        String methodType = normalize(params.getStr("methodType"));
+        String statusKey = statusKey(params);
+        String cacheKey = RedisKeys.getPaymentMethodDictKey(countryCode, currency, direction, methodType, statusKey);
+        List<PaymentMethodDTO> cached = getCachedDict(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<Integer> statusList = params.getList("status", Integer.class, List.of(StatusEnum.NORMAL.code()));
+        QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "method_code", "method_name", "method_type", "direction", "country_code", "currency", "status", "sort", "icon_url", "remark");
+        wrapper.in("status", statusList);
+        wrapper.eq(StrUtil.isNotBlank(methodType), "method_type", methodType);
+        wrapper.and(StrUtil.isNotBlank(direction), item -> item.eq("direction", direction).or().eq("direction", "BOTH").or().isNull("direction").or().eq("direction", ""));
+        wrapper.and(StrUtil.isNotBlank(countryCode), item -> item.eq("country_code", countryCode).or().isNull("country_code").or().eq("country_code", ""));
+        wrapper.and(StrUtil.isNotBlank(currency), item -> item.eq("currency", currency).or().isNull("currency").or().eq("currency", ""));
+        wrapper.orderByAsc("sort").orderByAsc("method_code");
+
+        List<PaymentMethodDTO> dict = ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), PaymentMethodDTO.class);
+        cacheDict(cacheKey, dict);
+        return dict;
+    }
+
+    @Override
+    public List<LabelDTO> getLabelDict(DynMap params) {
+        return getDict(params).stream()
+                .map(item -> LabelDTO.of(item.getMethodCode(), StringUtils.defaultIfBlank(item.getMethodName(), item.getMethodCode())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void save(PaymentMethodDTO dto) {
+        normalizeDto(dto);
+        validateUniqueScope(dto);
+        super.save(dto);
+        evictDictCache();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void update(PaymentMethodDTO dto) {
+        normalizeDto(dto);
+        validateUniqueScope(dto);
+        super.update(dto);
+        evictDictCache();
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        super.delete(ids);
+        evictDictCache();
+    }
+
+    @Override
+    public void delete(Long id) {
+        super.delete(id);
+        evictDictCache();
+    }
+
+    private void normalizeDto(PaymentMethodDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        dto.setMethodCode(normalize(dto.getMethodCode()));
+        dto.setMethodType(StringUtils.trimToNull(normalize(dto.getMethodType())));
+        dto.setDirection(StringUtils.trimToNull(normalize(dto.getDirection())));
+        dto.setCountryCode(StringUtils.trimToNull(normalize(dto.getCountryCode())));
+        dto.setCurrency(StringUtils.trimToNull(normalize(dto.getCurrency())));
+        dto.setMethodName(StringUtils.trimToNull(dto.getMethodName()));
+        dto.setIconUrl(StringUtils.trimToNull(dto.getIconUrl()));
+        dto.setRemark(StringUtils.trimToNull(dto.getRemark()));
+    }
+
+    private void validateUniqueScope(PaymentMethodDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<PaymentMethodEntity>()
+                .eq("method_code", dto.getMethodCode());
+        eqOrNull(wrapper, "direction", dto.getDirection());
+        eqOrNull(wrapper, "country_code", dto.getCountryCode());
+        eqOrNull(wrapper, "currency", dto.getCurrency());
+        wrapper.ne(dto.getId() != null, "id", dto.getId());
+        wrapper.last("limit 1");
+        if (baseDao.selectOne(wrapper) != null) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "payment method scope already exists");
+        }
+    }
+
+    private void eqOrNull(QueryWrapper<PaymentMethodEntity> wrapper, String column, String value) {
+        if (StringUtils.isBlank(value)) {
+            wrapper.isNull(column);
+        } else {
+            wrapper.eq(column, value);
+        }
+    }
+
+    private String normalize(String value) {
+        return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String statusKey(DynMap params) {
+        List<Integer> statusList = params.getList("status", Integer.class, List.of(StatusEnum.NORMAL.code()));
+        return StringUtils.join(statusList, ",");
+    }
+
+    private List<PaymentMethodDTO> getCachedDict(String cacheKey) {
+        try {
+            Object cached = redisUtils.get(cacheKey);
+            if (cached == null) {
+                return null;
+            }
+            if (cached instanceof String text) {
+                return JSON.parseArray(text, PaymentMethodDTO.class);
+            }
+            if (cached instanceof List<?> list) {
+                List<PaymentMethodDTO> result = new ArrayList<>(list.size());
+                for (Object item : list) {
+                    PaymentMethodDTO dto = ConvertUtils.sourceToTarget(item, PaymentMethodDTO.class);
+                    if (dto != null) {
+                        result.add(dto);
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Get payment method dict cache failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void cacheDict(String cacheKey, List<PaymentMethodDTO> dict) {
+        try {
+            redisUtils.set(cacheKey, dict, PAYMENT_METHOD_DICT_CACHE_SECONDS);
+        } catch (Exception e) {
+            log.warn("Set payment method dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private void evictDictCache() {
+        try {
+            Set<String> keys = redisUtils.keys(RedisKeys.getPaymentMethodDictPattern());
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Evict payment method dict cache failed: {}", e.getMessage());
+        }
+    }
+}

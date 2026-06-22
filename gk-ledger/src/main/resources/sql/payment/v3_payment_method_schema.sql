@@ -1,0 +1,20 @@
+CREATE TABLE `payment_method` (
+  `id` bigint NOT NULL COMMENT '主键ID',
+  `method_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '系统支付方式编码',
+  `method_name` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '支付方式名称',
+  `method_type` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '类型: WALLET/BANK_CARD/QR/CASH/CARD',
+  `direction` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '方向: PAYIN/PAYOUT/BOTH，NULL表示不限',
+  `country_code` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '国家/地区，NULL表示通用',
+  `currency` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '币种，NULL表示通用',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '状态: 1正常 2暂停 3停用',
+  `sort` int NOT NULL DEFAULT '100' COMMENT '排序',
+  `icon_url` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '图标',
+  `remark` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
+  `created_by` bigint DEFAULT NULL COMMENT '创建人',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_by` bigint DEFAULT NULL COMMENT '更新人',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_payment_method_scope` (`method_code`, `country_code`, `currency`, `direction`),
+  KEY `idx_payment_method_query` (`country_code`, `currency`, `direction`, `status`, `sort`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统标准支付方式';

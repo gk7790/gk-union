@@ -4,9 +4,12 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -28,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -42,6 +46,38 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     private PayinPlanCache payinPlanCache;
     @Autowired
     private PaymentPlanCacheService paymentPlanCacheService;
+
+    @Override
+    public PageData<MerchantFeeRuleDTO> page(DynMap params) {
+        normalizePageParams(params);
+        params.put("showTenantName", ReqContextHolder.isPlatform());
+        long pageNo = Math.max(params.getLong(Constant.PAGE, 1L), 1L);
+        long limit = Math.max(params.getLong(Constant.LIMIT, 10L), 1L);
+        params.put("offset", (pageNo - 1) * limit);
+        params.put("limitValue", limit);
+
+        Long total = baseDao.countPageWithName(params);
+        List<MerchantFeeRuleDTO> list = total == null || total == 0L
+                ? List.of()
+                : baseDao.selectPageWithName(params);
+        return new PageData<>(list, total == null ? 0L : total);
+    }
+
+    private void normalizePageParams(DynMap params) {
+        normalizeParam(params, "direction");
+        normalizeParam(params, "countryCode");
+        normalizeParam(params, "currency");
+        normalizeParam(params, "methodCode");
+        normalizeParam(params, "feeMode");
+        normalizeParam(params, "feeBearer");
+    }
+
+    private void normalizeParam(DynMap params, String key) {
+        String value = params.getStr(key);
+        if (StrUtil.isNotBlank(value)) {
+            params.put(key, normalize(value));
+        }
+    }
 
     @Override
     public void save(MerchantFeeRuleDTO dto) {

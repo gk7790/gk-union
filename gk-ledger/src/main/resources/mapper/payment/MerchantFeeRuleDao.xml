@@ -2,6 +2,117 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.gk.payment.dao.MerchantFeeRuleDao">
+    <sql id="pageWithNameWhere">
+        <where>
+            <if test="params.tenantId != null">
+                AND r.tenant_id = #{params.tenantId}
+            </if>
+            <if test="params.merchantId != null">
+                AND r.merchant_id = #{params.merchantId}
+            </if>
+            <if test="params.merchantAppId != null">
+                AND r.merchant_app_id = #{params.merchantAppId}
+            </if>
+            <if test="params.status != null">
+                AND r.status = #{params.status}
+            </if>
+            <if test="params.ruleName != null and params.ruleName != ''">
+                AND r.rule_name LIKE CONCAT('%', #{params.ruleName}, '%')
+            </if>
+            <if test="params.direction != null and params.direction != ''">
+                AND r.direction = #{params.direction}
+            </if>
+            <if test="params.countryCode != null and params.countryCode != ''">
+                AND r.country_code = #{params.countryCode}
+            </if>
+            <if test="params.currency != null and params.currency != ''">
+                AND r.currency = #{params.currency}
+            </if>
+            <if test="params.methodCode != null and params.methodCode != ''">
+                AND r.method_code = #{params.methodCode}
+            </if>
+            <if test="params.feeMode != null and params.feeMode != ''">
+                AND r.fee_mode = #{params.feeMode}
+            </if>
+            <if test="params.feeBearer != null and params.feeBearer != ''">
+                AND r.fee_bearer = #{params.feeBearer}
+            </if>
+            <if test="params.merchantName != null and params.merchantName != ''">
+                AND m.merchant_name LIKE CONCAT('%', #{params.merchantName}, '%')
+            </if>
+            <if test="params.merchantAppName != null and params.merchantAppName != ''">
+                AND a.app_name LIKE CONCAT('%', #{params.merchantAppName}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <select id="countPageWithName" resultType="java.lang.Long">
+        SELECT COUNT(1)
+        FROM merchant_fee_rule r
+        LEFT JOIN merchant m
+          ON m.tenant_id = r.tenant_id
+         AND m.id = r.merchant_id
+        LEFT JOIN merchant_app a
+          ON a.tenant_id = r.tenant_id
+         AND a.id = r.merchant_app_id
+        <include refid="pageWithNameWhere"/>
+    </select>
+
+    <select id="selectPageWithName" resultType="com.gk.payment.dto.MerchantFeeRuleDTO">
+        SELECT
+            r.id AS id,
+            r.tenant_id AS tenantId,
+            <choose>
+                <when test="params.showTenantName == true">
+            t.name AS tenantName,
+                </when>
+                <otherwise>
+            NULL AS tenantName,
+                </otherwise>
+            </choose>
+            r.merchant_id AS merchantId,
+            m.merchant_name AS merchantName,
+            r.merchant_app_id AS merchantAppId,
+            a.app_name AS merchantAppName,
+            r.rule_name AS ruleName,
+            r.direction AS direction,
+            r.country_code AS countryCode,
+            r.currency AS currency,
+            r.method_code AS methodCode,
+            r.min_amount AS minAmount,
+            r.max_amount AS maxAmount,
+            r.fee_mode AS feeMode,
+            r.fee_rate AS feeRate,
+            r.fee_fixed AS feeFixed,
+            r.min_fee AS minFee,
+            r.max_fee AS maxFee,
+            r.fee_bearer AS feeBearer,
+            r.settle_mode AS settleMode,
+            r.priority AS priority,
+            r.effective_at AS effectiveAt,
+            r.expire_at AS expireAt,
+            r.status AS status,
+            r.remark AS remark,
+            r.created_by AS createdBy,
+            r.created_at AS createdAt,
+            r.updated_by AS updatedBy,
+            r.updated_at AS updatedAt
+        FROM merchant_fee_rule r
+        LEFT JOIN merchant m
+          ON m.tenant_id = r.tenant_id
+         AND m.id = r.merchant_id
+        LEFT JOIN merchant_app a
+          ON a.tenant_id = r.tenant_id
+         AND a.id = r.merchant_app_id
+        <if test="params.showTenantName == true">
+        LEFT JOIN sys_tenant t
+          ON t.id = r.tenant_id
+        </if>
+        <include refid="pageWithNameWhere"/>
+        ORDER BY r.id DESC
+        LIMIT #{params.limitValue} OFFSET #{params.offset}
+    </select>
+
     <select id="selectBestMatchForOrder" resultType="com.gk.payment.entity.MerchantFeeRuleEntity">
         SELECT * FROM merchant_fee_rule
         WHERE tenant_id = #{tenantId}

@@ -1,15 +1,22 @@
 package com.gk.payment.dao;
 
 import com.gk.common.core.dao.BaseDao;
+import com.gk.common.model.DynMap;
+import com.gk.payment.dto.MerchantFeeRuleDTO;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 @Mapper
 public interface MerchantFeeRuleDao extends BaseDao<MerchantFeeRuleEntity> {
+    Long countPageWithName(@Param("params") DynMap params);
+
+    List<MerchantFeeRuleDTO> selectPageWithName(@Param("params") DynMap params);
+
     MerchantFeeRuleEntity selectBestMatchForOrder(
             @Param("tenantId") Long tenantId,
             @Param("merchantId") Long merchantId,

@@ -11,10 +11,16 @@ public class MerchantFeeRuleDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
+    @Schema(title = "租户名称")
+    private String tenantName;
     @Schema(title = "商户ID")
     private Long merchantId;
+    @Schema(title = "商户名称")
+    private String merchantName;
     @Schema(title = "商户应用ID")
     private Long merchantAppId;
+    @Schema(title = "商户应用名称")
+    private String merchantAppName;
     @Schema(title = "规则名称")
     private String ruleName;
     @Schema(title = "订单类型: PAYIN/PAYOUT")

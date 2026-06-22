@@ -7,6 +7,7 @@ import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.common.dto.LabelDTO;
+import com.gk.psp.dto.PspMethodDictDTO;
 import com.gk.psp.dto.PspMethodDTO;
 import com.gk.psp.service.PspMethodService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,6 +46,13 @@ public class PspMethodController {
     @Operation(summary = "支付方式字典")
     public R<?> dict(@RequestMap DynMap params) {
         List<LabelDTO> list = pspMethodService.getMethodCodeDict(params);
+        return R.ok(list);
+    }
+
+    @GetMapping("fee-rule-dict")
+    @Operation(summary = "PSP成本规则支付方式字典")
+    public R<?> feeRuleDict(@RequestMap DynMap params) {
+        List<PspMethodDictDTO> list = pspMethodService.getFeeRuleMethodDict(params);
         return R.ok(list);
     }
 

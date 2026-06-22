@@ -17,6 +17,8 @@ public class PspFeeRuleDTO {
     private Long pspAccountId;
     @Schema(title = "PSP支付方式ID")
     private Long pspMethodId;
+    @Schema(title = "PSP支付方式编码快照")
+    private String pspMethodCode;
     @Schema(title = "规则名称")
     private String ruleName;
     @Schema(title = "方向: PAYIN/PAYOUT")

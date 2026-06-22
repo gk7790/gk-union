@@ -526,6 +526,7 @@ public class PaymentPlanCompiler {
         snapshot.put("pspId", rule.getPspId());
         snapshot.put("pspAccountId", rule.getPspAccountId());
         snapshot.put("pspMethodId", rule.getPspMethodId());
+        snapshot.put("pspMethodCode", rule.getPspMethodCode());
         snapshot.put("direction", rule.getDirection());
         snapshot.put("countryCode", rule.getCountryCode());
         snapshot.put("currency", rule.getCurrency());

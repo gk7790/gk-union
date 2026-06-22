@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONException;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
@@ -12,8 +13,11 @@ import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
+import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
+import com.gk.psp.dto.PspMethodDictDTO;
 import com.gk.psp.dto.PspMethodDTO;
+import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.service.PspMethodService;
 import org.apache.commons.lang3.StringUtils;
@@ -23,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
@@ -32,6 +37,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     private PayinPlanCache payinPlanCache;
     @Autowired
     private PaymentPlanCacheService paymentPlanCacheService;
+    @Autowired
+    private PspFeeRuleDao pspFeeRuleDao;
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -78,6 +85,34 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     }
 
     @Override
+    public List<PspMethodDictDTO> getFeeRuleMethodDict(DynMap params) {
+        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
+        Long pspId = params.getLong("pspId", null);
+        Integer status = params.containsKey("status") ? params.getInt("status") : StatusEnum.NORMAL.code();
+        String pspCode = params.getStr("pspCode");
+        String methodCode = params.getStr("methodCode");
+        String pspMethodCode = params.getStr("pspMethodCode");
+        String countryCode = params.getStr("countryCode");
+        String currency = params.getStr("currency");
+        String direction = params.getStr("direction");
+
+        // 成本规则表单只需要可用的 PSP Method，选择后回填 psp_method_id/method_code/psp_method_code。
+        wrapper.eq(pspId != null, "psp_id", pspId);
+        wrapper.eq(status != null, "status", status);
+        wrapper.eq(StrUtil.isNotBlank(pspCode), "psp_code", normalize(pspCode));
+        wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
+        wrapper.eq(StrUtil.isNotBlank(pspMethodCode), "psp_method_code", pspMethodCode);
+        wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
+        wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
+        wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
+        wrapper.orderByAsc("psp_code", "direction", "country_code", "currency", "method_code", "psp_method_code");
+
+        return baseDao.selectList(wrapper).stream()
+                .map(this::toFeeRuleMethodDict)
+                .toList();
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(PspMethodDTO dto) {
         normalizeConfigJson(dto);
@@ -88,8 +123,11 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(PspMethodDTO dto) {
+        PspMethodEntity before = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
         normalizeConfigJson(dto);
         super.update(dto);
+        PspMethodEntity after = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
+        syncFeeRuleMethodSnapshot(before, after);
         evictPayinPlanCache();
     }
 
@@ -124,6 +162,53 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     private String normalize(String value) {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void syncFeeRuleMethodSnapshot(PspMethodEntity before, PspMethodEntity after) {
+        if (after == null || after.getId() == null) {
+            return;
+        }
+        if (before != null
+                && Objects.equals(normalize(before.getMethodCode()), normalize(after.getMethodCode()))
+                && Objects.equals(StringUtils.trimToNull(before.getPspMethodCode()), StringUtils.trimToNull(after.getPspMethodCode()))
+                && Objects.equals(before.getPspId(), after.getPspId())) {
+            return;
+        }
+
+        PspFeeRuleEntity update = new PspFeeRuleEntity();
+        update.setPspId(after.getPspId());
+        update.setMethodCode(normalize(after.getMethodCode()));
+        update.setPspMethodCode(StringUtils.trimToNull(after.getPspMethodCode()));
+        pspFeeRuleDao.update(update, new UpdateWrapper<PspFeeRuleEntity>()
+                .eq("psp_method_id", after.getId()));
+    }
+
+    private PspMethodDictDTO toFeeRuleMethodDict(PspMethodEntity entity) {
+        PspMethodDictDTO item = new PspMethodDictDTO();
+        item.setValue(entity.getId());
+        item.setPspMethodId(entity.getId());
+        item.setPspId(entity.getPspId());
+        item.setPspCode(entity.getPspCode());
+        item.setMethodCode(entity.getMethodCode());
+        item.setPspMethodCode(entity.getPspMethodCode());
+        item.setMethodName(entity.getMethodName());
+        item.setCountryCode(entity.getCountryCode());
+        item.setCurrency(entity.getCurrency());
+        item.setDirection(entity.getDirection());
+        item.setMinAmount(entity.getMinAmount());
+        item.setMaxAmount(entity.getMaxAmount());
+        item.setLabel(methodLabel(entity));
+        return item;
+    }
+
+    private String methodLabel(PspMethodEntity entity) {
+        String label = String.join(" / ",
+                StringUtils.defaultString(entity.getMethodCode()),
+                StringUtils.defaultString(entity.getPspMethodCode()));
+        if (StringUtils.isNotBlank(entity.getMethodName())) {
+            label = label + " - " + StringUtils.trim(entity.getMethodName());
+        }
+        return label;
     }
 
     private void evictPayinPlanCache() {

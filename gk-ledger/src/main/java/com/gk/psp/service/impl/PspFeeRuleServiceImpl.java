@@ -9,6 +9,7 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.NumberUtils;
@@ -20,15 +21,16 @@ import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspFeeRuleDao;
+import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dto.PspFeeRuleDTO;
 import com.gk.psp.entity.PspFeeRuleEntity;
+import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.fee.PspFeeCalculator;
 import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -44,6 +46,8 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     private PayinPlanCache payinPlanCache;
     @Autowired
     private PaymentPlanCacheService paymentPlanCacheService;
+    @Autowired
+    private PspMethodDao pspMethodDao;
 
     @Override
     public QueryWrapper<PspFeeRuleEntity> getWrapper(DynMap params) {
@@ -54,6 +58,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         Long pspMethodId = params.getLong("pspMethodId", null);
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String ruleName = params.getStr("ruleName");
+        String pspMethodCode = params.getStr("pspMethodCode");
         String direction = params.getStr("direction");
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
@@ -66,6 +71,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
         wrapper.eq(status != null, "status", status);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
+        wrapper.eq(StrUtil.isNotBlank(pspMethodCode), "psp_method_code", pspMethodCode);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
@@ -76,6 +82,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     @Override
     public void save(PspFeeRuleDTO dto) {
+        fillPspMethodSnapshot(dto);
         PspFeeRuleEntity entity = ConvertUtils.sourceToTarget(dto, PspFeeRuleEntity.class);
         ReqContext context = ReqContextHolder.get();
         entity.setTenantId(context.getTenantId());
@@ -90,6 +97,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     @Override
     public void update(PspFeeRuleDTO dto) {
+        fillPspMethodSnapshot(dto);
         super.update(dto);
         evictPayinPlanCache();
     }
@@ -200,6 +208,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         snapshot.put("pspId", rule.getPspId());
         snapshot.put("pspAccountId", rule.getPspAccountId());
         snapshot.put("pspMethodId", rule.getPspMethodId());
+        snapshot.put("pspMethodCode", rule.getPspMethodCode());
         snapshot.put("direction", rule.getDirection());
         snapshot.put("countryCode", rule.getCountryCode());
         snapshot.put("currency", rule.getCurrency());
@@ -214,6 +223,24 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     private String decimalText(BigDecimal value) {
         return value == null ? null : value.toPlainString();
+    }
+
+    private void fillPspMethodSnapshot(PspFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        if (dto.getPspMethodId() == null) {
+            dto.setPspMethodCode(null);
+            return;
+        }
+        PspMethodEntity method = pspMethodDao.selectById(dto.getPspMethodId());
+        if (method == null) {
+            throw new GkException("PSP method not found: " + dto.getPspMethodId());
+        }
+        // Keep PSP fee rule snapshots consistent with the selected PSP Method.
+        dto.setPspId(method.getPspId());
+        dto.setMethodCode(normalize(method.getMethodCode()));
+        dto.setPspMethodCode(StringUtils.trimToNull(method.getPspMethodCode()));
     }
 
     private String normalize(String value) {

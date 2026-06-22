@@ -93,6 +93,7 @@ CREATE TABLE `psp_fee_rule`  (
   `psp_id` bigint NOT NULL COMMENT 'PSP ID',
   `psp_account_id` bigint NULL DEFAULT NULL COMMENT 'PSP账户配置ID，NULL表示不限账户',
   `psp_method_id` bigint NULL DEFAULT NULL COMMENT 'PSP支付方式ID，NULL表示不限PSP支付方式',
+  `psp_method_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP支付方式编码快照',
   `rule_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '规则名称',
   `direction` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '方向: PAYIN/PAYOUT',
   `country_code` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '国家编码，NULL表示不限国家',

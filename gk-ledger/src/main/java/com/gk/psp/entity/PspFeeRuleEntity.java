@@ -16,6 +16,7 @@ public class PspFeeRuleEntity extends SimpleEntity {
     private Long pspId;
     private Long pspAccountId;
     private Long pspMethodId;
+    private String pspMethodCode;
     private String ruleName;
     private String direction;
     private String countryCode;

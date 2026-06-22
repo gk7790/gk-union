@@ -6,9 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 支付决策 PSP 候选路由。
- * <p>
- * 一个金额桶下可以有多个候选 PSP，用于权重、备用和故障切换。
+ * PSP candidate route under one payment plan bucket.
  */
 @Data
 @EqualsAndHashCode(callSuper = false)

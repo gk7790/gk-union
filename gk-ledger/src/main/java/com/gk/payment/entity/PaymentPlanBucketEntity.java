@@ -8,9 +8,9 @@ import lombok.EqualsAndHashCode;
 import java.math.BigDecimal;
 
 /**
- * 支付决策金额桶。
+ * Payment plan amount bucket.
  * <p>
- * 每个 bucket 保存一段金额区间内已经命中的商户费率、PSP 路由和 PSP 成本费率。
+ * Buckets use half-open ranges: start <= amount < end.
  */
 @Data
 @EqualsAndHashCode(callSuper = false)

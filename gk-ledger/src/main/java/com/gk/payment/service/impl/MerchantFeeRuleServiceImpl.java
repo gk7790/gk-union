@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
@@ -90,6 +91,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     public void update(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
         super.update(dto);
+        clearMerchantAppWhenNeeded(dto);
         evictPayinPlanCache();
     }
 
@@ -276,9 +278,23 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         if (dto == null) {
             return;
         }
+        if (dto.getMerchantAppId() != null && dto.getMerchantAppId() <= 0) {
+            dto.setMerchantAppId(null);
+        }
         dto.setFeeBearer(null);
         String direction = StringUtils.defaultIfBlank(dto.getDirection(), currentDirection(dto.getId()));
         dto.setSettleMode(PayDirectionEnum.PAYOUT.matches(direction) ? SETTLE_MODE_ADD : SETTLE_MODE_DEDUCT);
+    }
+
+    private void clearMerchantAppWhenNeeded(MerchantFeeRuleDTO dto) {
+        if (dto == null || dto.getId() == null || dto.getMerchantAppId() != null) {
+            return;
+        }
+        MerchantFeeRuleEntity update = new MerchantFeeRuleEntity();
+        update.setMerchantAppId(null);
+        baseDao.update(update, new UpdateWrapper<MerchantFeeRuleEntity>()
+                .eq("id", dto.getId())
+                .set("merchant_app_id", null));
     }
 
     private String currentDirection(Long id) {

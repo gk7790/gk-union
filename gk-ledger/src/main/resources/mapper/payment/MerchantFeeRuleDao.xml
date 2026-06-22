@@ -71,7 +71,7 @@
                 </otherwise>
             </choose>
             r.merchant_id AS merchantId,
-            m.merchant_name AS merchantName,
+            m.merchant_short_name AS merchantName,
             r.merchant_app_id AS merchantAppId,
             a.app_name AS merchantAppName,
             r.rule_name AS ruleName,

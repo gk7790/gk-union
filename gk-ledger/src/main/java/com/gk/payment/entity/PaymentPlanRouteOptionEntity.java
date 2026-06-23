@@ -26,6 +26,12 @@ public class PaymentPlanRouteOptionEntity extends BaseEntity {
     private String pspAccountNo;
     private Long pspFeeRuleId;
     private String pspFeeSnapshotJson;
+    private String routeRuleSnapshotJson;
+    private String routeGroupSnapshotJson;
+    private String routeChannelSnapshotJson;
+    private String pspProviderSnapshotJson;
+    private String pspMethodSnapshotJson;
+    private String pspAccountSnapshotJson;
     private Integer priority;
     private Integer weight;
     private Integer fallbackOrder;

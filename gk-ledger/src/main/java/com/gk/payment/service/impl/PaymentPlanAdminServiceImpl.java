@@ -30,7 +30,6 @@ import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
-import com.gk.psp.entity.PspRouteRuleEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -234,7 +233,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private PaymentPlanPreviewResponse.RouteOption toRouteOptionResponse(PaymentPlanCompileResult.CompiledRouteOption detail) {
         PaymentPlanRouteOptionEntity option = detail.getOption();
         PaymentPlanPreviewResponse.RouteOption response = toRouteOptionResponse(option);
-        response.setRoute(toRouteResponse(detail.getRouteRule(), detail.getPaymentRouteRule(), option));
+        response.setRoute(toRouteResponse(detail.getPaymentRouteRule(), option));
         response.setRouteGroup(toRouteGroupResponse(detail.getRouteGroup()));
         response.setRouteChannel(toRouteChannelResponse(detail.getRouteChannel()));
         response.setPsp(toPspResponse(detail.getProvider()));
@@ -247,6 +246,8 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private PaymentPlanPreviewResponse.RouteOption toRouteOptionResponse(PaymentPlanRouteOptionEntity option) {
         PaymentPlanPreviewResponse.RouteOption response = new PaymentPlanPreviewResponse.RouteOption();
         response.setRouteRuleId(option.getRouteRuleId());
+        response.setRouteGroupId(option.getRouteGroupId());
+        response.setRouteChannelId(option.getRouteChannelId());
         response.setPspId(option.getPspId());
         response.setPspCode(option.getPspCode());
         response.setPspMethodId(option.getPspMethodId());
@@ -254,6 +255,13 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         response.setPspAccountId(option.getPspAccountId());
         response.setPspAccountNo(option.getPspAccountNo());
         response.setPspFeeRuleId(option.getPspFeeRuleId());
+        response.setPspFeeSnapshotJson(option.getPspFeeSnapshotJson());
+        response.setRouteRuleSnapshotJson(option.getRouteRuleSnapshotJson());
+        response.setRouteGroupSnapshotJson(option.getRouteGroupSnapshotJson());
+        response.setRouteChannelSnapshotJson(option.getRouteChannelSnapshotJson());
+        response.setPspProviderSnapshotJson(option.getPspProviderSnapshotJson());
+        response.setPspMethodSnapshotJson(option.getPspMethodSnapshotJson());
+        response.setPspAccountSnapshotJson(option.getPspAccountSnapshotJson());
         response.setPriority(option.getPriority());
         response.setWeight(option.getWeight());
         response.setFallbackOrder(option.getFallbackOrder());
@@ -289,14 +297,13 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         return response;
     }
 
-    private PaymentPlanPreviewResponse.Route toRouteResponse(PspRouteRuleEntity legacyRule,
-                                                            PaymentRouteRuleEntity paymentRule,
+    private PaymentPlanPreviewResponse.Route toRouteResponse(PaymentRouteRuleEntity paymentRule,
                                                             PaymentPlanRouteOptionEntity option) {
-        if (legacyRule == null && paymentRule == null && option == null) {
+        if (paymentRule == null && option == null) {
             return null;
         }
         PaymentPlanPreviewResponse.Route response = new PaymentPlanPreviewResponse.Route();
-        response.setRouteRuleId(option == null ? routeRuleId(legacyRule, paymentRule) : option.getRouteRuleId());
+        response.setRouteRuleId(option == null ? routeRuleId(paymentRule) : option.getRouteRuleId());
         if (paymentRule != null) {
             response.setRouteName(paymentRule.getRuleName());
             response.setRouteMode(null);
@@ -313,35 +320,14 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
             response.setRemark(paymentRule.getRemark());
             return response;
         }
-        if (legacyRule != null) {
-            response.setRouteName(legacyRule.getRouteName());
-            response.setRouteMode(legacyRule.getRouteMode());
-            response.setCountryCode(legacyRule.getCountryCode());
-            response.setCurrency(legacyRule.getCurrency());
-            response.setMethodCode(legacyRule.getMethodCode());
-            response.setDirection(legacyRule.getDirection());
-            response.setMinAmount(legacyRule.getMinAmount());
-            response.setMaxAmount(legacyRule.getMaxAmount());
-            response.setStartTime(legacyRule.getStartTime());
-            response.setEndTime(legacyRule.getEndTime());
-            response.setPriority(option == null ? legacyRule.getPriority() : option.getPriority());
-            response.setWeight(option == null ? legacyRule.getWeight() : option.getWeight());
-            response.setFallbackOrder(option == null ? legacyRule.getPriority() : option.getFallbackOrder());
-            response.setStatus(legacyRule.getStatus());
-            response.setRemark(legacyRule.getRemark());
-            return response;
-        }
         response.setPriority(option.getPriority());
         response.setWeight(option.getWeight());
         response.setFallbackOrder(option.getFallbackOrder());
         return response;
     }
 
-    private Long routeRuleId(PspRouteRuleEntity legacyRule, PaymentRouteRuleEntity paymentRule) {
-        if (paymentRule != null) {
-            return paymentRule.getId();
-        }
-        return legacyRule == null ? null : legacyRule.getId();
+    private Long routeRuleId(PaymentRouteRuleEntity paymentRule) {
+        return paymentRule == null ? null : paymentRule.getId();
     }
 
     private PaymentPlanPreviewResponse.RouteGroup toRouteGroupResponse(PaymentRouteGroupEntity group) {

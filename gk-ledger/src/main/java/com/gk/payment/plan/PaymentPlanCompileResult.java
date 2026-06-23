@@ -11,7 +11,6 @@ import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
-import com.gk.psp.entity.PspRouteRuleEntity;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -50,7 +49,6 @@ public class PaymentPlanCompileResult {
     @Data
     public static class CompiledRouteOption {
         private PaymentPlanRouteOptionEntity option;
-        private PspRouteRuleEntity routeRule;
         private PaymentRouteRuleEntity paymentRouteRule;
         private PaymentRouteGroupEntity routeGroup;
         private PaymentRouteChannelEntity routeChannel;

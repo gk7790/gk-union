@@ -25,18 +25,13 @@ import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.plan.PaymentPlan;
 import com.gk.payment.plan.PaymentPlanResolver;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
-import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
-import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.route.PspRouteResult;
-import com.gk.psp.route.PspRouteSelector;
-import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
@@ -60,9 +55,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
-    private final MerchantFeeRuleService merchantFeeRuleService;
-    private final PspRouteSelector pspRouteSelector;
-    private final PspFeeRuleService pspFeeRuleService;
     private final PaymentPlanResolver paymentPlanResolver;
     private final PspPayoutDispatchService pspPayoutDispatchService;
     private final LedgerPostingService ledgerPostingService;
@@ -139,14 +131,15 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         applyPayee(entity, request);
         PaymentPlan paymentPlan = null;
         if (!isTestApp(context.getMerchantApp())) {
-            // 正式代付优先读取后台发布的支付决策表；未发布时继续走旧实时规则，确保迁移不影响现有业务。
-            paymentPlan = paymentPlanResolver.resolvePayout(entity).orElse(null);
+            // 正式代付必须命中后台发布的支付方案，避免下单时实时拼装路由和费率。
+            paymentPlan = paymentPlanResolver.resolvePayout(entity)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
         }
         if (paymentPlan != null) {
             applyPaymentPlan(entity, paymentPlan);
         } else {
-            // 商户手续费会计入 totalDebitAmount，冻结时按“代付金额 + 商户手续费”冻结。
-            applyMerchantFee(entity);
+            // 测试应用不走正式支付方案，默认只按代付金额处理。
+            entity.setTotalDebitAmount(entity.getAmount());
         }
 
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
@@ -237,16 +230,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     private void submitToPsp(PayoutOrderEntity order, PaymentPlan paymentPlan) {
         try {
-            PspRouteResult route;
-            if (paymentPlan != null && paymentPlan.getRoute() != null) {
-                // 使用下单前已经命中的决策表路由，避免冻结后再次实时选路由导致快照不一致。
-                route = paymentPlan.getRoute();
-            } else {
-                // 未发布决策表时保留旧逻辑：冻结成功后实时选择 PSP 路由并计算 PSP 成本。
-                route = pspRouteSelector.selectPayout(order);
-                applyRoute(order, route);
-                applyPspFee(order);
+            if (paymentPlan == null || paymentPlan.getRoute() == null) {
+                throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published");
             }
+            PspRouteResult route = paymentPlan.getRoute();
+            // 使用下单前已经命中的支付方案路由，避免冻结后再次实时选路由导致快照不一致。
 
             // 调用 PSP 分发服务，具体 PSP 协议由对应 adapter 处理。
             PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(order, route);
@@ -387,15 +375,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * <p>
      * 代付冻结金额为代付本金加商户手续费，即 totalDebitAmount。
      */
-    private void applyMerchantFee(PayoutOrderEntity entity) {
-        MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayout(entity);
-        BigDecimal feeAmount = defaultZero(feeResult.getMerchantFeeAmount());
-        entity.setMerchantFeeAmount(feeAmount);
-        entity.setTotalDebitAmount(entity.getAmount().add(feeAmount));
-        entity.setMerchantFeeRuleId(feeResult.getRule().getId());
-        entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
-    }
-
     /**
      * 应用已发布支付决策表命中的代付方案。
      * <p>
@@ -475,13 +454,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 计算 PSP 手续费并保存规则快照。
      */
-    private void applyPspFee(PayoutOrderEntity entity) {
-        PspFeeResult feeResult = pspFeeRuleService.calculatePayout(entity);
-        entity.setPspFeeAmount(feeResult.getPspFeeAmount());
-        entity.setPspFeeRuleId(feeResult.getRule().getId());
-        entity.setPspFeeSnapshotJson(feeResult.getSnapshotJson());
-    }
-
     /**
      * 校验重复商户订单号对应的请求参数是否一致。
      * <p>

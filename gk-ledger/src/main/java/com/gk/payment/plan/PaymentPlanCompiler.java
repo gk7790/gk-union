@@ -24,13 +24,11 @@ import com.gk.psp.dao.PspBankMappingDao;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspProviderDao;
-import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspBankMappingEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
-import com.gk.psp.entity.PspRouteRuleEntity;
 import com.gk.psp.fee.PspFeeCalculator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -38,7 +36,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -59,7 +56,6 @@ public class PaymentPlanCompiler {
     private final PaymentRouteRuleDao paymentRouteRuleDao;
     private final PaymentRouteGroupDao paymentRouteGroupDao;
     private final PaymentRouteChannelDao paymentRouteChannelDao;
-    private final PspRouteRuleDao pspRouteRuleDao;
     private final PspFeeRuleDao pspFeeRuleDao;
     private final PspProviderDao pspProviderDao;
     private final PspMethodDao pspMethodDao;
@@ -77,12 +73,11 @@ public class PaymentPlanCompiler {
         List<MerchantFeeRuleEntity> merchantRules = merchantRules(request);
         List<PaymentRouteRuleEntity> paymentRouteRules = paymentRouteRules(request);
         List<PaymentRouteChannelEntity> paymentRouteChannels = paymentRouteChannels(paymentRouteRules);
-        List<PspRouteRuleEntity> routeRules = paymentRouteRules.isEmpty() ? routeRules(request) : List.of();
         if (merchantRules.isEmpty()) {
             result.addError("MERCHANT_FEE_RULE_MISSING", "Merchant fee rule is not configured");
         }
-        if (paymentRouteRules.isEmpty() && routeRules.isEmpty()) {
-            result.addError("PSP_ROUTE_RULE_MISSING", "No available PSP route");
+        if (paymentRouteRules.isEmpty()) {
+            result.addError("PSP_ROUTE_RULE_MISSING", "Payment route rule is not configured");
         }
         if (!result.isValid()) {
             return result;
@@ -93,12 +88,12 @@ public class PaymentPlanCompiler {
         List<PaymentPlanAmountRange> ranges = PaymentPlanAmountRangeSplitter.split(
                 request.getMinAmount(),
                 request.getMaxAmount(),
-                sourceRanges(merchantRules, paymentRouteRules, paymentRouteChannels, routeRules, pspFeeRules)
+                sourceRanges(merchantRules, paymentRouteRules, paymentRouteChannels, pspFeeRules)
         );
         int bucketSort = 0;
         int routeOptionCount = 0;
         for (PaymentPlanAmountRange range : ranges) {
-            PaymentPlanCompileResult.CompiledBucket compiledBucket = compileBucket(request, range, bucketSort++, merchantRules, paymentRouteRules, routeRules, result);
+            PaymentPlanCompileResult.CompiledBucket compiledBucket = compileBucket(request, range, bucketSort++, merchantRules, paymentRouteRules, result);
             if (compiledBucket != null) {
                 routeOptionCount += compiledBucket.getRouteOptions().size();
                 result.getBuckets().add(compiledBucket);
@@ -121,7 +116,6 @@ public class PaymentPlanCompiler {
                                                                  int bucketSort,
                                                                  List<MerchantFeeRuleEntity> merchantRules,
                                                                  List<PaymentRouteRuleEntity> paymentRouteRules,
-                                                                 List<PspRouteRuleEntity> routeRules,
                                                                  PaymentPlanCompileResult result) {
         BigDecimal sampleAmount = range.startAmount();
         MerchantFeeRuleEntity merchantRule = merchantRule(request, merchantRules, sampleAmount);
@@ -138,12 +132,7 @@ public class PaymentPlanCompiler {
         bucket.setMerchantFeeSnapshotJson(merchantSnapshotJson(merchantRule));
         bucket.setSort(bucketSort);
 
-        List<PaymentPlanCompileResult.CompiledRouteOption> routeOptionDetails = paymentRouteRules.isEmpty()
-                ? matchingRouteRules(routeRules, sampleAmount).stream()
-                .map(rule -> routeOption(request, rule, sampleAmount, result))
-                .filter(Objects::nonNull)
-                .toList()
-                : paymentRouteOptions(request, paymentRouteRules, sampleAmount, result);
+        List<PaymentPlanCompileResult.CompiledRouteOption> routeOptionDetails = paymentRouteOptions(request, paymentRouteRules, sampleAmount, result);
         List<PaymentPlanRouteOptionEntity> routeOptions = routeOptionDetails.stream()
                 .map(PaymentPlanCompileResult.CompiledRouteOption::getOption)
                 .toList();
@@ -226,74 +215,6 @@ public class PaymentPlanCompiler {
     }
 
     private PaymentPlanCompileResult.CompiledRouteOption routeOption(PaymentPlanCompileRequest request,
-                                                                     PspRouteRuleEntity rule,
-                                                                     BigDecimal sampleAmount,
-                                                                     PaymentPlanCompileResult result) {
-        PspProviderEntity provider = pspProviderDao.selectById(rule.getPspId());
-        PspMethodEntity method = pspMethodDao.selectById(rule.getPspMethodId());
-        PspAccountEntity account = pspAccountDao.selectById(rule.getPspAccountId());
-        if (!resourceAvailable(request.getDirection(), provider, method, account)) {
-            result.addWarning("PSP_RESOURCE_UNAVAILABLE", "PSP resource is unavailable for route rule " + rule.getId());
-            return null;
-        }
-        if (!routeMethodMatches(request, method)) {
-            result.addWarning("PSP_METHOD_NOT_MATCH", "PSP method does not match request method for route rule " + rule.getId());
-            return null;
-        }
-
-        if (requiresBankMapping(request) && !hasAnyBankMapping(request, rule.getPspId())) {
-            result.addWarning("PSP_BANK_MAPPING_MISSING", "PSP bank mapping is not configured for PSP " + rule.getPspId());
-            return null;
-        }
-
-        PspFeeRuleEntity feeRule = pspFeeRuleDao.selectBestMatchForOrder(
-                request.getTenantId(),
-                rule.getPspId(),
-                rule.getPspAccountId(),
-                rule.getPspMethodId(),
-                request.getCountryCode(),
-                request.getCurrency(),
-                request.getMethodCode(),
-                sampleAmount,
-                request.getDirection(),
-                Instant.now(),
-                StatusEnum.NORMAL.code()
-        );
-        if (feeRule == null) {
-            result.addWarning("PSP_FEE_RULE_MISSING", "PSP fee rule is not configured for route rule " + rule.getId());
-            if (Boolean.TRUE.equals(request.getPspFeeRequired())) {
-                return null;
-            }
-        }
-
-        PaymentPlanRouteOptionEntity option = new PaymentPlanRouteOptionEntity();
-        option.setTenantId(request.getTenantId());
-        option.setRouteRuleId(rule.getId());
-        option.setPspId(rule.getPspId());
-        option.setPspCode(provider.getPspCode());
-        option.setPspMethodId(rule.getPspMethodId());
-        option.setPspMethodCode(method.getPspMethodCode());
-        option.setPspAccountId(rule.getPspAccountId());
-        option.setPspAccountNo(account.getPspAccountNo());
-        option.setPspFeeRuleId(feeRule == null ? null : feeRule.getId());
-        option.setPspFeeSnapshotJson(feeRule == null ? null : pspFeeSnapshotJson(feeRule));
-        option.setPriority(defaultInt(rule.getPriority(), DEFAULT_PRIORITY));
-        option.setWeight(defaultInt(rule.getWeight(), DEFAULT_PRIORITY));
-        option.setFallbackOrder(defaultInt(rule.getPriority(), DEFAULT_PRIORITY));
-        option.setStatus(PaymentPlanRouteOptionStatus.ACTIVE);
-        option.setSort(defaultInt(rule.getPriority(), DEFAULT_PRIORITY));
-
-        PaymentPlanCompileResult.CompiledRouteOption detail = new PaymentPlanCompileResult.CompiledRouteOption();
-        detail.setOption(option);
-        detail.setRouteRule(rule);
-        detail.setProvider(provider);
-        detail.setMethod(method);
-        detail.setAccount(account);
-        detail.setPspFeeRule(feeRule);
-        return detail;
-    }
-
-    private PaymentPlanCompileResult.CompiledRouteOption routeOption(PaymentPlanCompileRequest request,
                                                                      PaymentRouteRuleEntity routeRule,
                                                                      PaymentRouteGroupEntity group,
                                                                      PaymentRouteChannelEntity channel,
@@ -353,6 +274,12 @@ public class PaymentPlanCompiler {
         option.setPspAccountNo(account.getPspAccountNo());
         option.setPspFeeRuleId(feeRule == null ? null : feeRule.getId());
         option.setPspFeeSnapshotJson(feeRule == null ? null : pspFeeSnapshotJson(feeRule));
+        option.setRouteRuleSnapshotJson(paymentRouteRuleSnapshotJson(routeRule));
+        option.setRouteGroupSnapshotJson(routeGroupSnapshotJson(group));
+        option.setRouteChannelSnapshotJson(routeChannelSnapshotJson(channel));
+        option.setPspProviderSnapshotJson(pspProviderSnapshotJson(provider));
+        option.setPspMethodSnapshotJson(pspMethodSnapshotJson(method));
+        option.setPspAccountSnapshotJson(pspAccountSnapshotJson(account));
         option.setPriority(defaultInt(channel.getPriority(), DEFAULT_PRIORITY));
         option.setWeight(defaultInt(channel.getWeight(), DEFAULT_PRIORITY));
         option.setFallbackOrder(defaultInt(channel.getFallbackOrder(), DEFAULT_PRIORITY));
@@ -523,36 +450,6 @@ public class PaymentPlanCompiler {
                 .eq("status", StatusEnum.NORMAL.code()));
     }
 
-    private List<PspRouteRuleEntity> routeRules(PaymentPlanCompileRequest request) {
-        QueryWrapper<PspRouteRuleEntity> wrapper = new QueryWrapper<PspRouteRuleEntity>()
-                .eq("tenant_id", request.getTenantId())
-                .eq("currency", request.getCurrency())
-                .eq("direction", request.getDirection())
-                .eq("status", StatusEnum.NORMAL.code())
-                .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
-                .and(item -> item.eq("merchant_id", request.getMerchantId()).or().isNull("merchant_id"))
-                .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
-                .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount"))
-                .orderByAsc("priority")
-                .orderByAsc("id");
-        if (StringUtils.isNotBlank(request.getCountryCode())) {
-            wrapper.eq("country_code", request.getCountryCode());
-        } else {
-            wrapper.and(item -> item.isNull("country_code").or().eq("country_code", ""));
-        }
-        return pspRouteRuleDao.selectList(wrapper).stream()
-                .filter(this::timeAvailable)
-                .sorted(routeOrder(request))
-                .toList();
-    }
-
-    private List<PspRouteRuleEntity> matchingRouteRules(List<PspRouteRuleEntity> routeRules, BigDecimal amount) {
-        return routeRules.stream()
-                .filter(rule -> contains(rule.getMinAmount(), rule.getMaxAmount(), amount))
-                .toList();
-    }
-
     private List<PaymentRouteRuleEntity> matchingPaymentRouteRules(List<PaymentRouteRuleEntity> routeRules, BigDecimal amount) {
         return routeRules.stream()
                 .filter(rule -> contains(rule.getMinAmount(), rule.getMaxAmount(), amount))
@@ -581,13 +478,11 @@ public class PaymentPlanCompiler {
     private List<PaymentPlanAmountRange> sourceRanges(List<MerchantFeeRuleEntity> merchantRules,
                                                       List<PaymentRouteRuleEntity> paymentRouteRules,
                                                       List<PaymentRouteChannelEntity> paymentRouteChannels,
-                                                      List<PspRouteRuleEntity> routeRules,
                                                       List<PspFeeRuleEntity> pspFeeRules) {
         List<PaymentPlanAmountRange> ranges = new ArrayList<>();
         merchantRules.forEach(rule -> ranges.add(PaymentPlanAmountRange.closed(rule.getMinAmount(), rule.getMaxAmount())));
         paymentRouteRules.forEach(rule -> ranges.add(PaymentPlanAmountRange.closed(rule.getMinAmount(), rule.getMaxAmount())));
         paymentRouteChannels.forEach(channel -> ranges.add(PaymentPlanAmountRange.closed(channel.getMinAmount(), channel.getMaxAmount())));
-        routeRules.forEach(rule -> ranges.add(PaymentPlanAmountRange.closed(rule.getMinAmount(), rule.getMaxAmount())));
         pspFeeRules.forEach(rule -> ranges.add(PaymentPlanAmountRange.closed(rule.getMinAmount(), rule.getMaxAmount())));
         return ranges;
     }
@@ -691,27 +586,9 @@ public class PaymentPlanCompiler {
                 && PaymentMethodCodes.isBankCard(request.getMethodCode());
     }
 
-    private boolean timeAvailable(PspRouteRuleEntity rule) {
-        LocalTime start = rule.getStartTime();
-        LocalTime end = rule.getEndTime();
-        LocalTime now = LocalTime.now();
-        return start == null
-                || end == null
-                || start.equals(end)
-                || (start.isBefore(end) && !now.isBefore(start) && !now.isAfter(end))
-                || (start.isAfter(end) && (!now.isBefore(start) || !now.isAfter(end)));
-    }
-
     private boolean contains(BigDecimal minAmount, BigDecimal maxAmount, BigDecimal amount) {
         return (minAmount == null || minAmount.compareTo(amount) <= 0)
                 && (maxAmount == null || maxAmount.compareTo(amount) >= 0);
-    }
-
-    private Comparator<PspRouteRuleEntity> routeOrder(PaymentPlanCompileRequest request) {
-        return Comparator
-                .comparingInt((PspRouteRuleEntity rule) -> routeSpecificity(rule, request))
-                .thenComparingInt(rule -> defaultInt(rule.getPriority(), DEFAULT_PRIORITY))
-                .thenComparing(rule -> rule.getId() == null ? Long.MAX_VALUE : rule.getId());
     }
 
     private Comparator<PaymentRouteRuleEntity> paymentRouteOrder(PaymentPlanCompileRequest request) {
@@ -719,21 +596,6 @@ public class PaymentPlanCompiler {
                 .comparingInt((PaymentRouteRuleEntity rule) -> paymentRouteSpecificity(rule, request))
                 .thenComparingInt(rule -> defaultInt(rule.getPriority(), DEFAULT_PRIORITY))
                 .thenComparing(rule -> rule.getId() == null ? Long.MAX_VALUE : rule.getId());
-    }
-
-    private int routeSpecificity(PspRouteRuleEntity rule, PaymentPlanCompileRequest request) {
-        int methodOffset = StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getMethodCode()), request.getMethodCode()) ? 0 : 1;
-        if (Objects.equals(rule.getMerchantId(), request.getMerchantId())
-                && Objects.equals(rule.getMerchantAppId(), request.getMerchantAppId())) {
-            return methodOffset;
-        }
-        if (Objects.equals(rule.getMerchantId(), request.getMerchantId()) && rule.getMerchantAppId() == null) {
-            return 10 + methodOffset;
-        }
-        if (rule.getMerchantId() == null && rule.getMerchantAppId() == null) {
-            return 20 + methodOffset;
-        }
-        return DEFAULT_PRIORITY;
     }
 
     private int paymentRouteSpecificity(PaymentRouteRuleEntity rule, PaymentPlanCompileRequest request) {
@@ -836,6 +698,109 @@ public class PaymentPlanCompiler {
         return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
     }
 
+    private String paymentRouteRuleSnapshotJson(PaymentRouteRuleEntity rule) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("ruleId", rule.getId());
+        snapshot.put("ruleName", rule.getRuleName());
+        snapshot.put("merchantId", rule.getMerchantId());
+        snapshot.put("merchantAppId", rule.getMerchantAppId());
+        snapshot.put("direction", rule.getDirection());
+        snapshot.put("countryCode", rule.getCountryCode());
+        snapshot.put("currency", rule.getCurrency());
+        snapshot.put("methodCode", rule.getMethodCode());
+        snapshot.put("minAmount", decimalText(rule.getMinAmount()));
+        snapshot.put("maxAmount", decimalText(rule.getMaxAmount()));
+        snapshot.put("groupId", rule.getGroupId());
+        snapshot.put("priority", rule.getPriority());
+        snapshot.put("effectiveAt", rule.getEffectiveAt());
+        snapshot.put("expireAt", rule.getExpireAt());
+        snapshot.put("status", rule.getStatus());
+        snapshot.put("remark", rule.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    private String routeGroupSnapshotJson(PaymentRouteGroupEntity group) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("groupId", group.getId());
+        snapshot.put("groupCode", group.getGroupCode());
+        snapshot.put("groupName", group.getGroupName());
+        snapshot.put("direction", group.getDirection());
+        snapshot.put("countryCode", group.getCountryCode());
+        snapshot.put("currency", group.getCurrency());
+        snapshot.put("methodCode", group.getMethodCode());
+        snapshot.put("strategy", group.getStrategy());
+        snapshot.put("status", group.getStatus());
+        snapshot.put("remark", group.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    private String routeChannelSnapshotJson(PaymentRouteChannelEntity channel) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("routeChannelId", channel.getId());
+        snapshot.put("groupId", channel.getGroupId());
+        snapshot.put("pspId", channel.getPspId());
+        snapshot.put("pspMethodId", channel.getPspMethodId());
+        snapshot.put("pspAccountId", channel.getPspAccountId());
+        snapshot.put("priority", channel.getPriority());
+        snapshot.put("weight", channel.getWeight());
+        snapshot.put("fallbackOrder", channel.getFallbackOrder());
+        snapshot.put("minAmount", decimalText(channel.getMinAmount()));
+        snapshot.put("maxAmount", decimalText(channel.getMaxAmount()));
+        snapshot.put("status", channel.getStatus());
+        snapshot.put("remark", channel.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    private String pspProviderSnapshotJson(PspProviderEntity provider) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("pspId", provider.getId());
+        snapshot.put("pspCode", provider.getPspCode());
+        snapshot.put("pspName", provider.getPspName());
+        snapshot.put("countryCode", provider.getCountryCode());
+        snapshot.put("baseUrl", provider.getBaseUrl());
+        snapshot.put("apiVersion", provider.getApiVersion());
+        snapshot.put("supportPayin", provider.getSupportPayin());
+        snapshot.put("supportPayout", provider.getSupportPayout());
+        snapshot.put("configJson", provider.getConfigJson());
+        snapshot.put("status", provider.getStatus());
+        snapshot.put("remark", provider.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    private String pspMethodSnapshotJson(PspMethodEntity method) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("pspMethodId", method.getId());
+        snapshot.put("pspId", method.getPspId());
+        snapshot.put("pspCode", method.getPspCode());
+        snapshot.put("methodCode", method.getMethodCode());
+        snapshot.put("pspMethodCode", method.getPspMethodCode());
+        snapshot.put("methodName", method.getMethodName());
+        snapshot.put("countryCode", method.getCountryCode());
+        snapshot.put("currency", method.getCurrency());
+        snapshot.put("direction", method.getDirection());
+        snapshot.put("minAmount", decimalText(method.getMinAmount()));
+        snapshot.put("maxAmount", decimalText(method.getMaxAmount()));
+        snapshot.put("dailyLimit", decimalText(method.getDailyLimit()));
+        snapshot.put("configJson", method.getConfigJson());
+        snapshot.put("status", method.getStatus());
+        snapshot.put("remark", method.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    private String pspAccountSnapshotJson(PspAccountEntity account) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("pspAccountId", account.getId());
+        snapshot.put("tenantId", account.getTenantId());
+        snapshot.put("pspId", account.getPspId());
+        snapshot.put("pspAccountNo", account.getPspAccountNo());
+        snapshot.put("pspAccountName", account.getPspAccountName());
+        snapshot.put("secretType", account.getSecretType());
+        snapshot.put("configJson", account.getConfigJson());
+        snapshot.put("status", account.getStatus());
+        snapshot.put("remark", account.getRemark());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
     private String configHash(PaymentPlanCompileResult result) {
         List<Object> source = new ArrayList<>();
         for (PaymentPlanCompileResult.CompiledBucket bucket : result.getBuckets()) {
@@ -847,6 +812,13 @@ public class PaymentPlanCompiler {
                 source.add(option.getRouteGroupId());
                 source.add(option.getRouteChannelId());
                 source.add(option.getPspFeeRuleId());
+                source.add(option.getRouteRuleSnapshotJson());
+                source.add(option.getRouteGroupSnapshotJson());
+                source.add(option.getRouteChannelSnapshotJson());
+                source.add(option.getPspProviderSnapshotJson());
+                source.add(option.getPspMethodSnapshotJson());
+                source.add(option.getPspAccountSnapshotJson());
+                source.add(option.getPspFeeSnapshotJson());
                 source.add(option.getPriority());
                 source.add(option.getWeight());
             });

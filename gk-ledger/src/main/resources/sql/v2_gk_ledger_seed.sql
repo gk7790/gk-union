@@ -107,6 +107,12 @@ SELECT 1950000000000000201, 1950000000000000001, 'payment-route-channel-options'
        '{"title":"路由通道级联选项"}', 50, NOW(), NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000201);
 
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000202, 1950000000000000001, 'payment-route-group-check', NULL, 5, 1,
+       'payment:route-group:check', NULL,
+       '{"title":"检测路由组"}', 51, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000202);
+
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
 SELECT 2064290000000000001, 'payment', 'merchantNotifyTask', NULL, '0/10 * * * * ?', 1, '商户异步通知发送/重试', NOW()

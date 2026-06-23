@@ -46,6 +46,13 @@ public class PaymentRouteGroupController {
         return R.ok(page);
     }
 
+    @GetMapping("{id}/check")
+    @Operation(summary = "Check route group coverage")
+    @PreAuthorize("hasAuthority('payment:route-group:check')")
+    public R<?> check(@PathVariable("id") Long id) {
+        return R.ok(paymentRouteGroupService.check(id));
+    }
+
     @GetMapping("{id}")
     @Operation(summary = "Info")
     @PreAuthorize("hasAuthority('payment:route-group:info')")

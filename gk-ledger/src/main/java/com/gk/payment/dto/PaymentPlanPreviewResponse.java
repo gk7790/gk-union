@@ -58,6 +58,8 @@ public class PaymentPlanPreviewResponse {
         private Integer fallbackOrder;
         private String status;
         private Route route;
+        private RouteGroup routeGroup;
+        private RouteChannel routeChannel;
         private Psp psp;
         private PspMethod pspMethod;
         private PspAccount pspAccount;
@@ -104,6 +106,36 @@ public class PaymentPlanPreviewResponse {
         private Integer priority;
         private Integer weight;
         private Integer fallbackOrder;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class RouteGroup {
+        private Long routeGroupId;
+        private String groupCode;
+        private String groupName;
+        private String direction;
+        private String countryCode;
+        private String currency;
+        private String methodCode;
+        private String strategy;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class RouteChannel {
+        private Long routeChannelId;
+        private Long routeGroupId;
+        private Long pspId;
+        private Long pspMethodId;
+        private Long pspAccountId;
+        private Integer priority;
+        private Integer weight;
+        private Integer fallbackOrder;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
         private Integer status;
         private String remark;
     }

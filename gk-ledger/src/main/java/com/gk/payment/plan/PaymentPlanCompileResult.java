@@ -4,6 +4,9 @@ import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
+import com.gk.payment.entity.PaymentRouteChannelEntity;
+import com.gk.payment.entity.PaymentRouteGroupEntity;
+import com.gk.payment.entity.PaymentRouteRuleEntity;
 import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
@@ -48,6 +51,9 @@ public class PaymentPlanCompileResult {
     public static class CompiledRouteOption {
         private PaymentPlanRouteOptionEntity option;
         private PspRouteRuleEntity routeRule;
+        private PaymentRouteRuleEntity paymentRouteRule;
+        private PaymentRouteGroupEntity routeGroup;
+        private PaymentRouteChannelEntity routeChannel;
         private PspProviderEntity provider;
         private PspMethodEntity method;
         private PspAccountEntity account;

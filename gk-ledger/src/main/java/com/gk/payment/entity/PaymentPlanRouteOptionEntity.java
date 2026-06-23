@@ -16,6 +16,8 @@ public class PaymentPlanRouteOptionEntity extends BaseEntity {
     private Long catalogId;
     private Long bucketId;
     private Long routeRuleId;
+    private Long routeGroupId;
+    private Long routeChannelId;
     private Long pspId;
     private String pspCode;
     private Long pspMethodId;

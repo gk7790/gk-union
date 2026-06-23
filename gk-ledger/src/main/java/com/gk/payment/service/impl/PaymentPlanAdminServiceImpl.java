@@ -16,6 +16,9 @@ import com.gk.payment.dto.PaymentPlanPublishResponse;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
+import com.gk.payment.entity.PaymentRouteChannelEntity;
+import com.gk.payment.entity.PaymentRouteGroupEntity;
+import com.gk.payment.entity.PaymentRouteRuleEntity;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PaymentPlanCompileRequest;
 import com.gk.payment.plan.PaymentPlanCompileResult;
@@ -231,7 +234,9 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private PaymentPlanPreviewResponse.RouteOption toRouteOptionResponse(PaymentPlanCompileResult.CompiledRouteOption detail) {
         PaymentPlanRouteOptionEntity option = detail.getOption();
         PaymentPlanPreviewResponse.RouteOption response = toRouteOptionResponse(option);
-        response.setRoute(toRouteResponse(detail.getRouteRule(), option));
+        response.setRoute(toRouteResponse(detail.getRouteRule(), detail.getPaymentRouteRule(), option));
+        response.setRouteGroup(toRouteGroupResponse(detail.getRouteGroup()));
+        response.setRouteChannel(toRouteChannelResponse(detail.getRouteChannel()));
         response.setPsp(toPspResponse(detail.getProvider()));
         response.setPspMethod(toPspMethodResponse(detail.getMethod()));
         response.setPspAccount(toPspAccountResponse(detail.getAccount()));
@@ -284,33 +289,96 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         return response;
     }
 
-    private PaymentPlanPreviewResponse.Route toRouteResponse(PspRouteRuleEntity rule, PaymentPlanRouteOptionEntity option) {
-        if (rule == null && option == null) {
+    private PaymentPlanPreviewResponse.Route toRouteResponse(PspRouteRuleEntity legacyRule,
+                                                            PaymentRouteRuleEntity paymentRule,
+                                                            PaymentPlanRouteOptionEntity option) {
+        if (legacyRule == null && paymentRule == null && option == null) {
             return null;
         }
         PaymentPlanPreviewResponse.Route response = new PaymentPlanPreviewResponse.Route();
-        response.setRouteRuleId(option == null ? rule.getId() : option.getRouteRuleId());
-        if (rule != null) {
-            response.setRouteName(rule.getRouteName());
-            response.setRouteMode(rule.getRouteMode());
-            response.setCountryCode(rule.getCountryCode());
-            response.setCurrency(rule.getCurrency());
-            response.setMethodCode(rule.getMethodCode());
-            response.setDirection(rule.getDirection());
-            response.setMinAmount(rule.getMinAmount());
-            response.setMaxAmount(rule.getMaxAmount());
-            response.setStartTime(rule.getStartTime());
-            response.setEndTime(rule.getEndTime());
-            response.setPriority(option == null ? rule.getPriority() : option.getPriority());
-            response.setWeight(option == null ? rule.getWeight() : option.getWeight());
-            response.setFallbackOrder(option == null ? rule.getPriority() : option.getFallbackOrder());
-            response.setStatus(rule.getStatus());
-            response.setRemark(rule.getRemark());
+        response.setRouteRuleId(option == null ? routeRuleId(legacyRule, paymentRule) : option.getRouteRuleId());
+        if (paymentRule != null) {
+            response.setRouteName(paymentRule.getRuleName());
+            response.setRouteMode(null);
+            response.setCountryCode(paymentRule.getCountryCode());
+            response.setCurrency(paymentRule.getCurrency());
+            response.setMethodCode(paymentRule.getMethodCode());
+            response.setDirection(paymentRule.getDirection());
+            response.setMinAmount(paymentRule.getMinAmount());
+            response.setMaxAmount(paymentRule.getMaxAmount());
+            response.setPriority(option == null ? paymentRule.getPriority() : option.getPriority());
+            response.setWeight(option == null ? null : option.getWeight());
+            response.setFallbackOrder(option == null ? null : option.getFallbackOrder());
+            response.setStatus(paymentRule.getStatus());
+            response.setRemark(paymentRule.getRemark());
+            return response;
+        }
+        if (legacyRule != null) {
+            response.setRouteName(legacyRule.getRouteName());
+            response.setRouteMode(legacyRule.getRouteMode());
+            response.setCountryCode(legacyRule.getCountryCode());
+            response.setCurrency(legacyRule.getCurrency());
+            response.setMethodCode(legacyRule.getMethodCode());
+            response.setDirection(legacyRule.getDirection());
+            response.setMinAmount(legacyRule.getMinAmount());
+            response.setMaxAmount(legacyRule.getMaxAmount());
+            response.setStartTime(legacyRule.getStartTime());
+            response.setEndTime(legacyRule.getEndTime());
+            response.setPriority(option == null ? legacyRule.getPriority() : option.getPriority());
+            response.setWeight(option == null ? legacyRule.getWeight() : option.getWeight());
+            response.setFallbackOrder(option == null ? legacyRule.getPriority() : option.getFallbackOrder());
+            response.setStatus(legacyRule.getStatus());
+            response.setRemark(legacyRule.getRemark());
             return response;
         }
         response.setPriority(option.getPriority());
         response.setWeight(option.getWeight());
         response.setFallbackOrder(option.getFallbackOrder());
+        return response;
+    }
+
+    private Long routeRuleId(PspRouteRuleEntity legacyRule, PaymentRouteRuleEntity paymentRule) {
+        if (paymentRule != null) {
+            return paymentRule.getId();
+        }
+        return legacyRule == null ? null : legacyRule.getId();
+    }
+
+    private PaymentPlanPreviewResponse.RouteGroup toRouteGroupResponse(PaymentRouteGroupEntity group) {
+        if (group == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.RouteGroup response = new PaymentPlanPreviewResponse.RouteGroup();
+        response.setRouteGroupId(group.getId());
+        response.setGroupCode(group.getGroupCode());
+        response.setGroupName(group.getGroupName());
+        response.setDirection(group.getDirection());
+        response.setCountryCode(group.getCountryCode());
+        response.setCurrency(group.getCurrency());
+        response.setMethodCode(group.getMethodCode());
+        response.setStrategy(group.getStrategy());
+        response.setStatus(group.getStatus());
+        response.setRemark(group.getRemark());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.RouteChannel toRouteChannelResponse(PaymentRouteChannelEntity channel) {
+        if (channel == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.RouteChannel response = new PaymentPlanPreviewResponse.RouteChannel();
+        response.setRouteChannelId(channel.getId());
+        response.setRouteGroupId(channel.getGroupId());
+        response.setPspId(channel.getPspId());
+        response.setPspMethodId(channel.getPspMethodId());
+        response.setPspAccountId(channel.getPspAccountId());
+        response.setPriority(channel.getPriority());
+        response.setWeight(channel.getWeight());
+        response.setFallbackOrder(channel.getFallbackOrder());
+        response.setMinAmount(channel.getMinAmount());
+        response.setMaxAmount(channel.getMaxAmount());
+        response.setStatus(channel.getStatus());
+        response.setRemark(channel.getRemark());
         return response;
     }
 

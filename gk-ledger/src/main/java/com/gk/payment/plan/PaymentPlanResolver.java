@@ -106,9 +106,6 @@ public class PaymentPlanResolver {
         MerchantFeeResult merchantFee = merchantFee(bucketEntity, amount);
         PspRouteResult route = route(catalog.getDirection(), option, bankMapping);
         PspFeeResult pspFee = pspFee(option, amount);
-        if (pspFee == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured");
-        }
 
         PaymentPlan plan = new PaymentPlan();
         plan.setCatalogId(catalog.getId());

@@ -50,7 +50,7 @@ public class PayinPlanServiceImpl implements PayinPlanService {
             return toPayinPlan(compiledPlan);
         }
         // 下单链路要求 PSP 成本费率完整；配置不完整时直接失败，避免生成不可核算的订单。
-        return buildPlan(order, true);
+        return buildPlan(order, false);
     }
 
     /**

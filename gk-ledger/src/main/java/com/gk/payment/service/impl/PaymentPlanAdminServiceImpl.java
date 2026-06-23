@@ -3,6 +3,9 @@ package com.gk.payment.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.enums.FeeBearerEnum;
+import com.gk.common.enums.FeeModeEnum;
+import com.gk.common.enums.StringCodeEnum;
 import com.gk.payment.dao.PaymentPlanBucketDao;
 import com.gk.payment.dao.PaymentPlanCatalogDao;
 import com.gk.payment.dao.PaymentPlanRouteOptionDao;
@@ -20,6 +23,11 @@ import com.gk.payment.plan.PaymentPlanCompiler;
 import com.gk.payment.plan.PaymentPlanKey;
 import com.gk.payment.plan.PaymentPlanStatus;
 import com.gk.payment.service.PaymentPlanAdminService;
+import com.gk.psp.entity.PspAccountEntity;
+import com.gk.psp.entity.PspFeeRuleEntity;
+import com.gk.psp.entity.PspMethodEntity;
+import com.gk.psp.entity.PspProviderEntity;
+import com.gk.psp.entity.PspRouteRuleEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -211,8 +219,24 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         bucket.setEndAmount(displayEndAmount(compiledBucket.getBucket().getBucketEndAmount()));
         bucket.setAmountRangeText(amountRangeText(bucket.getStartAmount(), bucket.getEndAmount()));
         bucket.setMerchantFeeRuleId(compiledBucket.getBucket().getMerchantFeeRuleId());
-        bucket.setRouteOptions(compiledBucket.getRouteOptions().stream().map(this::toRouteOptionResponse).toList());
+        bucket.setMerchantFeeRule(toMerchantFeeRuleResponse(compiledBucket.getMerchantFeeRule()));
+        if (compiledBucket.getRouteOptionDetails() != null && !compiledBucket.getRouteOptionDetails().isEmpty()) {
+            bucket.setRouteOptions(compiledBucket.getRouteOptionDetails().stream().map(this::toRouteOptionResponse).toList());
+        } else {
+            bucket.setRouteOptions(compiledBucket.getRouteOptions().stream().map(this::toRouteOptionResponse).toList());
+        }
         return bucket;
+    }
+
+    private PaymentPlanPreviewResponse.RouteOption toRouteOptionResponse(PaymentPlanCompileResult.CompiledRouteOption detail) {
+        PaymentPlanRouteOptionEntity option = detail.getOption();
+        PaymentPlanPreviewResponse.RouteOption response = toRouteOptionResponse(option);
+        response.setRoute(toRouteResponse(detail.getRouteRule(), option));
+        response.setPsp(toPspResponse(detail.getProvider()));
+        response.setPspMethod(toPspMethodResponse(detail.getMethod()));
+        response.setPspAccount(toPspAccountResponse(detail.getAccount()));
+        response.setPspFeeRule(toPspFeeRuleResponse(detail.getPspFeeRule()));
+        return response;
     }
 
     private PaymentPlanPreviewResponse.RouteOption toRouteOptionResponse(PaymentPlanRouteOptionEntity option) {
@@ -229,6 +253,147 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         response.setWeight(option.getWeight());
         response.setFallbackOrder(option.getFallbackOrder());
         response.setStatus(option.getStatus());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.MerchantFeeRule toMerchantFeeRuleResponse(com.gk.payment.entity.MerchantFeeRuleEntity rule) {
+        if (rule == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.MerchantFeeRule response = new PaymentPlanPreviewResponse.MerchantFeeRule();
+        response.setId(rule.getId());
+        response.setRuleName(rule.getRuleName());
+        response.setDirection(rule.getDirection());
+        response.setCountryCode(rule.getCountryCode());
+        response.setCurrency(rule.getCurrency());
+        response.setMethodCode(rule.getMethodCode());
+        response.setMinAmount(rule.getMinAmount());
+        response.setMaxAmount(rule.getMaxAmount());
+        response.setFeeMode(rule.getFeeMode());
+        response.setFeeModeName(enumLabel(FeeModeEnum.class, rule.getFeeMode()));
+        response.setFeeRate(rule.getFeeRate());
+        response.setFeeFixed(rule.getFeeFixed());
+        response.setMinFee(rule.getMinFee());
+        response.setMaxFee(rule.getMaxFee());
+        response.setFeeBearer(rule.getFeeBearer());
+        response.setFeeBearerName(enumLabel(FeeBearerEnum.class, rule.getFeeBearer()));
+        response.setSettleMode(rule.getSettleMode());
+        response.setPriority(rule.getPriority());
+        response.setStatus(rule.getStatus());
+        response.setRemark(rule.getRemark());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.Route toRouteResponse(PspRouteRuleEntity rule, PaymentPlanRouteOptionEntity option) {
+        if (rule == null && option == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.Route response = new PaymentPlanPreviewResponse.Route();
+        response.setRouteRuleId(option == null ? rule.getId() : option.getRouteRuleId());
+        if (rule != null) {
+            response.setRouteName(rule.getRouteName());
+            response.setRouteMode(rule.getRouteMode());
+            response.setCountryCode(rule.getCountryCode());
+            response.setCurrency(rule.getCurrency());
+            response.setMethodCode(rule.getMethodCode());
+            response.setDirection(rule.getDirection());
+            response.setMinAmount(rule.getMinAmount());
+            response.setMaxAmount(rule.getMaxAmount());
+            response.setStartTime(rule.getStartTime());
+            response.setEndTime(rule.getEndTime());
+            response.setPriority(option == null ? rule.getPriority() : option.getPriority());
+            response.setWeight(option == null ? rule.getWeight() : option.getWeight());
+            response.setFallbackOrder(option == null ? rule.getPriority() : option.getFallbackOrder());
+            response.setStatus(rule.getStatus());
+            response.setRemark(rule.getRemark());
+            return response;
+        }
+        response.setPriority(option.getPriority());
+        response.setWeight(option.getWeight());
+        response.setFallbackOrder(option.getFallbackOrder());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.Psp toPspResponse(PspProviderEntity provider) {
+        if (provider == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.Psp response = new PaymentPlanPreviewResponse.Psp();
+        response.setPspId(provider.getId());
+        response.setPspCode(provider.getPspCode());
+        response.setPspName(provider.getPspName());
+        response.setCountryCode(provider.getCountryCode());
+        response.setApiVersion(provider.getApiVersion());
+        response.setSupportPayin(provider.getSupportPayin());
+        response.setSupportPayout(provider.getSupportPayout());
+        response.setStatus(provider.getStatus());
+        response.setRemark(provider.getRemark());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.PspMethod toPspMethodResponse(PspMethodEntity method) {
+        if (method == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.PspMethod response = new PaymentPlanPreviewResponse.PspMethod();
+        response.setPspMethodId(method.getId());
+        response.setPspId(method.getPspId());
+        response.setPspCode(method.getPspCode());
+        response.setMethodCode(method.getMethodCode());
+        response.setPspMethodCode(method.getPspMethodCode());
+        response.setMethodName(method.getMethodName());
+        response.setCountryCode(method.getCountryCode());
+        response.setCurrency(method.getCurrency());
+        response.setDirection(method.getDirection());
+        response.setMinAmount(method.getMinAmount());
+        response.setMaxAmount(method.getMaxAmount());
+        response.setDailyLimit(method.getDailyLimit());
+        response.setStatus(method.getStatus());
+        response.setRemark(method.getRemark());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.PspAccount toPspAccountResponse(PspAccountEntity account) {
+        if (account == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.PspAccount response = new PaymentPlanPreviewResponse.PspAccount();
+        response.setPspAccountId(account.getId());
+        response.setPspId(account.getPspId());
+        response.setPspAccountNo(account.getPspAccountNo());
+        response.setPspAccountName(account.getPspAccountName());
+        response.setSecretType(account.getSecretType());
+        response.setStatus(account.getStatus());
+        response.setRemark(account.getRemark());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.PspFeeRule toPspFeeRuleResponse(PspFeeRuleEntity rule) {
+        if (rule == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.PspFeeRule response = new PaymentPlanPreviewResponse.PspFeeRule();
+        response.setId(rule.getId());
+        response.setPspId(rule.getPspId());
+        response.setPspAccountId(rule.getPspAccountId());
+        response.setPspMethodId(rule.getPspMethodId());
+        response.setPspMethodCode(rule.getPspMethodCode());
+        response.setRuleName(rule.getRuleName());
+        response.setDirection(rule.getDirection());
+        response.setCountryCode(rule.getCountryCode());
+        response.setCurrency(rule.getCurrency());
+        response.setMethodCode(rule.getMethodCode());
+        response.setMinAmount(rule.getMinAmount());
+        response.setMaxAmount(rule.getMaxAmount());
+        response.setFeeMode(rule.getFeeMode());
+        response.setFeeModeName(enumLabel(FeeModeEnum.class, rule.getFeeMode()));
+        response.setFeeRate(rule.getFeeRate());
+        response.setFeeFixed(rule.getFeeFixed());
+        response.setMinFee(rule.getMinFee());
+        response.setMaxFee(rule.getMaxFee());
+        response.setPriority(rule.getPriority());
+        response.setStatus(rule.getStatus());
+        response.setRemark(rule.getRemark());
         return response;
     }
 
@@ -270,5 +435,10 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
 
     private String amountText(BigDecimal value) {
         return value == null ? "" : value.stripTrailingZeros().toPlainString();
+    }
+
+    private <E extends Enum<E> & StringCodeEnum> String enumLabel(Class<E> type, String code) {
+        E item = StringCodeEnum.fromCode(type, code);
+        return item == null ? null : item.label();
     }
 }

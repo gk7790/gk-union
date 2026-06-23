@@ -3,6 +3,7 @@ package com.gk.payment.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,6 +39,7 @@ public class PaymentPlanPreviewResponse {
         private BigDecimal endAmount;
         private String amountRangeText;
         private Long merchantFeeRuleId;
+        private MerchantFeeRule merchantFeeRule;
         private List<RouteOption> routeOptions = new ArrayList<>();
     }
 
@@ -55,6 +57,122 @@ public class PaymentPlanPreviewResponse {
         private Integer weight;
         private Integer fallbackOrder;
         private String status;
+        private Route route;
+        private Psp psp;
+        private PspMethod pspMethod;
+        private PspAccount pspAccount;
+        private PspFeeRule pspFeeRule;
+    }
+
+    @Data
+    public static class MerchantFeeRule {
+        private Long id;
+        private String ruleName;
+        private String direction;
+        private String countryCode;
+        private String currency;
+        private String methodCode;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
+        private String feeMode;
+        private String feeModeName;
+        private BigDecimal feeRate;
+        private BigDecimal feeFixed;
+        private BigDecimal minFee;
+        private BigDecimal maxFee;
+        private String feeBearer;
+        private String feeBearerName;
+        private String settleMode;
+        private Integer priority;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class Route {
+        private Long routeRuleId;
+        private String routeName;
+        private String routeMode;
+        private String countryCode;
+        private String currency;
+        private String methodCode;
+        private String direction;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
+        private LocalTime startTime;
+        private LocalTime endTime;
+        private Integer priority;
+        private Integer weight;
+        private Integer fallbackOrder;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class Psp {
+        private Long pspId;
+        private String pspCode;
+        private String pspName;
+        private String countryCode;
+        private String apiVersion;
+        private Integer supportPayin;
+        private Integer supportPayout;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class PspMethod {
+        private Long pspMethodId;
+        private Long pspId;
+        private String pspCode;
+        private String methodCode;
+        private String pspMethodCode;
+        private String methodName;
+        private String countryCode;
+        private String currency;
+        private String direction;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
+        private BigDecimal dailyLimit;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class PspAccount {
+        private Long pspAccountId;
+        private Long pspId;
+        private String pspAccountNo;
+        private String pspAccountName;
+        private String secretType;
+        private Integer status;
+        private String remark;
+    }
+
+    @Data
+    public static class PspFeeRule {
+        private Long id;
+        private Long pspId;
+        private Long pspAccountId;
+        private Long pspMethodId;
+        private String pspMethodCode;
+        private String ruleName;
+        private String direction;
+        private String countryCode;
+        private String currency;
+        private String methodCode;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
+        private String feeMode;
+        private String feeModeName;
+        private BigDecimal feeRate;
+        private BigDecimal feeFixed;
+        private BigDecimal minFee;
+        private BigDecimal maxFee;
+        private Integer priority;
+        private Integer status;
+        private String remark;
     }
 
     @Data

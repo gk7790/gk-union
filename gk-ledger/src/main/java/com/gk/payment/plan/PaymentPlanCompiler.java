@@ -126,9 +126,12 @@ public class PaymentPlanCompiler {
         bucket.setMerchantFeeSnapshotJson(merchantSnapshotJson(merchantRule));
         bucket.setSort(bucketSort);
 
-        List<PaymentPlanRouteOptionEntity> routeOptions = matchingRouteRules(routeRules, sampleAmount).stream()
+        List<PaymentPlanCompileResult.CompiledRouteOption> routeOptionDetails = matchingRouteRules(routeRules, sampleAmount).stream()
                 .map(rule -> routeOption(request, rule, sampleAmount, result))
                 .filter(Objects::nonNull)
+                .toList();
+        List<PaymentPlanRouteOptionEntity> routeOptions = routeOptionDetails.stream()
+                .map(PaymentPlanCompileResult.CompiledRouteOption::getOption)
                 .toList();
         if (routeOptions.isEmpty()) {
             result.addError("PSP_ROUTE_RULE_MISSING", "No available PSP route for amount " + sampleAmount);
@@ -137,7 +140,9 @@ public class PaymentPlanCompiler {
 
         PaymentPlanCompileResult.CompiledBucket compiledBucket = new PaymentPlanCompileResult.CompiledBucket();
         compiledBucket.setBucket(bucket);
+        compiledBucket.setMerchantFeeRule(merchantRule);
         compiledBucket.setRouteOptions(routeOptions);
+        compiledBucket.setRouteOptionDetails(routeOptionDetails);
         return compiledBucket;
     }
 
@@ -165,10 +170,10 @@ public class PaymentPlanCompiler {
         );
     }
 
-    private PaymentPlanRouteOptionEntity routeOption(PaymentPlanCompileRequest request,
-                                                     PspRouteRuleEntity rule,
-                                                     BigDecimal sampleAmount,
-                                                     PaymentPlanCompileResult result) {
+    private PaymentPlanCompileResult.CompiledRouteOption routeOption(PaymentPlanCompileRequest request,
+                                                                     PspRouteRuleEntity rule,
+                                                                     BigDecimal sampleAmount,
+                                                                     PaymentPlanCompileResult result) {
         PspProviderEntity provider = pspProviderDao.selectById(rule.getPspId());
         PspMethodEntity method = pspMethodDao.selectById(rule.getPspMethodId());
         PspAccountEntity account = pspAccountDao.selectById(rule.getPspAccountId());
@@ -220,7 +225,15 @@ public class PaymentPlanCompiler {
         option.setFallbackOrder(defaultInt(rule.getPriority(), DEFAULT_PRIORITY));
         option.setStatus(PaymentPlanRouteOptionStatus.ACTIVE);
         option.setSort(defaultInt(rule.getPriority(), DEFAULT_PRIORITY));
-        return option;
+
+        PaymentPlanCompileResult.CompiledRouteOption detail = new PaymentPlanCompileResult.CompiledRouteOption();
+        detail.setOption(option);
+        detail.setRouteRule(rule);
+        detail.setProvider(provider);
+        detail.setMethod(method);
+        detail.setAccount(account);
+        detail.setPspFeeRule(feeRule);
+        return detail;
     }
 
     private void runTestCases(PaymentPlanCompileRequest request, PaymentPlanCompileResult result) {

@@ -1,8 +1,14 @@
 package com.gk.payment.plan;
 
+import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
+import com.gk.psp.entity.PspAccountEntity;
+import com.gk.psp.entity.PspFeeRuleEntity;
+import com.gk.psp.entity.PspMethodEntity;
+import com.gk.psp.entity.PspProviderEntity;
+import com.gk.psp.entity.PspRouteRuleEntity;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -33,7 +39,19 @@ public class PaymentPlanCompileResult {
     @Data
     public static class CompiledBucket {
         private PaymentPlanBucketEntity bucket;
+        private MerchantFeeRuleEntity merchantFeeRule;
         private List<PaymentPlanRouteOptionEntity> routeOptions = new ArrayList<>();
+        private List<CompiledRouteOption> routeOptionDetails = new ArrayList<>();
+    }
+
+    @Data
+    public static class CompiledRouteOption {
+        private PaymentPlanRouteOptionEntity option;
+        private PspRouteRuleEntity routeRule;
+        private PspProviderEntity provider;
+        private PspMethodEntity method;
+        private PspAccountEntity account;
+        private PspFeeRuleEntity pspFeeRule;
     }
 
     @Data

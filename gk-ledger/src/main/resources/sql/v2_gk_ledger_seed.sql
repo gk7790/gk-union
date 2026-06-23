@@ -60,6 +60,47 @@ SELECT 1960000000000000004, 1960000000000000002, 'merchant-balance-adjust-submit
        '{"title":"提交调整"}', 2, NOW(), NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000004);
 
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000001, 0, 'payment-config', '/payment/config', 1, 1, NULL, NULL,
+       '{"title":"支付配置","icon":"lucide:settings"}', 70, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000001);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000100, 1950000000000000001, 'payment-plan-list', '/payment/payment-plan/list', 2, 1,
+       'payment:payment-plan:page', '/payment/payment-plan/list',
+       '{"title":"支付方案","icon":"lucide:route"}', 40, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000100);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000101, 1950000000000000100, 'payment-plan-page', NULL, 5, 1,
+       'payment:payment-plan:page,payment:payment-plan:info', NULL,
+       '{"title":"查看"}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000101);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000102, 1950000000000000100, 'payment-plan-preview', NULL, 5, 1,
+       'payment:payment-plan:preview', NULL,
+       '{"title":"预览"}', 2, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000102);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000103, 1950000000000000100, 'payment-plan-publish', NULL, 5, 1,
+       'payment:payment-plan:publish', NULL,
+       '{"title":"发布"}', 3, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000103);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000104, 1950000000000000100, 'payment-plan-activate', NULL, 5, 1,
+       'payment:payment-plan:activate', NULL,
+       '{"title":"激活"}', 4, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000104);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000105, 1950000000000000100, 'payment-plan-retire', NULL, 5, 1,
+       'payment:payment-plan:retire', NULL,
+       '{"title":"停用"}', 5, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000105);
+
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
 SELECT 2064290000000000001, 'payment', 'merchantNotifyTask', NULL, '0/10 * * * * ?', 1, '商户异步通知发送/重试', NOW()

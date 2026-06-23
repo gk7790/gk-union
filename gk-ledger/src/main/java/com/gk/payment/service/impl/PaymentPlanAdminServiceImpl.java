@@ -1,18 +1,25 @@
 package com.gk.payment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.enums.FeeBearerEnum;
 import com.gk.common.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.payment.dao.PaymentPlanBucketDao;
 import com.gk.payment.dao.PaymentPlanCatalogDao;
 import com.gk.payment.dao.PaymentPlanRouteOptionDao;
+import com.gk.payment.dto.PaymentPlanDetailResponse;
 import com.gk.payment.dto.PaymentPlanPreviewRequest;
 import com.gk.payment.dto.PaymentPlanPreviewResponse;
 import com.gk.payment.dto.PaymentPlanPublishRequest;
 import com.gk.payment.dto.PaymentPlanPublishResponse;
+import com.gk.payment.dto.PaymentPlanVersionDTO;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
@@ -31,12 +38,17 @@ import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +60,44 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private final PaymentPlanBucketDao paymentPlanBucketDao;
     private final PaymentPlanRouteOptionDao paymentPlanRouteOptionDao;
     private final PaymentPlanCacheService paymentPlanCacheService;
+
+    @Override
+    public PageData<PaymentPlanVersionDTO> page(DynMap params) {
+        IPage<PaymentPlanCatalogEntity> page = paymentPlanCatalogDao.selectPage(
+                catalogPage(params),
+                catalogPageWrapper(params)
+        );
+        List<PaymentPlanVersionDTO> items = page.getRecords().stream()
+                .map(this::toVersionDTO)
+                .toList();
+        return new PageData<>(items, page.getTotal());
+    }
+
+    @Override
+    public PaymentPlanDetailResponse detail(Long catalogId) {
+        PaymentPlanCatalogEntity catalog = requireCatalog(catalogId);
+        List<PaymentPlanBucketEntity> buckets = paymentPlanBucketDao.selectList(new QueryWrapper<PaymentPlanBucketEntity>()
+                .eq("tenant_id", catalog.getTenantId())
+                .eq("catalog_id", catalog.getId())
+                .orderByAsc("sort")
+                .orderByAsc("id"));
+        List<PaymentPlanRouteOptionEntity> options = paymentPlanRouteOptionDao.selectList(new QueryWrapper<PaymentPlanRouteOptionEntity>()
+                .eq("tenant_id", catalog.getTenantId())
+                .eq("catalog_id", catalog.getId())
+                .orderByAsc("bucket_id")
+                .orderByAsc("sort")
+                .orderByAsc("priority")
+                .orderByAsc("id"));
+        Map<Long, List<PaymentPlanRouteOptionEntity>> optionsByBucket = options.stream()
+                .collect(Collectors.groupingBy(PaymentPlanRouteOptionEntity::getBucketId));
+
+        PaymentPlanDetailResponse response = new PaymentPlanDetailResponse();
+        response.setCatalog(toDetailCatalog(catalog));
+        response.setBuckets(buckets.stream()
+                .map(bucket -> toDetailBucket(bucket, optionsByBucket.getOrDefault(bucket.getId(), List.of())))
+                .toList());
+        return response;
+    }
 
     @Override
     public PaymentPlanPreviewResponse preview(PaymentPlanPreviewRequest request) {
@@ -96,19 +146,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
             active.setActivatedAt(Instant.now());
             paymentPlanCatalogDao.updateById(active);
 
-            if (catalog.getMerchantAppId() == null || catalog.getMerchantAppId() <= 0) {
-                paymentPlanCacheService.evictAll();
-            } else {
-                paymentPlanCacheService.evict(PaymentPlanKey.of(
-                        catalog.getTenantId(),
-                        catalog.getMerchantId(),
-                        catalog.getMerchantAppId(),
-                        catalog.getDirection(),
-                        catalog.getCountryCode(),
-                        catalog.getCurrency(),
-                        catalog.getMethodCode()
-                ));
-            }
+            evictCatalogCache(catalog);
 
             PaymentPlanPublishResponse response = new PaymentPlanPublishResponse();
             response.setPublished(true);
@@ -122,6 +160,60 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         } catch (DuplicateKeyException ex) {
             throw new GkException(ErrorCode.DB_RECORD_EXISTS, "支付计划版本已存在，请刷新预览后重新发布", ex);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentPlanPublishResponse activate(Long catalogId) {
+        PaymentPlanCatalogEntity catalog = requireCatalog(catalogId);
+        PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
+        retired.setStatus(PaymentPlanStatus.RETIRED);
+        paymentPlanCatalogDao.update(retired, sameCatalogWrapper(catalog)
+                .eq("status", PaymentPlanStatus.ACTIVE)
+                .ne("id", catalog.getId()));
+
+        PaymentPlanCatalogEntity active = new PaymentPlanCatalogEntity();
+        active.setId(catalog.getId());
+        active.setStatus(PaymentPlanStatus.ACTIVE);
+        active.setActivatedAt(Instant.now());
+        paymentPlanCatalogDao.updateById(active);
+
+        catalog.setStatus(PaymentPlanStatus.ACTIVE);
+        catalog.setActivatedAt(active.getActivatedAt());
+        evictCatalogCache(catalog);
+
+        PaymentPlanPublishResponse response = new PaymentPlanPublishResponse();
+        response.setPublished(true);
+        response.setCatalogId(catalog.getId());
+        response.setVersionNo(catalog.getVersion());
+        response.setStatus(PaymentPlanStatus.ACTIVE);
+        response.setBucketCount(catalog.getBucketCount());
+        response.setRouteOptionCount(catalog.getRouteOptionCount());
+        response.setRedisEvicted(true);
+        return response;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PaymentPlanPublishResponse retire(Long catalogId) {
+        PaymentPlanCatalogEntity catalog = requireCatalog(catalogId);
+        PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
+        retired.setId(catalog.getId());
+        retired.setStatus(PaymentPlanStatus.RETIRED);
+        paymentPlanCatalogDao.updateById(retired);
+
+        catalog.setStatus(PaymentPlanStatus.RETIRED);
+        evictCatalogCache(catalog);
+
+        PaymentPlanPublishResponse response = new PaymentPlanPublishResponse();
+        response.setPublished(false);
+        response.setCatalogId(catalog.getId());
+        response.setVersionNo(catalog.getVersion());
+        response.setStatus(PaymentPlanStatus.RETIRED);
+        response.setBucketCount(catalog.getBucketCount());
+        response.setRouteOptionCount(catalog.getRouteOptionCount());
+        response.setRedisEvicted(true);
+        return response;
     }
 
     private Long nextVersion(PaymentPlanCatalogEntity catalog) {
@@ -141,6 +233,89 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
                 .eq("method_code", catalog.getMethodCode());
         wrapper.eq("merchant_app_id", catalogMerchantAppId(catalog.getMerchantAppId()));
         return wrapper;
+    }
+
+    private QueryWrapper<PaymentPlanCatalogEntity> catalogPageWrapper(DynMap params) {
+        QueryWrapper<PaymentPlanCatalogEntity> wrapper = new QueryWrapper<>();
+        Long tenantId = params.getLong("tenantId", null);
+        Long merchantId = params.getLong("merchantId", null);
+        Long merchantAppId = params.getLong("merchantAppId", null);
+        String direction = params.getStr("direction");
+        String countryCode = params.getStr("countryCode");
+        String currency = params.getStr("currency");
+        String methodCode = params.getStr("methodCode");
+        String status = params.getStr("status");
+
+        wrapper.eq(tenantId != null, "tenant_id", tenantId);
+        wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        wrapper.eq(merchantAppId != null, "merchant_app_id", catalogMerchantAppId(merchantAppId));
+        wrapper.eq(StringUtils.isNotBlank(direction), "direction", StringUtils.upperCase(StringUtils.trim(direction)));
+        wrapper.eq(StringUtils.isNotBlank(countryCode), "country_code", StringUtils.upperCase(StringUtils.trim(countryCode)));
+        wrapper.eq(StringUtils.isNotBlank(currency), "currency", StringUtils.upperCase(StringUtils.trim(currency)));
+        wrapper.eq(StringUtils.isNotBlank(methodCode), "method_code", StringUtils.upperCase(StringUtils.trim(methodCode)));
+        wrapper.eq(StringUtils.isNotBlank(status), "status", StringUtils.upperCase(StringUtils.trim(status)));
+        return wrapper;
+    }
+
+    private IPage<PaymentPlanCatalogEntity> catalogPage(DynMap params) {
+        long current = params.getLong("page", 1L);
+        long size = params.getLong("limit", 10L);
+        Page<PaymentPlanCatalogEntity> page = new Page<>(current, size);
+        page.addOrder(OrderItem.desc("id"));
+        return page;
+    }
+
+    private PaymentPlanCatalogEntity requireCatalog(Long catalogId) {
+        if (catalogId == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Payment plan id is required");
+        }
+        PaymentPlanCatalogEntity catalog = paymentPlanCatalogDao.selectById(catalogId);
+        if (catalog == null) {
+            throw new GkException(ErrorCode.NOT_FOUND, "Payment plan does not exist");
+        }
+        return catalog;
+    }
+
+    private void evictCatalogCache(PaymentPlanCatalogEntity catalog) {
+        if (catalog.getMerchantAppId() == null || catalog.getMerchantAppId() <= 0) {
+            paymentPlanCacheService.evictAll();
+            return;
+        }
+        paymentPlanCacheService.evict(PaymentPlanKey.of(
+                catalog.getTenantId(),
+                catalog.getMerchantId(),
+                catalog.getMerchantAppId(),
+                catalog.getDirection(),
+                catalog.getCountryCode(),
+                catalog.getCurrency(),
+                catalog.getMethodCode()
+        ));
+    }
+
+    private PaymentPlanVersionDTO toVersionDTO(PaymentPlanCatalogEntity catalog) {
+        PaymentPlanVersionDTO response = new PaymentPlanVersionDTO();
+        BeanUtils.copyProperties(catalog, response);
+        return response;
+    }
+
+    private PaymentPlanDetailResponse.Catalog toDetailCatalog(PaymentPlanCatalogEntity catalog) {
+        PaymentPlanDetailResponse.Catalog response = new PaymentPlanDetailResponse.Catalog();
+        BeanUtils.copyProperties(catalog, response);
+        return response;
+    }
+
+    private PaymentPlanDetailResponse.Bucket toDetailBucket(PaymentPlanBucketEntity bucket,
+                                                            List<PaymentPlanRouteOptionEntity> routeOptions) {
+        PaymentPlanDetailResponse.Bucket response = new PaymentPlanDetailResponse.Bucket();
+        BeanUtils.copyProperties(bucket, response);
+        response.setRouteOptions(routeOptions.stream().map(this::toDetailRouteOption).toList());
+        return response;
+    }
+
+    private PaymentPlanDetailResponse.RouteOption toDetailRouteOption(PaymentPlanRouteOptionEntity option) {
+        PaymentPlanDetailResponse.RouteOption response = new PaymentPlanDetailResponse.RouteOption();
+        BeanUtils.copyProperties(option, response);
+        return response;
     }
 
     private Long catalogMerchantAppId(Long merchantAppId) {
@@ -476,7 +651,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         if (compileResult.getErrors().isEmpty()) {
             return "Payment plan compile failed";
         }
-        PaymentPlanCompileResult.Message message = compileResult.getErrors().get(0);
+        PaymentPlanCompileResult.Message message = compileResult.getErrors().getFirst();
         return message.code() + ": " + message.message();
     }
 

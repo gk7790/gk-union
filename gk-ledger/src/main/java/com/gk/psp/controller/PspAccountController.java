@@ -2,6 +2,7 @@ package com.gk.psp.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
+import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
@@ -16,6 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "PSP账户")
 @RestController
@@ -36,6 +39,15 @@ public class PspAccountController {
     public R<?> page(@RequestMap DynMap params) {
         PageData<PspAccountDTO> page = pspAccountService.page(params);
         return R.ok(page);
+    }
+
+    @GetMapping("dict")
+    @Operation(summary = "PSP账户字典", description = "按租户/PSP查询可用账户列表，供路由规则等表单选择使用")
+    @Parameters({
+            @Parameter(name = "pspId", description = "PSP ID", in = ParameterIn.QUERY)
+    })
+    public R<List<LabelDTO>> dict(@RequestMap DynMap params) {
+        return R.ok(pspAccountService.getDict(params));
     }
 
     @GetMapping("{id}")

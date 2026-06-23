@@ -1,24 +1,26 @@
 package com.gk.psp.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONException;
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
+import com.gk.common.model.DynMap;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.common.model.DynMap;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.service.PaymentMethodService;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
-import com.gk.psp.dto.PspMethodDictDTO;
 import com.gk.psp.dto.PspMethodDTO;
+import com.gk.psp.dto.PspMethodDictDTO;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.service.PspMethodService;
@@ -28,15 +30,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 @Slf4j
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
     private static final String EMPTY_CONFIG_JSON = "{}";
+    private static final long PSP_METHOD_CODE_DICT_CACHE_SECONDS = 60 * 60L;
 
     @Autowired
     private PayinPlanCache payinPlanCache;
@@ -46,6 +51,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     private PspFeeRuleDao pspFeeRuleDao;
     @Autowired
     private PaymentMethodService paymentMethodService;
+    @Autowired
+    private RedisUtils redisUtils;
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -78,8 +85,14 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
         Long pspId = params.getLong("pspId", 0L);
 
-        if  (pspId <= 0) {
+        if (pspId <= 0) {
             return Collections.emptyList();
+        }
+
+        String cacheKey = RedisKeys.getPspMethodCodeDictKey(pspId);
+        List<PspMethodDTO> cached = getCachedPspMethodCodeDict(cacheKey);
+        if (cached != null) {
+            return cached;
         }
 
         wrapper.select("id", "psp_method_code", "currency", "direction", "country_code");
@@ -87,12 +100,14 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         wrapper.eq("psp_id", pspId);
 
         List<PspMethodEntity> pspMethodEntities = baseDao.selectList(wrapper);
-        return ConvertUtils.sourceToTarget(pspMethodEntities, PspMethodDTO.class);
+        List<PspMethodDTO> dict = ConvertUtils.sourceToTarget(pspMethodEntities, PspMethodDTO.class);
+        cachePspMethodCodeDict(cacheKey, dict);
+        return dict;
     }
 
     @Override
     public List<LabelDTO> getMethodCodeDict(DynMap params) {
-        // 系统标准支付方式从 payment_method 读取，PSP Method 只维护某 PSP 的上游方式映射。
+        // Standard payment methods come from payment_method; psp_method only keeps upstream mappings.
         return paymentMethodService.getLabelDict(params);
     }
 
@@ -108,7 +123,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         String currency = params.getStr("currency");
         String direction = params.getStr("direction");
 
-        // 成本规则表单只需要可用的 PSP Method，选择后回填 psp_method_id/method_code/psp_method_code。
+        // The fee-rule form selects an available PSP Method and backfills method snapshot fields.
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(status != null, "status", status);
         wrapper.eq(StrUtil.isNotBlank(pspCode), "psp_code", normalize(pspCode));
@@ -228,7 +243,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     }
 
     private void evictPayinPlanCache() {
-        // PSP Method 配置会影响路由和上游提交参数，变更后必须清空 PayinPlan 缓存。
+        // PSP Method changes affect route selection and upstream request parameters.
         if (payinPlanCache != null) {
             payinPlanCache.evictAll();
         }
@@ -238,6 +253,46 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     }
 
     private void evictMethodDictCache() {
-        // PSP Method 字典已迁移到 payment_method，保留方法用于配置变更时语义清晰。
+        try {
+            Set<String> keys = redisUtils.keys(RedisKeys.getPspMethodCodeDictPattern());
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Evict PSP method code dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private List<PspMethodDTO> getCachedPspMethodCodeDict(String cacheKey) {
+        try {
+            Object cached = redisUtils.get(cacheKey);
+            if (cached == null) {
+                return null;
+            }
+            if (cached instanceof String text) {
+                return JSON.parseArray(text, PspMethodDTO.class);
+            }
+            if (cached instanceof List<?> list) {
+                List<PspMethodDTO> result = new ArrayList<>(list.size());
+                for (Object item : list) {
+                    PspMethodDTO dto = ConvertUtils.sourceToTarget(item, PspMethodDTO.class);
+                    if (dto != null) {
+                        result.add(dto);
+                    }
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Get PSP method code dict cache failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void cachePspMethodCodeDict(String cacheKey, List<PspMethodDTO> dict) {
+        try {
+            redisUtils.set(cacheKey, dict, PSP_METHOD_CODE_DICT_CACHE_SECONDS);
+        } catch (Exception e) {
+            log.warn("Set PSP method code dict cache failed: {}", e.getMessage());
+        }
     }
 }

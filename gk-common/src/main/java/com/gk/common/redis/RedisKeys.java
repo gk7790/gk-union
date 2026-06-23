@@ -148,6 +148,28 @@ public class RedisKeys {
     }
 
     /**
+     * PSP 上游支付方式编码下拉缓存 Key。
+     */
+    public static String getPspMethodCodeDictKey(Long pspId) {
+        return "psp:method-code:dict:" + nullToAll(pspId);
+    }
+
+    public static String getPspMethodCodeDictPattern() {
+        return "psp:method-code:dict:*";
+    }
+
+    /**
+     * PSP 账户下拉字典缓存 Key。
+     */
+    public static String getPspAccountDictKey(Long pspId) {
+        return "psp:account:dict:" + nullToAll(pspId);
+    }
+
+    public static String getPspAccountDictPattern() {
+        return "psp:account:dict:*";
+    }
+
+    /**
      * 系统标准支付方式下拉字典缓存 Key。
      */
     public static String getPaymentMethodDictKey(String countryCode, String currency, String direction, String methodType, String statusKey) {

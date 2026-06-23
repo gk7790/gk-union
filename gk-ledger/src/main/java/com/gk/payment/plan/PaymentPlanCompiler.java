@@ -241,19 +241,7 @@ public class PaymentPlanCompiler {
             return null;
         }
 
-        PspFeeRuleEntity feeRule = pspFeeRuleDao.selectBestMatchForOrder(
-                request.getTenantId(),
-                channel.getPspId(),
-                channel.getPspAccountId(),
-                channel.getPspMethodId(),
-                request.getCountryCode(),
-                request.getCurrency(),
-                request.getMethodCode(),
-                sampleAmount,
-                request.getDirection(),
-                Instant.now(),
-                StatusEnum.NORMAL.code()
-        );
+        PspFeeRuleEntity feeRule = pspFeeRule(request, channel, sampleAmount, result);
         if (feeRule == null) {
             result.addWarning("PSP_FEE_RULE_MISSING", "PSP fee rule is not configured for payment route channel " + channel.getId());
             if (Boolean.TRUE.equals(request.getPspFeeRequired())) {
@@ -360,6 +348,76 @@ public class PaymentPlanCompiler {
 
     private PspFeeRuleEntity pspFeeRule(PaymentPlanRouteOptionEntity option) {
         return pspFeeRuleDao.selectById(option.getPspFeeRuleId());
+    }
+
+    private PspFeeRuleEntity pspFeeRule(PaymentPlanCompileRequest request,
+                                        PaymentRouteChannelEntity channel,
+                                        BigDecimal sampleAmount,
+                                        PaymentPlanCompileResult result) {
+        if (channel.getPspFeeRuleId() != null) {
+            PspFeeRuleEntity feeRule = pspFeeRuleDao.selectById(channel.getPspFeeRuleId());
+            if (!pspFeeRuleMatches(request, channel, sampleAmount, feeRule)) {
+                result.addWarning("PSP_FEE_RULE_INVALID", "PSP fee rule does not match payment route channel " + channel.getId());
+                return null;
+            }
+            return feeRule;
+        }
+        return pspFeeRuleDao.selectBestMatchForOrder(
+                request.getTenantId(),
+                channel.getPspId(),
+                channel.getPspAccountId(),
+                channel.getPspMethodId(),
+                request.getCountryCode(),
+                request.getCurrency(),
+                request.getMethodCode(),
+                sampleAmount,
+                request.getDirection(),
+                Instant.now(),
+                StatusEnum.NORMAL.code()
+        );
+    }
+
+    private boolean pspFeeRuleMatches(PaymentPlanCompileRequest request,
+                                      PaymentRouteChannelEntity channel,
+                                      BigDecimal sampleAmount,
+                                      PspFeeRuleEntity feeRule) {
+        if (feeRule == null) {
+            return false;
+        }
+        if (!StatusEnum.NORMAL.code().equals(feeRule.getStatus())) {
+            return false;
+        }
+        if (!Objects.equals(request.getTenantId(), feeRule.getTenantId())) {
+            return false;
+        }
+        if (!Objects.equals(channel.getPspId(), feeRule.getPspId())) {
+            return false;
+        }
+        if (feeRule.getPspAccountId() != null && !Objects.equals(channel.getPspAccountId(), feeRule.getPspAccountId())) {
+            return false;
+        }
+        if (feeRule.getPspMethodId() != null && !Objects.equals(channel.getPspMethodId(), feeRule.getPspMethodId())) {
+            return false;
+        }
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getDirection()), StringUtils.trim(feeRule.getDirection()))) {
+            return false;
+        }
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCurrency()), StringUtils.trim(feeRule.getCurrency()))) {
+            return false;
+        }
+        if (StringUtils.isNotBlank(feeRule.getMethodCode())
+                && !StringUtils.equalsIgnoreCase(StringUtils.trim(request.getMethodCode()), StringUtils.trim(feeRule.getMethodCode()))) {
+            return false;
+        }
+        if (StringUtils.isBlank(request.getCountryCode()) && StringUtils.isNotBlank(feeRule.getCountryCode())) {
+            return false;
+        }
+        if (StringUtils.isNotBlank(request.getCountryCode())
+                && StringUtils.isNotBlank(feeRule.getCountryCode())
+                && !StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCountryCode()), StringUtils.trim(feeRule.getCountryCode()))) {
+            return false;
+        }
+        return contains(feeRule.getMinAmount(), feeRule.getMaxAmount(), sampleAmount);
     }
 
     private boolean testBankSupported(PaymentPlanCompileRequest request, PaymentPlanRouteOptionEntity option, String bankCode) {
@@ -741,6 +799,7 @@ public class PaymentPlanCompiler {
         snapshot.put("pspId", channel.getPspId());
         snapshot.put("pspMethodId", channel.getPspMethodId());
         snapshot.put("pspAccountId", channel.getPspAccountId());
+        snapshot.put("pspFeeRuleId", channel.getPspFeeRuleId());
         snapshot.put("priority", channel.getPriority());
         snapshot.put("weight", channel.getWeight());
         snapshot.put("fallbackOrder", channel.getFallbackOrder());

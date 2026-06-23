@@ -358,6 +358,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         response.setPspId(channel.getPspId());
         response.setPspMethodId(channel.getPspMethodId());
         response.setPspAccountId(channel.getPspAccountId());
+        response.setPspFeeRuleId(channel.getPspFeeRuleId());
         response.setPriority(channel.getPriority());
         response.setWeight(channel.getWeight());
         response.setFallbackOrder(channel.getFallbackOrder());

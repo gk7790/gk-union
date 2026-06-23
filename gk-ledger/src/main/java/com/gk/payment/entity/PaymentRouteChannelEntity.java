@@ -16,6 +16,7 @@ public class PaymentRouteChannelEntity extends SimpleEntity {
     private Long pspId;
     private Long pspMethodId;
     private Long pspAccountId;
+    private Long pspFeeRuleId;
     private Integer priority;
     private Integer weight;
     private Integer fallbackOrder;

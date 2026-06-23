@@ -36,6 +36,7 @@ CREATE TABLE `payment_route_channel` (
   `psp_id` bigint NOT NULL COMMENT '支付服务商ID，对应psp_provider.id',
   `psp_method_id` bigint NOT NULL COMMENT '支付服务商方法ID，对应psp_method.id',
   `psp_account_id` bigint NOT NULL COMMENT '支付服务商账户ID，对应psp_account.id',
+  `psp_fee_rule_id` bigint DEFAULT NULL COMMENT '支付服务商成本费率规则ID，对应psp_fee_rule.id；为空时发布阶段自动匹配',
   `priority` int NOT NULL DEFAULT 100 COMMENT '优先级，数值越小优先级越高',
   `weight` int NOT NULL DEFAULT 100 COMMENT '同优先级下的权重',
   `fallback_order` int NOT NULL DEFAULT 100 COMMENT '失败后的备用顺序',
@@ -50,7 +51,8 @@ CREATE TABLE `payment_route_channel` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_payment_route_channel_resource` (`tenant_id`, `group_id`, `psp_id`, `psp_method_id`, `psp_account_id`),
   KEY `idx_payment_route_channel_group` (`tenant_id`, `group_id`, `status`, `priority`, `fallback_order`),
-  KEY `idx_payment_route_channel_psp` (`tenant_id`, `psp_id`, `psp_method_id`, `psp_account_id`)
+  KEY `idx_payment_route_channel_psp` (`tenant_id`, `psp_id`, `psp_method_id`, `psp_account_id`),
+  KEY `idx_payment_route_channel_fee_rule` (`tenant_id`, `psp_fee_rule_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付路由通道';
 
 CREATE TABLE `payment_route_rule` (

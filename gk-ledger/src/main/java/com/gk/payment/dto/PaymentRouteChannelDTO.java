@@ -19,6 +19,8 @@ public class PaymentRouteChannelDTO {
     private Long pspMethodId;
     @Schema(title = "PSP账户ID")
     private Long pspAccountId;
+    @Schema(title = "PSP成本规则ID")
+    private Long pspFeeRuleId;
     @Schema(title = "优先级")
     private Integer priority;
     @Schema(title = "权重")

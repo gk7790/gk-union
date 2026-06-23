@@ -15,8 +15,10 @@ import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.service.PaymentRouteChannelService;
 import com.gk.psp.dao.PspAccountDao;
+import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.entity.PspAccountEntity;
+import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -29,6 +31,7 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
     private final PaymentRouteGroupDao paymentRouteGroupDao;
     private final PspMethodDao pspMethodDao;
     private final PspAccountDao pspAccountDao;
+    private final PspFeeRuleDao pspFeeRuleDao;
     private final LedgerAccountService ledgerAccountService;
     private final PayinPlanCache payinPlanCache;
     private final PaymentPlanCacheService paymentPlanCacheService;
@@ -123,9 +126,49 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
         if (!equalsLong(group.getTenantId(), account.getTenantId())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route group tenant must match PSP account tenant");
         }
+        validatePspFeeRule(dto, group);
 
         dto.setTenantId(group.getTenantId());
         return group;
+    }
+
+    private void validatePspFeeRule(PaymentRouteChannelDTO dto, PaymentRouteGroupEntity group) {
+        if (dto.getPspFeeRuleId() == null) {
+            return;
+        }
+        PspFeeRuleEntity feeRule = pspFeeRuleDao.selectById(dto.getPspFeeRuleId());
+        if (feeRule == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP fee rule does not exist");
+        }
+        if (!equalsLong(group.getTenantId(), feeRule.getTenantId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route group tenant must match PSP fee rule tenant");
+        }
+        if (!equalsLong(dto.getPspId(), feeRule.getPspId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route channel PSP must match PSP fee rule");
+        }
+        if (feeRule.getPspMethodId() != null && !equalsLong(dto.getPspMethodId(), feeRule.getPspMethodId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route channel PSP method must match PSP fee rule");
+        }
+        if (feeRule.getPspAccountId() != null && !equalsLong(dto.getPspAccountId(), feeRule.getPspAccountId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route channel PSP account must match PSP fee rule");
+        }
+        if (!equalsCode(group.getDirection(), feeRule.getDirection())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route group direction must match PSP fee rule");
+        }
+        if (!equalsCode(group.getCurrency(), feeRule.getCurrency())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route group currency must match PSP fee rule");
+        }
+        if (StringUtils.isNotBlank(feeRule.getMethodCode()) && !equalsCode(group.getMethodCode(), feeRule.getMethodCode())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route group method must match PSP fee rule");
+        }
+        if (StringUtils.isBlank(group.getCountryCode()) && StringUtils.isNotBlank(feeRule.getCountryCode())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Generic route group must use generic PSP fee rule country");
+        }
+        if (StringUtils.isNotBlank(group.getCountryCode())
+                && StringUtils.isNotBlank(feeRule.getCountryCode())
+                && !equalsCode(group.getCountryCode(), feeRule.getCountryCode())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route group country must match PSP fee rule");
+        }
     }
 
     private void provisionPspLedgerAccounts(PaymentRouteChannelDTO dto, PaymentRouteGroupEntity group) {

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,7 +57,19 @@ public class SysCurrencyServiceImpl extends CrudServiceImpl<SysCurrencyDao, SysC
         wrapper.in("status", statusList);
         wrapper.orderByAsc("sort").orderByAsc("currency");
         List<SysCurrencyEntity> list = baseDao.selectList(wrapper);
-        return ConvertUtils.sourceToTarget(list, SysCurrencyDTO.class);
+        if (list == null || list.isEmpty()) {
+            return List.of();
+        }
+
+        // 平台侧返回所有币种，并把每个币种当前关联的租户ID一起带给前端缓存使用。
+        Map<String, List<Long>> tenantIdsMap = tenantIdsByCurrency(statusList);
+        return list.stream()
+                .map(item -> {
+                    SysCurrencyDTO dto = ConvertUtils.sourceToTarget(item, SysCurrencyDTO.class);
+                    dto.setTenantIds(tenantIdsMap.getOrDefault(item.getCurrency(), List.of()));
+                    return dto;
+                })
+                .toList();
     }
 
     private List<SysCurrencyDTO> listTenantCurrencies(Long tenantId, List<Integer> statusList) {
@@ -102,11 +115,36 @@ public class SysCurrencyServiceImpl extends CrudServiceImpl<SysCurrencyDao, SysC
                 .map(item -> {
                     SysCurrencyDTO dto = ConvertUtils.sourceToTarget(item, SysCurrencyDTO.class);
                     dto.setSort(sortMap.getOrDefault(item.getCurrency(), item.getSort()));
+                    // 租户侧只能看到自己的币种归属，避免暴露其他租户配置。
+                    dto.setTenantIds(List.of(tenantId));
                     return dto;
                 })
                 .sorted(Comparator.comparing(SysCurrencyDTO::getSort, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(SysCurrencyDTO::getCurrency, Comparator.nullsLast(String::compareTo)))
                 .toList();
+    }
+
+    private Map<String, List<Long>> tenantIdsByCurrency(List<Integer> statusList) {
+        QueryWrapper<SysTenantCurrencyEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("tenant_id", "currency");
+        wrapper.in("status", statusList);
+        wrapper.orderByAsc("currency").orderByAsc("tenant_id");
+        List<SysTenantCurrencyEntity> list = sysTenantCurrencyDao.selectList(wrapper);
+        if (list == null || list.isEmpty()) {
+            return Map.of();
+        }
+
+        return list.stream()
+                .filter(item -> StrUtil.isNotBlank(item.getCurrency()) && item.getTenantId() != null)
+                .collect(Collectors.groupingBy(
+                        SysTenantCurrencyEntity::getCurrency,
+                        Collectors.mapping(SysTenantCurrencyEntity::getTenantId,
+                                Collectors.collectingAndThen(Collectors.toList(), ids -> ids.stream()
+                                        .filter(Objects::nonNull)
+                                        .distinct()
+                                        .sorted()
+                                        .toList()))
+                ));
     }
 
     private List<Integer> statusList(DynMap params) {

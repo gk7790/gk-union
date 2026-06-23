@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -26,6 +27,8 @@ public class SysCurrencyDTO {
     private Integer sort;
     @Schema(description = "备注")
     private String remark;
+    @Schema(description = "已启用该币种的租户ID集合")
+    private List<Long> tenantIds;
     private Long createdBy;
     private Instant createdAt;
     private Long updatedBy;

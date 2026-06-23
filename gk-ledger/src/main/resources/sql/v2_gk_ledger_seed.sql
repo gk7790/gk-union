@@ -101,6 +101,12 @@ SELECT 1950000000000000105, 1950000000000000100, 'payment-plan-retire', NULL, 5,
        '{"title":"停用"}', 5, NOW(), NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000105);
 
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1950000000000000201, 1950000000000000001, 'payment-route-channel-options', NULL, 5, 1,
+       'payment:route-channel:options', NULL,
+       '{"title":"路由通道级联选项"}', 50, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1950000000000000201);
+
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
 SELECT 2064290000000000001, 'payment', 'merchantNotifyTask', NULL, '0/10 * * * * ?', 1, '商户异步通知发送/重试', NOW()

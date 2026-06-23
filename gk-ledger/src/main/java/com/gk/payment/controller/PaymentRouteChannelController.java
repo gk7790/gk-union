@@ -46,6 +46,13 @@ public class PaymentRouteChannelController {
         return R.ok(page);
     }
 
+    @GetMapping("options")
+    @Operation(summary = "Route channel cascade options")
+    @PreAuthorize("hasAuthority('payment:route-channel:options')")
+    public R<?> options(@RequestMap DynMap params) {
+        return R.ok(paymentRouteChannelService.options(params));
+    }
+
     @GetMapping("{id}")
     @Operation(summary = "Info")
     @PreAuthorize("hasAuthority('payment:route-channel:info')")

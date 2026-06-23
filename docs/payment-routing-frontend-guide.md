@@ -70,6 +70,7 @@ payment_plan_bucket 一对多 payment_plan_route_option
 ```text
 GET    /payment/route-group/page
 GET    /payment/route-group/{id}
+GET    /payment/route-group/{id}/check
 POST   /payment/route-group
 PUT    /payment/route-group/{id}
 DELETE /payment/route-group?ids=1&ids=2
@@ -114,6 +115,23 @@ currency 必填
 methodCode 必填
 direction 必填
 status 使用 1 正常、2 暂停、3 停用
+```
+
+检测按钮：
+
+```text
+GET /payment/route-group/{id}/check
+```
+
+用途：检测引用该路由组的 active route_rule 金额区间，是否被 active route_channel、psp_method、已绑定的 psp_fee_rule 完整覆盖。
+
+前端展示建议：
+
+```text
+valid=false 时显示红色风险
+routeRules[].gaps 显示未覆盖金额段
+routeRules[].coveredRanges 显示已覆盖金额段
+routeRules[].channels 显示每个 PSP 通道实际可用金额段
 ```
 
 ### 2.2 支付路由组详情 / 通道候选页面

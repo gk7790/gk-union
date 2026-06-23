@@ -1,5 +1,7 @@
 package com.gk.openapi.service.impl;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.constant.Constant;
@@ -36,6 +38,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -239,6 +242,9 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      */
     private void applyRoute(PayOrderEntity entity, PspRouteResult route) {
         entity.setRouteRuleId(route.getRouteRuleId());
+        entity.setRouteGroupId(route.getRouteGroupId());
+        entity.setRouteChannelId(route.getRouteChannelId());
+        entity.setRouteSnapshotJson(routeSnapshotJson(entity, route));
         entity.setPspId(route.getPspId());
         entity.setPspCode(route.getPspCode());
         entity.setPspMethodId(route.getPspMethodId());
@@ -370,6 +376,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         target.setPspFeeRuleId(source.getPspFeeRuleId());
         target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
         target.setSettleAmount(source.getSettleAmount());
+        target.setPaymentPlanCatalogId(source.getPaymentPlanCatalogId());
+        target.setPaymentPlanVersion(source.getPaymentPlanVersion());
+        target.setPaymentPlanBucketId(source.getPaymentPlanBucketId());
+        target.setPaymentPlanRouteOptionId(source.getPaymentPlanRouteOptionId());
+        target.setRouteRuleId(source.getRouteRuleId());
+        target.setRouteGroupId(source.getRouteGroupId());
+        target.setRouteChannelId(source.getRouteChannelId());
+        target.setRouteSnapshotJson(source.getRouteSnapshotJson());
         target.setCurrency(source.getCurrency());
         target.setCountryCode(source.getCountryCode());
         target.setMethodCode(source.getMethodCode());
@@ -432,17 +446,42 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * @param entity 订单
      */
     private void applyPayinPlan(PayOrderEntity entity, PayinPlan plan) {
-        // 商户侧金额：展示给商户、账务入账和结算统计主要使用这一组字段。
+        entity.setPaymentPlanCatalogId(plan.getCatalogId());
+        entity.setPaymentPlanVersion(plan.getCatalogVersion());
+        entity.setPaymentPlanBucketId(plan.getBucketId());
+        entity.setPaymentPlanRouteOptionId(plan.getRouteOptionId());
+
         entity.setMerchantFeeAmount(plan.getMerchantFeeAmount());
         entity.setSettleAmount(plan.getSettleAmount());
         entity.setMerchantFeeRuleId(plan.getMerchantFee().getRule().getId());
         entity.setMerchantFeeSnapshotJson(plan.getMerchantFee().getSnapshotJson());
-        // PSP 侧路由：提交上游和后续查单/回调归属都依赖这些字段。
+
         applyRoute(entity, plan.getRoute());
-        // PSP 成本：用于租户/平台侧成本核算，不改变商户实收金额。
-        entity.setPspFeeAmount(plan.getPspFeeAmount());
-        entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
-        entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
+
+        entity.setPspFeeAmount(plan.getPspFeeAmount() == null ? BigDecimal.ZERO : plan.getPspFeeAmount());
+        if (plan.getPspFee() != null && plan.getPspFee().getRule() != null) {
+            entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
+            entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
+        }
+    }
+
+    private String routeSnapshotJson(PayOrderEntity entity, PspRouteResult route) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("catalogId", entity.getPaymentPlanCatalogId());
+        snapshot.put("catalogVersion", entity.getPaymentPlanVersion());
+        snapshot.put("bucketId", entity.getPaymentPlanBucketId());
+        snapshot.put("routeOptionId", entity.getPaymentPlanRouteOptionId());
+        snapshot.put("routeRuleId", route.getRouteRuleId());
+        snapshot.put("routeGroupId", route.getRouteGroupId());
+        snapshot.put("routeChannelId", route.getRouteChannelId());
+        snapshot.put("pspId", route.getPspId());
+        snapshot.put("pspCode", route.getPspCode());
+        snapshot.put("pspMethodId", route.getPspMethodId());
+        snapshot.put("pspMethodCode", route.getPspMethodCode());
+        snapshot.put("pspAccountId", route.getPspAccountId());
+        snapshot.put("pspAccountNo", route.getPspAccountNo());
+        snapshot.put("pspBankCode", route.getPspBankCode());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
     }
 
     /**

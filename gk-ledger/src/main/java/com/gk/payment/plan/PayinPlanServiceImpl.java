@@ -180,6 +180,10 @@ public class PayinPlanServiceImpl implements PayinPlanService {
 
     private PayinPlan toPayinPlan(PaymentPlan paymentPlan) {
         PayinPlan plan = new PayinPlan();
+        plan.setCatalogId(paymentPlan.getCatalogId());
+        plan.setCatalogVersion(paymentPlan.getCatalogVersion());
+        plan.setBucketId(paymentPlan.getBucketId());
+        plan.setRouteOptionId(paymentPlan.getRouteOptionId());
         plan.setMerchantFee(paymentPlan.getMerchantFee());
         plan.setRoute(paymentPlan.getRoute());
         plan.setPspFee(paymentPlan.getPspFee());

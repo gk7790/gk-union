@@ -53,7 +53,13 @@ public class PayoutOrderDTO {
     private String freezeJournalNo;
     private String successJournalNo;
     private String releaseJournalNo;
+    private Long paymentPlanCatalogId;
+    private Long paymentPlanVersion;
+    private Long paymentPlanBucketId;
+    private Long paymentPlanRouteOptionId;
     private Long routeRuleId;
+    private Long routeGroupId;
+    private Long routeChannelId;
     private String routeSnapshotJson;
     private Long pspId;
     private String pspCode;

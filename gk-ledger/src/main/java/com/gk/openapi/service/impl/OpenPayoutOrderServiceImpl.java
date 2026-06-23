@@ -279,7 +279,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     private void applyRoute(PayoutOrderEntity entity, PspRouteResult route) {
         entity.setRouteRuleId(route.getRouteRuleId());
-        entity.setRouteSnapshotJson(routeSnapshotJson(route));
+        entity.setRouteGroupId(route.getRouteGroupId());
+        entity.setRouteChannelId(route.getRouteChannelId());
+        entity.setRouteSnapshotJson(routeSnapshotJson(entity, route));
         entity.setPspId(route.getPspId());
         entity.setPspCode(route.getPspCode());
         entity.setPspMethodId(route.getPspMethodId());
@@ -381,6 +383,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 决策表同时给出商户费率、PSP 路由和 PSP 成本，订单只保存快照字段。
      */
     private void applyPaymentPlan(PayoutOrderEntity entity, PaymentPlan plan) {
+        entity.setPaymentPlanCatalogId(plan.getCatalogId());
+        entity.setPaymentPlanVersion(plan.getCatalogVersion());
+        entity.setPaymentPlanBucketId(plan.getBucketId());
+        entity.setPaymentPlanRouteOptionId(plan.getRouteOptionId());
         BigDecimal feeAmount = defaultZero(plan.getMerchantFeeAmount());
         entity.setMerchantFeeAmount(feeAmount);
         entity.setTotalDebitAmount(entity.getAmount().add(feeAmount));
@@ -389,7 +395,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
 
         applyRoute(entity, plan.getRoute());
 
-        entity.setPspFeeAmount(plan.getPspFeeAmount());
+        entity.setPspFeeAmount(defaultZero(plan.getPspFeeAmount()));
         if (plan.getPspFee() != null && plan.getPspFee().getRule() != null) {
             entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
             entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
@@ -587,9 +593,15 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 构建 PSP 路由快照 JSON。
      */
-    private String routeSnapshotJson(PspRouteResult route) {
+    private String routeSnapshotJson(PayoutOrderEntity entity, PspRouteResult route) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("catalogId", entity.getPaymentPlanCatalogId());
+        snapshot.put("catalogVersion", entity.getPaymentPlanVersion());
+        snapshot.put("bucketId", entity.getPaymentPlanBucketId());
+        snapshot.put("routeOptionId", entity.getPaymentPlanRouteOptionId());
         snapshot.put("routeRuleId", route.getRouteRuleId());
+        snapshot.put("routeGroupId", route.getRouteGroupId());
+        snapshot.put("routeChannelId", route.getRouteChannelId());
         snapshot.put("pspId", route.getPspId());
         snapshot.put("pspCode", route.getPspCode());
         snapshot.put("pspMethodId", route.getPspMethodId());
@@ -635,6 +647,14 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         target.setPspFeeAmount(source.getPspFeeAmount());
         target.setPspFeeRuleId(source.getPspFeeRuleId());
         target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
+        target.setPaymentPlanCatalogId(source.getPaymentPlanCatalogId());
+        target.setPaymentPlanVersion(source.getPaymentPlanVersion());
+        target.setPaymentPlanBucketId(source.getPaymentPlanBucketId());
+        target.setPaymentPlanRouteOptionId(source.getPaymentPlanRouteOptionId());
+        target.setRouteRuleId(source.getRouteRuleId());
+        target.setRouteGroupId(source.getRouteGroupId());
+        target.setRouteChannelId(source.getRouteChannelId());
+        target.setRouteSnapshotJson(source.getRouteSnapshotJson());
         target.setCurrency(source.getCurrency());
         target.setCountryCode(source.getCountryCode());
         target.setMethodCode(source.getMethodCode());

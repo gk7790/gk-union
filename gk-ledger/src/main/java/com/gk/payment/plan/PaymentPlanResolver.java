@@ -206,6 +206,8 @@ public class PaymentPlanResolver {
 
         PspRouteResult result = new PspRouteResult();
         result.setRouteRuleId(option.getRouteRuleId());
+        result.setRouteGroupId(option.getRouteGroupId());
+        result.setRouteChannelId(option.getRouteChannelId());
         result.setPspId(provider.getId());
         result.setPspCode(provider.getPspCode());
         result.setPspBaseUrl(provider.getBaseUrl());

@@ -5,6 +5,8 @@ import lombok.Data;
 @Data
 public class PspRouteResult {
     private Long routeRuleId;
+    private Long routeGroupId;
+    private Long routeChannelId;
 
     private Long pspId;
     private String pspCode;

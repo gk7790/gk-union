@@ -9,6 +9,8 @@ import com.gk.payment.entity.PaymentMethodEntity;
 import java.util.List;
 
 public interface PaymentMethodService extends CrudService<PaymentMethodEntity, PaymentMethodDTO> {
+    List<PaymentMethodDTO> getOptions(DynMap params);
+
     List<PaymentMethodDTO> getDict(DynMap params);
 
     List<LabelDTO> getLabelDict(DynMap params);

@@ -63,6 +63,16 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
     }
 
     @Override
+    public List<PaymentMethodDTO> getOptions(DynMap params) {
+        List<Integer> statusList = statusList(params);
+        QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "method_code", "method_name", "method_type", "direction", "country_code", "currency", "status", "sort", "icon_url", "remark");
+        wrapper.in("status", statusList);
+        wrapper.orderByAsc("sort").orderByAsc("method_code").orderByAsc("country_code").orderByAsc("currency").orderByAsc("direction");
+        return ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), PaymentMethodDTO.class);
+    }
+
+    @Override
     public List<PaymentMethodDTO> getDict(DynMap params) {
         String countryCode = normalize(params.getStr("countryCode"));
         String currency = normalize(params.getStr("currency"));

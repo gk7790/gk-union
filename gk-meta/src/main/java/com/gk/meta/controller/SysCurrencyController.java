@@ -41,6 +41,12 @@ public class SysCurrencyController {
         return R.ok(sysCurrencyService.page(params));
     }
 
+    @GetMapping("options")
+    @Operation(summary = "币种缓存选项", description = "返回可用于管理后台前端缓存的币种配置列表")
+    public R<List<SysCurrencyDTO>> options(@RequestMap DynMap params) {
+        return R.ok(sysCurrencyService.getOptions(params));
+    }
+
     @GetMapping("dict")
     @Operation(summary = "平台币种字典", description = "查询平台启用的币种列表，供下拉选择使用")
     public R<List<LabelDTO>> dict(@RequestMap DynMap params) {

@@ -10,5 +10,7 @@ import java.util.List;
 
 public interface SysCurrencyService extends CrudService<SysCurrencyEntity, SysCurrencyDTO> {
 
+    List<SysCurrencyDTO> getOptions(DynMap params);
+
     List<LabelDTO> getDict(DynMap params);
 }

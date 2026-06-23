@@ -423,20 +423,4 @@ CREATE TABLE `sys_user_subject`  (
   CONSTRAINT `chk_sys_user_subject_merchant` CHECK (`subject_type` <> 'MERCHANT' OR (`tenant_id` is not null AND `merchant_id` is not null))
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户唯一主体身份表' ROW_FORMAT = Dynamic;
 
--- ----------------------------
--- Table structure for sys_whitelist
--- ----------------------------
-DROP TABLE IF EXISTS `sys_whitelist`;
-CREATE TABLE `sys_whitelist`  (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `dept_id` bigint NULL DEFAULT NULL COMMENT '公司ID',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '平台ID',
-  `allow_ip` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '白名单ip',
-  `ip_source` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'IP归属地',
-  `remark` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
-  `created_by` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者',
-  `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '白名单' ROW_FORMAT = Dynamic;
-
 SET FOREIGN_KEY_CHECKS = 1;

@@ -67,6 +67,7 @@ CREATE TABLE `merchant_app`  (
   `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户应用ID，对外API身份标识',
   `app_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '应用名称',
   `app_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'API' COMMENT '应用类型: API/ADMIN/SYSTEM',
+  `app_env` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TEST' COMMENT '应用环境: TEST/PROD',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `sign_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'HMAC_SHA256' COMMENT '签名类型: HMAC_SHA256/RSA2',
   `encrypt_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NONE' COMMENT '加密类型: NONE/AES/RSA',
@@ -91,6 +92,7 @@ CREATE TABLE `merchant_app`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_merchant_app_id`(`app_id` ASC) USING BTREE,
   INDEX `idx_merchant_app_merchant_status`(`tenant_id` ASC, `merchant_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_merchant_app_env`(`tenant_id` ASC, `merchant_id` ASC, `app_env` ASC) USING BTREE,
   INDEX `idx_merchant_app_tenant_status`(`tenant_id` ASC, `status` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1990654600050675703 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '商户API接入应用' ROW_FORMAT = Dynamic;
 
@@ -130,6 +132,7 @@ CREATE TABLE `merchant_fee_rule`  (
   INDEX `idx_fee_rule_merchant`(`tenant_id` ASC, `merchant_id` ASC, `direction` ASC, `currency` ASC, `status` ASC) USING BTREE,
   INDEX `idx_fee_rule_app`(`tenant_id` ASC, `merchant_app_id` ASC, `direction` ASC, `currency` ASC, `status` ASC) USING BTREE,
   INDEX `idx_fee_rule_match`(`tenant_id` ASC, `merchant_id` ASC, `direction` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC, `status` ASC, `priority` ASC) USING BTREE,
+  INDEX `idx_fee_rule_order_match`(`tenant_id` ASC, `merchant_id` ASC, `merchant_app_id` ASC, `direction` ASC, `currency` ASC, `method_code` ASC, `status` ASC, `priority` ASC, `id` ASC) USING BTREE,
   INDEX `idx_fee_rule_effective`(`tenant_id` ASC, `status` ASC, `effective_at` ASC, `expire_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2064008047517700099 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '商户手续费规则' ROW_FORMAT = Dynamic;
 

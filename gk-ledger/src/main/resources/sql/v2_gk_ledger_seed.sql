@@ -1,0 +1,101 @@
+-- GK Ledger 菜单与定时任务种子数据。
+-- 结构表请先执行各模块 schema，再执行本文件。
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1970000000000000001, 0, 'tenant-dashboard', '/dashboard/tenant', 2, 1,
+       'dashboard:tenant:view', '/dashboard/tenant/index',
+       '{"title":"首页","icon":"lucide:layout-dashboard","affixTab":true}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1970000000000000001);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1970000000000000002, 1970000000000000001, 'tenant-dashboard-view', NULL, 5, 1,
+       'dashboard:tenant:view', NULL,
+       '{"title":"查看"}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1970000000000000002);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1970000000000000101, 0, 'merchant-dashboard', '/dashboard/merchant', 2, 1,
+       'dashboard:merchant:view', '/dashboard/merchant/index',
+       '{"title":"首页","icon":"lucide:layout-dashboard","affixTab":true}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1970000000000000101);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1970000000000000102, 1970000000000000101, 'merchant-dashboard-view', NULL, 5, 1,
+       'dashboard:merchant:view', NULL,
+       '{"title":"查看"}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1970000000000000102);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000001, 0, 'ledger-center', '/ledger', 1, 1, NULL, NULL,
+       '{"title":"财务中心","icon":"lucide:wallet"}', 80, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000001);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000005, 1960000000000000001, 'merchant-balance-list', '/ledger/merchant-balance/list', 2, 1,
+       'ledger:merchant-balance:page', '/ledger/merchant-balance/list',
+       '{"title":"商户余额","icon":"lucide:coins"}', 9, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000005);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000006, 1960000000000000005, 'merchant-balance-page', NULL, 5, 1,
+       'ledger:merchant-balance:page', NULL,
+       '{"title":"查看"}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000006);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000002, 1960000000000000001, 'merchant-balance-adjust-list', '/ledger/merchant-balance-adjust/list', 2, 1,
+       'ledger:merchant-balance-adjust:page', '/ledger/merchant-balance-adjust/list',
+       '{"title":"商户余额调整","icon":"lucide:landmark"}', 10, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000002);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000003, 1960000000000000002, 'merchant-balance-adjust-page', NULL, 5, 1,
+       'ledger:merchant-balance-adjust:page,ledger:merchant-balance-adjust:info', NULL,
+       '{"title":"查看"}', 1, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000003);
+
+INSERT INTO `sys_menu` (`id`, `pid`, `name`, `path`, `type`, `status`, `auth_code`, `component`, `meta`, `sort`, `created_at`, `updated_at`)
+SELECT 1960000000000000004, 1960000000000000002, 'merchant-balance-adjust-submit', NULL, 5, 1,
+       'ledger:merchant-balance-adjust:submit', NULL,
+       '{"title":"提交调整"}', 2, NOW(), NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `id` = 1960000000000000004);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000001, 'payment', 'merchantNotifyTask', NULL, '0/10 * * * * ?', 1, '商户异步通知发送/重试', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000001);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000002, 'payment', 'payOrderQueryTask', NULL, '0/30 * * * * ?', 1, '代收订单主动查单补偿', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000002);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000003, 'payment', 'payoutOrderQueryTask', NULL, '0/30 * * * * ?', 1, '代付订单主动查单补偿', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000003);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000004, 'payment', 'paySettleReleaseTask', NULL, '0 0/1 * * * ?', 1, '代收待结算自动释放至商户可用余额', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000004);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000005, 'payment', 'payOrderCloseTask', NULL, '0/30 * * * * ?', 1, '代收超时未支付关单', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000005);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000006, 'payment', 'payoutOrderExceptionTask', NULL, '0 0/5 * * * ?', 1, '代付长时间处理中转人工处理', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000006);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000007, 'ledger', 'ledgerHoldExpireTask', NULL, '0 0/5 * * * ?', 1, '账务冻结过期扫描', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000007);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000008, 'payment', 'payOrderExceptionTask', NULL, '0 0/5 * * * ?', 1, '代收长时间处理中转人工处理', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000008);

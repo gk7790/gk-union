@@ -1,5 +1,5 @@
--- 新项目最终版支付路由DDL。
--- 适用于不需要保留旧psp_route_rule数据的全新上线场景。
+-- 支付路由与支付方案正式结构。
+-- 新项目上线使用本文件，不再使用旧的 PSP 直连路由表。
 
 DROP TABLE IF EXISTS `payment_plan_route_option`;
 DROP TABLE IF EXISTS `payment_plan_bucket`;
@@ -7,7 +7,6 @@ DROP TABLE IF EXISTS `payment_plan_catalog`;
 DROP TABLE IF EXISTS `payment_route_rule`;
 DROP TABLE IF EXISTS `payment_route_channel`;
 DROP TABLE IF EXISTS `payment_route_group`;
-DROP TABLE IF EXISTS `psp_route_rule`;
 
 CREATE TABLE `payment_route_group` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -18,7 +17,7 @@ CREATE TABLE `payment_route_group` (
   `country_code` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '国家/地区编码，空字符串表示通用',
   `currency` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
   `method_code` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台统一支付方式编码',
-  `strategy` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PRIORITY_WEIGHT' COMMENT '组内策略：PRIORITY_WEIGHT优先级加权，FAILOVER故障转移，LOWEST_COST最低成本，SUCCESS_RATE成功率优先',
+  `strategy` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PRIORITY_WEIGHT' COMMENT '组内策略：优先级加权、故障转移、最低成本、成功率优先',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态：1正常，2暂停，3停用',
   `remark` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
   `created_by` bigint DEFAULT NULL COMMENT '创建人ID',
@@ -58,8 +57,8 @@ CREATE TABLE `payment_route_rule` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `rule_name` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '路由规则名称',
-  `merchant_id` bigint DEFAULT NULL COMMENT '商户ID，NULL表示租户级默认规则',
-  `merchant_app_id` bigint DEFAULT NULL COMMENT '商户应用ID，NULL表示不区分应用',
+  `merchant_id` bigint DEFAULT NULL COMMENT '商户ID，空表示租户级默认规则',
+  `merchant_app_id` bigint DEFAULT NULL COMMENT '商户应用ID，空表示不区分应用',
   `direction` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易方向：PAYIN代收，PAYOUT代付',
   `country_code` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '国家/地区编码，空字符串表示通用',
   `currency` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '币种',
@@ -114,7 +113,7 @@ CREATE TABLE `payment_plan_bucket` (
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `catalog_id` bigint NOT NULL COMMENT '支付方案目录ID',
   `bucket_start_amount` decimal(24,8) NOT NULL COMMENT '金额区间开始，包含',
-  `bucket_end_amount` decimal(24,8) DEFAULT NULL COMMENT '金额区间结束，不包含；NULL表示无上限',
+  `bucket_end_amount` decimal(24,8) DEFAULT NULL COMMENT '金额区间结束，不包含，空表示无上限',
   `merchant_fee_rule_id` bigint NOT NULL COMMENT '商户费率规则ID',
   `merchant_fee_snapshot_json` json DEFAULT NULL COMMENT '商户费率规则快照JSON',
   `sort` int NOT NULL DEFAULT 0 COMMENT '排序值',
@@ -159,4 +158,4 @@ CREATE TABLE `payment_plan_route_option` (
   KEY `idx_payment_plan_route_catalog` (`tenant_id`, `catalog_id`, `bucket_id`, `sort`),
   KEY `idx_payment_plan_route_psp` (`tenant_id`, `psp_id`, `psp_account_id`),
   KEY `idx_payment_plan_route_source` (`tenant_id`, `route_group_id`, `route_channel_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付方案PSP路由候选';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='支付方案路由候选';

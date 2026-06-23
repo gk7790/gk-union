@@ -9,13 +9,12 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
-import com.gk.common.redis.RedisKeys;
-import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.model.DynMap;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.plan.PayinPlanCache;
+import com.gk.payment.service.PaymentMethodService;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dto.PspMethodDictDTO;
@@ -29,19 +28,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
     private static final String EMPTY_CONFIG_JSON = "{}";
-    private static final long PSP_METHOD_DICT_CACHE_SECONDS = 60 * 60L;
 
     @Autowired
     private PayinPlanCache payinPlanCache;
@@ -50,7 +45,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Autowired
     private PspFeeRuleDao pspFeeRuleDao;
     @Autowired
-    private RedisUtils redisUtils;
+    private PaymentMethodService paymentMethodService;
 
     @Override
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
@@ -97,29 +92,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     @Override
     public List<LabelDTO> getMethodCodeDict(DynMap params) {
-        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
-        String countryCode = params.getStr("countryCode");
-        String currency = params.getStr("currency");
-        String direction = params.getStr("direction");
-        String cacheKey = RedisKeys.getPspMethodDictKey(normalize(countryCode), normalize(currency), normalize(direction));
-        List<LabelDTO> cached = getCachedMethodDict(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-
-        wrapper.select("method_code", "MIN(method_name) AS method_name");
-        wrapper.eq("status", StatusEnum.NORMAL.code());
-        wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
-        wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
-        wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
-        wrapper.groupBy("method_code");
-        wrapper.orderByAsc("method_code");
-
-        List<LabelDTO> dict = baseDao.selectList(wrapper).stream()
-                .map(item -> new LabelDTO(item.getMethodCode(), StringUtils.defaultIfBlank(item.getMethodName(), item.getMethodCode())))
-                .collect(Collectors.toCollection(ArrayList::new));
-        cacheMethodDict(cacheKey, dict);
-        return dict;
+        // 系统标准支付方式从 payment_method 读取，PSP Method 只维护某 PSP 的上游方式映射。
+        return paymentMethodService.getLabelDict(params);
     }
 
     @Override
@@ -263,47 +237,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         }
     }
 
-    private List<LabelDTO> getCachedMethodDict(String cacheKey) {
-        try {
-            Object cached = redisUtils.get(cacheKey);
-            if (cached == null) {
-                return null;
-            }
-            if (cached instanceof String text) {
-                return JSON.parseArray(text, LabelDTO.class);
-            }
-            if (cached instanceof List<?> list) {
-                List<LabelDTO> result = new ArrayList<>(list.size());
-                for (Object item : list) {
-                    LabelDTO dto = ConvertUtils.sourceToTarget(item, LabelDTO.class);
-                    if (dto != null) {
-                        result.add(dto);
-                    }
-                }
-                return result;
-            }
-        } catch (Exception e) {
-            log.warn("Get PSP method dict cache failed: {}", e.getMessage());
-        }
-        return null;
-    }
-
-    private void cacheMethodDict(String cacheKey, List<LabelDTO> dict) {
-        try {
-            redisUtils.set(cacheKey, dict, PSP_METHOD_DICT_CACHE_SECONDS);
-        } catch (Exception e) {
-            log.warn("Set PSP method dict cache failed: {}", e.getMessage());
-        }
-    }
-
     private void evictMethodDictCache() {
-        try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPspMethodDictPattern());
-            if (keys != null && !keys.isEmpty()) {
-                redisUtils.delete(keys);
-            }
-        } catch (Exception e) {
-            log.warn("Evict PSP method dict cache failed: {}", e.getMessage());
-        }
+        // PSP Method 字典已迁移到 payment_method，保留方法用于配置变更时语义清晰。
     }
 }

@@ -135,6 +135,12 @@ public class OpenApiV1Controller {
         }
     }
 
+    /**
+     * 查询商户可展示的系统标准支付方式。
+     *
+     * <p>该接口只返回 payment_method 中配置的标准 method_code；
+     * 实际下单可用通道仍以下单时的费率、支付计划和 PSP 路由匹配结果为准。</p>
+     */
     @PostMapping("methods")
     public ApiR<List<PaymentMethodResponse>> methods(HttpServletRequest request) {
         PaymentMethodQueryRequest body = bindSignParams(request, PaymentMethodQueryRequest.class, false);

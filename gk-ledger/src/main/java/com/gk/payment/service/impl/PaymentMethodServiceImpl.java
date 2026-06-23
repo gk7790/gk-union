@@ -23,8 +23,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Slf4j
@@ -64,14 +68,14 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         String currency = normalize(params.getStr("currency"));
         String direction = normalize(params.getStr("direction"));
         String methodType = normalize(params.getStr("methodType"));
-        String statusKey = statusKey(params);
+        List<Integer> statusList = statusList(params);
+        String statusKey = statusKey(statusList);
         String cacheKey = RedisKeys.getPaymentMethodDictKey(countryCode, currency, direction, methodType, statusKey);
         List<PaymentMethodDTO> cached = getCachedDict(cacheKey);
         if (cached != null) {
             return cached;
         }
 
-        List<Integer> statusList = params.getList("status", Integer.class, List.of(StatusEnum.NORMAL.code()));
         QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "method_code", "method_name", "method_type", "direction", "country_code", "currency", "status", "sort", "icon_url", "remark");
         wrapper.in("status", statusList);
@@ -81,7 +85,8 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         wrapper.and(StrUtil.isNotBlank(currency), item -> item.eq("currency", currency).or().isNull("currency").or().eq("currency", ""));
         wrapper.orderByAsc("sort").orderByAsc("method_code");
 
-        List<PaymentMethodDTO> dict = ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), PaymentMethodDTO.class);
+        List<PaymentMethodDTO> list = ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), PaymentMethodDTO.class);
+        List<PaymentMethodDTO> dict = mergeByMethodCode(list, countryCode, currency, direction);
         cacheDict(cacheKey, dict);
         return dict;
     }
@@ -165,9 +170,92 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }
 
-    private String statusKey(DynMap params) {
+    private List<Integer> statusList(DynMap params) {
         List<Integer> statusList = params.getList("status", Integer.class, List.of(StatusEnum.NORMAL.code()));
+        List<Integer> normalized = statusList.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+        return normalized.isEmpty() ? List.of(StatusEnum.NORMAL.code()) : normalized;
+    }
+
+    private String statusKey(List<Integer> statusList) {
+        if (statusList == null || statusList.isEmpty()) {
+            return "none";
+        }
         return StringUtils.join(statusList, ",");
+    }
+
+    private List<PaymentMethodDTO> mergeByMethodCode(List<PaymentMethodDTO> list, String countryCode, String currency, String direction) {
+        if (list == null || list.isEmpty()) {
+            return List.of();
+        }
+        Map<String, PaymentMethodDTO> selected = new LinkedHashMap<>();
+        for (PaymentMethodDTO item : list) {
+            String methodCode = normalize(item.getMethodCode());
+            if (StringUtils.isBlank(methodCode)) {
+                continue;
+            }
+            PaymentMethodDTO current = selected.get(methodCode);
+            if (current == null || compareScope(item, current, countryCode, currency, direction) < 0) {
+                selected.put(methodCode, item);
+            }
+        }
+        return selected.values().stream()
+                .sorted(Comparator
+                        .comparing((PaymentMethodDTO item) -> item.getSort() == null ? 100 : item.getSort())
+                        .thenComparing(item -> StringUtils.defaultString(item.getMethodCode())))
+                .toList();
+    }
+
+    private int compareScope(PaymentMethodDTO left, PaymentMethodDTO right, String countryCode, String currency, String direction) {
+        int scoreCompare = Integer.compare(
+                scopeScore(left, countryCode, currency, direction),
+                scopeScore(right, countryCode, currency, direction)
+        );
+        if (scoreCompare != 0) {
+            return scoreCompare;
+        }
+        int sortCompare = Integer.compare(
+                left.getSort() == null ? 100 : left.getSort(),
+                right.getSort() == null ? 100 : right.getSort()
+        );
+        if (sortCompare != 0) {
+            return sortCompare;
+        }
+        return Long.compare(left.getId() == null ? Long.MAX_VALUE : left.getId(), right.getId() == null ? Long.MAX_VALUE : right.getId());
+    }
+
+    private int scopeScore(PaymentMethodDTO item, String countryCode, String currency, String direction) {
+        return directionScore(item.getDirection(), direction)
+                + fieldScore(item.getCountryCode(), countryCode)
+                + fieldScore(item.getCurrency(), currency);
+    }
+
+    private int directionScore(String value, String requestValue) {
+        if (StringUtils.isBlank(requestValue)) {
+            return 0;
+        }
+        String normalizedValue = normalize(value);
+        if (StringUtils.equals(normalizedValue, requestValue)) {
+            return 0;
+        }
+        if ("BOTH".equals(normalizedValue)) {
+            return 10;
+        }
+        return StringUtils.isBlank(normalizedValue) ? 20 : 100;
+    }
+
+    private int fieldScore(String value, String requestValue) {
+        if (StringUtils.isBlank(requestValue)) {
+            return 0;
+        }
+        String normalizedValue = normalize(value);
+        if (StringUtils.equals(normalizedValue, requestValue)) {
+            return 0;
+        }
+        return StringUtils.isBlank(normalizedValue) ? 10 : 100;
     }
 
     private List<PaymentMethodDTO> getCachedDict(String cacheKey) {

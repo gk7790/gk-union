@@ -147,6 +147,22 @@ public class RedisKeys {
         return "psp:method:dict:*";
     }
 
+    /**
+     * 系统标准支付方式下拉字典缓存 Key。
+     */
+    public static String getPaymentMethodDictKey(String countryCode, String currency, String direction, String methodType, String statusKey) {
+        return "payment:method:dict:"
+                + nullToAll(countryCode) + ":"
+                + nullToAll(currency) + ":"
+                + nullToAll(direction) + ":"
+                + nullToAll(methodType) + ":"
+                + nullToAll(statusKey);
+    }
+
+    public static String getPaymentMethodDictPattern() {
+        return "payment:method:dict:*";
+    }
+
     public static String getLoginIpWhitelistKey(String subjectType, Long tenantId, Long merchantId, Long subjectId) {
         return "sys:login-ip-whitelist:"
                 + nullToAll(subjectType) + ":"

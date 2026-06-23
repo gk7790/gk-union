@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -58,7 +59,11 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
     @Override
     public List<LabelDTO> getDict(DynMap params) {
         QueryWrapper<PspAccountEntity> wrapper = new QueryWrapper<>();
-        Long pspId = params.getLong("pspId", null);
+        Long pspId = params.getLong("pspId", 0L);
+
+        if (pspId <= 0) {
+            return Collections.emptyList();
+        }
 
         String cacheKey = RedisKeys.getPspAccountDictKey(pspId);
         List<LabelDTO> cached = getCachedDict(cacheKey);
@@ -67,11 +72,11 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         }
 
         wrapper.select("id", "psp_account_no", "psp_account_name");
-        wrapper.eq(pspId != null, "psp_id", pspId);
+        wrapper.eq("psp_id", pspId);
         wrapper.eq("status", StatusEnum.NORMAL.code());
         wrapper.orderByAsc("psp_account_name").orderByAsc("psp_account_no").orderByAsc("id");
         List<LabelDTO> dict = baseDao.selectList(wrapper).stream()
-                .map(item -> new LabelDTO(item.getId(), StrUtil.blankToDefault(item.getPspAccountName(), item.getPspAccountNo())))
+                .map(item -> LabelDTO.of(item.getId(), StrUtil.blankToDefault(item.getPspAccountName(), item.getPspAccountNo())))
                 .toList();
         cacheDict(cacheKey, dict);
         return dict;

@@ -4,15 +4,12 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.context.ReqContext;
-import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
-import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
-import com.gk.common.utils.NumberUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -20,9 +17,11 @@ import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dto.PspFeeRuleDTO;
+import com.gk.psp.entity.PspAccountEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.fee.PspFeeCalculator;
@@ -32,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -48,6 +48,8 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private PspMethodDao pspMethodDao;
+    @Autowired
+    private PspAccountDao pspAccountDao;
 
     @Override
     public QueryWrapper<PspFeeRuleEntity> getWrapper(DynMap params) {
@@ -81,23 +83,20 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void save(PspFeeRuleDTO dto) {
         fillPspMethodSnapshot(dto);
+        inheritTenantFromPspAccount(dto);
         PspFeeRuleEntity entity = ConvertUtils.sourceToTarget(dto, PspFeeRuleEntity.class);
-        ReqContext context = ReqContextHolder.get();
-        entity.setTenantId(context.getTenantId());
-        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
-            if (!NumberUtils.isPositive(entity.getTenantId())) {
-                entity.setTenantId(context.getTenantId());
-            }
-        }
         insert(entity);
         evictPayinPlanCache();
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(PspFeeRuleDTO dto) {
         fillPspMethodSnapshot(dto);
+        inheritTenantFromPspAccount(dto);
         super.update(dto);
         evictPayinPlanCache();
     }
@@ -230,17 +229,40 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             return;
         }
         if (dto.getPspMethodId() == null) {
-            dto.setPspMethodCode(null);
-            return;
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不能为空");
         }
         PspMethodEntity method = pspMethodDao.selectById(dto.getPspMethodId());
         if (method == null) {
-            throw new GkException("PSP method not found: " + dto.getPspMethodId());
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不存在");
         }
         // Keep PSP fee rule snapshots consistent with the selected PSP Method.
         dto.setPspId(method.getPspId());
         dto.setMethodCode(normalize(method.getMethodCode()));
         dto.setPspMethodCode(StringUtils.trimToNull(method.getPspMethodCode()));
+    }
+
+    private void inheritTenantFromPspAccount(PspFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        if (dto.getPspAccountId() == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不能为空");
+        }
+
+        PspAccountEntity account = pspAccountDao.selectById(dto.getPspAccountId());
+        if (account == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不存在");
+        }
+        if (account.getTenantId() == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号未配置租户");
+        }
+        if (dto.getPspId() != null && !dto.getPspId().equals(account.getPspId())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP成本费率的PSP与PSP账号不一致");
+        }
+
+        // Cost fee rule tenant follows the selected PSP account; client tenantId is ignored on save/update.
+        dto.setPspId(account.getPspId());
+        dto.setTenantId(account.getTenantId());
     }
 
     private String normalize(String value) {

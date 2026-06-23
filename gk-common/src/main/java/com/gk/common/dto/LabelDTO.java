@@ -41,6 +41,9 @@ public class LabelDTO {
         this.label = label;
         this.i18nKey = i18nKey;
     }
+    public static LabelDTO of(Long id, String label) {
+        return new LabelDTO(id,  label);
+    }
 
     public static LabelDTO of(String value, String label) {
         return new LabelDTO(value,  label);

@@ -19,10 +19,12 @@ import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.service.PaymentMethodService;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
+import com.gk.psp.dao.PspRouteRuleDao;
 import com.gk.psp.dto.PspMethodDTO;
 import com.gk.psp.dto.PspMethodDictDTO;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
+import com.gk.psp.entity.PspRouteRuleEntity;
 import com.gk.psp.service.PspMethodService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -49,6 +51,8 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private PspFeeRuleDao pspFeeRuleDao;
+    @Autowired
+    private PspRouteRuleDao pspRouteRuleDao;
     @Autowired
     private PaymentMethodService paymentMethodService;
     @Autowired
@@ -155,7 +159,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         normalizeConfigJson(dto);
         super.update(dto);
         PspMethodEntity after = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
-        syncFeeRuleMethodSnapshot(before, after);
+        syncRuleMethodSnapshot(before, after);
         evictPayinPlanCache();
         evictMethodDictCache();
     }
@@ -195,7 +199,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }
 
-    private void syncFeeRuleMethodSnapshot(PspMethodEntity before, PspMethodEntity after) {
+    private void syncRuleMethodSnapshot(PspMethodEntity before, PspMethodEntity after) {
         if (after == null || after.getId() == null) {
             return;
         }
@@ -206,6 +210,20 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
             return;
         }
 
+        // PSP Method is the source of truth for mapped method codes used by route and fee rules.
+        syncRouteRuleMethodSnapshot(after);
+        syncFeeRuleMethodSnapshot(after);
+    }
+
+    private void syncRouteRuleMethodSnapshot(PspMethodEntity after) {
+        PspRouteRuleEntity update = new PspRouteRuleEntity();
+        update.setPspId(after.getPspId());
+        update.setMethodCode(normalize(after.getMethodCode()));
+        pspRouteRuleDao.update(update, new UpdateWrapper<PspRouteRuleEntity>()
+                .eq("psp_method_id", after.getId()));
+    }
+
+    private void syncFeeRuleMethodSnapshot(PspMethodEntity after) {
         PspFeeRuleEntity update = new PspFeeRuleEntity();
         update.setPspId(after.getPspId());
         update.setMethodCode(normalize(after.getMethodCode()));

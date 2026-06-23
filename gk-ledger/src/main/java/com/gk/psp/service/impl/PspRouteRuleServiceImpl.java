@@ -68,7 +68,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(PspRouteRuleDTO dto) {
-        normalizeNullableFields(dto);
         validateRouteBinding(dto);
         super.save(dto);
         provisionPspLedgerAccounts(dto);
@@ -78,7 +77,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(PspRouteRuleDTO dto) {
-        normalizeNullableFields(dto);
         validateRouteBinding(dto);
         super.update(dto);
         provisionPspLedgerAccounts(dto);
@@ -104,14 +102,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         ledgerAccountService.provisionPspAccounts(dto.getTenantId(), dto.getPspAccountId(), dto.getCurrency());
     }
 
-    private void normalizeNullableFields(PspRouteRuleDTO dto) {
-        if (dto == null) {
-            return;
-        }
-        String methodCode = StrUtil.trim(dto.getMethodCode());
-        dto.setMethodCode(StrUtil.isBlank(methodCode) ? null : methodCode);
-    }
-
     private void validateRouteBinding(PspRouteRuleDTO dto) {
         if (dto == null) {
             return;
@@ -122,9 +112,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         }
         if (!equalsLong(dto.getPspId(), method.getPspId())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP支付方式不一致");
-        }
-        if (StringUtils.isNotBlank(dto.getMethodCode()) && !equalsCode(dto.getMethodCode(), method.getMethodCode())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的支付方式必须与PSP支付方式的平台支付方式一致");
         }
         if (!equalsCode(dto.getCurrency(), method.getCurrency())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的币种必须与PSP支付方式一致");
@@ -143,6 +130,14 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         if (!equalsLong(dto.getPspId(), account.getPspId())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP账号不一致");
         }
+        if (account.getTenantId() == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号未配置租户");
+        }
+
+        // Route rule tenant follows the selected PSP account, so clients do not need to submit tenantId.
+        dto.setTenantId(account.getTenantId());
+        // Route methodCode is derived from psp_method_id; client methodCode is ignored on save/update.
+        dto.setMethodCode(StrUtil.trim(method.getMethodCode()));
     }
 
     private boolean equalsCode(String left, String right) {

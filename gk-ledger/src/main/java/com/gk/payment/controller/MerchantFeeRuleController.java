@@ -7,6 +7,7 @@ import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
+import com.gk.payment.dto.MerchantFeeViewResponse;
 import com.gk.payment.service.MerchantFeeRuleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,6 +37,12 @@ public class MerchantFeeRuleController {
     public R<?> page(@RequestMap DynMap params) {
         PageData<MerchantFeeRuleDTO> page = merchantFeeRuleService.page(params);
         return R.ok(page);
+    }
+
+    @GetMapping("merchant-view")
+    @Operation(summary = "商户手续费展示")
+    public R<MerchantFeeViewResponse> merchantView(@RequestMap DynMap params) {
+        return R.ok(merchantFeeRuleService.merchantView(params));
     }
 
     @GetMapping("{id}")

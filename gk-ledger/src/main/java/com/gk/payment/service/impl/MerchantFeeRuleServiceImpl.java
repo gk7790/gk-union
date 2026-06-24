@@ -6,8 +6,12 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
@@ -15,10 +19,13 @@ import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.dao.MerchantFeeRuleDao;
+import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
+import com.gk.payment.dto.MerchantFeeViewResponse;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.entity.PaymentMethodEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
 import com.gk.payment.fee.MerchantFeeCalculator;
 import com.gk.payment.fee.MerchantFeeResult;
@@ -32,16 +39,23 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleDao, MerchantFeeRuleEntity, MerchantFeeRuleDTO> implements MerchantFeeRuleService {
     private static final String SETTLE_MODE_DEDUCT = "DEDUCT";
     private static final String SETTLE_MODE_ADD = "ADD";
+    private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+
+    private final PaymentMethodDao paymentMethodDao;
 
     @Autowired
     private PayinPlanCache payinPlanCache;
@@ -62,6 +76,264 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 ? List.of()
                 : baseDao.selectPageWithName(params);
         return new PageData<>(list, total == null ? 0L : total);
+    }
+
+    @Override
+    public MerchantFeeViewResponse merchantView(DynMap params) {
+        DynMap query = params == null ? DynMap.empty() : params;
+        normalizePageParams(query);
+        FeeViewScope scope = feeViewScope(query);
+        List<MerchantFeeRuleEntity> rules = merchantFeeRulesForView(query, scope);
+        Map<String, List<PaymentMethodEntity>> methodMap = paymentMethods(rules);
+        String requestCountryCode = normalizeBlankToNull(query.getStr("countryCode"));
+
+        MerchantFeeViewResponse response = new MerchantFeeViewResponse();
+        response.setTenantId(scope.tenantId());
+        response.setMerchantId(scope.merchantId());
+        response.setCountryCode(requestCountryCode);
+        response.setCurrency(normalizeBlankToNull(query.getStr("currency")));
+
+        Map<String, MerchantFeeViewResponse.Group> groupMap = new LinkedHashMap<>();
+        uniqueMerchantFeeRules(rules, requestCountryCode).stream()
+                .sorted(Comparator
+                        .comparingInt((MerchantFeeRuleEntity rule) -> directionSort(rule.getDirection()))
+                        .thenComparing(rule -> StringUtils.defaultString(rule.getMethodCode()))
+                        .thenComparing(rule -> rule.getMinAmount() == null ? BigDecimal.ZERO : rule.getMinAmount())
+                        .thenComparing(rule -> rule.getPriority() == null ? Integer.MAX_VALUE : rule.getPriority())
+                        .thenComparing(rule -> rule.getId() == null ? Long.MAX_VALUE : rule.getId()))
+                .forEach(rule -> {
+                    String direction = normalize(rule.getDirection());
+                    MerchantFeeViewResponse.Group group = groupMap.computeIfAbsent(direction, key -> group(direction));
+                    group.getItems().add(feeViewItem(rule, methodMap.getOrDefault(normalize(rule.getMethodCode()), List.of())));
+                });
+        response.setGroups(new ArrayList<>(groupMap.values()));
+        return response;
+    }
+
+    private FeeViewScope feeViewScope(DynMap params) {
+        ReqContext context = ReqContextHolder.get();
+        Long tenantId = params.getLong("tenantId", null);
+        Long merchantId = params.getLong("merchantId", null);
+        if (ReqContextHolder.isPlatform()) {
+            return requireFeeViewScope(tenantId, merchantId);
+        }
+        if (SubjectTypeEnum.TENANT.matches(context.getSubjectType())) {
+            return requireFeeViewScope(context.getTenantId(), merchantId);
+        }
+        if (SubjectTypeEnum.MERCHANT.matches(context.getSubjectType())) {
+            return requireFeeViewScope(context.getTenantId(), context.getMerchantId());
+        }
+        if (context.getTenantId() != null && context.getMerchantId() != null) {
+            return requireFeeViewScope(context.getTenantId(), context.getMerchantId());
+        }
+        return requireFeeViewScope(tenantId, merchantId);
+    }
+
+    private FeeViewScope requireFeeViewScope(Long tenantId, Long merchantId) {
+        if (tenantId == null || tenantId <= 0 || merchantId == null || merchantId <= 0) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "tenantId and merchantId are required");
+        }
+        return new FeeViewScope(tenantId, merchantId);
+    }
+
+    private List<MerchantFeeRuleEntity> merchantFeeRulesForView(DynMap params, FeeViewScope scope) {
+        String direction = normalizeBlankToNull(params.getStr("direction"));
+        String countryCode = normalizeBlankToNull(params.getStr("countryCode"));
+        String currency = normalizeBlankToNull(params.getStr("currency"));
+        String methodCode = normalizeBlankToNull(params.getStr("methodCode"));
+        QueryWrapper<MerchantFeeRuleEntity> wrapper = new QueryWrapper<>();
+        wrapper.eq("tenant_id", scope.tenantId());
+        wrapper.eq("merchant_id", scope.merchantId());
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        wrapper.eq(StringUtils.isNotBlank(direction), "direction", direction);
+        wrapper.and(StringUtils.isNotBlank(countryCode), item -> item.eq("country_code", countryCode).or().isNull("country_code").or().eq("country_code", ""));
+        wrapper.eq(StringUtils.isNotBlank(currency), "currency", currency);
+        wrapper.eq(StringUtils.isNotBlank(methodCode), "method_code", methodCode);
+        Instant now = Instant.now();
+        wrapper.and(item -> item.le("effective_at", now).or().isNull("effective_at"));
+        wrapper.and(item -> item.gt("expire_at", now).or().isNull("expire_at"));
+        wrapper.orderByAsc("direction")
+                .orderByAsc("method_code")
+                .orderByAsc("min_amount")
+                .orderByAsc("priority")
+                .orderByDesc("id");
+        return baseDao.selectList(wrapper);
+    }
+
+    private List<MerchantFeeRuleEntity> uniqueMerchantFeeRules(List<MerchantFeeRuleEntity> rules, String requestCountryCode) {
+        Map<String, MerchantFeeRuleEntity> selected = new LinkedHashMap<>();
+        rules.stream()
+                .sorted(merchantFeeViewRuleOrder(requestCountryCode))
+                .forEach(rule -> selected.putIfAbsent(feeViewUniqueKey(rule, requestCountryCode), rule));
+        return new ArrayList<>(selected.values());
+    }
+
+    private Comparator<MerchantFeeRuleEntity> merchantFeeViewRuleOrder(String requestCountryCode) {
+        return Comparator
+                .comparingInt((MerchantFeeRuleEntity rule) -> countrySpecificity(rule, requestCountryCode))
+                .thenComparingInt(rule -> rule.getPriority() == null ? Integer.MAX_VALUE : rule.getPriority())
+                .thenComparing(rule -> rule.getMinAmount() == null ? BigDecimal.ZERO : rule.getMinAmount())
+                .thenComparing(rule -> rule.getId() == null ? Long.MAX_VALUE : rule.getId());
+    }
+
+    private int countrySpecificity(MerchantFeeRuleEntity rule, String requestCountryCode) {
+        if (StringUtils.isBlank(requestCountryCode)) {
+            return 0;
+        }
+        return StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), requestCountryCode) ? 0 : 1;
+    }
+
+    private String feeViewUniqueKey(MerchantFeeRuleEntity rule, String requestCountryCode) {
+        String countryKey = StringUtils.isBlank(requestCountryCode) ? normalize(rule.getCountryCode()) : requestCountryCode;
+        return normalize(rule.getDirection())
+                + "|" + normalize(rule.getMethodCode())
+                + "|" + countryKey;
+    }
+
+    private Map<String, List<PaymentMethodEntity>> paymentMethods(List<MerchantFeeRuleEntity> rules) {
+        Set<String> methodCodes = rules.stream()
+                .map(MerchantFeeRuleEntity::getMethodCode)
+                .filter(StringUtils::isNotBlank)
+                .map(this::normalize)
+                .collect(Collectors.toSet());
+        if (methodCodes.isEmpty()) {
+            return Map.of();
+        }
+        QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("method_code", "method_name", "direction", "country_code", "currency", "status", "sort");
+        wrapper.in("method_code", methodCodes);
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        wrapper.orderByAsc("sort").orderByAsc("method_code");
+        return paymentMethodDao.selectList(wrapper).stream()
+                .collect(Collectors.groupingBy(method -> normalize(method.getMethodCode()), LinkedHashMap::new, Collectors.toList()));
+    }
+
+    private MerchantFeeViewResponse.Group group(String direction) {
+        MerchantFeeViewResponse.Group group = new MerchantFeeViewResponse.Group();
+        group.setDirection(direction);
+        group.setDirectionName(directionName(direction));
+        return group;
+    }
+
+    private MerchantFeeViewResponse.Item feeViewItem(MerchantFeeRuleEntity rule, List<PaymentMethodEntity> methods) {
+        MerchantFeeViewResponse.Item item = new MerchantFeeViewResponse.Item();
+        item.setRuleId(rule.getId());
+        item.setRuleName(rule.getRuleName());
+        item.setDirection(rule.getDirection());
+        item.setDirectionName(directionName(rule.getDirection()));
+        item.setCountryCode(rule.getCountryCode());
+        item.setCurrency(rule.getCurrency());
+        item.setMethodCode(rule.getMethodCode());
+        item.setMethodName(methodName(rule, methods));
+        item.setMinAmount(rule.getMinAmount());
+        item.setMaxAmount(rule.getMaxAmount());
+        item.setFeeMode(rule.getFeeMode());
+        item.setFeeModeName(feeModeName(rule.getFeeMode()));
+        item.setFeeRate(rule.getFeeRate());
+        item.setFeeRateText(rateText(rule.getFeeRate()));
+        item.setFeeFixed(rule.getFeeFixed());
+        item.setFeeFixedText(amountText(rule.getFeeFixed()));
+        item.setMinFee(rule.getMinFee());
+        item.setMinFeeText(rule.getMinFee() == null ? null : amountText(rule.getMinFee()));
+        item.setMaxFee(rule.getMaxFee());
+        item.setMaxFeeText(rule.getMaxFee() == null ? null : amountText(rule.getMaxFee()));
+        item.setFeeText(feeText(rule));
+        item.setFeeBearer(rule.getFeeBearer());
+        item.setSettleMode(rule.getSettleMode());
+        item.setPriority(rule.getPriority());
+        item.setEffectiveAt(rule.getEffectiveAt());
+        item.setExpireAt(rule.getExpireAt());
+        item.setStatus(rule.getStatus());
+        item.setRemark(rule.getRemark());
+        return item;
+    }
+
+    private String methodName(MerchantFeeRuleEntity rule, List<PaymentMethodEntity> methods) {
+        return methods.stream()
+                .sorted(Comparator
+                        .comparingInt((PaymentMethodEntity method) -> methodSpecificity(rule, method))
+                        .thenComparing(method -> method.getSort() == null ? Integer.MAX_VALUE : method.getSort()))
+                .map(PaymentMethodEntity::getMethodName)
+                .filter(StringUtils::isNotBlank)
+                .findFirst()
+                .orElse(rule.getMethodCode());
+    }
+
+    private int methodSpecificity(MerchantFeeRuleEntity rule, PaymentMethodEntity method) {
+        int score = 0;
+        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getDirection()), StringUtils.trim(method.getDirection()))
+                && !"BOTH".equalsIgnoreCase(StringUtils.trim(method.getDirection()))) {
+            score += 4;
+        }
+        if (StringUtils.isNotBlank(method.getCurrency())
+                && !StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCurrency()), StringUtils.trim(method.getCurrency()))) {
+            score += 2;
+        }
+        if (StringUtils.isNotBlank(method.getCountryCode())
+                && !StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), StringUtils.trim(method.getCountryCode()))) {
+            score += 1;
+        }
+        return score;
+    }
+
+    private String feeText(MerchantFeeRuleEntity rule) {
+        String feeMode = normalize(rule.getFeeMode());
+        return switch (feeMode) {
+            case "RATE" -> rateText(rule.getFeeRate());
+            case "FIXED" -> amountText(rule.getFeeFixed());
+            case "RATE_FIXED" -> rateText(rule.getFeeRate()) + " + " + amountText(rule.getFeeFixed());
+            default -> rateText(rule.getFeeRate()) + " + " + amountText(rule.getFeeFixed());
+        };
+    }
+
+    private String rateText(BigDecimal value) {
+        return displayDecimalText(defaultZero(value).multiply(ONE_HUNDRED)) + "%";
+    }
+
+    private String amountText(BigDecimal value) {
+        return displayDecimalText(defaultZero(value)) + "/笔";
+    }
+
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String directionName(String direction) {
+        if (PayDirectionEnum.PAYIN.matches(direction)) {
+            return "代收";
+        }
+        if (PayDirectionEnum.PAYOUT.matches(direction)) {
+            return "代付";
+        }
+        return direction;
+    }
+
+    private String feeModeName(String feeMode) {
+        return switch (normalize(feeMode)) {
+            case "RATE" -> "比例";
+            case "FIXED" -> "固定";
+            case "RATE_FIXED" -> "比例+固定";
+            default -> feeMode;
+        };
+    }
+
+    private int directionSort(String direction) {
+        if (PayDirectionEnum.PAYIN.matches(direction)) {
+            return 0;
+        }
+        if (PayDirectionEnum.PAYOUT.matches(direction)) {
+            return 1;
+        }
+        return 9;
+    }
+
+    private String normalizeBlankToNull(String value) {
+        String normalized = normalize(value);
+        return StringUtils.isBlank(normalized) ? null : normalized;
+    }
+
+    private String displayDecimalText(BigDecimal value) {
+        return value == null ? "0" : value.stripTrailingZeros().toPlainString();
     }
 
     private void normalizePageParams(DynMap params) {
@@ -320,5 +592,8 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         if (paymentPlanCacheService != null) {
             paymentPlanCacheService.evictAll();
         }
+    }
+
+    private record FeeViewScope(Long tenantId, Long merchantId) {
     }
 }

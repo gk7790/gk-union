@@ -13,9 +13,9 @@ import java.util.List;
 
 @Mapper
 public interface MerchantFeeRuleDao extends BaseDao<MerchantFeeRuleEntity> {
-    Long countPageWithName(@Param("params") DynMap params);
+    Long countPageWithName(DynMap params);
 
-    List<MerchantFeeRuleDTO> selectPageWithName(@Param("params") DynMap params);
+    List<MerchantFeeRuleDTO> selectPageWithName(DynMap params);
 
     MerchantFeeRuleEntity selectBestMatchForOrder(
             @Param("tenantId") Long tenantId,

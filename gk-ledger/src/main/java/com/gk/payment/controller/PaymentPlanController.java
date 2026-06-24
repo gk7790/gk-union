@@ -3,6 +3,7 @@ package com.gk.payment.controller;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
+import com.gk.payment.dto.PaymentPlanBatchPreviewRequest;
 import com.gk.payment.dto.PaymentPlanPreviewRequest;
 import com.gk.payment.dto.PaymentPlanPublishRequest;
 import com.gk.payment.service.PaymentPlanAdminService;
@@ -49,6 +50,13 @@ public class PaymentPlanController {
     @PreAuthorize("hasAuthority('payment:payment-plan:preview')")
     public R<?> preview(@RequestBody PaymentPlanPreviewRequest request) {
         return R.ok(paymentPlanAdminService.preview(request));
+    }
+
+    @PostMapping("batch-preview-by-route-group")
+    @Operation(summary = "Payment plan batch preview by route group")
+    @PreAuthorize("hasAuthority('payment:payment-plan:preview')")
+    public R<?> batchPreviewByRouteGroup(@RequestBody PaymentPlanBatchPreviewRequest request) {
+        return R.ok(paymentPlanAdminService.batchPreviewByRouteGroup(request));
     }
 
     /**

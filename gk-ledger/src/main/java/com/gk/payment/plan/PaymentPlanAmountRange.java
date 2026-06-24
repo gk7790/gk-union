@@ -1,5 +1,7 @@
 package com.gk.payment.plan;
 
+import com.gk.payment.amount.AmountRangeUtils;
+
 import java.math.BigDecimal;
 
 /**
@@ -9,6 +11,6 @@ import java.math.BigDecimal;
  */
 public record PaymentPlanAmountRange(BigDecimal startAmount, BigDecimal endAmount) {
     public static PaymentPlanAmountRange closed(BigDecimal minAmount, BigDecimal maxAmount) {
-        return new PaymentPlanAmountRange(minAmount, maxAmount);
+        return new PaymentPlanAmountRange(AmountRangeUtils.effectiveMin(minAmount), AmountRangeUtils.effectiveMax(maxAmount));
     }
 }

@@ -10,12 +10,20 @@ import java.util.List;
 @Data
 public class PaymentPlanPreviewResponse {
     private Boolean valid = true;
+    private RequestInfo requestInfo;
     private String direction;
     private String currency;
     private String countryCode;
     private String methodCode;
     private Integer bucketCount = 0;
     private Integer routeOptionCount = 0;
+    private List<MerchantFeeRule> merchantFeeRules = new ArrayList<>();
+    private List<Route> routeRules = new ArrayList<>();
+    private List<RouteGroup> routeGroups = new ArrayList<>();
+    private List<RouteChannel> routeChannels = new ArrayList<>();
+    private List<PspMethod> pspMethods = new ArrayList<>();
+    private List<PspFeeRule> pspFeeRules = new ArrayList<>();
+    private List<RouteOption> routeOptions = new ArrayList<>();
     private List<Bucket> buckets = new ArrayList<>();
     private List<TestResult> testResults = new ArrayList<>();
     private List<Message> warnings = new ArrayList<>();
@@ -31,6 +39,21 @@ public class PaymentPlanPreviewResponse {
     }
 
     public record Message(String code, String message) {
+    }
+
+    @Data
+    public static class RequestInfo {
+        private Long tenantId;
+        private Long merchantId;
+        private Long merchantAppId;
+        private Long merchantFeeRuleId;
+        private String direction;
+        private String countryCode;
+        private String currency;
+        private String methodCode;
+        private BigDecimal minAmount;
+        private BigDecimal maxAmount;
+        private Boolean pspFeeRequired;
     }
 
     @Data

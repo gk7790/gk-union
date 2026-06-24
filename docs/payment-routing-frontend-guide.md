@@ -117,6 +117,14 @@ direction 必填
 status 使用 1 正常、2 暂停、3 停用
 ```
 
+金额范围统一约定：
+
+```text
+minAmount 为空或 0：从 0 开始
+maxAmount 为空或 0：不限制最大金额
+前端文案建议显示“最大金额填 0 表示不限”
+```
+
 检测按钮：
 
 ```text
@@ -410,8 +418,16 @@ buckets[]
 
 ```text
 valid
+requestInfo
 warnings[]
 errors[]
+merchantFeeRules[]
+routeRules[]
+routeGroups[]
+routeChannels[]
+pspMethods[]
+pspFeeRules[]
+routeOptions[]
 buckets[]
   startAmount
   endAmount
@@ -445,6 +461,74 @@ buckets[]
       feeMode
       feeRate
       feeFixed
+```
+
+预览逻辑说明：
+
+```text
+preview 不落库，只从 merchant_fee_rule、payment_route_rule、payment_route_group、payment_route_channel、PSP资源表实时编译诊断。
+即使 merchant_fee_rule 缺失，也会继续诊断 payment_route_* 路由链路，方便一次性看到所有配置问题。
+valid=false 时，前端仍然要展示 requestInfo、routeRules、routeGroups、routeChannels、routeOptions、warnings、errors。
+publish 比 preview 更严格，只有 valid=true 的编译结果才允许写入 payment_plan_* 并激活。
+```
+
+批量预览受影响商户：
+
+```text
+POST /payment/payment-plan/batch-preview-by-route-group
+```
+
+使用场景：
+
+```text
+在路由组中新增/修改 PSP 通道后，前端点击“批量预览”，后端按 routeGroupId 找到引用该路由组的 payment_route_rule，
+并对每个明确商户的规则内部调用 PaymentPlanCompiler.compile，不通过 HTTP 再调用 preview 接口。
+merchantId 为空的通用规则不会自动展开全平台商户，会返回 skipped=true 和 warning，要求人工选择商户范围。
+```
+
+请求：
+
+```json
+{
+  "tenantId": 1,
+  "routeGroupId": 100,
+  "defaultMinAmount": 0,
+  "defaultMaxAmount": 100000,
+  "pspFeeRequired": false
+}
+```
+
+返回重点字段：
+
+```text
+routeGroupId
+groupCode
+groupName
+total
+validCount
+invalidCount
+skippedCount
+items[]
+  routeRuleId
+  routeRuleName
+  merchantId
+  merchantAppId
+  direction
+  countryCode
+  currency
+  methodCode
+  minAmount
+  maxAmount
+  valid
+  skipped
+  skipReason
+  bucketCount
+  routeOptionCount
+  warningCount
+  errorCount
+  warnings[]
+  errors[]
+  preview
 ```
 
 发布请求和预览请求基本一致：

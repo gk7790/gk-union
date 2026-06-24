@@ -2,6 +2,8 @@ package com.gk.payment.service;
 
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.payment.dto.PaymentPlanBatchPreviewRequest;
+import com.gk.payment.dto.PaymentPlanBatchPreviewResponse;
 import com.gk.payment.dto.PaymentPlanDetailResponse;
 import com.gk.payment.dto.PaymentPlanPreviewRequest;
 import com.gk.payment.dto.PaymentPlanPreviewResponse;
@@ -15,6 +17,8 @@ public interface PaymentPlanAdminService {
     PaymentPlanDetailResponse detail(Long catalogId);
 
     PaymentPlanPreviewResponse preview(PaymentPlanPreviewRequest request);
+
+    PaymentPlanBatchPreviewResponse batchPreviewByRouteGroup(PaymentPlanBatchPreviewRequest request);
 
     PaymentPlanPublishResponse publish(PaymentPlanPublishRequest request);
 

@@ -7,6 +7,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.infra.enums.StatusEnum;
+import com.gk.payment.amount.AmountRangeUtils;
 import com.gk.payment.dao.PaymentRouteChannelDao;
 import com.gk.payment.dao.PaymentRouteGroupDao;
 import com.gk.payment.dao.PaymentRouteRuleDao;
@@ -37,8 +38,6 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGroupDao, PaymentRouteGroupEntity, PaymentRouteGroupDTO> implements PaymentRouteGroupService {
-    private static final BigDecimal DEFAULT_MIN_AMOUNT = BigDecimal.ZERO;
-
     private final PayinPlanCache payinPlanCache;
     private final PaymentPlanCacheService paymentPlanCacheService;
     private final PaymentRouteRuleDao paymentRouteRuleDao;
@@ -166,8 +165,8 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
 
         List<PaymentRouteGroupCheckResponse.AmountRange> coveredRanges = mergeRanges(ranges);
         List<PaymentRouteGroupCheckResponse.AmountRange> gaps = amountGaps(
-                defaultMin(routeRule.getMinAmount()),
-                routeRule.getMaxAmount(),
+                AmountRangeUtils.effectiveMin(routeRule.getMinAmount()),
+                AmountRangeUtils.effectiveMax(routeRule.getMaxAmount()),
                 coveredRanges
         );
         result.setCoveredRanges(coveredRanges);
@@ -207,8 +206,18 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
             }
         }
 
-        BigDecimal start = max(defaultMin(routeRule.getMinAmount()), channel.getMinAmount(), method.getMinAmount(), feeRule == null ? null : feeRule.getMinAmount());
-        BigDecimal end = min(routeRule.getMaxAmount(), channel.getMaxAmount(), method.getMaxAmount(), feeRule == null ? null : feeRule.getMaxAmount());
+        BigDecimal start = max(
+                AmountRangeUtils.effectiveMin(routeRule.getMinAmount()),
+                AmountRangeUtils.effectiveMin(channel.getMinAmount()),
+                AmountRangeUtils.effectiveMin(method.getMinAmount()),
+                feeRule == null ? null : AmountRangeUtils.effectiveMin(feeRule.getMinAmount())
+        );
+        BigDecimal end = min(
+                AmountRangeUtils.effectiveMax(routeRule.getMaxAmount()),
+                AmountRangeUtils.effectiveMax(channel.getMaxAmount()),
+                AmountRangeUtils.effectiveMax(method.getMaxAmount()),
+                feeRule == null ? null : AmountRangeUtils.effectiveMax(feeRule.getMaxAmount())
+        );
         if (end != null && start.compareTo(end) > 0) {
             coverage.setAvailable(false);
             coverage.setMessage("Payment route channel amount range has no overlap with route rule");
@@ -314,13 +323,9 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
         result.setRuleName(routeRule.getRuleName());
         result.setMerchantId(routeRule.getMerchantId());
         result.setMerchantAppId(routeRule.getMerchantAppId());
-        result.setMinAmount(defaultMin(routeRule.getMinAmount()));
-        result.setMaxAmount(routeRule.getMaxAmount());
+        result.setMinAmount(AmountRangeUtils.effectiveMin(routeRule.getMinAmount()));
+        result.setMaxAmount(AmountRangeUtils.effectiveMax(routeRule.getMaxAmount()));
         return result;
-    }
-
-    private BigDecimal defaultMin(BigDecimal value) {
-        return value == null ? DEFAULT_MIN_AMOUNT : value;
     }
 
     private BigDecimal max(BigDecimal first, BigDecimal... rest) {

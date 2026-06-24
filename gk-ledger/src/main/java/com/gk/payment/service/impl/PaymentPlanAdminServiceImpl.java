@@ -11,9 +11,14 @@ import com.gk.common.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.payment.dao.PaymentPlanBucketDao;
 import com.gk.payment.dao.PaymentPlanCatalogDao;
 import com.gk.payment.dao.PaymentPlanRouteOptionDao;
+import com.gk.payment.dao.PaymentRouteGroupDao;
+import com.gk.payment.dao.PaymentRouteRuleDao;
+import com.gk.payment.dto.PaymentPlanBatchPreviewRequest;
+import com.gk.payment.dto.PaymentPlanBatchPreviewResponse;
 import com.gk.payment.dto.PaymentPlanDetailResponse;
 import com.gk.payment.dto.PaymentPlanPreviewRequest;
 import com.gk.payment.dto.PaymentPlanPreviewResponse;
@@ -54,11 +59,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     private static final BigDecimal MONEY_UNIT = new BigDecimal("0.00000001");
+    private static final BigDecimal DEFAULT_BATCH_MIN_AMOUNT = BigDecimal.ZERO;
+    private static final BigDecimal DEFAULT_BATCH_MAX_AMOUNT = new BigDecimal("100000");
 
     private final PaymentPlanCompiler paymentPlanCompiler;
     private final PaymentPlanCatalogDao paymentPlanCatalogDao;
     private final PaymentPlanBucketDao paymentPlanBucketDao;
     private final PaymentPlanRouteOptionDao paymentPlanRouteOptionDao;
+    private final PaymentRouteGroupDao paymentRouteGroupDao;
+    private final PaymentRouteRuleDao paymentRouteRuleDao;
     private final PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
@@ -103,6 +112,43 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     public PaymentPlanPreviewResponse preview(PaymentPlanPreviewRequest request) {
         PaymentPlanCompileResult compileResult = paymentPlanCompiler.compile(toCompileRequest(request));
         return toPreviewResponse(compileResult);
+    }
+
+    @Override
+    public PaymentPlanBatchPreviewResponse batchPreviewByRouteGroup(PaymentPlanBatchPreviewRequest request) {
+        if (request == null || request.getRouteGroupId() == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由组不能为空");
+        }
+        PaymentRouteGroupEntity group = paymentRouteGroupDao.selectById(request.getRouteGroupId());
+        if (group == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由组不存在");
+        }
+        List<PaymentRouteRuleEntity> routeRules = paymentRouteRuleDao.selectList(new QueryWrapper<PaymentRouteRuleEntity>()
+                .eq("tenant_id", tenantId(request, group))
+                .eq("group_id", group.getId())
+                .eq("status", StatusEnum.NORMAL.code())
+                .orderByAsc("priority")
+                .orderByAsc("id"));
+
+        PaymentPlanBatchPreviewResponse response = new PaymentPlanBatchPreviewResponse();
+        response.setTenantId(group.getTenantId());
+        response.setRouteGroupId(group.getId());
+        response.setGroupCode(group.getGroupCode());
+        response.setGroupName(group.getGroupName());
+
+        for (PaymentRouteRuleEntity routeRule : routeRules) {
+            PaymentPlanBatchPreviewResponse.Item item = batchPreviewItem(request, routeRule);
+            response.getItems().add(item);
+            if (Boolean.TRUE.equals(item.getSkipped())) {
+                response.setSkippedCount(response.getSkippedCount() + 1);
+            } else if (Boolean.TRUE.equals(item.getValid())) {
+                response.setValidCount(response.getValidCount() + 1);
+            } else {
+                response.setInvalidCount(response.getInvalidCount() + 1);
+            }
+        }
+        response.setTotal(response.getItems().size());
+        return response;
     }
 
     @Override
@@ -372,9 +418,119 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
         return compileRequest;
     }
 
+    private PaymentPlanBatchPreviewResponse.Item batchPreviewItem(PaymentPlanBatchPreviewRequest request,
+                                                                  PaymentRouteRuleEntity routeRule) {
+        PaymentPlanBatchPreviewResponse.Item item = new PaymentPlanBatchPreviewResponse.Item();
+        item.setRouteRuleId(routeRule.getId());
+        item.setRouteRuleName(routeRule.getRuleName());
+        item.setMerchantId(routeRule.getMerchantId());
+        item.setMerchantAppId(routeRule.getMerchantAppId());
+        item.setDirection(routeRule.getDirection());
+        item.setCountryCode(routeRule.getCountryCode());
+        item.setCurrency(routeRule.getCurrency());
+        item.setMethodCode(routeRule.getMethodCode());
+        item.setMinAmount(batchMinAmount(request));
+        if (routeRule.getMerchantId() == null) {
+            item.setMaxAmount(batchFallbackMaxAmount(request));
+            item.setSkipped(true);
+            item.setValid(false);
+            item.setSkipReason("通用路由规则未指定商户，批量预览需要人工选择商户范围");
+            item.getWarnings().add(new PaymentPlanPreviewResponse.Message("GENERIC_ROUTE_RULE_SKIPPED", item.getSkipReason()));
+            item.setWarningCount(item.getWarnings().size());
+            return item;
+        }
+        item.setMaxAmount(batchMaxAmount(request, routeRule));
+
+        PaymentPlanCompileRequest compileRequest = toCompileRequest(request, routeRule, item.getMinAmount(), item.getMaxAmount());
+        PaymentPlanPreviewResponse preview = toPreviewResponse(paymentPlanCompiler.compile(compileRequest));
+        item.setPreview(preview);
+        item.setValid(Boolean.TRUE.equals(preview.getValid()));
+        item.setBucketCount(preview.getBucketCount());
+        item.setRouteOptionCount(preview.getRouteOptionCount());
+        item.setWarnings(preview.getWarnings());
+        item.setErrors(preview.getErrors());
+        item.setWarningCount(preview.getWarnings().size());
+        item.setErrorCount(preview.getErrors().size());
+        return item;
+    }
+
+    private PaymentPlanCompileRequest toCompileRequest(PaymentPlanBatchPreviewRequest request,
+                                                       PaymentRouteRuleEntity routeRule,
+                                                       BigDecimal minAmount,
+                                                       BigDecimal maxAmount) {
+        PaymentPlanCompileRequest compileRequest = new PaymentPlanCompileRequest();
+        compileRequest.setTenantId(routeRule.getTenantId());
+        compileRequest.setMerchantId(routeRule.getMerchantId());
+        compileRequest.setMerchantAppId(routeRule.getMerchantAppId());
+        compileRequest.setDirection(routeRule.getDirection());
+        compileRequest.setCountryCode(routeRule.getCountryCode());
+        compileRequest.setCurrency(routeRule.getCurrency());
+        compileRequest.setMethodCode(routeRule.getMethodCode());
+        compileRequest.setMinAmount(minAmount);
+        compileRequest.setMaxAmount(maxAmount);
+        compileRequest.setPspFeeRequired(request == null ? Boolean.FALSE : request.getPspFeeRequired());
+        return compileRequest;
+    }
+
+    private Long tenantId(PaymentPlanBatchPreviewRequest request, PaymentRouteGroupEntity group) {
+        return request.getTenantId() == null ? group.getTenantId() : request.getTenantId();
+    }
+
+    private BigDecimal batchMinAmount(PaymentPlanBatchPreviewRequest request) {
+        if (request != null && request.getDefaultMinAmount() != null) {
+            return request.getDefaultMinAmount();
+        }
+        return DEFAULT_BATCH_MIN_AMOUNT;
+    }
+
+    private BigDecimal batchMaxAmount(PaymentPlanBatchPreviewRequest request, PaymentRouteRuleEntity routeRule) {
+        if (request != null && request.getDefaultMaxAmount() != null && request.getDefaultMaxAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return request.getDefaultMaxAmount();
+        }
+        BigDecimal activeMaxAmount = activeMaxAmount(routeRule);
+        return activeMaxAmount == null || activeMaxAmount.compareTo(BigDecimal.ZERO) <= 0 ? DEFAULT_BATCH_MAX_AMOUNT : activeMaxAmount;
+    }
+
+    private BigDecimal batchFallbackMaxAmount(PaymentPlanBatchPreviewRequest request) {
+        if (request != null && request.getDefaultMaxAmount() != null && request.getDefaultMaxAmount().compareTo(BigDecimal.ZERO) > 0) {
+            return request.getDefaultMaxAmount();
+        }
+        return DEFAULT_BATCH_MAX_AMOUNT;
+    }
+
+    private BigDecimal activeMaxAmount(PaymentRouteRuleEntity routeRule) {
+        PaymentPlanCatalogEntity activeCatalog = paymentPlanCatalogDao.selectOne(new QueryWrapper<PaymentPlanCatalogEntity>()
+                .eq("tenant_id", routeRule.getTenantId())
+                .eq("merchant_id", routeRule.getMerchantId())
+                .eq("merchant_app_id", catalogMerchantAppId(routeRule.getMerchantAppId()))
+                .eq("direction", routeRule.getDirection())
+                .eq("country_code", routeRule.getCountryCode())
+                .eq("currency", routeRule.getCurrency())
+                .eq("method_code", routeRule.getMethodCode())
+                .eq("status", PaymentPlanStatus.ACTIVE)
+                .orderByDesc("version")
+                .last("limit 1"));
+        if (activeCatalog == null) {
+            return null;
+        }
+        PaymentPlanBucketEntity maxBucket = paymentPlanBucketDao.selectOne(new QueryWrapper<PaymentPlanBucketEntity>()
+                .eq("tenant_id", activeCatalog.getTenantId())
+                .eq("catalog_id", activeCatalog.getId())
+                .orderByDesc("bucket_end_amount")
+                .last("limit 1"));
+        return maxBucket == null ? null : displayEndAmount(maxBucket.getBucketEndAmount());
+    }
+
     private PaymentPlanPreviewResponse toPreviewResponse(PaymentPlanCompileResult compileResult) {
         PaymentPlanPreviewResponse response = new PaymentPlanPreviewResponse();
         response.setValid(compileResult.isValid());
+        response.setRequestInfo(toRequestInfoResponse(compileResult.getRequest()));
+        if (compileResult.getRequest() != null) {
+            response.setDirection(compileResult.getRequest().getDirection());
+            response.setCurrency(compileResult.getRequest().getCurrency());
+            response.setCountryCode(compileResult.getRequest().getCountryCode());
+            response.setMethodCode(compileResult.getRequest().getMethodCode());
+        }
         if (compileResult.getCatalog() != null) {
             response.setDirection(compileResult.getCatalog().getDirection());
             response.setCurrency(compileResult.getCatalog().getCurrency());
@@ -383,10 +539,36 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
             response.setBucketCount(compileResult.getCatalog().getBucketCount());
             response.setRouteOptionCount(compileResult.getCatalog().getRouteOptionCount());
         }
+        response.setMerchantFeeRules(compileResult.getMerchantFeeRules().stream().map(this::toMerchantFeeRuleResponse).toList());
+        response.setRouteRules(compileResult.getPaymentRouteRules().stream().map(rule -> toRouteResponse(rule, null)).toList());
+        response.setRouteGroups(compileResult.getRouteGroups().stream().map(this::toRouteGroupResponse).toList());
+        response.setRouteChannels(compileResult.getRouteChannels().stream().map(this::toRouteChannelResponse).toList());
+        response.setPspMethods(compileResult.getPspMethods().stream().map(this::toPspMethodResponse).toList());
+        response.setPspFeeRules(compileResult.getPspFeeRules().stream().map(this::toPspFeeRuleResponse).toList());
+        response.setRouteOptions(compileResult.getRouteOptionDiagnostics().stream().map(this::toRouteOptionResponse).toList());
         compileResult.getWarnings().forEach(item -> response.addWarning(item.code(), item.message()));
         compileResult.getErrors().forEach(item -> response.addError(item.code(), item.message()));
         response.setBuckets(compileResult.getBuckets().stream().map(this::toBucketResponse).toList());
         response.setTestResults(compileResult.getTestResults().stream().map(this::toTestResultResponse).toList());
+        return response;
+    }
+
+    private PaymentPlanPreviewResponse.RequestInfo toRequestInfoResponse(PaymentPlanCompileRequest request) {
+        if (request == null) {
+            return null;
+        }
+        PaymentPlanPreviewResponse.RequestInfo response = new PaymentPlanPreviewResponse.RequestInfo();
+        response.setTenantId(request.getTenantId());
+        response.setMerchantId(request.getMerchantId());
+        response.setMerchantAppId(request.getMerchantAppId());
+        response.setMerchantFeeRuleId(request.getMerchantFeeRuleId());
+        response.setDirection(request.getDirection());
+        response.setCountryCode(request.getCountryCode());
+        response.setCurrency(request.getCurrency());
+        response.setMethodCode(request.getMethodCode());
+        response.setMinAmount(request.getMinAmount());
+        response.setMaxAmount(request.getMaxAmount());
+        response.setPspFeeRequired(request.getPspFeeRequired());
         return response;
     }
 

@@ -2,46 +2,47 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.gk.payment.dao.MerchantFeeRuleDao">
+    <!--suppress ALL, MybatisXMapperXmlInspection, MyBatisXmlInspection, XmlUnresolvedReference -->
     <sql id="pageWithNameWhere">
         <where>
-            <if test="params.tenantId != null">
-                AND r.tenant_id = #{params.tenantId}
+            <if test="tenantId != null">
+                AND r.tenant_id = #{tenantId}
             </if>
-            <if test="params.merchantId != null">
-                AND r.merchant_id = #{params.merchantId}
+            <if test="merchantId != null">
+                AND r.merchant_id = #{merchantId}
             </if>
-            <if test="params.merchantAppId != null">
-                AND r.merchant_app_id = #{params.merchantAppId}
+            <if test="merchantAppId != null">
+                AND r.merchant_app_id = #{merchantAppId}
             </if>
-            <if test="params.status != null">
-                AND r.status = #{params.status}
+            <if test="status != null">
+                AND r.status = #{status}
             </if>
-            <if test="params.ruleName != null and params.ruleName != ''">
-                AND r.rule_name LIKE CONCAT('%', #{params.ruleName}, '%')
+            <if test="ruleName != null and ruleName != ''">
+                AND r.rule_name LIKE CONCAT('%', #{ruleName}, '%')
             </if>
-            <if test="params.direction != null and params.direction != ''">
-                AND r.direction = #{params.direction}
+            <if test="direction != null and direction != ''">
+                AND r.direction = #{direction}
             </if>
-            <if test="params.countryCode != null and params.countryCode != ''">
-                AND r.country_code = #{params.countryCode}
+            <if test="countryCode != null and countryCode != ''">
+                AND r.country_code = #{countryCode}
             </if>
-            <if test="params.currency != null and params.currency != ''">
-                AND r.currency = #{params.currency}
+            <if test="currency != null and currency != ''">
+                AND r.currency = #{currency}
             </if>
-            <if test="params.methodCode != null and params.methodCode != ''">
-                AND r.method_code = #{params.methodCode}
+            <if test="methodCode != null and methodCode != ''">
+                AND r.method_code = #{methodCode}
             </if>
-            <if test="params.feeMode != null and params.feeMode != ''">
-                AND r.fee_mode = #{params.feeMode}
+            <if test="feeMode != null and feeMode != ''">
+                AND r.fee_mode = #{feeMode}
             </if>
-            <if test="params.feeBearer != null and params.feeBearer != ''">
-                AND r.fee_bearer = #{params.feeBearer}
+            <if test="feeBearer != null and feeBearer != ''">
+                AND r.fee_bearer = #{feeBearer}
             </if>
-            <if test="params.merchantName != null and params.merchantName != ''">
-                AND m.merchant_name LIKE CONCAT('%', #{params.merchantName}, '%')
+            <if test="merchantName != null and merchantName != ''">
+                AND m.merchant_name LIKE CONCAT('%', #{merchantName}, '%')
             </if>
-            <if test="params.merchantAppName != null and params.merchantAppName != ''">
-                AND a.app_name LIKE CONCAT('%', #{params.merchantAppName}, '%')
+            <if test="merchantAppName != null and merchantAppName != ''">
+                AND a.app_name LIKE CONCAT('%', #{merchantAppName}, '%')
             </if>
         </where>
     </sql>
@@ -58,12 +59,13 @@
         <include refid="pageWithNameWhere"/>
     </select>
 
+    <!--suppress ALL, MybatisXMapperXmlInspection, MyBatisXmlInspection, XmlUnresolvedReference -->
     <select id="selectPageWithName" resultType="com.gk.payment.dto.MerchantFeeRuleDTO">
         SELECT
             r.id AS id,
             r.tenant_id AS tenantId,
             <choose>
-                <when test="params.showTenantName == true">
+                <when test="showTenantName == true">
             t.name AS tenantName,
                 </when>
                 <otherwise>
@@ -104,13 +106,13 @@
         LEFT JOIN merchant_app a
           ON a.tenant_id = r.tenant_id
          AND a.id = r.merchant_app_id
-        <if test="params.showTenantName == true">
+        <if test="showTenantName == true">
         LEFT JOIN sys_tenant t
           ON t.id = r.tenant_id
         </if>
         <include refid="pageWithNameWhere"/>
         ORDER BY r.id DESC
-        LIMIT #{params.limitValue} OFFSET #{params.offset}
+        LIMIT #{limitValue} OFFSET #{offset}
     </select>
 
     <select id="selectBestMatchForOrder" resultType="com.gk.payment.entity.MerchantFeeRuleEntity">
@@ -121,17 +123,12 @@
           AND currency = #{currency}
           AND status = #{status}
           AND (merchant_app_id = #{merchantAppId} OR merchant_app_id IS NULL)
-          <choose>
-              <when test="countryCode != null and countryCode != ''">
-          AND (country_code = #{countryCode} OR country_code IS NULL OR country_code = '')
-              </when>
-              <otherwise>
-          AND (country_code IS NULL OR country_code = '')
-              </otherwise>
-          </choose>
+        <if test="countryCode != null and countryCode.trim() != ''">
+            AND (country_code = #{countryCode} OR country_code IS NULL OR country_code = '')
+        </if>
           AND (method_code = #{methodCode} OR method_code IS NULL OR method_code = '')
-          AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL)
-          AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL)
+          AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL OR min_amount &lt;= 0)
+          AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL OR max_amount &lt;= 0)
           AND (effective_at &lt;= #{now} OR effective_at IS NULL)
           AND (expire_at &gt; #{now} OR expire_at IS NULL)
         ORDER BY
@@ -141,7 +138,7 @@
                 CASE WHEN country_code = #{countryCode} THEN 4 ELSE 0 END +
                 </if>
                 CASE WHEN #{methodCode} != '' AND method_code = #{methodCode} THEN 2 ELSE 0 END +
-                CASE WHEN min_amount IS NOT NULL OR max_amount IS NOT NULL THEN 1 ELSE 0 END
+                CASE WHEN (min_amount IS NOT NULL AND min_amount &gt; 0) OR (max_amount IS NOT NULL AND max_amount &gt; 0) THEN 1 ELSE 0 END
             ) DESC,
             priority ASC,
             id DESC

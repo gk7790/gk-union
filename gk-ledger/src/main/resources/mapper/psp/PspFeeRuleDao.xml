@@ -20,8 +20,8 @@
               </otherwise>
           </choose>
           AND (method_code = #{methodCode} OR method_code IS NULL OR method_code = '')
-          AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL)
-          AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL)
+          AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL OR min_amount &lt;= 0)
+          AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL OR max_amount &lt;= 0)
           AND (effective_at &lt;= #{now} OR effective_at IS NULL)
           AND (expire_at &gt; #{now} OR expire_at IS NULL)
         ORDER BY
@@ -32,7 +32,7 @@
                 CASE WHEN country_code = #{countryCode} THEN 4 ELSE 0 END +
                 </if>
                 CASE WHEN method_code = #{methodCode} THEN 2 ELSE 0 END +
-                CASE WHEN min_amount IS NOT NULL OR max_amount IS NOT NULL THEN 1 ELSE 0 END
+                CASE WHEN (min_amount IS NOT NULL AND min_amount &gt; 0) OR (max_amount IS NOT NULL AND max_amount &gt; 0) THEN 1 ELSE 0 END
             ) DESC,
             COALESCE(priority, 100) ASC,
             id DESC

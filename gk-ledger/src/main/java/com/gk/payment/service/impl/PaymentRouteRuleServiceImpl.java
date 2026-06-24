@@ -98,16 +98,16 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         dto.setCurrency(normalize(dto.getCurrency()));
         dto.setMethodCode(normalize(dto.getMethodCode()));
 
-        if (!equalsCode(dto.getDirection(), group.getDirection())) {
+        if (notEqualsCode(dto.getDirection(), group.getDirection())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route rule direction must match route group");
         }
-        if (!equalsCode(dto.getCountryCode(), group.getCountryCode())) {
+        if (notEqualsCode(dto.getCountryCode(), group.getCountryCode())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route rule country must match route group");
         }
-        if (!equalsCode(dto.getCurrency(), group.getCurrency())) {
+        if (notEqualsCode(dto.getCurrency(), group.getCurrency())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route rule currency must match route group");
         }
-        if (!equalsCode(dto.getMethodCode(), group.getMethodCode())) {
+        if (notEqualsCode(dto.getMethodCode(), group.getMethodCode())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route rule method must match route group");
         }
     }
@@ -116,8 +116,8 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         return StrUtil.nullToEmpty(value).trim().toUpperCase(Locale.ROOT);
     }
 
-    private boolean equalsCode(String left, String right) {
-        return StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
+    private boolean notEqualsCode(String left, String right) {
+        return !StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
     }
 
     private void evictPlanCache() {

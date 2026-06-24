@@ -20,7 +20,15 @@ import java.util.List;
 @Data
 public class PaymentPlanCompileResult {
     private boolean valid = true;
+    private PaymentPlanCompileRequest request;
     private PaymentPlanCatalogEntity catalog;
+    private List<MerchantFeeRuleEntity> merchantFeeRules = new ArrayList<>();
+    private List<PaymentRouteRuleEntity> paymentRouteRules = new ArrayList<>();
+    private List<PaymentRouteGroupEntity> routeGroups = new ArrayList<>();
+    private List<PaymentRouteChannelEntity> routeChannels = new ArrayList<>();
+    private List<PspMethodEntity> pspMethods = new ArrayList<>();
+    private List<PspFeeRuleEntity> pspFeeRules = new ArrayList<>();
+    private List<CompiledRouteOption> routeOptionDiagnostics = new ArrayList<>();
     private List<CompiledBucket> buckets = new ArrayList<>();
     private List<TestResult> testResults = new ArrayList<>();
     private List<Message> warnings = new ArrayList<>();

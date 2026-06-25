@@ -86,6 +86,10 @@ public class RedisKeys {
         return "openapi:rate:" + module + ":" + key;
     }
 
+    public static String getOpenApiMerchantAppKey(String appId) {
+        return "openapi:merchant-app:" + appId;
+    }
+
     public static String getSubjectDisplayKey(Long tenantId, String subjectType, Long subjectId) {
         return "ledger:subject-display:" + tenantId + ":" + subjectType + ":" + subjectId;
     }

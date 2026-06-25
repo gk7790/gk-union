@@ -76,7 +76,7 @@ public class RedisUtils {
      */
     public boolean tryLock(String key, int expireSeconds) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, "1", Duration.ofSeconds(expireSeconds)));
+            return tryLockStrict(key, expireSeconds);
         } catch (Exception e) {
             log.warn("Redis加锁失败: {}", e.getMessage());
             return false;
@@ -140,6 +140,10 @@ public class RedisUtils {
     public <T> T get(String key, Class<T> clazz) {
         Object o = get(key);
         return toTypedValue(o, clazz);
+    }
+
+    public boolean tryLockStrict(String key, int expireSeconds) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, "1", Duration.ofSeconds(expireSeconds)));
     }
 
     /**

@@ -233,11 +233,19 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
             payOrderDao.updateById(order);
         } catch (ApiException ex) {
-            markFailed(order, ex.getMessage());
+            if (order != null) {
+                markFailed(order, ex.getMessage());
+            }
             throw ex;
         } catch (Exception ex) {
-            markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage());
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
+            log.error("OpenAPI pay submit failed, payOrderNo={}, merchantOrderNo={}",
+                    order == null ? null : order.getPayOrderNo(),
+                    order == null ? null : order.getMerchantOrderNo(),
+                    ex);
+            if (order != null) {
+                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage());
+            }
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
         }
     }
 

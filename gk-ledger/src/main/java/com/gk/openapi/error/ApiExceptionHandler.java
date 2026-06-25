@@ -24,6 +24,9 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ApiR<?> handleOpenApiException(ApiException ex) {
+        if (ex.getErrorCode() == ApiErrorCode.SYSTEM_ERROR) {
+            log.error("OpenAPI system error: {}", ex.getMessage(), ex);
+        }
         return ApiR.error(
                 ex.getErrorCode().name(),
                 ex.getMessage()
@@ -34,7 +37,7 @@ public class ApiExceptionHandler {
     public ApiR<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
-                .map(error -> error.getDefaultMessage() == null ? "Invalid request" : error.getDefaultMessage())
+                .map(error -> StringUtils.defaultIfBlank(error.getDefaultMessage(), "Invalid request"))
                 .orElse("Invalid request");
         return ApiR.error(
                 ApiErrorCode.INVALID_REQUEST.name(),

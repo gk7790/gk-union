@@ -1,15 +1,15 @@
 package com.gk.openapi.security;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
-import com.gk.merchant.dao.MerchantAppDao;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.merchant.service.MerchantAppCacheService;
 import com.gk.infra.ipwhitelist.service.MerchantApiIpWhitelistService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
@@ -20,8 +20,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.annotation.Order;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -39,6 +42,7 @@ import java.util.UUID;
 @Order(20)
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OpenApiAuthFilter extends OncePerRequestFilter {
     public static final String ATTR_SIGN_PARAMS = OpenApiAuthFilter.class.getName() + ".SIGN_PARAMS";
 
@@ -50,12 +54,12 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
 
     private static final long DEFAULT_TIMESTAMP_WINDOW_SECONDS = 300L;
 
-    private final MerchantAppDao merchantAppDao;
     private final MerchantDao merchantDao;
     private final RedisUtils redisUtils;
     private final MerchantRequestLogger merchantRequestLogger;
     private final ObjectMapper objectMapper;
     private final MerchantApiIpWhitelistService merchantApiIpWhitelistService;
+    private final MerchantAppCacheService merchantAppCacheService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -64,7 +68,9 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain)
             throws IOException {
         CachedBodyHttpServletRequest cachedRequest = new CachedBodyHttpServletRequest(request);
         String traceId = UUID.randomUUID().toString();
@@ -76,7 +82,12 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         } catch (ApiException ex) {
             recordRejectedRequest(cachedRequest, traceId, ex.getErrorCode().name(), ex.getMessage());
             writeError(response, ex.getErrorCode().name(), ex.getMessage());
+        } catch (RedisConnectionFailureException ex) {
+            log.error("OpenAPI Redis unavailable, traceId={}, uri={}", traceId, cachedRequest.getRequestURI(), ex);
+            recordRejectedRequest(cachedRequest, traceId, ApiErrorCode.SERVICE_NOT_READY.name(), ApiErrorCode.SERVICE_NOT_READY.getMessage());
+            writeError(response, ApiErrorCode.SERVICE_NOT_READY.name(), ApiErrorCode.SERVICE_NOT_READY.getMessage());
         } catch (Exception ex) {
+            log.error("OpenAPI auth filter failed, traceId={}, uri={}", traceId, cachedRequest.getRequestURI(), ex);
             recordRejectedRequest(cachedRequest, traceId, ApiErrorCode.SYSTEM_ERROR.name(), ApiErrorCode.SYSTEM_ERROR.getMessage());
             writeError(response, ApiErrorCode.SYSTEM_ERROR.name(), ApiErrorCode.SYSTEM_ERROR.getMessage());
         } finally {
@@ -93,13 +104,11 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SignTypeEnum.MD5.code());
         String signature = requireParam(signParams, PARAM_SIGN);
 
-        MerchantAppEntity app = merchantAppDao.selectOne(
-                new QueryWrapper<MerchantAppEntity>().eq("app_id", appId).last("limit 1")
-        );
+        MerchantAppEntity app = merchantAppCacheService.getByAppId(appId);
         if (app == null) {
             throw new ApiException(ApiErrorCode.INVALID_APP);
         }
-        if (!Integer.valueOf(1).equals(app.getStatus())) {
+        if (!StatusEnum.NORMAL.code().equals(app.getStatus())) {
             throw new ApiException(ApiErrorCode.APP_DISABLED);
         }
         String appSignType = StringUtils.defaultIfBlank(app.getSignType(), SignTypeEnum.MD5.code());
@@ -123,10 +132,10 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
             throw new ApiException(ApiErrorCode.MERCHANT_DISABLED, "Merchant risk status is not normal");
         }
 
-//        validateTimestamp(timestamp);
+        validateTimestamp(timestamp);
         validateNonce(appId, nonce, app.getNonceTtlSeconds());
         validateRateLimit(appId, app.getRateLimitQps());
-//        validateSortedParamSignature(signParams, signature, app.getApiSecret(), signType);
+        validateSortedParamSignature(signParams, signature, app.getApiSecret(), signType);
 
         return ApiReqContext.builder()
                 .tenantId(app.getTenantId())
@@ -159,7 +168,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         }
         int ttl = nonceTtlSeconds == null || nonceTtlSeconds <= 0 ? 300 : nonceTtlSeconds;
         String nonceKey = RedisKeys.getApiNonceKey(appId, nonce);
-        boolean locked = redisUtils.tryLock(nonceKey, ttl);
+        boolean locked = redisUtils.tryLockStrict(nonceKey, ttl);
         if (!locked) {
             throw new ApiException(ApiErrorCode.REPLAY_REQUEST);
         }
@@ -213,7 +222,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
                 return Map.of();
             }
             Map<String, Object> params = new LinkedHashMap<>();
-            root.fields().forEachRemaining(entry -> params.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
+            root.properties().forEach(entry -> params.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
             return params;
         } catch (Exception e) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON body");
@@ -226,7 +235,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         }
         if (node.isObject()) {
             Map<String, Object> map = new LinkedHashMap<>();
-            node.fields().forEachRemaining(entry -> map.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
+            node.properties().forEach(entry -> map.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
             return map;
         }
         if (node.isArray()) {

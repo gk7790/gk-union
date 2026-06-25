@@ -15,4 +15,14 @@ public class ApiException extends RuntimeException {
         super(message);
         this.errorCode = errorCode;
     }
+
+    public ApiException(ApiErrorCode errorCode, Throwable cause) {
+        super(errorCode.getMessage(), cause);
+        this.errorCode = errorCode;
+    }
+
+    public ApiException(ApiErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
 }

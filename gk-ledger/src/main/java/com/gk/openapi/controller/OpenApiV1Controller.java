@@ -43,9 +43,8 @@ public class OpenApiV1Controller {
     @PostMapping("balance")
     public ApiR<List<BalanceResponse>> balance(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
-        BalanceQueryRequest body = null;
         try {
-            body = bindSignParams(request, BalanceQueryRequest.class, false);
+            BalanceQueryRequest body = bindSignParams(request, BalanceQueryRequest.class, false);
             List<BalanceResponse> data = openBalanceService.list(body.getCurrency());
             ApiR<List<BalanceResponse>> response = ApiR.success(data);
             merchantRequestLogger.balanceSuccess(request, body, data, startMs);
@@ -147,13 +146,12 @@ public class OpenApiV1Controller {
         return ApiR.success(openPaymentMethodService.list(body.getCountryCode(), body.getCurrency(), body.getDirection()));
     }
 
-    @SuppressWarnings("unchecked")
     private <T> T bindSignParams(HttpServletRequest request, Class<T> requestType, boolean validate) {
         Object value = request.getAttribute(OpenApiAuthFilter.ATTR_SIGN_PARAMS);
         if (!(value instanceof Map<?, ?> params)) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "request parameters is empty");
         }
-        T body = objectMapper.convertValue((Map<String, Object>) params, requestType);
+        T body = objectMapper.convertValue(params, requestType);
         if (validate) {
             Set<ConstraintViolation<T>> violations = validator.validate(body);
             if (!violations.isEmpty()) {
@@ -167,7 +165,7 @@ public class OpenApiV1Controller {
         if (ex instanceof RuntimeException runtimeException) {
             return runtimeException;
         }
-        return new ApiException(ApiErrorCode.SYSTEM_ERROR);
+        return new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
     }
 
     private PayOrderResponse queryPayOrder(PayOrderQueryRequest body) {

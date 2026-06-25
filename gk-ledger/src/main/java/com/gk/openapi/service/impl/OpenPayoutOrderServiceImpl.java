@@ -181,9 +181,15 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             ApiErrorCode errorCode = StringUtils.containsIgnoreCase(ex.getMessage(), "Insufficient ledger balance")
                     ? ApiErrorCode.INSUFFICIENT_BALANCE
                     : ApiErrorCode.SYSTEM_ERROR;
+            if (errorCode == ApiErrorCode.SYSTEM_ERROR) {
+                log.error("OpenAPI payout freeze failed, payoutOrderNo={}, merchantOrderNo={}",
+                        entity.getPayoutOrderNo(),
+                        entity.getMerchantOrderNo(),
+                        ex);
+            }
             timer.log("FAILED:" + errorCode.name(), entity);
             markFailed(entity, errorCode.getMessage(), errorCode.name());
-            throw new ApiException(errorCode);
+            throw new ApiException(errorCode, ex);
         }
 
         // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结。
@@ -271,14 +277,21 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             }
             payoutOrderDao.updateById(order);
         } catch (ApiException ex) {
-            // 路由失败、适配器异常等场景也要尽量释放冻结，避免资金长期占用。
-            releasePayout(order);
-            markFailed(order, ex.getMessage(), ex.getErrorCode().name());
+            if (order != null) {
+                releasePayout(order);
+                markFailed(order, ex.getMessage(), ex.getErrorCode().name());
+            }
             throw ex;
         } catch (Exception ex) {
-            releasePayout(order);
-            markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR);
+            log.error("OpenAPI payout submit failed, payoutOrderNo={}, merchantOrderNo={}",
+                    order == null ? null : order.getPayoutOrderNo(),
+                    order == null ? null : order.getMerchantOrderNo(),
+                    ex);
+            if (order != null) {
+                releasePayout(order);
+                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
+            }
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
         }
     }
 

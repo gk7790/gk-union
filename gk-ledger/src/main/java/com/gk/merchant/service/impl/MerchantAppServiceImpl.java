@@ -1,11 +1,9 @@
 package com.gk.merchant.service.impl;
 
-import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.core.entity.BaseEntity;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
@@ -14,10 +12,8 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
-import com.gk.common.utils.NumberUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.common.enums.SignTypeEnum;
-import com.gk.infra.enums.ScopeEnum;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.EncryptTypeEnum;
@@ -25,6 +21,7 @@ import com.gk.merchant.enums.MerchantAppTypeEnum;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
+import com.gk.merchant.service.MerchantAppCacheService;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.support.MerchantAppSecrets;
 import com.gk.payment.plan.PaymentPlanCacheService;
@@ -34,7 +31,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, MerchantAppEntity, MerchantAppDTO> implements MerchantAppService {
@@ -46,6 +45,8 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     private PayinPlanCache payinPlanCache;
     @Autowired
     private PaymentPlanCacheService paymentPlanCacheService;
+    @Autowired
+    private MerchantAppCacheService merchantAppCacheService;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -133,6 +134,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         dto.setSecretVersion(entity.getSecretVersion());
         dto.setSecretUpdatedAt(entity.getSecretUpdatedAt());
         evictPayinPlanCache();
+        evictMerchantAppCache(entity.getAppId());
     }
 
     @Override
@@ -153,18 +155,23 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         dto.setAppId(existed.getAppId());
         dto.setApiSecret(null);
         evictPayinPlanCache();
+        evictMerchantAppCache(existed.getAppId());
     }
 
     @Override
     public void delete(Long[] ids) {
+        List<String> appIds = selectAppIds(ids);
         super.delete(ids);
         evictPayinPlanCache();
+        evictMerchantAppCache(appIds);
     }
 
     @Override
     public void delete(Long id) {
+        MerchantAppEntity existed = id == null ? null : baseDao.selectById(id);
         super.delete(id);
         evictPayinPlanCache();
+        evictMerchantAppCache(existed == null ? null : existed.getAppId());
     }
 
     @Override
@@ -190,6 +197,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         dto.setApiSecret(apiSecret);
         dto.setSecretVersion(secretVersion);
         dto.setSecretUpdatedAt(secretUpdatedAt);
+        evictMerchantAppCache(existed.getAppId());
         return dto;
     }
 
@@ -289,6 +297,35 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         }
         if (paymentPlanCacheService != null) {
             paymentPlanCacheService.evictAll();
+        }
+    }
+
+    private List<String> selectAppIds(Long[] ids) {
+        if (ids == null || ids.length == 0) {
+            return List.of();
+        }
+        List<Long> idList = Arrays.stream(ids)
+                .filter(Objects::nonNull)
+                .toList();
+        if (idList.isEmpty()) {
+            return List.of();
+        }
+        return baseDao.selectByIds(idList).stream()
+                .map(MerchantAppEntity::getAppId)
+                .filter(StrUtil::isNotBlank)
+                .distinct()
+                .toList();
+    }
+
+    private void evictMerchantAppCache(String appId) {
+        if (merchantAppCacheService != null) {
+            merchantAppCacheService.evictByAppId(appId);
+        }
+    }
+
+    private void evictMerchantAppCache(List<String> appIds) {
+        if (merchantAppCacheService != null) {
+            merchantAppCacheService.evictByAppIds(appIds);
         }
     }
 }

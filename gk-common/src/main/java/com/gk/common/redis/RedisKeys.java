@@ -90,6 +90,10 @@ public class RedisKeys {
         return "openapi:merchant-app:" + appId;
     }
 
+    public static String getOpenApiAuthKey(String appId) {
+        return "openapi:auth:app:" + appId;
+    }
+
     public static String getSubjectDisplayKey(Long tenantId, String subjectType, Long subjectId) {
         return "ledger:subject-display:" + tenantId + ":" + subjectType + ":" + subjectId;
     }

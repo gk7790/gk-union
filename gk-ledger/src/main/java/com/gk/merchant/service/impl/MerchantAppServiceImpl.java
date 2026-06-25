@@ -21,7 +21,7 @@ import com.gk.merchant.enums.MerchantAppTypeEnum;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
-import com.gk.merchant.service.MerchantAppCacheService;
+import com.gk.common.openapi.OpenApiAuthCacheEvictor;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.support.MerchantAppSecrets;
 import com.gk.payment.plan.PaymentPlanCacheService;
@@ -46,7 +46,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Autowired
     private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
-    private MerchantAppCacheService merchantAppCacheService;
+    private OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -318,14 +318,18 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     }
 
     private void evictMerchantAppCache(String appId) {
-        if (merchantAppCacheService != null) {
-            merchantAppCacheService.evictByAppId(appId);
+        if (openApiAuthCacheEvictor != null) {
+            openApiAuthCacheEvictor.evictByAppId(appId);
         }
     }
 
     private void evictMerchantAppCache(List<String> appIds) {
-        if (merchantAppCacheService != null) {
-            merchantAppCacheService.evictByAppIds(appIds);
+        if (openApiAuthCacheEvictor == null || appIds == null) {
+            return;
         }
+        appIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .forEach(openApiAuthCacheEvictor::evictByAppId);
     }
 }

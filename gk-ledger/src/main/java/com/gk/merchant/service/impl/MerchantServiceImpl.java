@@ -12,10 +12,10 @@ import com.gk.common.model.DynMap;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.common.openapi.OpenApiAuthCacheEvictor;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.merchant.config.MerchantDefaultsProperties;
-import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
 import com.gk.merchant.enums.MerchantSettleCycleEnum;
@@ -28,6 +28,7 @@ import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,9 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     private final MerchantAppService merchantAppService;
     private final LedgerAccountService ledgerAccountService;
     private final MerchantDefaultsProperties merchantDefaultsProperties;
+
+    @Autowired
+    private OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
 
     @Override
     public QueryWrapper<MerchantEntity> getWrapper(DynMap params) {
@@ -130,6 +134,13 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
                 merchant.getId(),
                 entity.getDefaultCurrency()
         );
+        evictOpenApiAuthCache(merchant.getTenantId(), merchant.getId());
+    }
+
+    private void evictOpenApiAuthCache(Long tenantId, Long merchantId) {
+        if (openApiAuthCacheEvictor != null) {
+            openApiAuthCacheEvictor.evictByMerchant(tenantId, merchantId);
+        }
     }
 
     private void applyCreateDefaults(MerchantEntity entity) {
@@ -164,7 +175,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
 
     private void insertWithUniqueMerchantNo(MerchantEntity entity, boolean userProvidedMerchantNo) {
         for (int attempt = 0; attempt < MERCHANT_NO_GENERATE_MAX_ATTEMPTS; attempt++) {
-            if (attempt > 0 && !userProvidedMerchantNo) {
+            if (attempt > 0) {
                 entity.setMerchantNo(generateUniqueMerchantNo());
             }
             try {

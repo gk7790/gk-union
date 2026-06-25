@@ -1,21 +1,12 @@
 package com.gk.openapi.security;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.TypeReference;
 import com.gk.common.enums.SignTypeEnum;
-import com.gk.common.redis.RedisKeys;
-import com.gk.common.redis.RedisUtils;
-import com.gk.infra.enums.StatusEnum;
-import com.gk.merchant.dao.MerchantDao;
-import com.gk.merchant.entity.MerchantAppEntity;
-import com.gk.merchant.entity.MerchantEntity;
-import com.gk.merchant.service.MerchantAppCacheService;
-import com.gk.infra.ipwhitelist.service.MerchantApiIpWhitelistService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.log.MerchantRequestLogger;
 import com.gk.openapi.tools.ApiR;
-import com.gk.openapi.util.ApiSignUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,11 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -52,14 +40,8 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     public static final String PARAM_SIGN_TYPE = "sign_type";
     public static final String PARAM_SIGN = "sign";
 
-    private static final long DEFAULT_TIMESTAMP_WINDOW_SECONDS = 300L;
-
-    private final MerchantDao merchantDao;
-    private final RedisUtils redisUtils;
+    private final OpenApiAuthCacheService openApiAuthCacheService;
     private final MerchantRequestLogger merchantRequestLogger;
-    private final ObjectMapper objectMapper;
-    private final MerchantApiIpWhitelistService merchantApiIpWhitelistService;
-    private final MerchantAppCacheService merchantAppCacheService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -104,100 +86,16 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SignTypeEnum.MD5.code());
         String signature = requireParam(signParams, PARAM_SIGN);
 
-        MerchantAppEntity app = merchantAppCacheService.getByAppId(appId);
-        if (app == null) {
-            throw new ApiException(ApiErrorCode.INVALID_APP);
-        }
-        if (!StatusEnum.NORMAL.code().equals(app.getStatus())) {
-            throw new ApiException(ApiErrorCode.APP_DISABLED);
-        }
-        String appSignType = StringUtils.defaultIfBlank(app.getSignType(), SignTypeEnum.MD5.code());
-        if (!supportedSignType(signType) || !signType.equalsIgnoreCase(appSignType)) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
-        }
-        if (StringUtils.isBlank(app.getApiSecret())) {
-            throw new ApiException(ApiErrorCode.INVALID_APP, "App secret is empty");
-        }
-
-        String clientIp = getClientIp(request);
-        if (!merchantApiIpWhitelistService.isMerchantApiAllowed(app.getTenantId(), app.getMerchantId(), clientIp)) {
-            throw new ApiException(ApiErrorCode.INVALID_IP);
-        }
-
-        MerchantEntity merchant = merchantDao.selectById(app.getMerchantId());
-        if (merchant == null || !Integer.valueOf(1).equals(merchant.getStatus())) {
-            throw new ApiException(ApiErrorCode.MERCHANT_DISABLED);
-        }
-        if (!"NORMAL".equalsIgnoreCase(merchant.getRiskStatus())) {
-            throw new ApiException(ApiErrorCode.MERCHANT_DISABLED, "Merchant risk status is not normal");
-        }
-
-        validateTimestamp(timestamp);
-        validateNonce(appId, nonce, app.getNonceTtlSeconds());
-        validateRateLimit(appId, app.getRateLimitQps());
-        validateSortedParamSignature(signParams, signature, app.getApiSecret(), signType);
-
-        return ApiReqContext.builder()
-                .tenantId(app.getTenantId())
-                .merchantId(app.getMerchantId())
-                .merchantNo(merchant.getMerchantNo())
-                .merchantAppId(app.getId())
-                .appId(app.getAppId())
-                .traceId(traceId)
-                .clientIp(clientIp)
-                .merchant(merchant)
-                .merchantApp(app)
-                .build();
-    }
-
-    private void validateTimestamp(String timestamp) {
-        try {
-            long requestMillis = Long.parseLong(timestamp);
-            long diffMillis = Math.abs(Instant.now().toEpochMilli() - requestMillis);
-            if (diffMillis > DEFAULT_TIMESTAMP_WINDOW_SECONDS * 1000) {
-                throw new ApiException(ApiErrorCode.INVALID_TIMESTAMP);
-            }
-        } catch (NumberFormatException e) {
-            throw new ApiException(ApiErrorCode.INVALID_TIMESTAMP);
-        }
-    }
-
-    private void validateNonce(String appId, String nonce, Integer nonceTtlSeconds) {
-        if (StringUtils.isBlank(nonce)) {
-            return;
-        }
-        int ttl = nonceTtlSeconds == null || nonceTtlSeconds <= 0 ? 300 : nonceTtlSeconds;
-        String nonceKey = RedisKeys.getApiNonceKey(appId, nonce);
-        boolean locked = redisUtils.tryLockStrict(nonceKey, ttl);
-        if (!locked) {
-            throw new ApiException(ApiErrorCode.REPLAY_REQUEST);
-        }
-    }
-
-    private void validateRateLimit(String appId, Integer rateLimitQps) {
-        int qps = rateLimitQps == null || rateLimitQps <= 0 ? 50 : rateLimitQps;
-        String limitQpsKey = RedisKeys.getApiLimitQpsKey(appId, Instant.now().getEpochSecond());
-        long count = redisUtils.getIncrement(limitQpsKey, 2);
-        if (count > qps) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Rate limit exceeded");
-        }
-    }
-
-    private boolean supportedSignType(String signType) {
-        return SignTypeEnum.HMAC_SHA256.matches(signType) || SignTypeEnum.MD5.matches(signType);
-    }
-
-    private void validateSortedParamSignature(Map<String, Object> params, String signature, String apiSecret, String signType) {
-        try {
-            boolean valid = SignTypeEnum.MD5.matches(signType)
-                    ? ApiSignUtils.verifyMd5Sign(params, apiSecret, signature)
-                    : ApiSignUtils.verifyHmacSha256Sign(params, apiSecret, signature);
-            if (!valid) {
-                throw new ApiException(ApiErrorCode.INVALID_SIGNATURE);
-            }
-        } catch (IllegalArgumentException e) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, e.getMessage());
-        }
+        return openApiAuthCacheService.authenticate(
+                appId,
+                getClientIp(request),
+                signParams,
+                timestamp,
+                nonce,
+                signType,
+                signature,
+                traceId
+        );
     }
 
     private Map<String, Object> extractSignParams(CachedBodyHttpServletRequest request) {
@@ -217,42 +115,12 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
 
     private Map<String, Object> parseJsonBody(String body) {
         try {
-            JsonNode root = objectMapper.readTree(body);
-            if (root == null || !root.isObject()) {
-                return Map.of();
-            }
-            Map<String, Object> params = new LinkedHashMap<>();
-            root.properties().forEach(entry -> params.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
-            return params;
+            Map<String, Object> params = JSON.parseObject(body, new TypeReference<LinkedHashMap<String, Object>>() {
+            });
+            return params == null ? Map.of() : params;
         } catch (Exception e) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON body");
         }
-    }
-
-    private Object jsonNodeToSignValue(JsonNode node) {
-        if (node == null || node.isNull()) {
-            return null;
-        }
-        if (node.isObject()) {
-            Map<String, Object> map = new LinkedHashMap<>();
-            node.properties().forEach(entry -> map.put(entry.getKey(), jsonNodeToSignValue(entry.getValue())));
-            return map;
-        }
-        if (node.isArray()) {
-            List<Object> values = new ArrayList<>(node.size());
-            node.forEach(item -> values.add(jsonNodeToSignValue(item)));
-            return values;
-        }
-        if (node.isTextual()) {
-            return node.asText();
-        }
-        if (node.isNumber()) {
-            return node.decimalValue();
-        }
-        if (node.isBoolean()) {
-            return node.asBoolean();
-        }
-        return node.asText();
     }
 
     private Map<String, Object> parseFormBody(String body) {
@@ -301,7 +169,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     private void writeError(HttpServletResponse response, String code, String message) throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setContentType("application/json;charset=UTF-8");
-        String body = objectMapper.writeValueAsString(ApiR.error(code, message));
+        String body = JSON.toJSONString(ApiR.error(code, message));
         response.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
     }
 

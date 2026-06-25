@@ -1,14 +1,12 @@
 package com.gk.infra.ipwhitelist.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
-import com.gk.common.redis.RedisKeys;
-import com.gk.common.redis.RedisUtils;
+import com.gk.common.openapi.OpenApiAuthCacheEvictor;
 import com.gk.common.utils.IpPatternUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.enums.StatusEnum;
@@ -18,10 +16,11 @@ import com.gk.infra.ipwhitelist.entity.MerchantApiIpWhitelistEntity;
 import com.gk.infra.ipwhitelist.service.MerchantApiIpWhitelistService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,9 +28,8 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantApiIpWhitelistDao, MerchantApiIpWhitelistEntity, MerchantApiIpWhitelistDTO>
         implements MerchantApiIpWhitelistService {
-    private static final long CACHE_SECONDS = 300L;
 
-    private final RedisUtils redisUtils;
+    private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
 
     @Override
     public QueryWrapper<MerchantApiIpWhitelistEntity> getWrapper(DynMap params) {
@@ -54,7 +52,7 @@ public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantA
     public void save(MerchantApiIpWhitelistDTO dto) {
         prepare(dto);
         super.save(dto);
-        evictCache();
+        evictOpenApiAuthCache(dto.getTenantId(), dto.getMerchantId());
     }
 
     @Override
@@ -63,21 +61,30 @@ public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantA
         AssertUtils.isNull(dto.getId(), "id");
         prepare(dto);
         super.update(dto);
-        evictCache();
+        evictOpenApiAuthCache(dto.getTenantId(), dto.getMerchantId());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long[] ids) {
+        if (ids != null) {
+            Arrays.stream(ids)
+                    .filter(id -> id != null && id > 0)
+                    .map(baseDao::selectById)
+                    .filter(Objects::nonNull)
+                    .forEach(entity -> evictOpenApiAuthCache(entity.getTenantId(), entity.getMerchantId()));
+        }
         super.delete(ids);
-        evictCache();
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
+        MerchantApiIpWhitelistEntity existed = id == null ? null : baseDao.selectById(id);
         super.delete(id);
-        evictCache();
+        if (existed != null) {
+            evictOpenApiAuthCache(existed.getTenantId(), existed.getMerchantId());
+        }
     }
 
     @Override
@@ -100,24 +107,16 @@ public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantA
     }
 
     private List<String> loadRules(Long tenantId, Long merchantId) {
-        String cacheKey = RedisKeys.getMerchantApiIpWhitelistKey(tenantId, merchantId);
-        Object cached = redisUtils.get(cacheKey);
-        if (cached instanceof String cachedText && StringUtils.isNotBlank(cachedText)) {
-            return JSON.parseArray(cachedText, String.class);
-        }
-
         QueryWrapper<MerchantApiIpWhitelistEntity> wrapper = new QueryWrapper<MerchantApiIpWhitelistEntity>()
                 .eq("status", StatusEnum.NORMAL.code())
                 .eq("tenant_id", tenantId)
                 .eq("merchant_id", merchantId);
 
-        List<String> rules = baseDao.selectList(wrapper).stream()
+        return baseDao.selectList(wrapper).stream()
                 .map(MerchantApiIpWhitelistEntity::getIpPattern)
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .toList();
-        redisUtils.set(cacheKey, JSON.toJSONString(rules), CACHE_SECONDS);
-        return rules;
     }
 
     private void applySaveScope(MerchantApiIpWhitelistDTO dto) {
@@ -152,13 +151,10 @@ public class MerchantApiIpWhitelistServiceImpl extends CrudServiceImpl<MerchantA
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
     }
 
-    private void evictCache() {
-        deleteKeys(redisUtils.keys(RedisKeys.getMerchantApiIpWhitelistPattern()));
-    }
-
-    private void deleteKeys(Collection<String> keys) {
-        if (keys != null && !keys.isEmpty()) {
-            redisUtils.delete(keys.stream().filter(Objects::nonNull).toList());
+    private void evictOpenApiAuthCache(Long tenantId, Long merchantId) {
+        OpenApiAuthCacheEvictor evictor = openApiAuthCacheEvictorProvider.getIfAvailable();
+        if (evictor != null) {
+            evictor.evictByMerchant(tenantId, merchantId);
         }
     }
 }

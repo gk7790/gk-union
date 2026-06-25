@@ -274,7 +274,7 @@ public class PaymentPlanResolver {
     }
 
     private Optional<PspBankMappingEntity> bankMapping(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
-        if (!requiresBankMapping(key) || StringUtils.isBlank(bankCode)) {
+        if (skipsBankMapping(key) || StringUtils.isBlank(bankCode)) {
             return Optional.empty();
         }
         PspBankMappingEntity mapping = pspBankMappingDao.selectOne(new QueryWrapper<PspBankMappingEntity>()
@@ -289,7 +289,7 @@ public class PaymentPlanResolver {
 
     private boolean bankSupported(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
         // 只有银行卡代付才需要用商户侧银行编码过滤 PSP 路由。
-        if (!requiresBankMapping(key)) {
+        if (skipsBankMapping(key)) {
             return true;
         }
         if (StringUtils.isBlank(bankCode)) {
@@ -298,9 +298,9 @@ public class PaymentPlanResolver {
         return bankMapping(key, option, bankCode).isPresent();
     }
 
-    private boolean requiresBankMapping(PaymentPlanKey key) {
-        return PayDirectionEnum.PAYOUT.code().equals(key.direction())
-                && PaymentMethodCodes.isBankCard(key.methodCode());
+    private boolean skipsBankMapping(PaymentPlanKey key) {
+        return !PayDirectionEnum.PAYOUT.code().equals(key.direction())
+                || !PaymentMethodCodes.isBankCard(key.methodCode());
     }
 
     private String platformCallbackUrl(String pspCode, String direction) {

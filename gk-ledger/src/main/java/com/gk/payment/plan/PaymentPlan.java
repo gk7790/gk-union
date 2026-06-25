@@ -8,8 +8,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 /**
- * 代收/代付运行时命中的支付方案。
- */
+ * 代收/代付运行时命中的支付方案�? */
 @Data
 public class PaymentPlan {
     private Long catalogId;

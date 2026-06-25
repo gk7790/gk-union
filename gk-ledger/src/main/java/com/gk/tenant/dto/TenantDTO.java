@@ -14,9 +14,9 @@ public class TenantDTO {
     private String name;
     @Schema(title = "租户编码", description = "租户唯一业务编码", requiredMode = Schema.RequiredMode.REQUIRED, example = "acme")
     private String code;
-    @Schema(title = "状态", description = "1正常 2暂停 3停用", example = "1")
+    @Schema(title = "状�?, description = "1正常 2暂停 3停用", example = "1")
     private Integer status;
-    @Schema(title = "域名", description = "租户独立访问域名，可选")
+    @Schema(title = "域名", description = "租户独立访问域名，可�?)
     private String domain;
     @Schema(title = "默认币种", example = "INR")
     private String currency;
@@ -26,11 +26,11 @@ public class TenantDTO {
     private String lang;
     @Schema(title = "备注")
     private String remark;
-    @Schema(title = "创建者", accessMode = Schema.AccessMode.READ_ONLY)
+    @Schema(title = "创建�?, accessMode = Schema.AccessMode.READ_ONLY)
     private Long createdBy;
     @Schema(title = "创建时间", accessMode = Schema.AccessMode.READ_ONLY)
     private Instant createdAt;
-    @Schema(title = "修改者", accessMode = Schema.AccessMode.READ_ONLY)
+    @Schema(title = "修改�?, accessMode = Schema.AccessMode.READ_ONLY)
     private Long updatedBy;
     @Schema(title = "修改时间", accessMode = Schema.AccessMode.READ_ONLY)
     private Instant updatedAt;

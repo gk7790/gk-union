@@ -22,7 +22,7 @@ public class PaymentMethodDTO {
     private String countryCode;
     @Schema(description = "币种，空表示通用")
     private String currency;
-    @Schema(description = "状态: 1正常 2暂停 3停用")
+    @Schema(description = "状�? 1正常 2暂停 3停用")
     private Integer status;
     @Schema(description = "排序")
     private Integer sort;

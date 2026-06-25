@@ -13,13 +13,13 @@ public class MerchantRequestLogDTO {
     private Long tenantId;
     @Schema(title = "商户ID")
     private Long merchantId;
-    @Schema(title = "商户号快照")
+    @Schema(title = "商户号快�?)
     private String merchantNo;
     @Schema(title = "商户应用ID")
     private Long merchantAppId;
     @Schema(title = "商户应用ID快照")
     private String appId;
-    @Schema(title = "请求日志号")
+    @Schema(title = "请求日志�?)
     private String requestNo;
     @Schema(title = "接口路径")
     private String apiPath;
@@ -31,7 +31,7 @@ public class MerchantRequestLogDTO {
     private String clientIp;
     @Schema(title = "User-Agent")
     private String userAgent;
-    @Schema(title = "请求体哈希")
+    @Schema(title = "请求体哈�?)
     private String requestBodyHash;
     @Schema(title = "请求体JSON，脱敏后保存")
     private String requestBodyJson;
@@ -43,7 +43,7 @@ public class MerchantRequestLogDTO {
     private String signValue;
     @Schema(title = "验签结果: 0失败 1成功")
     private Integer signValid;
-    @Schema(title = "商户提交时间戳")
+    @Schema(title = "商户提交时间�?)
     private String timestampValue;
     @Schema(title = "商户提交nonce")
     private String nonceValue;
@@ -51,17 +51,17 @@ public class MerchantRequestLogDTO {
     private String bizType;
     @Schema(title = "平台业务单号")
     private String bizNo;
-    @Schema(title = "商户订单号")
+    @Schema(title = "商户订单�?)
     private String merchantOrderNo;
-    @Schema(title = "响应码")
+    @Schema(title = "响应�?)
     private String responseCode;
     @Schema(title = "响应消息")
     private String responseMessage;
-    @Schema(title = "响应体JSON，脱敏或摘要后保存")
+    @Schema(title = "响应体JSON，脱敏或摘要后保�?)
     private String responseBodyJson;
-    @Schema(title = "处理状态: RECEIVED/SUCCESS/FAILED/REJECTED")
+    @Schema(title = "处理状�? RECEIVED/SUCCESS/FAILED/REJECTED")
     private String status;
-    @Schema(title = "错误码")
+    @Schema(title = "错误�?)
     private String errorCode;
     @Schema(title = "错误信息")
     private String errorMessage;
@@ -69,7 +69,7 @@ public class MerchantRequestLogDTO {
     private Long costMs;
     @Schema(title = "链路追踪ID")
     private String traceId;
-    @Schema(title = "创建人")
+    @Schema(title = "创建�?)
     private Long createdBy;
     @Schema(title = "创建时间")
     private Instant createdAt;

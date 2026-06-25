@@ -1,11 +1,12 @@
 package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayoutAdapter;
+import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
+
 import com.gk.psp.query.PspOrderQueryResult;
+import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,7 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
     }
 
     @Override
-    public PspPayoutDispatchResult createPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
+    public PspPayoutDispatchResult createPayoutOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_BASE_URL);
 
         PspPayoutDispatchResult result = new PspPayoutDispatchResult();
@@ -35,13 +36,13 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
         result.setRequestUrl(baseUrl + "/open-api/create-payout-order");
         result.setHttpMethod("POST");
         result.setRequestHeadersJson("{\"Content-Type\":\"application/json\"}");
-        result.setRequestBody("{\"merchant_order_id\":\"" + order.getPayoutOrderNo() + "\",\"amount\":\""
+        result.setRequestBody("{\"merchant_order_id\":\"" + order.getOrderNo() + "\",\"amount\":\""
                 + order.getAmount() + "\",\"currency\":\"" + order.getCurrency()
                 + "\",\"account_no\":\"" + StringUtils.defaultString(order.getPayeeAccountNo())
                 + "\",\"bank_code\":\"" + StringUtils.defaultIfBlank(route.getPspBankCode(), order.getPayeeBankCode()) + "\"}");
         result.setResponseStatus(200);
-        result.setPspOrderNo("PSP" + order.getPayoutOrderNo());
-        result.setPspMerchantOrderNo(order.getPayoutOrderNo());
+        result.setPspOrderNo("PSP" + order.getOrderNo());
+        result.setPspMerchantOrderNo(order.getOrderNo());
         result.setRawStatus("PROCESSING");
         result.setResponseCode("200");
         result.setResponseMessage("success");
@@ -50,24 +51,24 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
     }
 
     @Override
-    public PspOrderQueryResult queryPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
+    public PspOrderQueryResult queryPayoutOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_BASE_URL);
-        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getPayoutOrderNo());
+        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getOrderNo());
         return PspOrderQueryResult.builder()
                 .success(true)
                 .pspCode(route.getPspCode())
-                .systemOrderNo(order.getPayoutOrderNo())
+                .systemOrderNo(order.getOrderNo())
                 .merchantOrderNo(order.getMerchantOrderNo())
                 .pspOrderNo(pspOrderNo)
-                .pspStatus(PayoutOrderStatusEnum.PROCESSING.code())
-                .orderStatus(PayoutOrderStatusEnum.PROCESSING.code())
+                .pspStatus(PspCallbackUtils.STATUS_PROCESSING)
+                .orderStatus(PspCallbackUtils.STATUS_PROCESSING)
                 .amount(order.getAmount())
                 .currency(order.getCurrency())
                 .pspRequestNo(BizKeyUtils.genPspRequestNo())
                 .requestUrl(baseUrl + "/open-api/query-payout-order")
                 .httpMethod("POST")
                 .requestHeadersJson("{\"Content-Type\":\"application/json\"}")
-                .requestBody("{\"merchant_order_id\":\"" + order.getPayoutOrderNo() + "\"}")
+                .requestBody("{\"merchant_order_id\":\"" + order.getOrderNo() + "\"}")
                 .responseStatus(200)
                 .responseCode("200")
                 .responseMessage("success")

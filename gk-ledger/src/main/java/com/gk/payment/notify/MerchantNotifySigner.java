@@ -10,9 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 商户通知签名器。
+ * 商户通知签名器�?
  * <p>
- * 与 OpenAPI 请求验签一致，采用 Canonical JSON：
+ * �?OpenAPI 请求验签一致，采用 Canonical JSON�?
  * <pre>
  *   signText = canonicalJson(body without sign)
  *   MD5:          sign = md5(signText + apiSecret)

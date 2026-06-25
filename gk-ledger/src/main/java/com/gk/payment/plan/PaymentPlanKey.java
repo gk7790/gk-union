@@ -6,10 +6,8 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Locale;
 
 /**
- * 支付决策表运行时维度。
- * <p>
- * 注意：订单金额不属于 key，金额只在 catalog 内部按 bucket 匹配。
- */
+ * 支付决策表运行时维度�? * <p>
+ * 注意：订单金额不属于 key，金额只�?catalog 内部�?bucket 匹配�? */
 public record PaymentPlanKey(
         Long tenantId,
         Long merchantId,

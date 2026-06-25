@@ -1,4 +1,4 @@
-package com.gk.psp.callback.support;
+package com.gk.payment.callback;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.enums.BizTypeEnum;
@@ -6,7 +6,6 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
-import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.entity.PspCallbackLogEntity;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * PSP 终态回调后的商户通知任务创建器。
- * <p>
- * PSP 回调把平台订单推进到终态后，本类负责创建商户异步通知任务。
- * 通知报文字段与商户 OpenAPI 保持一致，使用 snake_case；
- * system_order_id 和 merchant_order_id 表示业务单号，不是数据库主键。
- */
+ * PSP 终态回调后的商户通知任务创建器�? * <p>
+ * PSP 回调把平台订单推进到终态后，本类负责创建商户异步通知任务�? * 通知报文字段与商�?OpenAPI 保持一致，使用 snake_case�? * system_order_id �?merchant_order_id 表示业务单号，不是数据库主键�? */
 @Component
 @RequiredArgsConstructor
 public class PspCallbackNotifyCreator {
@@ -33,8 +28,7 @@ public class PspCallbackNotifyCreator {
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
 
     /**
-     * 创建商户异步通知任务。
-     *
+     * 创建商户异步通知任务�?     *
      * @param bizType 业务类型，代收或代付
      * @param result PSP 标准回调结果
      * @param order 平台订单快照
@@ -42,8 +36,7 @@ public class PspCallbackNotifyCreator {
      */
     public void create(String bizType, PspCallbackResult result, PspCallbackOrder order, PspCallbackLogEntity logEntity) {
         if (StringUtils.isBlank(order.notifyUrl())) {
-            // 商户未配置 notifyUrl 时，不创建通知任务。
-            return;
+            // 商户未配�?notifyUrl 时，不创建通知任务�?            return;
         }
         String payloadJson = JSON.toJSONString(payload(bizType, result, order));
         MerchantNotifyTaskEntity task = new MerchantNotifyTaskEntity();
@@ -71,20 +64,15 @@ public class PspCallbackNotifyCreator {
         task.setNextRetryAt(Instant.now());
         task.setTraceId(logEntity == null ? null : logEntity.getTraceId());
         try {
-            // 通知任务入库后，同步更新订单通知状态，便于商户侧查询通知进度。
-            merchantNotifyTaskDao.insert(task);
+            // 通知任务入库后，同步更新订单通知状态，便于商户侧查询通知进度�?            merchantNotifyTaskDao.insert(task);
             merchantOrderNotifyStatusService.onTaskCreated(bizType, order.id(), task.getId());
         } catch (DuplicateKeyException ignored) {
-            // 重复终态回调可能尝试创建同一笔通知任务，唯一键冲突时直接忽略。
-        }
+            // 重复终态回调可能尝试创建同一笔通知任务，唯一键冲突时直接忽略�?        }
     }
 
     /**
-     * 构建商户通知报文。
-     * <p>
-     * 代收包含 paid_amount、settle_amount；代付包含 debit_amount；
-     * 有手续费时统一输出 fee_amount。
-     */
+     * 构建商户通知报文�?     * <p>
+     * 代收包含 paid_amount、settle_amount；代付包�?debit_amount�?     * 有手续费时统一输出 fee_amount�?     */
     private Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         boolean payOrder = BizTypeEnum.PAY_ORDER.matches(bizType);
         String orderType = payOrder ? "PAY" : "PAYOUT";
@@ -102,15 +90,13 @@ public class PspCallbackNotifyCreator {
         payload.put("msg", message(orderStatus, result));
 
         if (payOrder) {
-            // PSP 未回传实际支付金额时，默认使用订单金额。
-            BigDecimal paidAmount = PspCallbackUtils.defaultAmount(result.getAmount(), order.amount());
+            // PSP 未回传实际支付金额时，默认使用订单金额�?            BigDecimal paidAmount = PspCallbackUtils.defaultAmount(result.getAmount(), order.amount());
             payload.put("paid_amount", decimal(paidAmount));
             if (positive(order.settleAmount())) {
                 payload.put("settle_amount", decimal(order.settleAmount()));
             }
         } else {
-            // 代付优先使用包含手续费的总扣款金额，没有时回退到订单金额。
-            BigDecimal debitAmount = order.totalDebitAmount() != null && order.totalDebitAmount().signum() > 0
+            // 代付优先使用包含手续费的总扣款金额，没有时回退到订单金额�?            BigDecimal debitAmount = order.totalDebitAmount() != null && order.totalDebitAmount().signum() > 0
                     ? order.totalDebitAmount()
                     : order.amount();
             payload.put("debit_amount", decimal(debitAmount));
@@ -122,8 +108,7 @@ public class PspCallbackNotifyCreator {
     }
 
     /**
-     * 生成商户通知展示消息。
-     */
+     * 生成商户通知展示消息�?     */
     private String message(String orderStatus, PspCallbackResult result) {
         if (orderStatus.endsWith("_SUCCESS")) {
             return "Transaction success";
@@ -132,23 +117,20 @@ public class PspCallbackNotifyCreator {
     }
 
     /**
-     * 生成商户通知事件类型。
-     */
+     * 生成商户通知事件类型�?     */
     private String eventType(String bizType, String status) {
         String prefix = BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 
     /**
-     * 判断金额是否大于 0。
-     */
+     * 判断金额是否大于 0�?     */
     private boolean positive(BigDecimal value) {
         return value != null && value.signum() > 0;
     }
 
     /**
-     * 转换金额为普通文本。
-     */
+     * 转换金额为普通文本�?     */
     private String decimal(BigDecimal value) {
         return PspCallbackUtils.decimalText(value);
     }

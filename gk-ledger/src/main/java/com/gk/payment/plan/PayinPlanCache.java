@@ -8,10 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class PayinPlanCache {
     /**
-     * PayinPlan 是配置解析结果缓存，不是订单结果缓存。
-     * <p>
-     * TTL 保持较短，并在相关配置保存/修改/删除时主动清空，避免商户费率或 PSP 配置变更后继续使用旧方案。
-     */
+     * PayinPlan 是配置解析结果缓存，不是订单结果缓存�?     * <p>
+     * TTL 保持较短，并在相关配置保�?修改/删除时主动清空，避免商户费率�?PSP 配置变更后继续使用旧方案�?     */
     private static final long PLAN_CACHE_TTL_MILLIS = Duration.ofSeconds(30).toMillis();
 
     private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -22,8 +20,7 @@ public class PayinPlanCache {
             return null;
         }
         if (entry.expiresAtMillis() <= System.currentTimeMillis()) {
-            // 惰性清理过期缓存，避免后台定时任务带来额外复杂度。
-            cache.remove(key);
+            // 惰性清理过期缓存，避免后台定时任务带来额外复杂度�?            cache.remove(key);
             return null;
         }
         return entry.plan();

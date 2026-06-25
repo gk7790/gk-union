@@ -12,10 +12,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * PSP 回调币种解析器。
+ * PSP 回调币种解析器�?
  * <p>
- * 优先使用 PSP 回传的 currency；缺失时按适配器策略决定是否回退订单币种。
- * 解析结果会写回 {@link PspCallbackResult#setCurrency(String)}，供后续校验、入账与通知复用。
+ * 优先使用 PSP 回传�?currency；缺失时按适配器策略决定是否回退订单币种�?
+ * 解析结果会写�?{@link PspCallbackResult#setCurrency(String)}，供后续校验、入账与通知复用�?
  */
 @Component
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class PspCallbackCurrencyResolver {
     private final List<PspCallbackAdapter> adapters;
 
     /**
-     * 按 PSP 适配器声明的策略解析币种。
+     * �?PSP 适配器声明的策略解析币种�?
      */
     public String resolve(PspCallbackResult result, PspCallbackOrder order) {
         PspCallbackAdapter adapter = findAdapter(resolvePspCode(result, order));
@@ -34,10 +34,10 @@ public class PspCallbackCurrencyResolver {
     }
 
     /**
-     * 按指定策略解析币种。
+     * 按指定策略解析币种�?
      *
-     * @return 归一化后的币种
-     * @throws IllegalStateException PSP/订单均无法得到可信币种，或 PSP 币种与订单不一致
+     * @return 归一化后的币�?
+     * @throws IllegalStateException PSP/订单均无法得到可信币种，�?PSP 币种与订单不一�?
      */
     public String resolve(PspCallbackResult result, PspCallbackOrder order, PspCallbackCurrencyPolicy policy) {
         if (result == null || order == null) {

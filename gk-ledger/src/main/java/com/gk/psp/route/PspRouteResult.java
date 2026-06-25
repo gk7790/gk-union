@@ -25,9 +25,7 @@ public class PspRouteResult {
     private String accountConfigJson;
 
     /**
-     * PSP 侧银行编码。
-     * <p>
-     * 代付银行卡场景中，订单保存平台统一银行编码，提交 PSP 前转换为 PSP 银行编码。
-     */
+     * PSP 侧银行编码�?     * <p>
+     * 代付银行卡场景中，订单保存平台统一银行编码，提�?PSP 前转换为 PSP 银行编码�?     */
     private String pspBankCode;
 }

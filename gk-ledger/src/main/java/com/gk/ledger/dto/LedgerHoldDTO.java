@@ -40,19 +40,19 @@ public class LedgerHoldDTO {
     private String bizNo;
     @Schema(title = "冻结原因")
     private String holdReason;
-    @Schema(title = "冻结作用域")
+    @Schema(title = "冻结作用�?)
     private String holdScope;
-    @Schema(title = "冻结总金额")
+    @Schema(title = "冻结总金�?)
     private BigDecimal holdAmount;
-    @Schema(title = "已释放金额")
+    @Schema(title = "已释放金�?)
     private BigDecimal releasedAmount;
-    @Schema(title = "已消耗金额")
+    @Schema(title = "已消耗金�?)
     private BigDecimal consumedAmount;
     @Schema(title = "剩余冻结金额")
     private BigDecimal remainingAmount;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private String status;
-    @Schema(title = "冻结凭证号")
+    @Schema(title = "冻结凭证�?)
     private String holdJournalNo;
     @Schema(title = "最后释放凭证号")
     private String lastReleaseJournalNo;

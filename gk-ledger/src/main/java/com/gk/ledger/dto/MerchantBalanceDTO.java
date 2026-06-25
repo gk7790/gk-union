@@ -12,15 +12,15 @@ public class MerchantBalanceDTO {
     private Long tenantId;
     @Schema(title = "商户ID")
     private Long merchantId;
-    @Schema(title = "商户号")
+    @Schema(title = "商户�?)
     private String merchantNo;
     @Schema(title = "商户名称")
     private String merchantName;
-    @Schema(title = "商户简称")
+    @Schema(title = "商户简�?)
     private String merchantShortName;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
-    @Schema(title = "风控状态")
+    @Schema(title = "风控状�?)
     private String riskStatus;
     @Schema(title = "币种")
     private String currency;
@@ -32,20 +32,20 @@ public class MerchantBalanceDTO {
     private BigDecimal frozenBalance;
     @Schema(title = "冻结余额展示")
     private String frozenBalanceText;
-    @Schema(title = "待结算余额")
+    @Schema(title = "待结算余�?)
     private BigDecimal pendingSettleBalance;
-    @Schema(title = "待结算余额展示")
+    @Schema(title = "待结算余额展�?)
     private String pendingSettleBalanceText;
     @Schema(title = "有效余额")
     private BigDecimal effectiveBalance;
     @Schema(title = "有效余额展示")
     private String effectiveBalanceText;
-    @Schema(title = "总资产")
+    @Schema(title = "总资�?)
     private BigDecimal totalBalance;
-    @Schema(title = "总资产展示")
+    @Schema(title = "总资产展�?)
     private String totalBalanceText;
     @Schema(title = "是否已初始化账本账户")
     private Boolean hasLedgerAccount;
-    @Schema(title = "最后入账时间")
+    @Schema(title = "最后入账时�?)
     private Instant lastPostedAt;
 }

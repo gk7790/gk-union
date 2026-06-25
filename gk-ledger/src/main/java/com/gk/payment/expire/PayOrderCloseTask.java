@@ -6,8 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 代收超时关单定时任务。
- */
+ * 代收超时关单定时任务�? */
 @Component("payOrderCloseTask")
 @RequiredArgsConstructor
 public class PayOrderCloseTask implements ITask {

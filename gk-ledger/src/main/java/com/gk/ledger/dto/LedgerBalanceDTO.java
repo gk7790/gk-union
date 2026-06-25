@@ -23,7 +23,7 @@ public class LedgerBalanceDTO {
     private String ownerNo;
     @Schema(title = "主体名称")
     private String ownerName;
-    @Schema(title = "主体简称")
+    @Schema(title = "主体简�?)
     private String ownerShortName;
     @Schema(title = "主体显示名称")
     private String ownerDisplayName;
@@ -31,9 +31,9 @@ public class LedgerBalanceDTO {
     private String currency;
     @Schema(title = "当前余额")
     private BigDecimal balance;
-    @Schema(title = "借方累计发生额")
+    @Schema(title = "借方累计发生�?)
     private BigDecimal debitTotal;
-    @Schema(title = "贷方累计发生额")
+    @Schema(title = "贷方累计发生�?)
     private BigDecimal creditTotal;
     @Schema(title = "乐观锁版本号")
     private Integer version;
@@ -41,7 +41,7 @@ public class LedgerBalanceDTO {
     private Long lastEntryId;
     @Schema(title = "最后一张凭证号")
     private String lastJournalNo;
-    @Schema(title = "最后过账时间")
+    @Schema(title = "最后过账时�?)
     private Instant lastPostedAt;
     private Long createdBy;
     private Instant createdAt;

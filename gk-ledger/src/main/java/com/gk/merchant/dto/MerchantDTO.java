@@ -13,17 +13,17 @@ public class MerchantDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "商户号；不传则自动生成")
+    @Schema(title = "商户号；不传则自动生�?)
     private String merchantNo;
     @Schema(title = "商户名称")
     private String merchantName;
-    @Schema(title = "商户简称")
+    @Schema(title = "商户简�?)
     private String merchantShortName;
     @Schema(title = "商户类型")
     private String merchantType;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
-    @Schema(title = "风控状态")
+    @Schema(title = "风控状�?)
     private String riskStatus;
     @Schema(title = "国家编码")
     private String countryCode;
@@ -33,7 +33,7 @@ public class MerchantDTO {
     private String timezone;
     @Schema(title = "商户语言")
     private String lang;
-    @Schema(title = "联系人")
+    @Schema(title = "联系�?)
     private String contactName;
     @Schema(title = "联系邮箱")
     private String contactEmail;
@@ -47,7 +47,7 @@ public class MerchantDTO {
     private String settleMode;
     @Schema(title = "结算周期")
     private String settleCycle;
-    @Schema(title = "最小结算金额")
+    @Schema(title = "最小结算金�?)
     private BigDecimal minSettleAmount;
     @Schema(title = "商户扩展配置JSON")
     private String configJson;

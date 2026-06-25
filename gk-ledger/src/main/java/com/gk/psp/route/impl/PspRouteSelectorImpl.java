@@ -3,11 +3,8 @@ package com.gk.psp.route.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
-import com.gk.payment.constant.PaymentMethodCodes;
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspBankMappingDao;
 import com.gk.psp.dao.PspMethodDao;
@@ -19,6 +16,7 @@ import com.gk.psp.entity.PspBankMappingEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
 import com.gk.psp.entity.PspRouteRuleEntity;
+import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import com.gk.psp.route.PspRouteSelector;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +45,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private final ConcurrentHashMap<Long, CacheEntry<PspAccountEntity>> accountCache = new ConcurrentHashMap<>();
 
     @Override
-    public PspRouteResult selectPayin(PayOrderEntity order) {
+    public PspRouteResult selectPayin(PspOrderRequest order) {
         return select(
                 order.getTenantId(),
                 order.getMerchantId(),
@@ -62,7 +60,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     }
 
     @Override
-    public PspRouteResult selectPayout(PayoutOrderEntity order) {
+    public PspRouteResult selectPayout(PspOrderRequest order) {
         return select(
                 order.getTenantId(),
                 order.getMerchantId(),
@@ -93,7 +91,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         String normalizedBankCode = normalize(bankCode);
         String normalizedDirection = normalize(direction);
         if (requiresBankMapping(normalizedDirection, normalizedMethodCode) && StringUtils.isBlank(normalizedBankCode)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "payee.bank_code is required for BANK_CARD payout");
+            throw new GkException(ErrorCode.BAD_REQUEST, "payee.bank_code is required for BANK_CARD payout");
         }
         PspRouteRuleEntity rule = pspRouteRuleDao.selectBestRouteRuleForOrder(
                 tenantId,
@@ -109,13 +107,13 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 StatusEnum.NORMAL.code()
         );
         if (rule == null) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "No available PSP route");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "No available PSP route");
         }
         PspProviderEntity provider = requireProvider(rule.getPspId(), normalizedDirection);
         PspMethodEntity method = requireMethod(rule.getPspMethodId());
         PspAccountEntity account = requirePspAccount(rule.getPspAccountId());
         if (!routeMethodMatches(normalizedCountryCode, normalizedCurrency, normalizedMethodCode, normalizedDirection, method)) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP method does not match request method");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP method does not match request method");
         }
         PspBankMappingEntity bankMapping = bankMapping(normalizedCountryCode, normalizedCurrency, normalizedDirection, normalizedMethodCode, normalizedBankCode, rule.getPspId());
 
@@ -155,16 +153,20 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 .eq("status", StatusEnum.NORMAL.code())
                 .last("limit 1"));
         if (mapping == null || StringUtils.isBlank(mapping.getPspBankCode())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP bank mapping is not configured");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP bank mapping is not configured");
         }
         return mapping;
     }
 
     private boolean requiresBankMapping(String direction, String methodCode) {
         return PayDirectionEnum.PAYOUT.code().equals(direction)
-                && PaymentMethodCodes.isBankCard(methodCode);
+                && isBankCardMethod(methodCode);
     }
 
+
+    private boolean isBankCardMethod(String methodCode) {
+        return "BANK_CARD".equalsIgnoreCase(StringUtils.trim(methodCode));
+    }
     private String platformCallbackUrl(String pspCode, String direction) {
         if (PayDirectionEnum.PAYOUT.code().equals(direction)) {
             return callbackUrlBuilder.payoutCallbackUrl(pspCode);
@@ -175,13 +177,13 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private PspProviderEntity requireProvider(Long pspId, String direction) {
         PspProviderEntity provider = cached(providerCache, pspId, pspProviderDao::selectById);
         if (provider == null || !StatusEnum.NORMAL.code().equals(provider.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP provider is not available");
         }
         boolean supported = PayDirectionEnum.PAYOUT.code().equals(direction)
                 ? Integer.valueOf(1).equals(provider.getSupportPayout())
                 : Integer.valueOf(1).equals(provider.getSupportPayin());
         if (!supported) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP provider is not available");
         }
         return provider;
     }
@@ -189,7 +191,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private PspMethodEntity requireMethod(Long pspMethodId) {
         PspMethodEntity method = cached(methodCache, pspMethodId, pspMethodDao::selectById);
         if (method == null || !StatusEnum.NORMAL.code().equals(method.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP method is not available");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP method is not available");
         }
         return method;
     }
@@ -197,7 +199,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private PspAccountEntity requirePspAccount(Long pspAccountId) {
         PspAccountEntity account = cached(accountCache, pspAccountId, pspAccountDao::selectById);
         if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP account is not available");
+            throw new GkException(ErrorCode.NOT_ACCEPTABLE, "PSP account is not available");
         }
         return account;
     }

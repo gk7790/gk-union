@@ -10,9 +10,9 @@ public class PaymentRouteGroupDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
-    @Schema(title = "路由组编码")
+    @Schema(title = "路由组编�?)
     private String groupCode;
-    @Schema(title = "路由组名称")
+    @Schema(title = "路由组名�?)
     private String groupName;
     @Schema(title = "交易方向: PAYIN/PAYOUT")
     private String direction;
@@ -24,7 +24,7 @@ public class PaymentRouteGroupDTO {
     private String methodCode;
     @Schema(title = "组内策略")
     private String strategy;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
     @Schema(title = "备注")
     private String remark;

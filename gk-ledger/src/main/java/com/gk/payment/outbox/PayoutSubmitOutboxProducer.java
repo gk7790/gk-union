@@ -16,12 +16,10 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 
 /**
- * 代付提交 outbox 事件生产器。
- * <p>
- * OpenAPI 创建正式代付订单时，会先落 {@code payout_order}，再在同一个事务中调用本类创建
- * {@code PAYOUT_SUBMIT_REQUESTED} 事件。事件落库后由 {@link PayoutSubmitOutboxTask}
- * 异步锁定并交给 {@link PayoutSubmitOutboxConsumer} 冻结余额、提交 PSP。
- */
+ * 代付提交 outbox 事件生产器�? * <p>
+ * OpenAPI 创建正式代付订单时，会先�?{@code payout_order}，再在同一个事务中调用本类创建
+ * {@code PAYOUT_SUBMIT_REQUESTED} 事件。事件落库后�?{@link PayoutSubmitOutboxTask}
+ * 异步锁定并交�?{@link PayoutSubmitOutboxConsumer} 冻结余额、提�?PSP�? */
 @Component
 @RequiredArgsConstructor
 public class PayoutSubmitOutboxProducer {
@@ -31,11 +29,9 @@ public class PayoutSubmitOutboxProducer {
     private final MqOutboxService mqOutboxService;
 
     /**
-     * 为新代付订单创建一条提交 PSP 的 outbox 事件。
-     * <p>
-     * 事件以 {@code tenant_id + biz_type + biz_no + event_type} 做业务幂等，
-     * 重复调用时 {@link MqOutboxService#createIfAbsent(MqOutboxEntity)} 会返回已有事件。
-     */
+     * 为新代付订单创建一条提�?PSP �?outbox 事件�?     * <p>
+     * 事件�?{@code tenant_id + biz_type + biz_no + event_type} 做业务幂等，
+     * 重复调用�?{@link MqOutboxService#createIfAbsent(MqOutboxEntity)} 会返回已有事件�?     */
     public MqOutboxEntity create(PayoutOrderEntity order) {
         PayoutSubmitOutboxPayload payload = new PayoutSubmitOutboxPayload(
                 order.getTenantId(),
@@ -74,8 +70,7 @@ public class PayoutSubmitOutboxProducer {
     }
 
     /**
-     * 从当前 OpenAPI 请求上下文带出 traceId，方便异步任务和原始请求串联排查。
-     */
+     * 从当�?OpenAPI 请求上下文带�?traceId，方便异步任务和原始请求串联排查�?     */
     private String traceId() {
         ApiReqContext context = ApiReqContextHolder.get();
         return context == null ? null : context.getTraceId();

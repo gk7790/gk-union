@@ -28,10 +28,10 @@ public class MerchantNotifyTaskController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:page')")
     public R<?> page(@RequestMap DynMap params) {
@@ -47,7 +47,7 @@ public class MerchantNotifyTaskController {
     }
 
     @PostMapping("{id}/resend")
-    @Operation(summary = "手动重发", description = "立即同步重发该商户通知一次; 成功提示通知成功, 失败返回 msg, 详情见通知记录")
+    @Operation(summary = "手动重发", description = "立即同步重发该商户通知一�? 成功提示通知成功, 失败返回 msg, 详情见通知记录")
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
     public R<Void> resend(@PathVariable("id") Long id) {
         return R.fromResult(merchantNotifyExecutor.resend(id));

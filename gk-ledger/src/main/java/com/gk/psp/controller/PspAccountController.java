@@ -9,18 +9,11 @@ import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
 import com.gk.psp.dto.PspAccountDTO;
 import com.gk.psp.service.PspAccountService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.Parameters;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
-@Tag(name = "PSP账户")
 @RestController
 @RequestMapping("/psp/account")
 @RequiredArgsConstructor
@@ -28,13 +21,6 @@ public class PspAccountController {
     private final PspAccountService pspAccountService;
 
     @GetMapping("page")
-    @Operation(summary = "分页")
-    @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
-    })
     @PreAuthorize("hasAuthority('psp:account:page')")
     public R<?> page(@RequestMap DynMap params) {
         PageData<PspAccountDTO> page = pspAccountService.page(params);
@@ -42,23 +28,17 @@ public class PspAccountController {
     }
 
     @GetMapping("dict")
-    @Operation(summary = "PSP账户字典", description = "按租户/PSP查询可用账户列表，供路由规则等表单选择使用")
-    @Parameters({
-            @Parameter(name = "pspId", description = "PSP ID", in = ParameterIn.QUERY)
-    })
     public R<List<LabelDTO>> dict(@RequestMap DynMap params) {
         return R.ok(pspAccountService.getDict(params));
     }
 
     @GetMapping("{id}")
-    @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('psp:account:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(pspAccountService.get(id));
     }
 
     @PostMapping
-    @Operation(summary = "保存")
     @PreAuthorize("hasAuthority('psp:account:save')")
     public R<?> save(@RequestBody PspAccountDTO dto) {
         pspAccountService.save(dto);
@@ -66,7 +46,6 @@ public class PspAccountController {
     }
 
     @PutMapping("{id}")
-    @Operation(summary = "修改")
     @PreAuthorize("hasAuthority('psp:account:update')")
     public R<?> update(@PathVariable("id") Long id, @RequestBody PspAccountDTO dto) {
         AssertUtils.isReserved(id);
@@ -76,7 +55,6 @@ public class PspAccountController {
     }
 
     @DeleteMapping
-    @Operation(summary = "删除")
     @PreAuthorize("hasAuthority('psp:account:delete')")
     public R<?> delete(@RequestParam Long[] ids) {
         AssertUtils.isArrayEmpty(ids, "id");

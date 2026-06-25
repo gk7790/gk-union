@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 订单状态日志中的订单类型（代收/代付）。
+ * 订单状态日志中的订单类型（代收/代付）�?
  */
 @EnumDict("orderType")
 public enum OrderTypeEnum implements StringCodeEnum {

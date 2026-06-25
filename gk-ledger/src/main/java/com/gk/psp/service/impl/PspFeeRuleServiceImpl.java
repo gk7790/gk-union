@@ -11,12 +11,6 @@ import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
-import com.gk.payment.plan.PayinPlanCache;
-import com.gk.payment.plan.PaymentPlanCacheService;
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
@@ -26,6 +20,7 @@ import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.fee.PspFeeCalculator;
 import com.gk.psp.fee.PspFeeResult;
+import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.service.PspFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -42,10 +37,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFeeRuleEntity, PspFeeRuleDTO> implements PspFeeRuleService {
-    @Autowired
-    private PayinPlanCache payinPlanCache;
-    @Autowired
-    private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private PspMethodDao pspMethodDao;
     @Autowired
@@ -114,7 +105,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     }
 
     @Override
-    public PspFeeResult calculatePayin(PayOrderEntity order) {
+    public PspFeeResult calculatePayin(PspOrderRequest order) {
         return calculate(
                 order.getTenantId(),
                 order.getPspId(),
@@ -129,7 +120,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     }
 
     @Override
-    public PspFeeResult calculatePayout(PayoutOrderEntity order) {
+    public PspFeeResult calculatePayout(PspOrderRequest order) {
         return calculate(
                 order.getTenantId(),
                 order.getPspId(),
@@ -159,7 +150,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         try {
             feeAmount = PspFeeCalculator.calculate(orderAmount, rule);
         } catch (IllegalArgumentException ex) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, ex.getMessage());
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
         }
 
         PspFeeResult result = new PspFeeResult();
@@ -195,7 +186,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
                 StatusEnum.NORMAL.code()
         );
         if (rule == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP fee rule is not configured");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         return rule;
     }
@@ -229,11 +220,11 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             return;
         }
         if (dto.getPspMethodId() == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不能为空");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         PspMethodEntity method = pspMethodDao.selectById(dto.getPspMethodId());
         if (method == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不存在");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         // Keep PSP fee rule snapshots consistent with the selected PSP Method.
         dto.setPspId(method.getPspId());
@@ -246,18 +237,18 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
             return;
         }
         if (dto.getPspAccountId() == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不能为空");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
 
         PspAccountEntity account = pspAccountDao.selectById(dto.getPspAccountId());
         if (account == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不存在");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         if (account.getTenantId() == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号未配置租户");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         if (dto.getPspId() != null && !dto.getPspId().equals(account.getPspId())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP成本费率的PSP与PSP账号不一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
 
         // Cost fee rule tenant follows the selected PSP account; client tenantId is ignored on save/update.
@@ -270,12 +261,6 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     }
 
     private void evictPayinPlanCache() {
-        // PSP 成本费率会影响 PayinPlan 的成本核算字段，变更后必须清空缓存。
-        if (payinPlanCache != null) {
-            payinPlanCache.evictAll();
-        }
-        if (paymentPlanCacheService != null) {
-            paymentPlanCacheService.evictAll();
-        }
+        // PSP ģ�鲻ֱ������ payment ���棬������ģ���¼�ͳһ������
     }
 }

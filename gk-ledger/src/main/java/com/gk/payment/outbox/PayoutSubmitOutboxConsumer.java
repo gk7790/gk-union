@@ -15,6 +15,7 @@ import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspProviderDao;
+import com.gk.payment.psp.PspOrderRequests;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.callback.support.PspCallbackUrlBuilder;
 import com.gk.psp.entity.PspAccountEntity;
@@ -31,12 +32,9 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 
 /**
- * 代付提交 outbox 业务消费者。
- * <p>
- * 本类负责执行一条 {@link PayoutSubmitOutboxPayload} 对应的真实业务动作：
- * 读取代付订单、必要时冻结商户余额、按订单上已固化的 PSP 路由快照提交 PSP，
- * 并推进订单状态。重试、死信和 outbox 状态更新由 {@link PayoutSubmitOutboxTask} 负责。
- */
+ * 代付提交 outbox 业务消费者�? * <p>
+ * 本类负责执行一�?{@link PayoutSubmitOutboxPayload} 对应的真实业务动作：
+ * 读取代付订单、必要时冻结商户余额、按订单上已固化�?PSP 路由快照提交 PSP�? * 并推进订单状态。重试、死信和 outbox 状态更新由 {@link PayoutSubmitOutboxTask} 负责�? */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -51,11 +49,8 @@ public class PayoutSubmitOutboxConsumer {
     private final OrderStatusLogService orderStatusLogService;
 
     /**
-     * 消费单条 outbox payload。
-     * <p>
-     * 方法具备业务幂等：如果订单已经进入 PROCESSING/SUCCESS/FAILED/CANCELLED，
-     * 说明已提交或已终结，直接返回，让 outbox 事件可以被标记为完成。
-     */
+     * 消费单条 outbox payload�?     * <p>
+     * 方法具备业务幂等：如果订单已经进�?PROCESSING/SUCCESS/FAILED/CANCELLED�?     * 说明已提交或已终结，直接返回，让 outbox 事件可以被标记为完成�?     */
     public void consume(String payloadJson) {
         PayoutSubmitOutboxPayload payload = JSON.parseObject(payloadJson, PayoutSubmitOutboxPayload.class);
         if (payload == null || StringUtils.isBlank(payload.payoutOrderNo())) {
@@ -76,8 +71,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 判断订单是否已经无需再次提交 PSP。
-     */
+     * 判断订单是否已经无需再次提交 PSP�?     */
     private boolean isTerminalOrAlreadySubmitted(PayoutOrderEntity order) {
         return PayoutOrderStatusEnum.PROCESSING.code().equals(order.getStatus())
                 || PayoutOrderStatusEnum.SUCCESS.code().equals(order.getStatus())
@@ -86,11 +80,8 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 在提交 PSP 前冻结商户可用余额。
-     * <p>
-     * 如果订单已有 holdNo，说明此前已经冻结成功，重试时不再重复冻结。
-     * 如果冻结成功但更新订单失败，会尝试释放冻结资金，避免资金长期卡在冻结户。
-     */
+     * 在提�?PSP 前冻结商户可用余额�?     * <p>
+     * 如果订单已有 holdNo，说明此前已经冻结成功，重试时不再重复冻结�?     * 如果冻结成功但更新订单失败，会尝试释放冻结资金，避免资金长期卡在冻结户�?     */
     private void freezeIfNeeded(PayoutOrderEntity order) {
         if (StringUtils.isNotBlank(order.getHoldNo())) {
             return;
@@ -118,14 +109,12 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 使用订单保存的路由快照提交 PSP。
-     * <p>
-     * 这里不重新解析支付方案，避免异步消费时后台配置变化导致路由、账户或费率与下单时不一致。
-     */
+     * 使用订单保存的路由快照提�?PSP�?     * <p>
+     * 这里不重新解析支付方案，避免异步消费时后台配置变化导致路由、账户或费率与下单时不一致�?     */
     private void submitToPsp(PayoutOrderEntity order) {
         try {
             PspRouteResult route = routeSnapshot(order);
-            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(order, route);
+            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(order), route);
             applyDispatchResult(order, dispatchResult);
             if (!dispatchResult.isSuccess()) {
                 releasePayout(order);
@@ -144,11 +133,9 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 从订单固化字段和当前 PSP 资源表重建提交所需的路由对象。
-     * <p>
+     * 从订单固化字段和当前 PSP 资源表重建提交所需的路由对象�?     * <p>
      * 订单保存 PSP/路由 ID 和快照字段；密钥、baseUrl、配置等敏感信息只从 PSP 资源表读取，
-     * 不进入 outbox payload 或订单快照。
-     */
+     * 不进�?outbox payload 或订单快照�?     */
     private PspRouteResult routeSnapshot(PayoutOrderEntity order) {
         if (order.getPspId() == null || order.getPspAccountId() == null || StringUtils.isBlank(order.getPspCode())) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "PSP route snapshot is incomplete");
@@ -182,8 +169,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 从订单路由快照 JSON 中读取非敏感路由字段，例如 PSP 侧银行编码。
-     */
+     * 从订单路由快�?JSON 中读取非敏感路由字段，例�?PSP 侧银行编码�?     */
     private String routeSnapshotValue(String routeSnapshotJson, String key) {
         if (StringUtils.isBlank(routeSnapshotJson)) {
             return null;
@@ -198,8 +184,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 把 PSP 提交结果回写到代付订单。
-     */
+     * �?PSP 提交结果回写到代付订单�?     */
     private void applyDispatchResult(PayoutOrderEntity order, PspPayoutDispatchResult result) {
         String fromStatus = order.getStatus();
         order.setPspRequestNo(result.getPspRequestNo());
@@ -223,8 +208,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 将订单标记为失败并记录状态变更。
-     */
+     * 将订单标记为失败并记录状态变更�?     */
     private void markFailed(PayoutOrderEntity order, String reason, String failCode) {
         String fromStatus = order.getStatus();
         order.setStatus(PayoutOrderStatusEnum.FAILED.code());
@@ -238,10 +222,8 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * PSP 提交失败或消费异常时释放已冻结资金。
-     * <p>
-     * 已释放过的订单通过 releaseJournalNo 跳过，保证重试路径不会重复释放。
-     */
+     * PSP 提交失败或消费异常时释放已冻结资金�?     * <p>
+     * 已释放过的订单通过 releaseJournalNo 跳过，保证重试路径不会重复释放�?     */
     private void releasePayout(PayoutOrderEntity order) {
         if (StringUtils.isBlank(order.getHoldNo()) || StringUtils.isNotBlank(order.getReleaseJournalNo())) {
             return;
@@ -257,8 +239,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 构建账务冻结/释放请求，字段必须与订单落库快照保持一致。
-     */
+     * 构建账务冻结/释放请求，字段必须与订单落库快照保持一致�?     */
     private PayoutPostingRequest payoutPostingRequest(PayoutOrderEntity order) {
         PayoutPostingRequest request = new PayoutPostingRequest();
         request.setTenantId(order.getTenantId());
@@ -277,8 +258,7 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 异步记录订单状态日志，不阻塞 outbox 主处理流程。
-     */
+     * 异步记录订单状态日志，不阻�?outbox 主处理流程�?     */
     private void recordStatusChange(PayoutOrderEntity order,
                                     String fromStatus,
                                     String toStatus,

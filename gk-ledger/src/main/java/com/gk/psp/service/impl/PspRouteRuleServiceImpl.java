@@ -7,8 +7,6 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.service.LedgerAccountService;
-import com.gk.payment.plan.PaymentPlanCacheService;
-import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspRouteRuleDao;
@@ -27,8 +25,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, PspRouteRuleEntity, PspRouteRuleDTO> implements PspRouteRuleService {
 
     private final LedgerAccountService ledgerAccountService;
-    private final PayinPlanCache payinPlanCache;
-    private final PaymentPlanCacheService paymentPlanCacheService;
     private final PspMethodDao pspMethodDao;
     private final PspAccountDao pspAccountDao;
 
@@ -108,38 +104,35 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         }
         PspMethodEntity method = dto.getPspMethodId() == null ? null : pspMethodDao.selectById(dto.getPspMethodId());
         if (method == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP支付方式不存在");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
         }
         if (!equalsLong(dto.getPspId(), method.getPspId())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP支付方式不一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route rule provider does not match PSP method");
         }
         if (!equalsCode(dto.getCurrency(), method.getCurrency())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的币种必须与PSP支付方式一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route rule currency must match PSP method");
         }
         if (!equalsCode(dto.getDirection(), method.getDirection())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的方向必须与PSP支付方式一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route rule direction must match PSP method");
         }
         if (StringUtils.isNotBlank(dto.getCountryCode()) && !equalsCode(dto.getCountryCode(), method.getCountryCode())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的国家/地区必须与PSP支付方式一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route rule country must match PSP method");
         }
 
         PspAccountEntity account = dto.getPspAccountId() == null ? null : pspAccountDao.selectById(dto.getPspAccountId());
         if (account == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号不存在");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP account not found");
         }
         if (!equalsLong(dto.getPspId(), account.getPspId())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由规则的PSP与PSP账号不一致");
+            throw new GkException(ErrorCode.BAD_REQUEST, "Route rule provider does not match PSP account");
         }
         if (account.getTenantId() == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "PSP账号未配置租户");
+            throw new GkException(ErrorCode.BAD_REQUEST, "PSP account tenant is not configured");
         }
 
-        // Route rule tenant follows the selected PSP account, so clients do not need to submit tenantId.
         dto.setTenantId(account.getTenantId());
-        // Route methodCode is derived from psp_method_id; client methodCode is ignored on save/update.
         dto.setMethodCode(StrUtil.trim(method.getMethodCode()));
     }
-
     private boolean equalsCode(String left, String right) {
         return StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
     }
@@ -149,8 +142,6 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     }
 
     private void evictPayinPlanCache() {
-        // PSP route rules affect upstream selection, so config changes must clear plan caches.
-        payinPlanCache.evictAll();
-        paymentPlanCacheService.evictAll();
+        // PSP ģ�鲻ֱ������ payment ���棬������ģ���¼�ͳһ������
     }
 }

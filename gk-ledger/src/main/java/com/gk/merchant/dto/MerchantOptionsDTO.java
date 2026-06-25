@@ -11,7 +11,7 @@ import java.util.List;
 @Schema(description = "商户主体范围下拉选项")
 public class MerchantOptionsDTO {
 
-    @Schema(description = "商户列表，租户/平台用户返回")
+    @Schema(description = "商户列表，租�?平台用户返回")
     private List<MerchantDTO> merchants;
 
     @Schema(description = "商户APP列表")

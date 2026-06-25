@@ -6,15 +6,14 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 订单下游商户通知状态。
- */
+ * 订单下游商户通知状态�? */
 @EnumDict("merchantNotifyStatus")
 public enum MerchantNotifyStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
     NONE("NONE", "无需通知", "enum.merchantNotifyStatus.none"),
 
     @Style(StyleType.PRIMARY)
-    PENDING("PENDING", "通知中", "enum.merchantNotifyStatus.pending"),
+    PENDING("PENDING", "通知�?, "enum.merchantNotifyStatus.pending"),
 
     @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "通知成功", "enum.merchantNotifyStatus.success"),

@@ -11,7 +11,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 商户 Open API 模型标记: JSON 字段统一 snake_case, 不接受别名。
+ * 商户 Open API 模型标记: JSON 字段统一 snake_case, 不接受别名�?
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

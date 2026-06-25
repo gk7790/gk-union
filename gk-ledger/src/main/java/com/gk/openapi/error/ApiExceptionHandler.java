@@ -53,8 +53,7 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * OpenAPI 兜底异常代表系统异常，推送到 Telegram 平台告警群。
-     */
+     * OpenAPI 兜底异常代表系统异常，推送到 Telegram 平台告警群�?     */
     private void sendSystemErrorAlert(Exception ex, HttpServletRequest request) {
         TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
         if (tgAlertService == null) {
@@ -71,8 +70,7 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * 告警内容只保留定位信息，不输出请求体、签名或密钥类敏感字段。
-     */
+     * 告警内容只保留定位信息，不输出请求体、签名或密钥类敏感字段�?     */
     private String buildAlertContent(ApiReqContext context, Exception ex, HttpServletRequest request) {
         StringBuilder content = new StringBuilder();
         appendRequestLine(content, request);
@@ -92,8 +90,7 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * 组装 OpenAPI 请求入口，便于从告警反查具体接口。
-     */
+     * 组装 OpenAPI 请求入口，便于从告警反查具体接口�?     */
     private void appendRequestLine(StringBuilder content, HttpServletRequest request) {
         if (request == null) {
             return;

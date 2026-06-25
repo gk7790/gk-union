@@ -29,10 +29,10 @@ public class PayOrderController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('payment:pay-order:page')")
     public R<?> page(@RequestMap DynMap params) {
@@ -48,7 +48,7 @@ public class PayOrderController {
     }
 
     @PostMapping("{id}/release-settle")
-    @Operation(summary = "手动释放待结算", description = "将代收成功且 settle_status=PENDING 的订单释放至商户可用余额")
+    @Operation(summary = "手动释放待结�?, description = "将代收成功且 settle_status=PENDING 的订单释放至商户可用余额")
     @PreAuthorize("hasAuthority('payment:pay-order:release-settle')")
     public R<Void> releaseSettle(@PathVariable("id") Long id) {
         AssertUtils.isNull(id, "id");

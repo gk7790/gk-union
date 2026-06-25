@@ -8,10 +8,10 @@ import com.gk.common.enums.StyleType;
 @EnumDict("merchantBalanceAdjustStatus")
 public enum MerchantBalanceAdjustStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    CREATED("CREATED", "已创建", "enum.merchantBalanceAdjustStatus.created"),
+    CREATED("CREATED", "已创�?, "enum.merchantBalanceAdjustStatus.created"),
 
     @Style(StyleType.SUCCESS)
-    POSTED("POSTED", "已入账", "enum.merchantBalanceAdjustStatus.posted"),
+    POSTED("POSTED", "已入�?, "enum.merchantBalanceAdjustStatus.posted"),
 
     @Style(StyleType.DANGER)
     FAILED("FAILED", "失败", "enum.merchantBalanceAdjustStatus.failed");

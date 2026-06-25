@@ -1,11 +1,12 @@
 package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.psp.adapter.PspPayAdapter;
+import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
+
 import com.gk.psp.query.PspOrderQueryResult;
+import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,7 @@ public class DemoPspPayAdapter implements PspPayAdapter {
     }
 
     @Override
-    public PspPayDispatchResult createPayOrder(PayOrderEntity order, PspRouteResult route) {
+    public PspPayDispatchResult createPayOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_PAY_BASE_URL);
 
         PspPayDispatchResult result = new PspPayDispatchResult();
@@ -35,12 +36,12 @@ public class DemoPspPayAdapter implements PspPayAdapter {
         result.setRequestUrl(baseUrl + "/open-api/create-pay-order");
         result.setHttpMethod("POST");
         result.setRequestHeadersJson("{\"Content-Type\":\"application/json\"}");
-        result.setRequestBody("{\"merchant_order_id\":\"" + order.getPayOrderNo() + "\",\"amount\":\""
+        result.setRequestBody("{\"merchant_order_id\":\"" + order.getOrderNo() + "\",\"amount\":\""
                 + order.getAmount() + "\",\"currency\":\"" + order.getCurrency() + "\"}");
         result.setResponseStatus(200);
-        result.setPspOrderNo("PSP" + order.getPayOrderNo());
-        result.setPspMerchantOrderNo(order.getPayOrderNo());
-        result.setPayUrl(baseUrl + "/pay/" + order.getPayOrderNo());
+        result.setPspOrderNo("PSP" + order.getOrderNo());
+        result.setPspMerchantOrderNo(order.getOrderNo());
+        result.setPayUrl(baseUrl + "/pay/" + order.getOrderNo());
         result.setRawStatus("PROCESSING");
         result.setResponseCode("200");
         result.setResponseMessage("success");
@@ -49,24 +50,24 @@ public class DemoPspPayAdapter implements PspPayAdapter {
     }
 
     @Override
-    public PspOrderQueryResult queryPayOrder(PayOrderEntity order, PspRouteResult route) {
+    public PspOrderQueryResult queryPayOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_PAY_BASE_URL);
-        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getPayOrderNo());
+        String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getOrderNo());
         return PspOrderQueryResult.builder()
                 .success(true)
                 .pspCode(route.getPspCode())
-                .systemOrderNo(order.getPayOrderNo())
+                .systemOrderNo(order.getOrderNo())
                 .merchantOrderNo(order.getMerchantOrderNo())
                 .pspOrderNo(pspOrderNo)
-                .pspStatus(PayOrderStatusEnum.PROCESSING.code())
-                .orderStatus(PayOrderStatusEnum.PROCESSING.code())
+                .pspStatus(PspCallbackUtils.STATUS_PROCESSING)
+                .orderStatus(PspCallbackUtils.STATUS_PROCESSING)
                 .amount(order.getAmount())
                 .currency(order.getCurrency())
                 .pspRequestNo(BizKeyUtils.genPspRequestNo())
                 .requestUrl(baseUrl + "/open-api/query-pay-order")
                 .httpMethod("POST")
                 .requestHeadersJson("{\"Content-Type\":\"application/json\"}")
-                .requestBody("{\"merchant_order_id\":\"" + order.getPayOrderNo() + "\"}")
+                .requestBody("{\"merchant_order_id\":\"" + order.getOrderNo() + "\"}")
                 .responseStatus(200)
                 .responseCode("200")
                 .responseMessage("success")

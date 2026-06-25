@@ -17,7 +17,7 @@ public class PspRequestLogEntity extends SimpleEntity {
     private Long pspId;
     /** PSP编码快照 */
     private String pspCode;
-    /** 业务类型: PAY_ORDER/PAYOUT_ORDER/QUERY/REFUND等 */
+    /** 业务类型: PAY_ORDER/PAYOUT_ORDER/QUERY/REFUND�?*/
     private String bizType;
     /** 业务ID */
     private Long bizId;
@@ -27,23 +27,23 @@ public class PspRequestLogEntity extends SimpleEntity {
     private String requestNo;
     /** PSP请求编号 */
     private String pspRequestNo;
-    /** PSP订单号 */
+    /** PSP订单�?*/
     private String pspOrderNo;
     /** 请求URL */
     private String requestUrl;
     /** HTTP方法 */
     private String httpMethod;
-    /** 请求头JSON，敏感字段需要脱敏 */
+    /** 请求头JSON，敏感字段需要脱�?*/
     private String requestHeadersJson;
-    /** 请求体，敏感字段需要脱敏 */
+    /** 请求体，敏感字段需要脱�?*/
     private String requestBody;
     /** HTTP响应状态码 */
     private Integer responseStatus;
-    /** 响应体，敏感字段需要脱敏 */
+    /** 响应体，敏感字段需要脱�?*/
     private String responseBody;
-    /** 是否成功: 0否 1是 */
+    /** 是否成功: 0�?1�?*/
     private Integer success;
-    /** 错误码 */
+    /** 错误�?*/
     private String errorCode;
     /** 错误信息 */
     private String errorMsg;

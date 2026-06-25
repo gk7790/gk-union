@@ -22,15 +22,15 @@ public class MerchantAppDTO {
     private String appType;
     @Schema(title = "应用环境")
     private String appEnv;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
     @Schema(title = "签名类型")
     private String signType;
     @Schema(title = "加密类型")
     private String encryptType;
-    @Schema(title = "API密钥；详情/创建/重置返回完整值，列表脱敏")
+    @Schema(title = "API密钥；详�?创建/重置返回完整值，列表脱敏")
     private String apiSecret;
-    @Schema(title = "密钥版本号")
+    @Schema(title = "密钥版本�?)
     private Integer secretVersion;
     @Schema(title = "密钥更新时间")
     private Instant secretUpdatedAt;
@@ -50,7 +50,7 @@ public class MerchantAppDTO {
     private String allowedMethodJson;
     @Schema(title = "接口限流QPS")
     private Integer rateLimitQps;
-    @Schema(title = "nonce防重放有效秒数")
+    @Schema(title = "nonce防重放有效秒�?)
     private Integer nonceTtlSeconds;
     @Schema(title = "应用扩展配置JSON")
     private String configJson;

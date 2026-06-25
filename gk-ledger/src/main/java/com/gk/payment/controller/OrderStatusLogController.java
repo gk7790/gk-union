@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "订单状态日志")
+@Tag(name = "订单状态日�?)
 @RestController
 @RequestMapping("/payment/order-status-log")
 @RequiredArgsConstructor
@@ -29,10 +29,10 @@ public class OrderStatusLogController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('payment:order-status-log:page')")
     public R<?> page(@RequestMap DynMap params) {

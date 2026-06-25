@@ -6,8 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 代付长时间处理中转人工处理定时任务。
- */
+ * 代付长时间处理中转人工处理定时任务�? */
 @Component("payoutOrderExceptionTask")
 @RequiredArgsConstructor
 public class PayoutOrderExceptionTask implements ITask {

@@ -45,12 +45,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     private final OrderStatusLogService orderStatusLogService;
 
     /**
-     * 代收订单成功入账后的结算入口。
-     * <p>
-     * PSP 回调或主动查单确认代收成功后，账务先把商户净额记入待结算账户。
-     * 本方法负责根据商户结算周期计算计划释放时间；若商户是 AUTO 模式且已到释放时间，
-     * 则继续调用 {@link #releaseSettle(Long)} 把待结算余额释放到商户可用余额。
-     *
+     * 代收订单成功入账后的结算入口�?     * <p>
+     * PSP 回调或主动查单确认代收成功后，账务先把商户净额记入待结算账户�?     * 本方法负责根据商户结算周期计算计划释放时间；若商户是 AUTO 模式且已到释放时间，
+     * 则继续调�?{@link #releaseSettle(Long)} 把待结算余额释放到商户可用余额�?     *
      * @param orderId 代收订单ID
      */
     @Override
@@ -85,12 +82,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 单笔释放待结算余额至商户可用余额。
-     * <p>
+     * 单笔释放待结算余额至商户可用余额�?     * <p>
      * 适用于运营手动释放，或自动结算任务内部调用。方法会校验订单必须是代收成功且
-     * settle_status=PENDING，然后调用账务服务生成 SETTLE_RELEASE 凭证，最后回写订单
-     * 的释放状态、释放时间和账务凭证号。
-     *
+     * settle_status=PENDING，然后调用账务服务生�?SETTLE_RELEASE 凭证，最后回写订�?     * 的释放状态、释放时间和账务凭证号�?     *
      * @param orderId 代收订单ID
      */
     @Override
@@ -144,14 +138,10 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 扫描到期的待结算代收订单并自动释放。
-     * <p>
-     * 供 {@code paySettleReleaseTask} 定时任务调用。只处理订单状态为 SUCCESS、
-     * settle_status=PENDING 且 settle_release_at 已到期的订单；再次读取商户配置，
-     * 确认商户仍为 AUTO 结算模式后才执行释放，避免商户结算模式变更后继续自动释放。
-     *
-     * @return 本轮成功释放的订单数量
-     */
+     * 扫描到期的待结算代收订单并自动释放�?     * <p>
+     * �?{@code paySettleReleaseTask} 定时任务调用。只处理订单状态为 SUCCESS�?     * settle_status=PENDING �?settle_release_at 已到期的订单；再次读取商户配置，
+     * 确认商户仍为 AUTO 结算模式后才执行释放，避免商户结算模式变更后继续自动释放�?     *
+     * @return 本轮成功释放的订单数�?     */
     @Override
     public int drainDueSettlements() {
         Instant now = Instant.now();
@@ -179,14 +169,10 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 扫描超时未支付的代收订单并关闭。
-     * <p>
-     * 供 {@code payOrderCloseTask} 定时任务调用。只扫描 expire_at 已到期、未支付、
-     * 未入账的 CREATED/PROCESSING 订单，并通过条件更新改为 CLOSED，避免与支付成功
-     * 回调或主动查单并发时误关闭已支付订单。
-     *
-     * @return 本轮成功关闭的订单数量
-     */
+     * 扫描超时未支付的代收订单并关闭�?     * <p>
+     * �?{@code payOrderCloseTask} 定时任务调用。只扫描 expire_at 已到期、未支付�?     * 未入账的 CREATED/PROCESSING 订单，并通过条件更新改为 CLOSED，避免与支付成功
+     * 回调或主动查单并发时误关闭已支付订单�?     *
+     * @return 本轮成功关闭的订单数�?     */
     @Override
     public int drainExpiredPayOrders() {
         Instant now = Instant.now();
@@ -212,10 +198,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 扫描长时间处理中的代收订单并转人工处理。
-     * <p>
-     * 触发条件与代付一致：主动查单次数达到上限，或提交 PSP 后超过 SLA 仍未终态。
-     */
+     * 扫描长时间处理中的代收订单并转人工处理�?     * <p>
+     * 触发条件与代付一致：主动查单次数达到上限，或提交 PSP 后超�?SLA 仍未终态�?     */
     @Override
     public int drainLongProcessingOrders() {
         Instant now = Instant.now();
@@ -265,13 +249,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 关闭单笔超时代收订单。
-     * <p>
-     * 使用条件更新保证幂等和并发安全：只有订单仍处于 CREATED/PROCESSING 且未支付时
-     * 才会转为 CLOSED。关闭成功后记录订单状态轨迹，方便运营追踪超时关单原因。
-     *
-     * @param order 待关闭订单
-     * @param now 本轮扫描时间
+     * 关闭单笔超时代收订单�?     * <p>
+     * 使用条件更新保证幂等和并发安全：只有订单仍处�?CREATED/PROCESSING 且未支付�?     * 才会转为 CLOSED。关闭成功后记录订单状态轨迹，方便运营追踪超时关单原因�?     *
+     * @param order 待关闭订�?     * @param now 本轮扫描时间
      * @return 是否实际完成关闭
      */
     private boolean closeExpiredPayOrder(PayOrderEntity order, Instant now) {
@@ -306,10 +286,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 判断订单是否可以按商户配置自动释放待结算余额。
-     * <p>
-     * 只有商户结算模式为 AUTO，且计划释放时间不晚于当前时间时，才允许定时任务自动释放。
-     *
+     * 判断订单是否可以按商户配置自动释放待结算余额�?     * <p>
+     * 只有商户结算模式�?AUTO，且计划释放时间不晚于当前时间时，才允许定时任务自动释放�?     *
      * @param merchant 商户
      * @param releaseAt 计划释放时间
      * @return 是否允许自动释放
@@ -322,11 +300,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 构建待结算释放的账务请求。
-     * <p>
-     * releasePaySettle 需要知道商户、订单、币种、实收金额、商户手续费和待释放净额。
-     * paidAmount 为空或为 0 时回退到订单原始金额，兼容部分 PSP 未回传实付金额的场景。
-     *
+     * 构建待结算释放的账务请求�?     * <p>
+     * releasePaySettle 需要知道商户、订单、币种、实收金额、商户手续费和待释放净额�?     * paidAmount 为空或为 0 时回退到订单原始金额，兼容部分 PSP 未回传实付金额的场景�?     *
      * @param order 代收订单
      * @return 账务释放请求
      */
@@ -348,14 +323,11 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 选择有效金额。
-     * <p>
-     * 优先使用大于 0 的主金额；主金额为空或非正数时，使用兜底金额。
-     *
+     * 选择有效金额�?     * <p>
+     * 优先使用大于 0 的主金额；主金额为空或非正数时，使用兜底金额�?     *
      * @param primary 优先金额
      * @param fallback 兜底金额
-     * @return 最终金额
-     */
+     * @return 最终金�?     */
     private BigDecimal defaultAmount(BigDecimal primary, BigDecimal fallback) {
         if (primary != null && primary.compareTo(BigDecimal.ZERO) > 0) {
             return primary;
@@ -364,11 +336,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 构建后台代收订单分页查询条件。
-     * <p>
-     * 支持按租户、商户、商户应用、PSP、订单号、商户订单号、状态、结算状态、
-     * 国家、币种、支付方式和账务凭证号等维度过滤。
-     *
+     * 构建后台代收订单分页查询条件�?     * <p>
+     * 支持按租户、商户、商户应用、PSP、订单号、商户订单号、状态、结算状态�?     * 国家、币种、支付方式和账务凭证号等维度过滤�?     *
      * @param params 查询参数
      * @return MyBatis-Plus 查询条件
      */

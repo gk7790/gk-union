@@ -6,12 +6,11 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户通知任务状态。
- */
+ * 商户通知任务状态�? */
 @EnumDict("merchantNotifyTaskStatus")
 public enum MerchantNotifyTaskStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    INIT("INIT", "待发送", "enum.merchantNotifyTaskStatus.init"),
+    INIT("INIT", "待发�?, "enum.merchantNotifyTaskStatus.init"),
 
     @Style(StyleType.PRIMARY)
     PROCESSING("PROCESSING", "发送中", "enum.merchantNotifyTaskStatus.processing"),

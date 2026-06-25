@@ -1,4 +1,4 @@
-package com.gk.psp.callback;
+package com.gk.payment.callback;
 
 import com.gk.psp.callback.model.PspCallbackResponse;
 import com.gk.psp.callback.support.PspCallbackBodyCachingFilter;
@@ -15,8 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 两个端点 /pay、/payout，只做转发
- */
+ * 两个端点 /pay�?payout，只做转�? */
 @RestController
 @RequestMapping("/psp/callback")
 @RequiredArgsConstructor

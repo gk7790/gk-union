@@ -1,4 +1,4 @@
-package com.gk.psp.callback.support;
+package com.gk.payment.callback;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -10,7 +10,6 @@ import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.service.OrderStatusLogService;
-import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -20,11 +19,8 @@ import java.time.Instant;
 import java.util.function.Consumer;
 
 /**
- * PSP 回调订单状态处理器。
- * <p>
- * 负责把标准化后的 PSP 回调结果落到代收或代付订单表，并记录订单状态变更日志。
- * 更新时通过状态条件控制幂等，避免重复回调覆盖已终态订单。
- */
+ * PSP 回调订单状态处理器�? * <p>
+ * 负责把标准化后的 PSP 回调结果落到代收或代付订单表，并记录订单状态变更日志�? * 更新时通过状态条件控制幂等，避免重复回调覆盖已终态订单�? */
 @Component
 @RequiredArgsConstructor
 public class PspCallbackOrderProcessor {
@@ -33,13 +29,11 @@ public class PspCallbackOrderProcessor {
     private final OrderStatusLogService orderStatusLogService;
 
     /**
-     * 根据 PSP 回调处理订单状态。
-     *
+     * 根据 PSP 回调处理订单状态�?     *
      * @param bizType 业务类型，代收或代付
      * @param result PSP 标准回调结果
      * @param order 当前订单快照
-     * @param postingResult 账务入账、扣冻结或解冻结果
-     * @return true 表示订单状态实际发生更新，false 表示重复回调或已终态无需更新
+     * @param postingResult 账务入账、扣冻结或解冻结�?     * @return true 表示订单状态实际发生更新，false 表示重复回调或已终态无需更新
      */
     public boolean process(String bizType, PspCallbackResult result, PspCallbackOrder order, LedgerPostingResult postingResult) {
         String fromStatus = order.status();
@@ -50,8 +44,7 @@ public class PspCallbackOrderProcessor {
                     || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)) {
                 return false;
             }
-            // 中间态只允许 CREATED/PROCESSING 继续推进，不触发账务和商户通知终态逻辑。
-            boolean updated = update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
+            // 中间态只允许 CREATED/PROCESSING 继续推进，不触发账务和商户通知终态逻辑�?            boolean updated = update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
             if (updated) {
                 recordChange(bizType, order, fromStatus, PayOrderStatusEnum.PROCESSING.code(), statusEventType(bizType, PayOrderStatusEnum.PROCESSING.code()), result);
             }
@@ -61,8 +54,7 @@ public class PspCallbackOrderProcessor {
             throw new IllegalStateException("Unsupported callback order status");
         }
         if (targetStatus.equals(fromStatus) || PspCallbackUtils.isFinalTerminal(fromStatus)) {
-            // 同状态重复回调或已最终终态订单直接忽略，保证回调幂等。
-            return false;
+            // 同状态重复回调或已最终终态订单直接忽略，保证回调幂等�?            return false;
         }
         boolean updated = update(bizType, order.id(), wrapper -> applyTerminal(bizType, wrapper, result, order, targetStatus, postingResult));
         if (updated) {
@@ -72,10 +64,8 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 补写账务流水号。
-     * <p>
-     * 当订单状态已更新但账务结果需要在后续阶段补充时，通过本方法把流水号挂回订单。
-     */
+     * 补写账务流水号�?     * <p>
+     * 当订单状态已更新但账务结果需要在后续阶段补充时，通过本方法把流水号挂回订单�?     */
     public void attachPostingResult(String bizType, Long orderId, String targetStatus, LedgerPostingResult postingResult) {
         String journalNo = postingResult == null ? null : postingResult.getJournalNo();
         if (StringUtils.isBlank(journalNo)) {
@@ -97,11 +87,8 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 填充终态订单字段。
-     * <p>
-     * 代收成功进入待结算；代收失败取消结算；代付成功记录完成时间和成功流水；
-     * 代付失败记录失败原因，并挂载释放冻结流水。
-     */
+     * 填充终态订单字段�?     * <p>
+     * 代收成功进入待结算；代收失败取消结算；代付成功记录完成时间和成功流水�?     * 代付失败记录失败原因，并挂载释放冻结流水�?     */
     private void applyTerminal(String bizType, UpdateWrapper<?> wrapper, PspCallbackResult result,
                                PspCallbackOrder order, String targetStatus, LedgerPostingResult postingResult) {
         applyCommon(wrapper, targetStatus, result, order);
@@ -112,8 +99,7 @@ public class PspCallbackOrderProcessor {
         Instant now = Instant.now();
         if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
             if (success) {
-                // 代收成功后资金进入待结算账户，后续由结算释放任务转入可用余额。
-                wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
+                // 代收成功后资金进入待结算账户，后续由结算释放任务转入可用余额�?                wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
                         .set("paid_at", now)
                         .set("settle_status", SettleStatusEnum.PENDING.code())
                         .set(journalNo != null, "ledger_journal_no", journalNo);
@@ -124,13 +110,11 @@ public class PspCallbackOrderProcessor {
             return;
         }
         if (success) {
-            // 代付成功后冻结资金被正式扣减，记录扣冻结账务流水号。
-            wrapper.set("completed_at", now)
+            // 代付成功后冻结资金被正式扣减，记录扣冻结账务流水号�?            wrapper.set("completed_at", now)
                     .set(journalNo != null, "success_journal_no", journalNo);
         } else {
             String failMsg = StringUtils.left(result.getErrorMessage(), 512);
-            // 代付失败后冻结释放，保留 PSP 错误码和错误信息便于人工排查。
-            wrapper.set("failed_at", now)
+            // 代付失败后冻结释放，保留 PSP 错误码和错误信息便于人工排查�?            wrapper.set("failed_at", now)
                     .set(result.getErrorCode() != null, "fail_code", result.getErrorCode())
                     .set(failMsg != null, "fail_msg", failMsg)
                     .set(journalNo != null, "release_journal_no", journalNo);
@@ -138,8 +122,7 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 填充代收和代付订单通用回调字段。
-     */
+     * 填充代收和代付订单通用回调字段�?     */
     private void applyCommon(UpdateWrapper<?> wrapper, String status, PspCallbackResult result, PspCallbackOrder order) {
         String pspOrderNo = StringUtils.defaultIfBlank(result.getPspOrderNo(), order.pspOrderNo());
         wrapper.set("status", status)
@@ -149,8 +132,7 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 根据业务类型选择对应订单表执行状态更新。
-     */
+     * 根据业务类型选择对应订单表执行状态更新�?     */
     private boolean update(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
         return BizTypeEnum.PAY_ORDER.matches(bizType)
                 ? update(payOrderDao, id, setter)
@@ -158,10 +140,8 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 执行带状态条件的订单更新。
-     * <p>
-     * 只允许 CREATED、PROCESSING 被回调推进，防止已 SUCCESS/FAILED 等终态被重复覆盖。
-     */
+     * 执行带状态条件的订单更新�?     * <p>
+     * 只允�?CREATED、PROCESSING 被回调推进，防止�?SUCCESS/FAILED 等终态被重复覆盖�?     */
     private <T> boolean update(BaseMapper<T> dao, Long id, Consumer<UpdateWrapper<?>> setter) {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
@@ -175,8 +155,7 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 根据业务类型选择对应订单表补写账务流水号。
-     */
+     * 根据业务类型选择对应订单表补写账务流水号�?     */
     private boolean updateJournalNo(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
         return BizTypeEnum.PAY_ORDER.matches(bizType)
                 ? updateJournalNo(payOrderDao, id, setter)
@@ -184,8 +163,7 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 不改变订单状态，仅按订单 ID 更新账务流水字段。
-     */
+     * 不改变订单状态，仅按订单 ID 更新账务流水字段�?     */
     private <T> boolean updateJournalNo(BaseMapper<T> dao, Long id, Consumer<UpdateWrapper<?>> setter) {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id);
@@ -194,8 +172,7 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 记录订单状态变更日志。
-     */
+     * 记录订单状态变更日志�?     */
     private void recordChange(String bizType, PspCallbackOrder order, String fromStatus, String toStatus,
                               String eventType, PspCallbackResult result) {
         orderStatusLogService.recordChange(
@@ -216,15 +193,13 @@ public class PspCallbackOrderProcessor {
     }
 
     /**
-     * 转换订单类型文本。
-     */
+     * 转换订单类型文本�?     */
     private String orderType(String bizType) {
         return BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
     }
 
     /**
-     * 生成状态变更事件类型。
-     */
+     * 生成状态变更事件类型�?     */
     private String statusEventType(String bizType, String status) {
         String prefix = BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);

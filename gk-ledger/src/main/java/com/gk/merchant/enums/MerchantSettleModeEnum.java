@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户结算模式。
+ * 商户结算模式�?
  */
 @EnumDict("merchantSettleMode")
 public enum MerchantSettleModeEnum implements StringCodeEnum {

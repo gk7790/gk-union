@@ -3,7 +3,7 @@ package com.gk.merchant.support;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * 商户应用凭证展示规则。
+ * 商户应用凭证展示规则�?
  */
 public final class MerchantAppSecrets {
 

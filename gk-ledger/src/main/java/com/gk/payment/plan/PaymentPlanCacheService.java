@@ -25,10 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * 支付决策表缓存服务。
- * <p>
- * 商户 API 运行时只依赖这个服务读取 ACTIVE 决策表；后台发布服务后续只需要清理对应 key 即可。
- */
+ * 支付决策表缓存服务�? * <p>
+ * 商户 API 运行时只依赖这个服务读取 ACTIVE 决策表；后台发布服务后续只需要清理对�?key 即可�? */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,8 +57,7 @@ public class PaymentPlanCacheService {
         if (loaded == null) {
             return Optional.empty();
         }
-        // DB 回源成功后同时回填 Redis 和本地缓存，后续商户 API 请求不再打到数据库。
-        putRedis(key.redisKey(), loaded);
+        // DB 回源成功后同时回�?Redis 和本地缓存，后续商户 API 请求不再打到数据库�?        putRedis(key.redisKey(), loaded);
         putLocal(localKey, loaded);
         return Optional.of(loaded);
     }

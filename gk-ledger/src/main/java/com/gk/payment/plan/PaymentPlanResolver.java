@@ -43,10 +43,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
- * 支付决策表运行时解析器。
- * <p>
- * 这里只读取已经发布的 ACTIVE catalog，不做后台配置编译，方便后续管理后台和商户 API 分开部署。
- */
+ * 支付决策表运行时解析器�? * <p>
+ * 这里只读取已经发布的 ACTIVE catalog，不做后台配置编译，方便后续管理后台和商�?API 分开部署�? */
 @Service
 @RequiredArgsConstructor
 public class PaymentPlanResolver {
@@ -218,8 +216,7 @@ public class PaymentPlanResolver {
         result.setMethodConfigJson(method.getConfigJson());
         result.setPspAccountId(account.getId());
         result.setPspAccountNo(account.getPspAccountNo());
-        // PSP 密钥只从账户表读取，不进入 payment_plan_bucket 和 Redis。
-        result.setPspAccountApiKey(account.getApiKey());
+        // PSP 密钥只从账户表读取，不进�?payment_plan_bucket �?Redis�?        result.setPspAccountApiKey(account.getApiKey());
         result.setPspAccountApiSecret(account.getApiSecret());
         result.setAccountConfigJson(account.getConfigJson());
         result.setPspBankCode(bankMapping == null ? null : bankMapping.getPspBankCode());
@@ -259,8 +256,7 @@ public class PaymentPlanResolver {
                     || redisHealthDown(RedisKeys.getPaymentPspHealthKey(key.tenantId(), key.direction(), option.getPspId()))
                     || redisHealthDown(RedisKeys.getPaymentPspAccountHealthKey(key.tenantId(), key.direction(), option.getPspAccountId()));
         } catch (Exception ex) {
-            // Redis 状态层不可用时只降级，不阻断交易；最终可用性仍由 DB 状态校验兜底。
-            return false;
+            // Redis 状态层不可用时只降级，不阻断交易；最终可用性仍�?DB 状态校验兜底�?            return false;
         }
     }
 
@@ -288,8 +284,7 @@ public class PaymentPlanResolver {
     }
 
     private boolean bankSupported(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
-        // 只有银行卡代付才需要用商户侧银行编码过滤 PSP 路由。
-        if (skipsBankMapping(key)) {
+        // 只有银行卡代付才需要用商户侧银行编码过�?PSP 路由�?        if (skipsBankMapping(key)) {
             return true;
         }
         if (StringUtils.isBlank(bankCode)) {

@@ -7,10 +7,8 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 金额桶匹配器。
- * <p>
- * 使用半开区间 [start, end)，最后一个 bucket 的 end 允许为空表示无上限。
- */
+ * 金额桶匹配器�? * <p>
+ * 使用半开区间 [start, end)，最后一�?bucket �?end 允许为空表示无上限�? */
 public final class PaymentPlanBucketMatcher {
     private PaymentPlanBucketMatcher() {
     }

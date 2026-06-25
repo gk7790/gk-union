@@ -4,8 +4,6 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
-import com.gk.payment.plan.PaymentPlanCacheService;
-import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.dto.PspProviderDTO;
 import com.gk.psp.entity.PspProviderEntity;
@@ -15,10 +13,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspProviderEntity, PspProviderDTO> implements PspProviderService {
-    @Autowired
-    private PayinPlanCache payinPlanCache;
-    @Autowired
-    private PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
     public QueryWrapper<PspProviderEntity> getWrapper(DynMap params) {
@@ -60,12 +54,6 @@ public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspP
     }
 
     private void evictPayinPlanCache() {
-        // PSP Provider é…ç½®ä¼šå½±å“è·¯ç”±å¯ç”¨æ€§ï¼Œå˜æ›´åŽå¿…é¡»æ¸…ç©º PayinPlan ç¼“å­˜ã€‚
-        if (payinPlanCache != null) {
-            payinPlanCache.evictAll();
-        }
-        if (paymentPlanCacheService != null) {
-            paymentPlanCacheService.evictAll();
-        }
+        // PSP Ä£¿é²»Ö±½ÓÇåÀí payment »º´æ£¬ºóÐøÓÉÄ£¿éÊÂ¼þÍ³Ò»´¦Àí¡£
     }
 }

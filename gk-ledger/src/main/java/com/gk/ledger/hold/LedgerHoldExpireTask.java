@@ -6,8 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 账务冻结过期扫描定时任务。
- */
+ * 账务冻结过期扫描定时任务�? */
 @Component("ledgerHoldExpireTask")
 @RequiredArgsConstructor
 public class LedgerHoldExpireTask implements ITask {

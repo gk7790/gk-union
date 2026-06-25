@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 记账方向 / 账户余额方向。
+ * 记账方向 / 账户余额方向�?
  */
 @EnumDict("ledgerDirection")
 public enum LedgerDirectionEnum implements StringCodeEnum {

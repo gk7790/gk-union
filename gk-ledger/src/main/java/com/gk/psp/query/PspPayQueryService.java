@@ -1,7 +1,7 @@
 package com.gk.psp.query;
 
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.psp.request.PspOrderRequest;
 
 public interface PspPayQueryService {
-    PspOrderQueryResult query(PayOrderEntity order);
+    PspOrderQueryResult query(PspOrderRequest order);
 }

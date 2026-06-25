@@ -30,34 +30,34 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * 商户异步通知发送/重试引擎。
+ * 商户异步通知发�?重试引擎�?
  * <p>
- * 职责: 抢占到期任务 → 对报文签名(sign 写入 body) → HTTP POST 商户 notify_url → 记录每次尝试 →
- * 按指数退避重试, 超过最大次数进入死信(DEAD)。
- * 触发方式见 {@link MerchantNotifyTask}(由 gk-scheduler 的 Quartz 定时任务驱动)。
+ * 职责: 抢占到期任务 �?对报文签�?sign 写入 body) �?HTTP POST 商户 notify_url �?记录每次尝试 �?
+ * 按指数退避重�? 超过最大次数进入死�?DEAD)�?
+ * 触发方式�?{@link MerchantNotifyTask}(�?gk-scheduler �?Quartz 定时任务驱动)�?
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class MerchantNotifyExecutor {
 
-    /** 单批抢占任务数 */
+    /** 单批抢占任务�?*/
     private static final int BATCH_SIZE = 100;
-    /** 一次触发最多连续处理的批次数(防止单次触发占用过久) */
+    /** 一次触发最多连续处理的批次�?防止单次触发占用过久) */
     private static final int MAX_DRAIN_LOOPS = 20;
-    /** 任务锁定时长(秒): 抢占后多久未完成视为可被其他节点重新抢占 */
+    /** 任务锁定时长(�?: 抢占后多久未完成视为可被其他节点重新抢占 */
     private static final int LOCK_SECONDS = 120;
     /** HTTP 连接超时(毫秒) */
     private static final int CONNECT_TIMEOUT_MS = 3000;
-    /** 任务未配置 timeoutMs 时的默认读取超时(毫秒) */
+    /** 任务未配�?timeoutMs 时的默认读取超时(毫秒) */
     private static final int DEFAULT_READ_TIMEOUT_MS = 5000;
-    /** 落库的响应体/错误信息最大长度 */
+    /** 落库的响应体/错误信息最大长�?*/
     private static final int MAX_STORE_LEN = 2000;
-    /** 手动重发失败时返回给前端的错误信息最大长度 */
+    /** 手动重发失败时返回给前端的错误信息最大长�?*/
     private static final int MAX_FAIL_MSG_LEN = 300;
-    /** 视为成功的响应体标识(忽略大小写, 命中其一即成功) */
+    /** 视为成功的响应体标识(忽略大小�? 命中其一即成�? */
     private static final List<String> SUCCESS_TOKENS = List.of("success", "ok");
-    /** 重试退避秒数(按已失败次数取下标, 超出取最后一个) */
+    /** 重试退避秒�?按已失败次数取下�? 超出取最后一�? */
     private static final long[] BACKOFF_SECONDS = {15, 30, 60, 120, 300, 600, 1800, 3600, 7200, 21600};
 
     private final MerchantNotifyRepository repository;
@@ -82,7 +82,7 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 排空式处理: 连续处理多批直到没有到期任务或达到上限。供定时任务一次触发调用。
+     * 排空式处�? 连续处理多批直到没有到期任务或达到上限。供定时任务一次触发调用�?
      *
      * @return 本次累计处理的任务数
      */
@@ -99,9 +99,9 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 扫描并处理一批到期任务。
+     * 扫描并处理一批到期任务�?
      *
-     * @return 实际处理(抢占成功并尝试发送)的任务数
+     * @return 实际处理(抢占成功并尝试发�?的任务数
      */
     public int dispatchBatch() {
         Instant now = Instant.now();
@@ -124,21 +124,21 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 后台手动重发: 强制抢占并立即同步发送一次。
-     * 即使任务已 DEAD 也可重发(会自动再放开重试次数)。
+     * 后台手动重发: 强制抢占并立即同步发送一次�?
+     * 即使任务�?DEAD 也可重发(会自动再放开重试次数)�?
      */
     public Result<Void> resend(Long taskId) {
         MerchantNotifyTaskEntity existing = repository.getById(taskId);
         if (existing == null) {
-            return Result.fail("通知任务不存在");
+            return Result.fail("通知任务不存�?);
         }
         if (MerchantNotifyTaskStatusEnum.SUCCESS.matches(existing.getStatus())) {
-            return Result.fail("通知已成功, 无需重复发送");
+            return Result.fail("通知已成�? 无需重复发�?);
         }
         Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
         MerchantNotifyTaskEntity task = repository.forceClaim(taskId, workerId, Instant.now(), lockUntil);
         if (task == null) {
-            return Result.fail("通知任务正在处理中, 请稍后再试");
+            return Result.fail("通知任务正在处理�? 请稍后再�?);
         }
         try {
             if (attempt(task, true)) {
@@ -150,7 +150,7 @@ public class MerchantNotifyExecutor {
             return Result.fail(message);
         } catch (Exception e) {
             log.error("Merchant notify resend error, taskId={}", taskId, e);
-            return Result.fail("通知发送异常: {}", e.getMessage());
+            return Result.fail("通知发送异�? {}", e.getMessage());
         }
     }
 
@@ -177,7 +177,7 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 执行一次通知尝试并落库。
+     * 执行一次通知尝试并落库�?
      *
      * @param manual 是否人工触发(人工触发失败不直接进死信, 而是重新挂回重试队列)
      * @return 本次是否成功
@@ -208,7 +208,7 @@ public class MerchantNotifyExecutor {
         } else {
             MerchantNotifySigned signed = signer.sign(payloadJson, apiSecret, resolveSignType(app, task));
             record.setRequestSignature(signed.sign());
-            // 最终发送的报文(含 sign), 覆盖原始 payload
+            // 最终发送的报文(�?sign), 覆盖原始 payload
             record.setRequestBody(signed.body());
             task.setSignature(signed.sign());
             outcome = doPost(task, signed.body());
@@ -259,7 +259,7 @@ public class MerchantNotifyExecutor {
             task.setDeadAt(now);
             return;
         }
-        // 人工重发耗尽次数时, 放开一次, 重新挂回重试队列
+        // 人工重发耗尽次数�? 放开一�? 重新挂回重试队列
         if (exhausted) {
             task.setMaxRetryCount(attemptNo + 1);
         }
@@ -318,7 +318,7 @@ public class MerchantNotifyExecutor {
         if (task.getMerchantAppId() == null) {
             return null;
         }
-        // TODO: 若后续 api_secret 改为加密存储, 这里需先解密
+        // TODO: 若后�?api_secret 改为加密存储, 这里需先解�?
         return merchantAppDao.selectById(task.getMerchantAppId());
     }
 
@@ -347,7 +347,7 @@ public class MerchantNotifyExecutor {
     }
 
     /**
-     * 单次 HTTP 调用结果。status 为空表示传输层异常(连接超时/DNS等)。
+     * 单次 HTTP 调用结果。status 为空表示传输层异�?连接超时/DNS�?�?
      */
     private record HttpOutcome(Integer status, String body, String error) {
         static HttpOutcome transportError(String error) {

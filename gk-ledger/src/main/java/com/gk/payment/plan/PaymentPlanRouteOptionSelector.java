@@ -8,10 +8,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * 支付路由候选选择器。
- * <p>
- * 先过滤不可用候选，再按 priority 选择最优分组；同一 priority 下按 weight 做确定性分流。
- */
+ * 支付路由候选选择器�? * <p>
+ * 先过滤不可用候选，再按 priority 选择最优分组；同一 priority 下按 weight 做确定性分流�? */
 public final class PaymentPlanRouteOptionSelector {
     private PaymentPlanRouteOptionSelector() {
     }

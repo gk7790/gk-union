@@ -10,10 +10,11 @@ import com.gk.payment.entity.PayOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.psp.PspOrderRequests;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.query.PspOrderQueryResult;
-import com.gk.psp.query.PspOrderResultHandler;
+import com.gk.payment.callback.PspOrderResultHandler;
 import com.gk.psp.query.PspPayQueryService;
 import com.gk.psp.query.PspPayoutQueryService;
 import lombok.RequiredArgsConstructor;
@@ -96,7 +97,7 @@ public class PspOrderQueryExecutor {
     private void queryPay(PayOrderEntity order) {
         int attemptNo = safeCount(order.getQueryCount()) + 1;
         try {
-            PspOrderQueryResult result = payQueryService.query(order);
+            PspOrderQueryResult result = payQueryService.query(PspOrderRequests.fromPayOrder(order));
             resultHandler.handle(BizTypeEnum.PAY_ORDER.code(), PspCallbackOrder.of(order, null), result);
             if (!PspCallbackUtils.isTerminal(result.getOrderStatus())) {
                 reschedulePay(order.getId(), attemptNo, null);
@@ -112,7 +113,7 @@ public class PspOrderQueryExecutor {
     private void queryPayout(PayoutOrderEntity order) {
         int attemptNo = safeCount(order.getQueryCount()) + 1;
         try {
-            PspOrderQueryResult result = payoutQueryService.query(order);
+            PspOrderQueryResult result = payoutQueryService.query(PspOrderRequests.fromPayoutOrder(order));
             resultHandler.handle(BizTypeEnum.PAYOUT_ORDER.code(), PspCallbackOrder.of(order, null), result);
             if (!PspCallbackUtils.isTerminal(result.getOrderStatus())) {
                 reschedulePayout(order.getId(), attemptNo, null);

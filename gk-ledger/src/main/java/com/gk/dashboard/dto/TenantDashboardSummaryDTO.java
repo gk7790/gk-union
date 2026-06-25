@@ -8,10 +8,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
-@Schema(title = "租户首页汇总")
+@Schema(title = "租户首页汇�?)
 public class TenantDashboardSummaryDTO {
 
-    @Schema(title = "元信息")
+    @Schema(title = "元信�?)
     private Meta meta;
     @Schema(title = "代收指标")
     private OrderMetric payIn;
@@ -21,7 +21,7 @@ public class TenantDashboardSummaryDTO {
     private CompareMetric payInCompare;
     @Schema(title = "代付环比")
     private CompareMetric payOutCompare;
-    @Schema(title = "活跃商户数")
+    @Schema(title = "活跃商户�?)
     private Long activeMerchantCount;
     @Schema(title = "商户数量")
     private MerchantCount merchantCount;
@@ -31,7 +31,7 @@ public class TenantDashboardSummaryDTO {
     private Todo todos;
 
     @Data
-    @Schema(title = "元信息")
+    @Schema(title = "元信�?)
     public static class Meta {
         private Long tenantId;
         private String tenantName;

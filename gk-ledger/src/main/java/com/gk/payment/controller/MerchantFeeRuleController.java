@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "商户手续费规则")
+@Tag(name = "商户手续费规�?)
 @RestController
 @RequestMapping("/payment/merchant-fee-rule")
 @RequiredArgsConstructor
@@ -28,10 +28,10 @@ public class MerchantFeeRuleController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('payment:merchant-fee-rule:page')")
     public R<?> page(@RequestMap DynMap params) {
@@ -40,7 +40,7 @@ public class MerchantFeeRuleController {
     }
 
     @GetMapping("merchant-view")
-    @Operation(summary = "商户手续费展示")
+    @Operation(summary = "商户手续费展�?)
     public R<MerchantFeeViewResponse> merchantView(@RequestMap DynMap params) {
         return R.ok(merchantFeeRuleService.merchantView(params));
     }

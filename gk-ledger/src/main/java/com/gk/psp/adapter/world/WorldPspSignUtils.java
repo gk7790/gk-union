@@ -12,8 +12,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 /**
- * World PSP 扁平参数 MD5 签名，与 OpenAPI Canonical JSON 签名无关。
- */
+ * World PSP 扁平参数 MD5 签名，与 OpenAPI Canonical JSON 签名无关�? */
 public final class WorldPspSignUtils {
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 

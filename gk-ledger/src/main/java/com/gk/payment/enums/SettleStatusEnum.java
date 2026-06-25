@@ -12,24 +12,21 @@ import java.time.ZonedDateTime;
 import java.util.Locale;
 
 /**
- * 代收订单结算状态。
- * <p>
- * PENDING：代收成功已入账至待结算账户，尚未释放到可用；
- * RELEASED：已释放至商户可用余额。
- */
+ * 代收订单结算状态�? * <p>
+ * PENDING：代收成功已入账至待结算账户，尚未释放到可用�? * RELEASED：已释放至商户可用余额�? */
 @EnumDict("settleStatus")
 public enum SettleStatusEnum implements StringCodeEnum {
     @Style(StyleType.WARNING)
-    PENDING("PENDING", "待结算", "enum.settleStatus.pending"),
+    PENDING("PENDING", "待结�?, "enum.settleStatus.pending"),
 
     @Style(StyleType.SUCCESS)
-    RELEASED("RELEASED", "已释放", "enum.settleStatus.released"),
+    RELEASED("RELEASED", "已释�?, "enum.settleStatus.released"),
 
     @Style(StyleType.WARNING)
-    HELD("HELD", "已冻结", "enum.settleStatus.held"),
+    HELD("HELD", "已冻�?, "enum.settleStatus.held"),
 
     @Style(StyleType.DANGER)
-    CANCELLED("CANCELLED", "已取消", "enum.settleStatus.cancelled");
+    CANCELLED("CANCELLED", "已取�?, "enum.settleStatus.cancelled");
 
     private final String code;
     private final String label;
@@ -56,15 +53,13 @@ public enum SettleStatusEnum implements StringCodeEnum {
         return i18nKey;
     }
 
-    /** AUTO 以外（含 MANUAL）均不自动释放。 */
+    /** AUTO 以外（含 MANUAL）均不自动释放�?*/
     public static boolean isAutoReleaseMode(String settleMode) {
         return StringUtils.equalsIgnoreCase(StringUtils.defaultString(settleMode).trim(), "AUTO");
     }
 
     /**
-     * 按商户结算周期计算计划释放时刻（商户时区日历日）。
-     * T0=支付成功即时；T1=次日起算；TN=N 个自然日后 0 点。
-     */
+     * 按商户结算周期计算计划释放时刻（商户时区日历日）�?     * T0=支付成功即时；T1=次日起算；TN=N 个自然日�?0 点�?     */
     public static Instant computeReleaseAt(String settleCycle, Instant paidAt, String timezone) {
         Instant base = paidAt == null ? Instant.now() : paidAt;
         String cycle = StringUtils.defaultIfBlank(settleCycle, "T1").trim().toUpperCase(Locale.ROOT);

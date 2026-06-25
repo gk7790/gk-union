@@ -1,10 +1,9 @@
 package com.gk.psp.route;
 
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.psp.request.PspOrderRequest;
 
 public interface PspRouteSelector {
-    PspRouteResult selectPayin(PayOrderEntity order);
+    PspRouteResult selectPayin(PspOrderRequest order);
 
-    PspRouteResult selectPayout(PayoutOrderEntity order);
+    PspRouteResult selectPayout(PspOrderRequest order);
 }

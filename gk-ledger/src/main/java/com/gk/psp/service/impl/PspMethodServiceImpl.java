@@ -14,9 +14,6 @@ import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.payment.plan.PaymentPlanCacheService;
-import com.gk.payment.plan.PayinPlanCache;
-import com.gk.payment.service.PaymentMethodService;
 import com.gk.psp.dao.PspFeeRuleDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspRouteRuleDao;
@@ -44,17 +41,10 @@ import java.util.Set;
 public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMethodEntity, PspMethodDTO> implements PspMethodService {
     private static final String EMPTY_CONFIG_JSON = "{}";
     private static final long PSP_METHOD_CODE_DICT_CACHE_SECONDS = 60 * 60L;
-
-    @Autowired
-    private PayinPlanCache payinPlanCache;
-    @Autowired
-    private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private PspFeeRuleDao pspFeeRuleDao;
     @Autowired
     private PspRouteRuleDao pspRouteRuleDao;
-    @Autowired
-    private PaymentMethodService paymentMethodService;
     @Autowired
     private RedisUtils redisUtils;
 
@@ -111,8 +101,18 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     @Override
     public List<LabelDTO> getMethodCodeDict(DynMap params) {
-        // Standard payment methods come from payment_method; psp_method only keeps upstream mappings.
-        return paymentMethodService.getLabelDict(params);
+        QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("method_code");
+        wrapper.isNotNull("method_code");
+        wrapper.ne("method_code", "");
+        wrapper.eq("status", StatusEnum.NORMAL.code());
+        wrapper.groupBy("method_code");
+        wrapper.orderByAsc("method_code");
+        return baseDao.selectList(wrapper).stream()
+                .map(PspMethodEntity::getMethodCode)
+                .filter(StringUtils::isNotBlank)
+                .map(item -> LabelDTO.of(item, item))
+                .toList();
     }
 
     @Override
@@ -261,13 +261,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     }
 
     private void evictPayinPlanCache() {
-        // PSP Method changes affect route selection and upstream request parameters.
-        if (payinPlanCache != null) {
-            payinPlanCache.evictAll();
-        }
-        if (paymentPlanCacheService != null) {
-            paymentPlanCacheService.evictAll();
-        }
+        // PSP 模块不直接清理 payment 缓存，后续由模块事件统一处理。
     }
 
     private void evictMethodDictCache() {

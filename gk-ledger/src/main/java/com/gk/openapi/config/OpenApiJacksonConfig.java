@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 /**
- * 商户 Open API JSON 字段统一 snake_case（注册到全局 ObjectMapper，供 MVC 序列化与参数绑定共用）。
+ * 商户 Open API JSON 字段统一 snake_case（注册到全局 ObjectMapper，供 MVC 序列化与参数绑定共用）�?
  */
 @Configuration
 public class OpenApiJacksonConfig {

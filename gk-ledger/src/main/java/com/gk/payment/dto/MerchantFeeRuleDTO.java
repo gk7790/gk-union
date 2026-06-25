@@ -31,15 +31,15 @@ public class MerchantFeeRuleDTO {
     private String currency;
     @Schema(title = "支付方式")
     private String methodCode;
-    @Schema(title = "订单最小金额")
+    @Schema(title = "订单最小金�?)
     private BigDecimal minAmount;
-    @Schema(title = "订单最大金额")
+    @Schema(title = "订单最大金�?)
     private BigDecimal maxAmount;
-    @Schema(title = "手续费模式: RATE/FIXED/RATE_FIXED")
+    @Schema(title = "手续费模�? RATE/FIXED/RATE_FIXED")
     private String feeMode;
     @Schema(title = "比例费率")
     private BigDecimal feeRate;
-    @Schema(title = "固定手续费")
+    @Schema(title = "固定手续�?)
     private BigDecimal feeFixed;
     @Schema(title = "最低手续费")
     private BigDecimal minFee;
@@ -49,13 +49,13 @@ public class MerchantFeeRuleDTO {
     private String feeBearer;
     @Schema(title = "结算处理方式: DEDUCT/ADD")
     private String settleMode;
-    @Schema(title = "优先级")
+    @Schema(title = "优先�?)
     private Integer priority;
     @Schema(title = "生效时间")
     private Instant effectiveAt;
     @Schema(title = "失效时间")
     private Instant expireAt;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
     @Schema(title = "备注")
     private String remark;

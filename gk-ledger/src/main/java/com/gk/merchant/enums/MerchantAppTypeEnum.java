@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户应用类型。
+ * 商户应用类型�?
  */
 @EnumDict("merchantAppType")
 public enum MerchantAppTypeEnum implements StringCodeEnum {

@@ -23,7 +23,7 @@ public enum LedgerPostingEventEnum implements StringCodeEnum {
     PAYOUT_FAILED("PAYOUT_FAILED", "代付失败", "enum.ledgerPostingEvent.payoutFailed"),
 
     @Style(StyleType.SUCCESS)
-    MANUAL_RECHARGE("MANUAL_RECHARGE", "手工充值", "enum.ledgerPostingEvent.manualRecharge"),
+    MANUAL_RECHARGE("MANUAL_RECHARGE", "手工充�?, "enum.ledgerPostingEvent.manualRecharge"),
 
     @Style(StyleType.DANGER)
     MANUAL_DEDUCT("MANUAL_DEDUCT", "手工扣减", "enum.ledgerPostingEvent.manualDeduct"),

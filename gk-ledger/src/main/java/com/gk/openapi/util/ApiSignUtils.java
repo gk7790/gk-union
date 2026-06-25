@@ -11,20 +11,17 @@ import java.time.Instant;
 import java.util.*;
 
 /**
- * OpenAPI 签名工具。
- * <p>
- * 对完整请求体做 Canonical JSON 规范化后再签名，天然支持嵌套对象和数组。
- * <pre>
+ * OpenAPI 签名工具�? * <p>
+ * 对完整请求体�?Canonical JSON 规范化后再签名，天然支持嵌套对象和数组�? * <pre>
  *   signText = canonicalJson(params without sign)
  *   MD5:          sign = md5(signText + apiSecret)
  *   HMAC_SHA256:  sign = hmacSha256(signText, apiSecret)
  * </pre>
- * Canonical JSON 规则：
- * <ul>
+ * Canonical JSON 规则�? * <ul>
  *   <li>去掉 sign / signature</li>
  *   <li>递归忽略 null、空白字符串、空对象 {}、空数组 []</li>
- *   <li>对象 key 递归按 ASCII 排序</li>
- *   <li>数组保持原顺序，仅保留非空元素</li>
+ *   <li>对象 key 递归�?ASCII 排序</li>
+ *   <li>数组保持原顺序，仅保留非空元�?/li>
  *   <li>数组元素全部被忽略时，整个数组字段不参与签名</li>
  *   <li>对象字段全部被忽略时，整个对象字段不参与签名</li>
  *   <li>紧凑输出，无多余空白</li>

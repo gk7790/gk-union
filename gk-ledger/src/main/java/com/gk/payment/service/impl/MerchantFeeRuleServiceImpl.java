@@ -291,7 +291,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     private String amountText(BigDecimal value) {
-        return displayDecimalText(defaultZero(value)) + "/笔";
+        return displayDecimalText(defaultZero(value)) + "/�?;
     }
 
     private BigDecimal defaultZero(BigDecimal value) {
@@ -380,10 +380,8 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 后台管理页的查询条件组装。
-     * <p>
-     * 这里只负责列表/分页筛选，不参与下单时的费率命中；下单命中规则见 {@link #selectRule}。
-     */
+     * 后台管理页的查询条件组装�?     * <p>
+     * 这里只负责列�?分页筛选，不参与下单时的费率命中；下单命中规则�?{@link #selectRule}�?     */
     @Override
     public QueryWrapper<MerchantFeeRuleEntity> getWrapper(DynMap params) {
         QueryWrapper<MerchantFeeRuleEntity> wrapper = new QueryWrapper<>();
@@ -414,11 +412,9 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 计算代收订单的商户手续费。
-     * <p>
-     * 代收成功后入账使用 settleAmount，当前由 {@link MerchantFeeCalculator}
-     * 根据手续费承担方计算“订单金额 - 商户手续费”或保持订单金额不变。
-     */
+     * 计算代收订单的商户手续费�?     * <p>
+     * 代收成功后入账使�?settleAmount，当前由 {@link MerchantFeeCalculator}
+     * 根据手续费承担方计算“订单金�?- 商户手续费”或保持订单金额不变�?     */
     @Override
     public MerchantFeeResult calculatePayin(PayOrderEntity order) {
         return calculate(
@@ -434,11 +430,8 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 计算代付订单的商户手续费。
-     * <p>
-     * 代付侧调用方会将返回的 merchantFeeAmount 加到 totalDebitAmount，
-     * 冻结和扣减时按“代付本金 + 商户手续费”处理。
-     */
+     * 计算代付订单的商户手续费�?     * <p>
+     * 代付侧调用方会将返回�?merchantFeeAmount 加到 totalDebitAmount�?     * 冻结和扣减时按“代付本�?+ 商户手续费”处理�?     */
     @Override
     public MerchantFeeResult calculatePayout(PayoutOrderEntity order) {
         return calculate(
@@ -463,8 +456,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
             BigDecimal orderAmount,
             String direction
     ) {
-        // 先按商户、币种、方向、支付方式、金额区间等条件选中一条有效规则，再交给纯计算器算金额。
-        MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, direction);
+        // 先按商户、币种、方向、支付方式、金额区间等条件选中一条有效规则，再交给纯计算器算金额�?        MerchantFeeRuleEntity rule = selectRule(tenantId, merchantId, merchantAppId, countryCode, currency, methodCode, orderAmount, direction);
         MerchantFeeAmount amount;
         try {
             amount = MerchantFeeCalculator.calculate(orderAmount, rule);
@@ -476,17 +468,13 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         result.setRule(rule);
         result.setMerchantFeeAmount(amount.feeAmount());
         result.setSettleAmount(amount.payinSettleAmount());
-        // 下单时保存费率快照，后续即使规则被修改，历史订单仍能还原当时的计费口径。
-        result.setSnapshotJson(toSnapshotJson(rule));
+        // 下单时保存费率快照，后续即使规则被修改，历史订单仍能还原当时的计费口径�?        result.setSnapshotJson(toSnapshotJson(rule));
         return result;
     }
 
     /**
-     * 选择下单时真正生效的商户费率规则。
-     * <p>
-     * 必须匹配租户、商户、订单方向、币种和启用状态；应用、支付方式、金额区间、生效时间支持空值兜底。
-     * 多条规则同时命中时，优先选择更精确的规则，再按 priority 数值越小越优先。
-     */
+     * 选择下单时真正生效的商户费率规则�?     * <p>
+     * 必须匹配租户、商户、订单方向、币种和启用状态；应用、支付方式、金额区间、生效时间支持空值兜底�?     * 多条规则同时命中时，优先选择更精确的规则，再�?priority 数值越小越优先�?     */
     private MerchantFeeRuleEntity selectRule(
             Long tenantId,
             Long merchantId,
@@ -517,10 +505,8 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 生成订单费率快照。
-     * <p>
-     * 快照只保留计费和审计需要的字段，不保存整条规则对象，避免后续规则字段变化影响历史订单解析。
-     */
+     * 生成订单费率快照�?     * <p>
+     * 快照只保留计费和审计需要的字段，不保存整条规则对象，避免后续规则字段变化影响历史订单解析�?     */
     private String toSnapshotJson(MerchantFeeRuleEntity rule) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ruleId", rule.getId());
@@ -540,8 +526,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 使用普通十进制字符串保存金额/费率，避免 BigDecimal 科学计数法进入 JSON 快照。
-     */
+     * 使用普通十进制字符串保存金�?费率，避�?BigDecimal 科学计数法进�?JSON 快照�?     */
     private String decimalText(BigDecimal value) {
         return value == null ? null : value.toPlainString();
     }
@@ -578,15 +563,13 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     }
 
     /**
-     * 统一将配置编码和请求编码转换成大写后比较，降低前端输入大小写差异带来的匹配失败。
-     */
+     * 统一将配置编码和请求编码转换成大写后比较，降低前端输入大小写差异带来的匹配失败�?     */
     private String normalize(String value) {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }
 
     private void evictPayinPlanCache() {
-        // 商户费率会影响 PayinPlan 的手续费和结算金额，变更后必须清空缓存。
-        if (payinPlanCache != null) {
+        // 商户费率会影�?PayinPlan 的手续费和结算金额，变更后必须清空缓存�?        if (payinPlanCache != null) {
             payinPlanCache.evictAll();
         }
         if (paymentPlanCacheService != null) {

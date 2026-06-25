@@ -6,12 +6,12 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户应用加密类型。
+ * 商户应用加密类型�?
  */
 @EnumDict("encryptType")
 public enum EncryptTypeEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    NONE("NONE", "无", "enum.encryptType.none"),
+    NONE("NONE", "�?, "enum.encryptType.none"),
 
     @Style(StyleType.PRIMARY)
     AES("AES", "AES", "enum.encryptType.aes"),

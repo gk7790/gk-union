@@ -1,19 +1,15 @@
-package com.gk.psp.query;
+package com.gk.payment.callback;
 
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
-import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.service.PayOrderService;
-import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
-import com.gk.psp.callback.support.PspCallbackNotifyCreator;
-import com.gk.psp.callback.support.PspCallbackOrderProcessor;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.callback.support.PspCallbackValidator;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +35,7 @@ public class PspOrderResultHandler {
             LedgerPostingResult postingResult = postLedger(bizType, result, order);
             orderProcessor.attachPostingResult(bizType, order.id(), result.getOrderStatus(), postingResult);
             if (BizTypeEnum.PAY_ORDER.matches(bizType)
-                    && PayOrderStatusEnum.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
+                    && PspCallbackUtils.STATUS_SUCCESS.equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
                 payOrderService.onPaySuccessPosted(order.id());
             }
             notifyCreator.create(bizType, result, order, null);
@@ -49,13 +45,13 @@ public class PspOrderResultHandler {
 
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (BizTypeEnum.PAY_ORDER.matches(bizType) && PayOrderStatusEnum.SUCCESS.code().equals(status)) {
+        if (BizTypeEnum.PAY_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PayoutOrderStatusEnum.SUCCESS.code().equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
             return ledgerPostingService.postPayoutSuccess(payoutRequest(order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PayoutOrderStatusEnum.FAILED.code().equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_FAILED.equals(status)) {
             return ledgerPostingService.releasePayout(payoutRequest(order));
         }
         return null;

@@ -31,6 +31,7 @@ import com.gk.payment.plan.PaymentPlan;
 import com.gk.payment.plan.PaymentPlanResolver;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.outbox.PayoutSubmitOutboxProducer;
+import com.gk.payment.psp.PspOrderRequests;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
@@ -51,11 +52,11 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 商户 OpenAPI 代付订单服务实现。
+ * 商户 OpenAPI 代付订单服务实现�?
  * <p>
- * 本类负责商户代付下单和查单的应用层编排：校验请求、处理商户订单号幂等、
- * 保存收款人脱敏信息、计算商户手续费、冻结商户余额、选择 PSP 路由、提交 PSP 代付，
- * 并在提交失败时尽量释放冻结资金。
+ * 本类负责商户代付下单和查单的应用层编排：校验请求、处理商户订单号幂等�?
+ * 保存收款人脱敏信息、计算商户手续费、冻结商户余额、选择 PSP 路由、提�?PSP 代付�?
+ * 并在提交失败时尽量释放冻结资金�?
  */
 @Service
 @Slf4j
@@ -74,10 +75,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private boolean asyncSubmitEnabled;
 
     /**
-     * 创建代付订单。
+     * 创建代付订单�?
      * <p>
-     * 主流程：检查幂等 -> 校验金额和商户应用权限 -> 组装订单和收款人信息 ->
-     * 计算商户手续费 -> 落库 -> 冻结余额 -> 提交 PSP -> 返回订单状态。
+     * 主流程：检查幂�?-> 校验金额和商户应用权�?-> 组装订单和收款人信息 ->
+     * 计算商户手续�?-> 落库 -> 冻结余额 -> 提交 PSP -> 返回订单状态�?
      */
     @Override
     public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
@@ -85,7 +86,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST);
         }
         PayoutCreateStepTimer timer = PayoutCreateStepTimer.start(request.getMerchantOrderId());
-        // 先按商户订单号查重，保证商户重复请求时按幂等规则返回同一笔平台订单。
+        // 先按商户订单号查重，保证商户重复请求时按幂等规则返回同一笔平台订单�?
         PayoutOrderEntity existed = findByMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         timer.mark("idempotency_check");
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -93,10 +94,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         }
         validateAmountScale(request.getAmount());
 
-        // OpenApiAuthFilter 已经根据 app_id 识别租户、商户和商户应用。
+        // OpenApiAuthFilter 已经根据 app_id 识别租户、商户和商户应用�?
         ApiReqContext context = ApiReqContextHolder.get();
         MerchantEntity merchant = context.getMerchant();
-        // 币种允许不传并从商户默认配置兜底；国家只使用 API 显式传入值。
+        // 币种允许不传并从商户默认配置兜底；国家只使用 API 显式传入值�?
         String currency = StringUtils.defaultIfBlank(request.getCurrency(), merchant.getDefaultCurrency());
         String countryCode = StringUtils.trimToNull(request.getCountryCode());
         if (StringUtils.isBlank(currency)) {
@@ -106,14 +107,14 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
 
-        // 校验当前商户应用是否允许使用指定币种和代付方式
+        // 校验当前商户应用是否允许使用指定币种和代付方�?
         validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
-        // 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping。
+        // 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping�?
         validatePayoutPayee(request, normalizedMethod);
 
         timer.mark("validate_request");
         if (existed != null) {
-            // 同一商户订单号再次请求时，金额、币种、方式、通知地址、收款账号必须一致。
+            // 同一商户订单号再次请求时，金额、币种、方式、通知地址、收款账号必须一致�?
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
             timer.mark("return_idempotent_order");
             PayoutOrderResponse response = toResponse(existed);
@@ -121,7 +122,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             return response;
         }
 
-        // 创建平台代付订单。代付会先进入 CREATED，冻结成功后再提交 PSP。
+        // 创建平台代付订单。代付会先进�?CREATED，冻结成功后再提�?PSP�?
         PayoutOrderEntity entity = new PayoutOrderEntity();
         entity.setTenantId(context.getTenantId());
         entity.setMerchantId(context.getMerchantId());
@@ -148,13 +149,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setVersion(0);
         timer.mark("build_order");
 
-        // 新系统阶段直接保存收款人明文信息，便于代付提交 PSP 和后台排查。
+        // 新系统阶段直接保存收款人明文信息，便于代付提�?PSP 和后台排查�?
         applyPayee(entity, request);
 
         timer.mark("apply_payee");
         PaymentPlan paymentPlan = null;
         if (!isTestApp(context.getMerchantApp())) {
-            // 正式代付必须命中后台发布的支付方案，避免下单时实时拼装路由和费率。
+            // 正式代付必须命中后台发布的支付方案，避免下单时实时拼装路由和费率�?
             paymentPlan = paymentPlanResolver.resolvePayout(entity)
                     .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
         }
@@ -162,7 +163,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         if (paymentPlan != null) {
             applyPaymentPlan(entity, paymentPlan);
         } else {
-            // 测试应用不走正式支付方案，默认只按代付金额处理。
+            // 测试应用不走正式支付方案，默认只按代付金额处理�?
             entity.setTotalDebitAmount(entity.getAmount());
         }
         if (!isTestApp(context.getMerchantApp())) {
@@ -170,7 +171,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             timer.mark("balance_precheck");
         }
 
-        // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
+        // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态�?
         timer.mark("apply_payment_plan");
         boolean created = asyncSubmitEnabled && !isTestApp(context.getMerchantApp())
                 ? insertOrderAndOutbox(entity)
@@ -195,7 +196,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             return response;
         }
         try {
-            // 代付必须先冻结商户可用余额，避免 PSP 已受理后商户余额不足。
+            // 代付必须先冻结商户可用余额，避免 PSP 已受理后商户余额不足�?
             freezePayout(entity);
             timer.mark("freeze_payout");
         } catch (ApiException ex) {
@@ -219,7 +220,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             throw new ApiException(errorCode, ex);
         }
 
-        // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结。
+        // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结�?
         try {
             submitToPsp(entity, paymentPlan);
             timer.mark("submit_psp");
@@ -239,7 +240,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 按平台代付订单号查询订单。
+     * 按平台代付订单号查询订单�?
      */
     @Override
     public PayoutOrderResponse getByPayoutOrderNo(String payoutOrderNo) {
@@ -252,7 +253,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 按商户订单号查询订单。
+     * 按商户订单号查询订单�?
      */
     @Override
     public PayoutOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
@@ -261,9 +262,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 插入代付订单并记录创建状态日志。
+     * 插入代付订单并记录创建状态日志�?
      * <p>
-     * 如果并发请求触发唯一键冲突，会重新查询已有订单并按幂等规则复用。
+     * 如果并发请求触发唯一键冲突，会重新查询已有订单并按幂等规则复用�?
      */
     private boolean insertOrder(PayoutOrderEntity entity) {
         try {
@@ -282,12 +283,12 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 把“创建代付订单”和“创建待提交 PSP 的 outbox 任务”放在同一个数据库事务里执行。
+     * 把“创建代付订单”和“创建待提交 PSP �?outbox 任务”放在同一个数据库事务里执行�?
      * @param order 订单
      * @return Boolean
      */
     private Boolean insertOrderAndOutbox(PayoutOrderEntity order) {
-        // 表示开启一个 Spring 事务。里面的数据库操作要么一起成功，要么一起回滚。
+        // 表示开启一�?Spring 事务。里面的数据库操作要么一起成功，要么一起回滚�?
         return transactionTemplate.execute(status -> {
             boolean created = insertOrder(order);
             if (created) {
@@ -298,10 +299,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 提交代付订单到 PSP。
+     * 提交代付订单�?PSP�?
      * <p>
-     * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新。
-     * 任何提交阶段异常都会先尝试释放冻结资金，再把订单标记为失败。
+     * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新�?
+     * 任何提交阶段异常都会先尝试释放冻结资金，再把订单标记为失败�?
      */
     private void submitToPsp(PayoutOrderEntity order, PaymentPlan paymentPlan) {
         try {
@@ -309,13 +310,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published");
             }
             PspRouteResult route = paymentPlan.getRoute();
-            // 使用下单前已经命中的支付方案路由，避免冻结后再次实时选路由导致快照不一致。
+            // 使用下单前已经命中的支付方案路由，避免冻结后再次实时选路由导致快照不一致�?
 
-            // 调用 PSP 分发服务，具体 PSP 协议由对应 adapter 处理。
-            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(order, route);
+            // 调用 PSP 分发服务，具�?PSP 协议由对�?adapter 处理�?
+            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(order), route);
             applyDispatchResult(order, dispatchResult);
             if (!dispatchResult.isSuccess()) {
-                // PSP 明确拒绝代付提交时，释放前面已经冻结的商户资金。
+                // PSP 明确拒绝代付提交时，释放前面已经冻结的商户资金�?
                 releasePayout(order);
             }
             payoutOrderDao.updateById(order);
@@ -357,7 +358,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 保存 PSP 路由结果到代付订单。
+     * 保存 PSP 路由结果到代付订单�?
      */
     private void applyRoute(PayoutOrderEntity entity, PspRouteResult route) {
         entity.setRouteRuleId(route.getRouteRuleId());
@@ -373,10 +374,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 应用 PSP 代付提交结果。
+     * 应用 PSP 代付提交结果�?
      * <p>
-     * PSP 受理成功后订单进入 PROCESSING，等待 PSP 回调或主动查单推进终态；
-     * PSP 明确拒绝时订单直接 FAILED。
+     * PSP 受理成功后订单进�?PROCESSING，等�?PSP 回调或主动查单推进终态；
+     * PSP 明确拒绝时订单直�?FAILED�?
      */
     private void applyDispatchResult(PayoutOrderEntity entity, PspPayoutDispatchResult result) {
         String fromStatus = entity.getStatus();
@@ -387,7 +388,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             entity.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
             entity.setSubmittedAt(Instant.now());
-            // 设置下一次主动查单时间，兜底处理 PSP 回调丢失或延迟。
+            // 设置下一次主动查单时间，兜底处理 PSP 回调丢失或延迟�?
             entity.setNextQueryAt(Instant.now().plusSeconds(60));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
@@ -406,7 +407,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 将代付订单标记为失败并记录状态日志。
+     * 将代付订单标记为失败并记录状态日志�?
      */
     private void markFailed(PayoutOrderEntity entity, String reason, String failCode) {
         String fromStatus = entity.getStatus();
@@ -421,7 +422,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 记录代付订单状态变更。
+     * 记录代付订单状态变更�?
      */
     private void recordStatusChange(PayoutOrderEntity entity,
                                     String fromStatus,
@@ -454,7 +455,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 获取当前 OpenAPI 请求 traceId。
+     * 获取当前 OpenAPI 请求 traceId�?
      */
     private String traceId() {
         ApiReqContext context = ApiReqContextHolder.get();
@@ -462,9 +463,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 代付创建接口分段耗时计时器。
+     * 代付创建接口分段耗时计时器�?
      * <p>
-     * 只用于定位慢接口，不参与任何业务判断；每次成功或已处理失败时输出一行 summary，方便按 traceId 排查。
+     * 只用于定位慢接口，不参与任何业务判断；每次成功或已处理失败时输出一�?summary，方便按 traceId 排查�?
      */
     private static final class PayoutCreateStepTimer {
         private final String merchantOrderNo;
@@ -515,9 +516,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 应用已发布支付决策表命中的代付方案。
+     * 应用已发布支付决策表命中的代付方案�?
      * <p>
-     * 决策表同时给出商户费率、PSP 路由和 PSP 成本，订单只保存快照字段。
+     * 决策表同时给出商户费率、PSP 路由�?PSP 成本，订单只保存快照字段�?
      */
     private void applyPaymentPlan(PayoutOrderEntity entity, PaymentPlan plan) {
         entity.setPaymentPlanCatalogId(plan.getCatalogId());
@@ -540,10 +541,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 冻结商户可用余额。
+     * 冻结商户可用余额�?
      * <p>
-     * 冻结成功后保存 holdNo 和冻结账务流水号，后续 PSP 成功会扣冻结，
-     * PSP 失败或提交异常会按 holdNo 释放冻结。
+     * 冻结成功后保�?holdNo 和冻结账务流水号，后�?PSP 成功会扣冻结�?
+     * PSP 失败或提交异常会�?holdNo 释放冻结�?
      *
      * @param order 订单信息
      */
@@ -568,10 +569,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 释放代付冻结资金。
+     * 释放代付冻结资金�?
      * <p>
-     * 仅在 PSP 提交失败或明确拒绝时调用；如果释放失败，保留原始 PSP 错误，
-     * 后续可由运营或补偿任务根据 holdNo 处理。
+     * 仅在 PSP 提交失败或明确拒绝时调用；如果释放失败，保留原始 PSP 错误�?
+     * 后续可由运营或补偿任务根�?holdNo 处理�?
      *
      * @param order 订单信息
      */
@@ -588,7 +589,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 构建账务代付请求对象。
+     * 构建账务代付请求对象�?
      */
     private PayoutPostingRequest payoutPostingRequest(PayoutOrderEntity entity) {
         PayoutPostingRequest request = new PayoutPostingRequest();
@@ -608,9 +609,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 校验重复商户订单号对应的请求参数是否一致。
+     * 校验重复商户订单号对应的请求参数是否一致�?
      * <p>
-     * 代付额外校验收款账号，避免同一商户订单号被用于不同收款人。
+     * 代付额外校验收款账号，避免同一商户订单号被用于不同收款人�?
      */
     private void validateIdempotentRequest(PayoutOrderEntity existed, PayoutOrderCreateRequest request, String currency, String methodCode) {
         if (existed.getAmount() == null || request.getAmount() == null
@@ -625,7 +626,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 校验并发插入冲突后查到的已有订单是否与当前订单一致。
+     * 校验并发插入冲突后查到的已有订单是否与当前订单一致�?
      */
     private void validateIdempotentEntity(PayoutOrderEntity existed, PayoutOrderEntity entity) {
         if (existed.getAmount() == null || entity.getAmount() == null
@@ -640,7 +641,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 校验当前商户应用是否允许使用指定币种和代付方式。
+     * 校验当前商户应用是否允许使用指定币种和代付方式�?
      */
     private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
         if (isNotAllowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
@@ -652,7 +653,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping。
+     * 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping�?
      */
     private void validatePayoutPayee(PayoutOrderCreateRequest request, String methodCode) {
         if (!PaymentMethodCodes.isBankCard(methodCode)) {
@@ -665,9 +666,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 判断配置列表是否允许当前值。
+     * 判断配置列表是否允许当前值�?
      * <p>
-     * 空配置表示不限制。
+     * 空配置表示不限制�?
      */
     private boolean isNotAllowed(String jsonArray, String value) {
         if (StringUtils.isBlank(jsonArray)) {
@@ -682,7 +683,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 校验金额小数位。
+     * 校验金额小数位�?
      */
     private void validateAmountScale(BigDecimal amount) {
         if (amount.scale() > 8) {
@@ -691,11 +692,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 保存收款人信息。
+     * 保存收款人信息�?
      * <p>
-     * 使用 payee 结构保存收款人信息。
+     * 使用 payee 结构保存收款人信息�?
      * <p>
-     * 独立列保存账号、手机号、邮箱明文；payee_json 保留提交 PSP 所需的标准字段快照。
+     * 独立列保存账号、手机号、邮箱明文；payee_json 保留提交 PSP 所需的标准字段快照�?
      */
     private void applyPayee(PayoutOrderEntity entity, PayoutOrderCreateRequest request) {
         PayoutOrderCreateRequest.Payee payee = request.getPayee();
@@ -719,7 +720,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 构建可落库的收款人明文快照。
+     * 构建可落库的收款人明文快照�?
      */
     private Map<String, Object> payeeSnapshot(String name,
                                               String accountNo,
@@ -738,7 +739,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 构建 PSP 路由快照 JSON。
+     * 构建 PSP 路由快照 JSON�?
      */
     private String routeSnapshotJson(PayoutOrderEntity entity, PspRouteResult route) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
@@ -760,9 +761,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 构建商户 OpenAPI 查询基础条件。
+     * 构建商户 OpenAPI 查询基础条件�?
      * <p>
-     * 所有商户查单只允许访问当前 app_id 所属租户和商户的数据。
+     * 所有商户查单只允许访问当前 app_id 所属租户和商户的数据�?
      */
     private PayoutOrderEntity findByMerchantOrderNo(String merchantOrderNo) {
         return payoutOrderDao.selectOpenApiByMerchantOrderNo(
@@ -773,9 +774,9 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 把已有订单字段复制到当前对象。
+     * 把已有订单字段复制到当前对象�?
      * <p>
-     * 用于并发幂等场景，调用方可继续用当前对象生成统一响应。
+     * 用于并发幂等场景，调用方可继续用当前对象生成统一响应�?
      */
     private void copyOrder(PayoutOrderEntity source, PayoutOrderEntity target) {
         target.setId(source.getId());
@@ -811,7 +812,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 转换代付订单为 OpenAPI 响应。
+     * 转换代付订单�?OpenAPI 响应�?
      */
     private PayoutOrderResponse toResponse(PayoutOrderEntity entity) {
         if (entity == null) {
@@ -830,7 +831,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 将对象转成 JSON。
+     * 将对象转�?JSON�?
      */
     private String toJson(Object value) {
         if (value == null) {
@@ -847,14 +848,14 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 按币种格式化金额输出。
+     * 按币种格式化金额输出�?
      */
     private String formatMoney(BigDecimal value, String currency) {
         return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
     }
 
     /**
-     * BigDecimal 空值转 0。
+     * BigDecimal 空值转 0�?
      */
     private BigDecimal defaultZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;

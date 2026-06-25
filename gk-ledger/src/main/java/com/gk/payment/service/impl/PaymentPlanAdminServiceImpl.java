@@ -117,7 +117,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     @Override
     public PaymentPlanBatchPreviewResponse batchPreviewByRouteGroup(PaymentPlanBatchPreviewRequest request) {
         if (request == null || request.getRouteGroupId() == null) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "路由组不能为空");
+            throw new GkException(ErrorCode.BAD_REQUEST, "路由组不能为�?);
         }
         PaymentRouteGroupEntity group = paymentRouteGroupDao.selectById(request.getRouteGroupId());
         if (group == null) {
@@ -179,8 +179,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
                 }
             }
 
-            // 同一商户应用维度只允许一个 ACTIVE 决策表，先退旧版，再激活当前发布版本。
-            PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
+            // 同一商户应用维度只允许一�?ACTIVE 决策表，先退旧版，再激活当前发布版本�?            PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
             retired.setStatus(PaymentPlanStatus.RETIRED);
             paymentPlanCatalogDao.update(retired, sameCatalogWrapper(catalog)
                     .eq("status", PaymentPlanStatus.ACTIVE)

@@ -10,8 +10,6 @@ import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.payment.plan.PaymentPlanCacheService;
-import com.gk.payment.plan.PayinPlanCache;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dto.PspAccountDTO;
 import com.gk.psp.entity.PspAccountEntity;
@@ -29,11 +27,6 @@ import java.util.Set;
 @Slf4j
 public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAccountEntity, PspAccountDTO> implements PspAccountService {
     private static final long PSP_ACCOUNT_DICT_CACHE_SECONDS = 60 * 60L;
-
-    @Autowired
-    private PayinPlanCache payinPlanCache;
-    @Autowired
-    private PaymentPlanCacheService paymentPlanCacheService;
     @Autowired
     private RedisUtils redisUtils;
 
@@ -111,13 +104,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
     }
 
     private void evictPayinPlanCache() {
-        // PSP Account changes affect route account and credential selection.
-        if (payinPlanCache != null) {
-            payinPlanCache.evictAll();
-        }
-        if (paymentPlanCacheService != null) {
-            paymentPlanCacheService.evictAll();
-        }
+        // PSP 模块不直接清理 payment 缓存，后续由模块事件统一处理。
     }
 
     private List<LabelDTO> getCachedDict(String cacheKey) {

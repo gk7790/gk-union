@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 租户信息表
+ * 租户信息�?
  *
  * @author Lowen lowen@gmail.com
  * @since 3.0 2026-05-29

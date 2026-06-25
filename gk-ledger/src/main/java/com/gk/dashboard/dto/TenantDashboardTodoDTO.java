@@ -19,17 +19,17 @@ public class TenantDashboardTodoDTO {
     private List<TodoItem> items;
 
     @Data
-    @Schema(title = "待办项")
+    @Schema(title = "待办�?)
     public static class TodoItem {
         @Schema(title = "业务类型 PAY/PAYOUT")
         private String bizType;
         @Schema(title = "订单ID")
         private Long orderId;
-        @Schema(title = "平台订单号")
+        @Schema(title = "平台订单�?)
         private String orderNo;
         @Schema(title = "商户ID")
         private Long merchantId;
-        @Schema(title = "商户号")
+        @Schema(title = "商户�?)
         private String merchantNo;
         @Schema(title = "商户名称")
         private String merchantName;
@@ -37,7 +37,7 @@ public class TenantDashboardTodoDTO {
         private BigDecimal amount;
         @Schema(title = "币种")
         private String currency;
-        @Schema(title = "状态")
+        @Schema(title = "状�?)
         private String status;
         @Schema(title = "事件时间")
         private Instant eventAt;

@@ -21,17 +21,17 @@ public class PaymentRouteChannelDTO {
     private Long pspAccountId;
     @Schema(title = "PSP成本规则ID")
     private Long pspFeeRuleId;
-    @Schema(title = "优先级")
+    @Schema(title = "优先�?)
     private Integer priority;
     @Schema(title = "权重")
     private Integer weight;
     @Schema(title = "备用顺序")
     private Integer fallbackOrder;
-    @Schema(title = "最小金额")
+    @Schema(title = "最小金�?)
     private BigDecimal minAmount;
-    @Schema(title = "最大金额")
+    @Schema(title = "最大金�?)
     private BigDecimal maxAmount;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
     @Schema(title = "备注")
     private String remark;

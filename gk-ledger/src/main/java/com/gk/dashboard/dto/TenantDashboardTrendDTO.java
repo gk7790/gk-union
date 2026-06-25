@@ -16,11 +16,11 @@ public class TenantDashboardTrendDTO {
     private String range;
     @Schema(title = "时区")
     private String timezone;
-    @Schema(title = "趋势点")
+    @Schema(title = "趋势�?)
     private List<TrendPoint> points;
 
     @Data
-    @Schema(title = "日趋势")
+    @Schema(title = "日趋�?)
     public static class TrendPoint {
         @Schema(title = "日期 yyyy-MM-dd")
         private String date;

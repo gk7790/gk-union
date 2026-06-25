@@ -6,8 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户风控状态。
- */
+ * 商户风控状态�? */
 @EnumDict("merchantRiskStatus")
 public enum MerchantRiskStatusEnum implements StringCodeEnum {
     @Style(StyleType.SUCCESS)

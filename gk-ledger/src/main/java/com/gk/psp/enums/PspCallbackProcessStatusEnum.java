@@ -6,12 +6,11 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * PSP 回调处理状态。
- */
+ * PSP 回调处理状态�? */
 @EnumDict("pspCallbackProcessStatus")
 public enum PspCallbackProcessStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    INIT("INIT", "待处理", "enum.pspCallbackProcessStatus.init"),
+    INIT("INIT", "待处�?, "enum.pspCallbackProcessStatus.init"),
 
     @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.pspCallbackProcessStatus.success"),

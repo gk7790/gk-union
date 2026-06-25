@@ -291,8 +291,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     }
 
     private void evictPayinPlanCache() {
-        // 商户 App 的币种/方式等配置会影响 PayinPlan 命中结果，变更后必须清空缓存。
-        if (payinPlanCache != null) {
+        // 商户 App 的币�?方式等配置会影响 PayinPlan 命中结果，变更后必须清空缓存�?        if (payinPlanCache != null) {
             payinPlanCache.evictAll();
         }
         if (paymentPlanCacheService != null) {

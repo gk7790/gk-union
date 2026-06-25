@@ -13,13 +13,10 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 代付提交 outbox 定时消费任务。
- * <p>
+ * 代付提交 outbox 定时消费任务�? * <p>
  * 该任务由 Quartz 调度触发，负责从 {@code mq_outbox} 中锁定到期的
- * {@link PayoutSubmitOutboxProducer#EVENT_TYPE} 事件，并把每条事件交给
- * {@link PayoutSubmitOutboxConsumer} 执行业务处理。任务本身只负责调度、统计和
- * outbox 消费状态更新，不直接操作代付订单业务。
- */
+ * {@link PayoutSubmitOutboxProducer#EVENT_TYPE} 事件，并把每条事件交�? * {@link PayoutSubmitOutboxConsumer} 执行业务处理。任务本身只负责调度、统计和
+ * outbox 消费状态更新，不直接操作代付订单业务�? */
 @Slf4j
 @Component("payoutSubmitOutboxTask")
 @RequiredArgsConstructor
@@ -30,11 +27,9 @@ public class PayoutSubmitOutboxTask implements ITask {
     private final PayoutSubmitOutboxConsumer consumer;
 
     /**
-     * 扫描、锁定并消费一批到期 outbox 事件。
-     * <p>
-     * 成功消费后标记 {@code DONE}；可重试异常标记 {@code FAILED} 并等待下次调度；
-     * 参数错误、余额不足、支付方案不可用等确定性失败标记 {@code DEAD}，避免无意义重试。
-     */
+     * 扫描、锁定并消费一批到�?outbox 事件�?     * <p>
+     * 成功消费后标�?{@code DONE}；可重试异常标记 {@code FAILED} 并等待下次调度；
+     * 参数错误、余额不足、支付方案不可用等确定性失败标�?{@code DEAD}，避免无意义重试�?     */
     @Override
     public String run(String params) {
         int batchSize = parseBatchSize(params);
@@ -61,8 +56,7 @@ public class PayoutSubmitOutboxTask implements ITask {
     }
 
     /**
-     * 判断异常是否属于重试也无法恢复的业务失败。
-     */
+     * 判断异常是否属于重试也无法恢复的业务失败�?     */
     private boolean isNonRetryable(Exception ex) {
         if (!(ex instanceof ApiException apiException)) {
             return false;
@@ -74,8 +68,7 @@ public class PayoutSubmitOutboxTask implements ITask {
     }
 
     /**
-     * 转换异常为 outbox 最近一次失败码，便于后台排查和重试决策。
-     */
+     * 转换异常�?outbox 最近一次失败码，便于后台排查和重试决策�?     */
     private String errorCode(Exception ex) {
         if (ex instanceof ApiException apiException) {
             return apiException.getErrorCode().name();
@@ -84,8 +77,7 @@ public class PayoutSubmitOutboxTask implements ITask {
     }
 
     /**
-     * 解析 Quartz 参数中的批量大小，限制在 1 到 100，避免单次任务处理过多事件。
-     */
+     * 解析 Quartz 参数中的批量大小，限制在 1 �?100，避免单次任务处理过多事件�?     */
     private int parseBatchSize(String params) {
         if (StringUtils.isBlank(params)) {
             return DEFAULT_BATCH_SIZE;

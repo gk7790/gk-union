@@ -5,15 +5,14 @@ import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;
+import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
+
 import com.gk.psp.query.PspOrderQueryResult;
+import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -31,8 +30,7 @@ import java.util.Map;
 @Component
 public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
-    // 下单需要同步拿 pay_url，超时要短而明确，避免慢 PSP 长时间占用商户请求线程。
-    private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
+    // 下单需要同步拿 pay_url，超时要短而明确，避免�?PSP 长时间占用商户请求线程�?    private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
     private static final int READ_TIMEOUT_MILLIS = 8_000;
     private volatile RestClient restClient;
 
@@ -43,7 +41,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     }
 
     @Override
-    public PspPayDispatchResult createPayOrder(PayOrderEntity order, PspRouteResult route) {
+    public PspPayDispatchResult createPayOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = payParams(order, route);
         String path = "/open-api/create-pay-order";
         PspPayDispatchResult result = basePayResult(order, route, path, params);
@@ -53,7 +51,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     }
 
     @Override
-    public PspPayoutDispatchResult createPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
+    public PspPayoutDispatchResult createPayoutOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
@@ -65,27 +63,27 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     }
 
     @Override
-    public PspOrderQueryResult queryPayOrder(PayOrderEntity order, PspRouteResult route) {
-        Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getPayOrderNo(), route);
+    public PspOrderQueryResult queryPayOrder(PspOrderRequest order, PspRouteResult route) {
+        Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-pay-order";
         JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
-        return buildQueryResult(order.getPayOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
+        return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, true);
     }
 
     @Override
-    public PspOrderQueryResult queryPayoutOrder(PayoutOrderEntity order, PspRouteResult route) {
-        Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getPayoutOrderNo(), route);
+    public PspOrderQueryResult queryPayoutOrder(PspOrderRequest order, PspRouteResult route) {
+        Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-payout-order";
         JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
-        return buildQueryResult(order.getPayoutOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
+        return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, false);
     }
 
-    private Map<String, Object> payParams(PayOrderEntity order, PspRouteResult route) {
+    private Map<String, Object> payParams(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("app_id", route.getPspAccountApiKey());
-        params.put("merchant_order_id", order.getPayOrderNo());
+        params.put("merchant_order_id", order.getOrderNo());
         params.put("amount", amount(order.getAmount()));
         params.put("pay_channel", channel(route, order.getMethodCode()));
         params.put("notify_url", route.getPspCallbackUrl());
@@ -95,7 +93,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         return params;
     }
 
-    private Map<String, Object> payoutParams(PayoutOrderEntity order, PspRouteResult route) {
+    private Map<String, Object> payoutParams(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> extra = jsonMap(order.getExtraJson());
         Map<String, Object> payee = jsonMap(order.getPayeeJson());
         String accountNo = StringUtils.defaultIfBlank(
@@ -108,7 +106,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("app_id", route.getPspAccountApiKey());
-        params.put("merchant_order_id", order.getPayoutOrderNo());
+        params.put("merchant_order_id", order.getOrderNo());
         params.put("amount", amount(order.getAmount()));
         params.put("payout_mode", channel(route, order.getMethodCode()));
         params.put("customer_account_no", accountNo);
@@ -182,25 +180,25 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         return JSON.parseObject(body);
     }
 
-    private PspPayDispatchResult basePayResult(PayOrderEntity order, PspRouteResult route, String path, Map<String, Object> params) {
+    private PspPayDispatchResult basePayResult(PspOrderRequest order, PspRouteResult route, String path, Map<String, Object> params) {
         PspPayDispatchResult result = new PspPayDispatchResult();
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         result.setRequestUrl(StringUtils.removeEnd(route.getPspBaseUrl(), "/") + path);
         result.setHttpMethod("POST");
         result.setRequestHeadersJson(HEADERS_JSON);
         result.setRequestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())));
-        result.setPspMerchantOrderNo(order.getPayOrderNo());
+        result.setPspMerchantOrderNo(order.getOrderNo());
         return result;
     }
 
-    private PspPayoutDispatchResult basePayoutResult(PayoutOrderEntity order, PspRouteResult route, String path, Map<String, Object> params) {
+    private PspPayoutDispatchResult basePayoutResult(PspOrderRequest order, PspRouteResult route, String path, Map<String, Object> params) {
         PspPayoutDispatchResult result = new PspPayoutDispatchResult();
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         result.setRequestUrl(StringUtils.removeEnd(route.getPspBaseUrl(), "/") + path);
         result.setHttpMethod("POST");
         result.setRequestHeadersJson(HEADERS_JSON);
         result.setRequestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())));
-        result.setPspMerchantOrderNo(order.getPayoutOrderNo());
+        result.setPspMerchantOrderNo(order.getOrderNo());
         return result;
     }
 
@@ -258,13 +256,13 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setSuccess(true);
         result.setPspOrderNo(data.getString("system_order_id"));
         result.setResponseSign(data.getString("sign"));
-        result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PayoutOrderStatusEnum.PROCESSING.code()));
+        result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));
     }
 
-    private void fillFakePayoutCreate(PspPayoutDispatchResult result, PayoutOrderEntity order) {
-        String pspOrderNo = "MOCK_" + order.getPayoutOrderNo();
+    private void fillFakePayoutCreate(PspPayoutDispatchResult result, PspOrderRequest order) {
+        String pspOrderNo = "MOCK_" + order.getOrderNo();
         JSONObject data = new JSONObject();
-        data.put("merchant_order_id", order.getPayoutOrderNo());
+        data.put("merchant_order_id", order.getOrderNo());
         data.put("system_order_id", pspOrderNo);
         data.put("amount", amount(order.getAmount()));
         data.put("order_status", "WAIT_PAY");
@@ -331,26 +329,26 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED")) {
-            return PayOrderStatusEnum.SUCCESS.code();
+            return PspCallbackUtils.STATUS_SUCCESS;
         }
         if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED")) {
-            return PayOrderStatusEnum.FAILED.code();
+            return PspCallbackUtils.STATUS_FAILED;
         }
-        return PayOrderStatusEnum.PROCESSING.code();
+        return PspCallbackUtils.STATUS_PROCESSING;
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "COMPLETED")) {
-            return PayoutOrderStatusEnum.SUCCESS.code();
+            return PspCallbackUtils.STATUS_SUCCESS;
         }
         if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "REJECTED")) {
-            return PayoutOrderStatusEnum.FAILED.code();
+            return PspCallbackUtils.STATUS_FAILED;
         }
         if (StringUtils.equalsAny(value, "CANCELLED", "CANCELED")) {
-            return PayoutOrderStatusEnum.CANCELLED.code();
+            return PspCallbackUtils.STATUS_CANCELLED;
         }
-        return PayoutOrderStatusEnum.PROCESSING.code();
+        return PspCallbackUtils.STATUS_PROCESSING;
     }
 
     private void mergeJson(Map<String, Object> target, String json) {

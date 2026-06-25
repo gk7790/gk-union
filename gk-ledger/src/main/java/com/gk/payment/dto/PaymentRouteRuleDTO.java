@@ -25,19 +25,19 @@ public class PaymentRouteRuleDTO {
     private String currency;
     @Schema(title = "平台统一支付方式编码")
     private String methodCode;
-    @Schema(title = "最小金额")
+    @Schema(title = "最小金�?)
     private BigDecimal minAmount;
-    @Schema(title = "最大金额")
+    @Schema(title = "最大金�?)
     private BigDecimal maxAmount;
     @Schema(title = "命中的路由组ID")
     private Long groupId;
-    @Schema(title = "优先级")
+    @Schema(title = "优先�?)
     private Integer priority;
     @Schema(title = "生效时间")
     private Instant effectiveAt;
     @Schema(title = "失效时间")
     private Instant expireAt;
-    @Schema(title = "状态")
+    @Schema(title = "状�?)
     private Integer status;
     @Schema(title = "备注")
     private String remark;

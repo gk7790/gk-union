@@ -7,8 +7,7 @@ import com.gk.payment.entity.OrderStatusLogEntity;
 public interface OrderStatusLogService extends CrudService<OrderStatusLogEntity, OrderStatusLogDTO> {
 
     /**
-     * 记录订单状态变更；from/to 相同则跳过。
-     *
+     * 记录订单状态变更；from/to 相同则跳过�?     *
      * @param orderType PAY / PAYOUT
      */
     void recordChange(String orderType,

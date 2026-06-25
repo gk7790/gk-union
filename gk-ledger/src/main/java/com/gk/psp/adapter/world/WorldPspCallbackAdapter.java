@@ -1,13 +1,13 @@
 package com.gk.psp.adapter.world;
 
 import com.gk.common.model.Result;
-import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackAckMapper;
+import com.gk.psp.callback.support.PspCallbackUtils;
+
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -77,26 +77,26 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED")) {
-            return PayOrderStatusEnum.SUCCESS.code();
+            return PspCallbackUtils.STATUS_SUCCESS;
         }
         if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED")) {
-            return PayOrderStatusEnum.FAILED.code();
+            return PspCallbackUtils.STATUS_FAILED;
         }
-        return PayOrderStatusEnum.PROCESSING.code();
+        return PspCallbackUtils.STATUS_PROCESSING;
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "COMPLETED")) {
-            return PayoutOrderStatusEnum.SUCCESS.code();
+            return PspCallbackUtils.STATUS_SUCCESS;
         }
         if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "REJECTED")) {
-            return PayoutOrderStatusEnum.FAILED.code();
+            return PspCallbackUtils.STATUS_FAILED;
         }
         if (StringUtils.equalsAny(value, "CANCELLED", "CANCELED")) {
-            return PayoutOrderStatusEnum.CANCELLED.code();
+            return PspCallbackUtils.STATUS_CANCELLED;
         }
-        return PayoutOrderStatusEnum.PROCESSING.code();
+        return PspCallbackUtils.STATUS_PROCESSING;
     }
 
     private BigDecimal decimal(Map<String, Object> params, String... names) {

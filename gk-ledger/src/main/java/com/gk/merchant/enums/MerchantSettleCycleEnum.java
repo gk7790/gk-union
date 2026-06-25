@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 商户结算周期。
+ * 商户结算周期�?
  */
 @EnumDict("merchantSettleCycle")
 public enum MerchantSettleCycleEnum implements StringCodeEnum {

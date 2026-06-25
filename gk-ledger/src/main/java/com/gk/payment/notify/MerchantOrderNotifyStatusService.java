@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 
 /**
- * 维护订单表上的下游商户通知状态(与 merchant_notify_task 冗余同步)。
+ * 维护订单表上的下游商户通知状�?�?merchant_notify_task 冗余同步)�?
  */
 @Service
 @RequiredArgsConstructor

@@ -7,8 +7,8 @@ import lombok.Data;
 @OpenApiModel
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PayoutOrderQueryRequest {
-    /** 平台订单号 */
+    /** 平台订单�?*/
     private String systemOrderId;
-    /** 商户订单号 */
+    /** 商户订单�?*/
     private String merchantOrderId;
 }

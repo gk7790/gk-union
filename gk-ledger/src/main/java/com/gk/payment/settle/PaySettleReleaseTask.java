@@ -6,9 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 代收待结算释放定时任务。
+ * 代收待结算释放定时任务�?
  * <p>
- * 在 gk-scheduler 中配置 beanName = {@code paySettleReleaseTask}，建议 cron 每分钟一次。
+ * �?gk-scheduler 中配�?beanName = {@code paySettleReleaseTask}，建�?cron 每分钟一次�?
  */
 @Component("paySettleReleaseTask")
 @RequiredArgsConstructor

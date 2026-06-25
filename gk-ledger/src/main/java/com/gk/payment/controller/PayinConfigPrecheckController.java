@@ -20,8 +20,7 @@ public class PayinConfigPrecheckController {
     private final PayinPlanService payinPlanService;
 
     /**
-     * 后台配置发布前调用，提前验证代收完整链路是否能解析出可用方案。
-     */
+     * 后台配置发布前调用，提前验证代收完整链路是否能解析出可用方案�?     */
     @PostMapping("precheck")
     @Operation(summary = "代收配置发布预检")
     @PreAuthorize("hasAuthority('payment:payin-config:precheck')")

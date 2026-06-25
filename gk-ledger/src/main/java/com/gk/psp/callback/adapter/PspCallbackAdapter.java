@@ -16,8 +16,7 @@ public interface PspCallbackAdapter {
     Result<Void> verifySign(PspCallbackRequest request, PspCallbackOrder order);
 
     /**
-     * PSP 回调未携带 currency 时的解析策略，默认回退订单币种。
-     */
+     * PSP 回调未携�?currency 时的解析策略，默认回退订单币种�?     */
     default PspCallbackCurrencyPolicy currencyPolicy() {
         return PspCallbackCurrencyPolicy.ORDER_FALLBACK;
     }

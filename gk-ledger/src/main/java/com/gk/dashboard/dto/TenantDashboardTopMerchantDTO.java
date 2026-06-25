@@ -22,7 +22,7 @@ public class TenantDashboardTopMerchantDTO {
     public static class TopMerchant {
         @Schema(title = "商户ID")
         private Long merchantId;
-        @Schema(title = "商户号")
+        @Schema(title = "商户�?)
         private String merchantNo;
         @Schema(title = "商户名称")
         private String merchantName;

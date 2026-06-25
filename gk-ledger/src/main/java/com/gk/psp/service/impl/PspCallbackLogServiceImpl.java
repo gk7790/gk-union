@@ -57,8 +57,7 @@ public class PspCallbackLogServiceImpl extends CrudServiceImpl<PspCallbackLogDao
         try {
             baseDao.insert(entity);
         } catch (DuplicateKeyException ignored) {
-            // 重复回调保留首条日志，与同步 insert 行为一致。
-        } catch (Exception ex) {
+            // 重复回调保留首条日志，与同步 insert 行为一致�?        } catch (Exception ex) {
             log.warn("Save PSP callback log failed: {}", ex.getMessage());
         }
     }

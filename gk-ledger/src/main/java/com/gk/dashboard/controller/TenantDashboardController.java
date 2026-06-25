@@ -26,7 +26,7 @@ public class TenantDashboardController {
     private final TenantDashboardService tenantDashboardService;
 
     @GetMapping("summary")
-    @Operation(summary = "首页汇总")
+    @Operation(summary = "首页汇�?)
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardSummaryDTO> summary(
             @Parameter(description = "today/yesterday/last7d/last30d")
@@ -40,7 +40,7 @@ public class TenantDashboardController {
     @Operation(summary = "首页趋势")
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardTrendDTO> trend(
-            @Parameter(description = "today/yesterday/last7d/last30d，默认 last7d")
+            @Parameter(description = "today/yesterday/last7d/last30d，默�?last7d")
             @RequestParam(defaultValue = "last7d") String range,
             @RequestParam(required = false) String currency) {
         return R.ok(tenantDashboardService.trend(range, currency));
@@ -50,10 +50,10 @@ public class TenantDashboardController {
     @Operation(summary = "待办明细")
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardTodoDTO> todos(
-            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/SETTLE_DUE/PROCESSING_PAY/PROCESSING_PAYOUT，也支持 summary.todos 的 camelCase")
+            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/SETTLE_DUE/PROCESSING_PAY/PROCESSING_PAYOUT，也支持 summary.todos �?camelCase")
             @RequestParam String type,
             @RequestParam(required = false) String currency,
-            @Parameter(description = "默认10，最大50")
+            @Parameter(description = "默认10，最�?0")
             @RequestParam(defaultValue = "10") int limit) {
         return R.ok(tenantDashboardService.todos(type, currency, limit));
     }
@@ -62,22 +62,22 @@ public class TenantDashboardController {
     @Operation(summary = "Top商户排行")
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardTopMerchantDTO> topMerchants(
-            @Parameter(description = "today/yesterday/last7d/last30d，默认 today")
+            @Parameter(description = "today/yesterday/last7d/last30d，默�?today")
             @RequestParam(defaultValue = "today") String range,
             @RequestParam(required = false) String currency,
-            @Parameter(description = "默认5，最大20")
+            @Parameter(description = "默认5，最�?0")
             @RequestParam(defaultValue = "5") int limit) {
         return R.ok(tenantDashboardService.topMerchants(range, currency, limit));
     }
 
     @GetMapping("recent-orders")
-    @Operation(summary = "最近订单")
+    @Operation(summary = "最近订�?)
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardRecentOrderDTO> recentOrders(
             @Parameter(description = "PAY/PAYOUT")
             @RequestParam String bizType,
             @RequestParam(required = false) String currency,
-            @Parameter(description = "默认5，最大20")
+            @Parameter(description = "默认5，最�?0")
             @RequestParam(defaultValue = "5") int limit) {
         return R.ok(tenantDashboardService.recentOrders(bizType, currency, limit));
     }

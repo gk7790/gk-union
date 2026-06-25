@@ -36,10 +36,10 @@ public class MerchantController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录数", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选值(asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('merchant:page')")
     public R<?> page(@RequestMap DynMap params) {
@@ -62,13 +62,13 @@ public class MerchantController {
     }
 
     @PostMapping("{id}/tg-bind-ticket")
-    @Operation(summary = "生成Telegram绑定码")
+    @Operation(summary = "生成Telegram绑定�?)
     @PreAuthorize("hasAuthority('merchant:info')")
     public R<?> generateTgBindTicket(@PathVariable("id") Long id,
                                      @RequestParam(defaultValue = "USER") String purpose) {
         MerchantDTO data = merchantService.get(id);
         if (data == null || data.getId() == null) {
-            throw new GkException("商户不存在");
+            throw new GkException("商户不存�?);
         }
         TgBindTicket ticket = generateTicket(data, TgBindPurpose.parse(purpose));
         DynMap result = new DynMap();
@@ -112,7 +112,7 @@ public class MerchantController {
         Long tenantId = ReqContextHolder.getTenantId();
         String subjectType = ReqContextHolder.getSubjectType();
         if (merchant == null || merchant.getId() == null || !merchant.getId().equals(currentMerchantId)) {
-            throw new GkException("只能为当前登录商户生成Telegram绑定码");
+            throw new GkException("只能为当前登录商户生成Telegram绑定�?);
         }
         return tgBindTicketService.generate(purpose, subjectType, tenantId != null ? tenantId : merchant.getTenantId(),
                 merchant.getId(), subjectId, userId);

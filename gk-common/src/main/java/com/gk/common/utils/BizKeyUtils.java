@@ -51,6 +51,10 @@ public class BizKeyUtils {
         return "MNT" + encodeId(IdWorker.getId());
     }
 
+    public static String genEventId() {
+        return "EVT" + encodeId(IdWorker.getId());
+    }
+
     public static String genTgMessageTaskNo() {
         return "TGM" + encodeId(IdWorker.getId());
     }

@@ -2,7 +2,6 @@ package com.gk.openapi.service.impl;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.constant.Constant;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.utils.AsynUtils;
@@ -59,7 +58,6 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final MerchantFeeRuleService merchantFeeRuleService;
     private final PayinPlanService payinPlanService;
     private final PspPayDispatchService pspPayDispatchService;
-    private final ObjectMapper objectMapper;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
 
@@ -428,7 +426,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(value);
+            return JSON.toJSONString(value);
         } catch (Exception e) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON field");
         }
@@ -621,7 +619,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             return false;
         }
         try {
-            List<String> allowedValues = objectMapper.readValue(jsonArray, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
+            List<String> allowedValues = JSON.parseArray(jsonArray, String.class);
             return allowedValues.stream().noneMatch(item -> StringUtils.equalsIgnoreCase(item, value));
         } catch (Exception ex) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");

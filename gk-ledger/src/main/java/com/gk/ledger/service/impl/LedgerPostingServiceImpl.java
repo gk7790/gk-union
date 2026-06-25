@@ -7,6 +7,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
+import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.enums.LedgerDirectionEnum;
 import com.gk.ledger.enums.LedgerHoldStatusEnum;
@@ -34,23 +35,26 @@ import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.ledger.enums.MerchantWalletStatementEffectEnum;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 账务入账服务。
@@ -60,11 +64,12 @@ import java.util.Objects;
  * 同一业务单号 + 同一事件类型只能生成一张账务凭证。</p>
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
     private static final long SLOW_LEDGER_PROFILE_MILLIS = 1000L;
+    private static final long MERCHANT_ACCOUNT_CACHE_TTL_MILLIS = 60_000L;
+    private static final int MERCHANT_ACCOUNT_CACHE_MAX_SIZE = 20_000;
 
     private final LedgerAccountDao ledgerAccountDao;
     private final LedgerBalanceDao ledgerBalanceDao;
@@ -73,6 +78,23 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private final LedgerHoldDao ledgerHoldDao;
     private final LedgerAccountService ledgerAccountService;
     private final MerchantWalletStatementDao merchantWalletStatementDao;
+    private final Map<MerchantAccountCacheKey, CachedLedgerAccount> merchantAccountCache = new ConcurrentHashMap<>();
+
+    public LedgerPostingServiceImpl(LedgerAccountDao ledgerAccountDao,
+                                    LedgerBalanceDao ledgerBalanceDao,
+                                    LedgerJournalDao ledgerJournalDao,
+                                    LedgerEntryDao ledgerEntryDao,
+                                    LedgerHoldDao ledgerHoldDao,
+                                    LedgerAccountService ledgerAccountService,
+                                    MerchantWalletStatementDao merchantWalletStatementDao) {
+        this.ledgerAccountDao = ledgerAccountDao;
+        this.ledgerBalanceDao = ledgerBalanceDao;
+        this.ledgerJournalDao = ledgerJournalDao;
+        this.ledgerEntryDao = ledgerEntryDao;
+        this.ledgerHoldDao = ledgerHoldDao;
+        this.ledgerAccountService = ledgerAccountService;
+        this.merchantWalletStatementDao = merchantWalletStatementDao;
+    }
 
     /**
      * 代收成功入账。
@@ -129,7 +151,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
         // 真正落 ledger_entry 并更新 ledger_balance。
-        postEntries(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -178,7 +200,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
         // 发布分录并原子更新两个账户余额。
-        postEntries(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -235,7 +257,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             logLedgerProfileIfSlow("freeze_payout", request, profileStartNanos, profileSteps, "EXISTED");
             return result;
         }
-        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
         profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "post_entries");
 
         // 冻结分录成功后记录 ledger_hold，后续成功消费或失败释放都以它为准。
@@ -308,7 +330,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
 
         // 分录落账后把冻结记录标记为已消费，防止后续再次释放。
         hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
@@ -351,7 +373,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntries(journal, lines, MerchantStatementSnapshot.payout(request, amount));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, amount));
 
         // 释放完成后清空 remainingAmount，并记录最后一次释放凭证号。
         hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
@@ -414,7 +436,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
         }
-        postEntries(journal, lines, MerchantStatementSnapshot.adjust(request, amount));
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.adjust(request, amount));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -549,6 +571,134 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         createMerchantWalletStatements(journal, walletStatements);
     }
 
+    private void postEntriesOptimized(LedgerJournalEntity journal, List<PostingLine> lines, MerchantStatementSnapshot statementSnapshot) {
+        long profileStartNanos = System.nanoTime();
+        long profileLastNanos = profileStartNanos;
+        StringBuilder profileSteps = new StringBuilder();
+        Map<Long, LedgerBalanceEntity> lockedBalances = lockBalances(lines.stream()
+                .filter(line -> positive(line.amount()))
+                .map(PostingLine::account)
+                .toList());
+        profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "lock_balances");
+
+        List<PostingEntry> postingEntries = buildPostingEntries(journal, lines, lockedBalances);
+        profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "build_entries");
+        if (postingEntries.isEmpty()) {
+            logLedgerPostEntriesProfileIfSlow(journal, profileStartNanos, profileSteps);
+            return;
+        }
+
+        List<LedgerEntryEntity> entries = postingEntries.stream().map(PostingEntry::entry).toList();
+        int inserted = ledgerEntryDao.insertBatch(entries);
+        if (inserted != entries.size()) {
+            throw new IllegalStateException("Insert ledger entries failed: " + journal.getJournalNo());
+        }
+        for (LedgerEntryEntity entry : entries) {
+            if (entry.getId() == null) {
+                fillGeneratedEntryIds(journal, entries);
+                break;
+            }
+        }
+        for (LedgerEntryEntity entry : entries) {
+            if (entry.getId() == null) {
+                throw new IllegalStateException("Ledger entry generated id is missing: " + journal.getJournalNo() + "/" + entry.getEntryNo());
+            }
+        }
+        profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "insert_entries");
+
+        for (PostingEntry postingEntry : postingEntries) {
+            PostingLine line = postingEntry.line();
+            LedgerEntryEntity entry = postingEntry.entry();
+            int updated = ledgerBalanceDao.applyEntry(
+                    journal.getTenantId(),
+                    line.account().getId(),
+                    postingEntry.balanceChange(),
+                    LedgerDirectionEnum.DEBIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                    LedgerDirectionEnum.CREDIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                    entry.getId(),
+                    journal.getJournalNo(),
+                    journal.getPostedAt(),
+                    line.account().getAllowNegative()
+            );
+            if (updated != 1) {
+                throw new IllegalStateException("Insufficient ledger balance: " + line.account().getAccountNo());
+            }
+        }
+        profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "apply_balances");
+
+        List<MerchantWalletStatementEntity> walletStatements = new ArrayList<>();
+        for (PostingEntry postingEntry : postingEntries) {
+            MerchantWalletStatementEntity walletStatement = merchantWalletStatement(journal, postingEntry.entry(), statementSnapshot);
+            if (walletStatement != null) {
+                walletStatements.add(walletStatement);
+            }
+        }
+        createMerchantWalletStatements(journal, walletStatements);
+        markLedgerStep(profileSteps, profileLastNanos, "wallet_statement");
+        logLedgerPostEntriesProfileIfSlow(journal, profileStartNanos, profileSteps);
+    }
+
+    private List<PostingEntry> buildPostingEntries(LedgerJournalEntity journal, List<PostingLine> lines, Map<Long, LedgerBalanceEntity> lockedBalances) {
+        List<PostingEntry> postingEntries = new ArrayList<>();
+        Map<Long, BigDecimal> currentBalances = new LinkedHashMap<>();
+        int entryNo = 1;
+        for (PostingLine line : lines) {
+            if (!positive(line.amount())) {
+                continue;
+            }
+            LedgerBalanceEntity balance = lockedBalances.get(line.account().getId());
+            BigDecimal before = currentBalances.computeIfAbsent(line.account().getId(), ignored -> scale(balance.getBalance()));
+            BigDecimal change = balanceChange(line.account(), line.direction(), line.amount());
+            BigDecimal after = scale(before.add(change));
+            currentBalances.put(line.account().getId(), after);
+
+            LedgerEntryEntity entry = new LedgerEntryEntity();
+            entry.setTenantId(journal.getTenantId());
+            entry.setJournalId(journal.getId());
+            entry.setJournalNo(journal.getJournalNo());
+            entry.setEntryNo(entryNo++);
+            entry.setAccountId(line.account().getId());
+            entry.setAccountNo(line.account().getAccountNo());
+            entry.setOwnerType(line.account().getOwnerType());
+            entry.setOwnerId(line.account().getOwnerId());
+            entry.setAccountType(line.account().getAccountType());
+            entry.setCurrency(line.account().getCurrency());
+            entry.setNormalSide(line.account().getNormalSide());
+            entry.setDirection(line.direction());
+            entry.setAmount(scale(line.amount()));
+            entry.setBalanceChange(change);
+            entry.setBalanceBefore(before);
+            entry.setBalanceAfter(after);
+            entry.setBizType(journal.getBizType());
+            entry.setBizId(journal.getBizId());
+            entry.setBizNo(journal.getBizNo());
+            entry.setEventType(journal.getEventType());
+            entry.setSummary(line.summary());
+            Instant now = Instant.now();
+            entry.setCreatedAt(now);
+            entry.setUpdatedAt(now);
+            postingEntries.add(new PostingEntry(line, entry, change));
+        }
+        return postingEntries;
+    }
+
+    private void fillGeneratedEntryIds(LedgerJournalEntity journal, List<LedgerEntryEntity> entries) {
+        Map<Integer, LedgerEntryEntity> insertedEntryMap = new LinkedHashMap<>();
+        List<LedgerEntryEntity> insertedEntries = ledgerEntryDao.selectList(new QueryWrapper<LedgerEntryEntity>()
+                .eq("tenant_id", journal.getTenantId())
+                .eq("journal_id", journal.getId())
+                .orderByAsc("entry_no"));
+        for (LedgerEntryEntity insertedEntry : insertedEntries) {
+            insertedEntryMap.put(insertedEntry.getEntryNo(), insertedEntry);
+        }
+        for (LedgerEntryEntity entry : entries) {
+            LedgerEntryEntity insertedEntry = insertedEntryMap.get(entry.getEntryNo());
+            if (insertedEntry != null) {
+                entry.setId(insertedEntry.getId());
+            }
+        }
+    }
+
     private MerchantWalletStatementEntity merchantWalletStatement(LedgerJournalEntity journal, LedgerEntryEntity entry, MerchantStatementSnapshot snapshot) {
         if (snapshot == null || entry == null || !isMerchantVisibleEntry(entry)) {
             return null;
@@ -591,11 +741,29 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (statements.isEmpty()) {
             return;
         }
+        List<MerchantWalletStatementEntity> copy = List.copyOf(statements);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    createMerchantWalletStatementsAsync(journal.getJournalNo(), copy);
+                }
+            });
+            return;
+        }
+        createMerchantWalletStatementsAsync(journal.getJournalNo(), copy);
+    }
+
+    private void createMerchantWalletStatementsAsync(String journalNo, List<MerchantWalletStatementEntity> statements) {
+        AsynUtils.execute("Create merchant wallet statements", () -> insertMerchantWalletStatements(journalNo, statements));
+    }
+
+    private void insertMerchantWalletStatements(String journalNo, List<MerchantWalletStatementEntity> statements) {
         try {
             merchantWalletStatementDao.insert(statements);
         } catch (Exception ex) {
             log.warn("Create merchant wallet statements failed, journalNo={}, count={}, err={}",
-                    journal.getJournalNo(), statements.size(), ex.getMessage());
+                    journalNo, statements.size(), ex.getMessage());
         }
     }
 
@@ -706,6 +874,11 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      */
     private LedgerAccountEntity merchantAccountForPosting(Long tenantId, Long merchantId, String accountType, String currency) {
         String normalizedCurrency = normalize(currency);
+        MerchantAccountCacheKey cacheKey = new MerchantAccountCacheKey(tenantId, merchantId, accountType, normalizedCurrency);
+        LedgerAccountEntity cached = getCachedMerchantAccount(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
         LedgerAccountEntity account = ledgerAccountDao.selectOne(new QueryWrapper<LedgerAccountEntity>()
                 .eq("tenant_id", tenantId)
                 .eq("owner_type", SubjectTypeEnum.MERCHANT.code())
@@ -715,9 +888,53 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 .eq("status", StatusEnum.NORMAL.code())
                 .last("limit 1"));
         if (account != null) {
+            cacheMerchantAccount(cacheKey, account);
             return account;
         }
-        return ledgerAccountService.requireMerchantAccount(tenantId, merchantId, accountType, normalizedCurrency);
+        account = ledgerAccountService.requireMerchantAccount(tenantId, merchantId, accountType, normalizedCurrency);
+        cacheMerchantAccount(cacheKey, account);
+        return account;
+    }
+
+    private LedgerAccountEntity getCachedMerchantAccount(MerchantAccountCacheKey cacheKey) {
+        CachedLedgerAccount cached = merchantAccountCache.get(cacheKey);
+        if (cached == null) {
+            return null;
+        }
+        if (cached.expireAtMillis() <= System.currentTimeMillis()) {
+            merchantAccountCache.remove(cacheKey, cached);
+            return null;
+        }
+        return cached.account();
+    }
+
+    private void cacheMerchantAccount(MerchantAccountCacheKey cacheKey, LedgerAccountEntity account) {
+        if (account == null || account.getId() == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
+            return;
+        }
+        if (merchantAccountCache.size() >= MERCHANT_ACCOUNT_CACHE_MAX_SIZE) {
+            pruneMerchantAccountCache();
+        }
+        merchantAccountCache.put(cacheKey, new CachedLedgerAccount(account, System.currentTimeMillis() + MERCHANT_ACCOUNT_CACHE_TTL_MILLIS));
+    }
+
+    private void pruneMerchantAccountCache() {
+        long now = System.currentTimeMillis();
+        Iterator<Map.Entry<MerchantAccountCacheKey, CachedLedgerAccount>> iterator = merchantAccountCache.entrySet().iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next().getValue().expireAtMillis() <= now) {
+                iterator.remove();
+            }
+        }
+        if (merchantAccountCache.size() < MERCHANT_ACCOUNT_CACHE_MAX_SIZE) {
+            return;
+        }
+        int removeCount = Math.max(1, MERCHANT_ACCOUNT_CACHE_MAX_SIZE / 10);
+        iterator = merchantAccountCache.entrySet().iterator();
+        while (iterator.hasNext() && removeCount-- > 0) {
+            iterator.next();
+            iterator.remove();
+        }
     }
 
     private LedgerAccountEntity account(Long tenantId, String ownerType, Long ownerId, String accountType, String currency) {
@@ -948,6 +1165,21 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 steps);
     }
 
+    private void logLedgerPostEntriesProfileIfSlow(LedgerJournalEntity journal, long startNanos, StringBuilder steps) {
+        long totalMs = toMillis(System.nanoTime() - startNanos);
+        if (totalMs < SLOW_LEDGER_PROFILE_MILLIS) {
+            return;
+        }
+        log.info("Ledger post entries profile tenantId={}, journalNo={}, bizType={}, bizNo={}, eventType={}, total={}ms, steps=[{}]",
+                journal == null ? null : journal.getTenantId(),
+                journal == null ? null : journal.getJournalNo(),
+                journal == null ? null : journal.getBizType(),
+                journal == null ? null : journal.getBizNo(),
+                journal == null ? null : journal.getEventType(),
+                totalMs,
+                steps);
+    }
+
     private long toMillis(long nanos) {
         return Math.max(0L, nanos / 1_000_000L);
     }
@@ -961,6 +1193,15 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      * @param summary 分录摘要
      */
     private record PostingLine(LedgerAccountEntity account, String direction, BigDecimal amount, String summary) {
+    }
+
+    private record PostingEntry(PostingLine line, LedgerEntryEntity entry, BigDecimal balanceChange) {
+    }
+
+    private record MerchantAccountCacheKey(Long tenantId, Long merchantId, String accountType, String currency) {
+    }
+
+    private record CachedLedgerAccount(LedgerAccountEntity account, long expireAtMillis) {
     }
 
     private record MerchantStatementSnapshot(String merchantNo,

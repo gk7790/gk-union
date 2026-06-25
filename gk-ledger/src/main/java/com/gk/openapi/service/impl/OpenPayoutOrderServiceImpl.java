@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
@@ -30,9 +31,9 @@ import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.route.PspRouteResult;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -51,7 +52,6 @@ import java.util.Map;
  * 并在提交失败时尽量释放冻结资金。
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
@@ -60,6 +60,22 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final LedgerPostingService ledgerPostingService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
+    @Value("${gk.openapi.payout.async-submit:false}")
+    private boolean asyncSubmitEnabled;
+
+    public OpenPayoutOrderServiceImpl(PayoutOrderDao payoutOrderDao,
+                                      PaymentPlanResolver paymentPlanResolver,
+                                      PspPayoutDispatchService pspPayoutDispatchService,
+                                      LedgerPostingService ledgerPostingService,
+                                      MerchantOrderNotifyStatusService merchantOrderNotifyStatusService,
+                                      OrderStatusLogService orderStatusLogService) {
+        this.payoutOrderDao = payoutOrderDao;
+        this.paymentPlanResolver = paymentPlanResolver;
+        this.pspPayoutDispatchService = pspPayoutDispatchService;
+        this.ledgerPostingService = ledgerPostingService;
+        this.merchantOrderNotifyStatusService = merchantOrderNotifyStatusService;
+        this.orderStatusLogService = orderStatusLogService;
+    }
 
     /**
      * 创建代付订单。
@@ -166,6 +182,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             timer.log("SUCCESS", entity);
             return response;
         }
+        if (asyncSubmitEnabled) {
+            submitPayoutAsync(entity.getId(), paymentPlan);
+            timer.mark("submit_async");
+            PayoutOrderResponse response = toResponse(entity);
+            timer.log("ACCEPTED", entity);
+            return response;
+        }
         try {
             // 代付必须先冻结商户可用余额，避免 PSP 已受理后商户余额不足。
             freezePayout(entity);
@@ -250,6 +273,55 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 return false;
             }
             throw ex;
+        }
+    }
+
+    private void submitPayoutAsync(Long orderId, PaymentPlan paymentPlan) {
+        AsynUtils.execute("OpenAPI payout async submit", () -> processPayoutAsync(orderId, paymentPlan));
+    }
+
+    private void processPayoutAsync(Long orderId, PaymentPlan paymentPlan) {
+        PayoutOrderEntity order = payoutOrderDao.selectById(orderId);
+        if (order == null || !PayoutOrderStatusEnum.CREATED.code().equals(order.getStatus())) {
+            return;
+        }
+        ApiReqContextHolder.set(ApiReqContext.builder()
+                .tenantId(order.getTenantId())
+                .merchantId(order.getMerchantId())
+                .merchantNo(order.getMerchantNo())
+                .merchantAppId(order.getMerchantAppId())
+                .appId(order.getAppId())
+                .build());
+        try {
+            freezePayout(order);
+            order.setStatus(PayoutOrderStatusEnum.FROZEN.code());
+            order.setStatusReason(null);
+            payoutOrderDao.updateById(order);
+            recordStatusChange(order, PayoutOrderStatusEnum.CREATED.code(), order.getStatus(), "PAYOUT_FROZEN", null, "SYSTEM");
+
+            submitToPsp(order, paymentPlan);
+        } catch (ApiException ex) {
+            log.warn("OpenAPI payout async submit failed, payoutOrderNo={}, merchantOrderNo={}, code={}, err={}",
+                    order.getPayoutOrderNo(), order.getMerchantOrderNo(), ex.getErrorCode().name(), ex.getMessage());
+            if (!PayoutOrderStatusEnum.FAILED.code().equals(order.getStatus())) {
+                releaseFrozenPayout(order);
+                markFailed(order, ex.getMessage(), ex.getErrorCode().name());
+            }
+        } catch (Exception ex) {
+            log.error("OpenAPI payout async submit failed, payoutOrderNo={}, merchantOrderNo={}",
+                    order.getPayoutOrderNo(), order.getMerchantOrderNo(), ex);
+            if (!PayoutOrderStatusEnum.FAILED.code().equals(order.getStatus())) {
+                releaseFrozenPayout(order);
+                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
+            }
+        } finally {
+            ApiReqContextHolder.clear();
+        }
+    }
+
+    private void releaseFrozenPayout(PayoutOrderEntity order) {
+        if (StringUtils.isNotBlank(order.getHoldNo()) && StringUtils.isBlank(order.getReleaseJournalNo())) {
+            releasePayout(order);
         }
     }
 
@@ -385,21 +457,28 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                                     String eventType,
                                     String reason,
                                     String operatorType) {
-        orderStatusLogService.recordChange(
+        Long tenantId = entity.getTenantId();
+        Long merchantId = entity.getMerchantId();
+        Long orderId = entity.getId();
+        String payoutOrderNo = entity.getPayoutOrderNo();
+        String appId = ApiReqContextHolder.getAppId();
+        String merchantOrderNo = entity.getMerchantOrderNo();
+        String traceId = traceId();
+        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
                 "PAYOUT",
-                entity.getTenantId(),
-                entity.getMerchantId(),
-                entity.getId(),
-                entity.getPayoutOrderNo(),
+                tenantId,
+                merchantId,
+                orderId,
+                payoutOrderNo,
                 fromStatus,
                 toStatus,
                 eventType,
                 reason,
                 operatorType,
-                ApiReqContextHolder.getAppId(),
-                entity.getMerchantOrderNo(),
-                traceId()
-        );
+                appId,
+                merchantOrderNo,
+                traceId
+        ));
     }
 
     /**

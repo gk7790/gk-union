@@ -3,8 +3,12 @@ package com.gk.openapi.service.impl;
 import com.alibaba.fastjson2.JSONWriter;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
+import com.gk.common.enums.OrderSourceEnum;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.utils.AsynUtils;
+import com.gk.ledger.dao.LedgerBalanceDao;
+import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
@@ -19,23 +23,25 @@ import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.openapi.util.ApiAmountUtils;
-import com.gk.common.enums.OrderSourceEnum;
 import com.gk.payment.constant.PaymentMethodCodes;
-import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.plan.PaymentPlan;
 import com.gk.payment.plan.PaymentPlanResolver;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
+import com.gk.payment.outbox.PayoutSubmitOutboxProducer;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.route.PspRouteResult;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -53,6 +59,7 @@ import java.util.Map;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
     private final PaymentPlanResolver paymentPlanResolver;
@@ -60,22 +67,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final LedgerPostingService ledgerPostingService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
+    private final PayoutSubmitOutboxProducer payoutSubmitOutboxProducer;
+    private final LedgerBalanceDao ledgerBalanceDao;
+    private final TransactionTemplate transactionTemplate;
     @Value("${gk.openapi.payout.async-submit:false}")
     private boolean asyncSubmitEnabled;
-
-    public OpenPayoutOrderServiceImpl(PayoutOrderDao payoutOrderDao,
-                                      PaymentPlanResolver paymentPlanResolver,
-                                      PspPayoutDispatchService pspPayoutDispatchService,
-                                      LedgerPostingService ledgerPostingService,
-                                      MerchantOrderNotifyStatusService merchantOrderNotifyStatusService,
-                                      OrderStatusLogService orderStatusLogService) {
-        this.payoutOrderDao = payoutOrderDao;
-        this.paymentPlanResolver = paymentPlanResolver;
-        this.pspPayoutDispatchService = pspPayoutDispatchService;
-        this.ledgerPostingService = ledgerPostingService;
-        this.merchantOrderNotifyStatusService = merchantOrderNotifyStatusService;
-        this.orderStatusLogService = orderStatusLogService;
-    }
 
     /**
      * 创建代付订单。
@@ -169,10 +165,16 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             // 测试应用不走正式支付方案，默认只按代付金额处理。
             entity.setTotalDebitAmount(entity.getAmount());
         }
+        if (!isTestApp(context.getMerchantApp())) {
+            precheckAvailableBalance(entity.getTenantId(), entity.getMerchantId(), entity.getCurrency(), entity.getTotalDebitAmount());
+            timer.mark("balance_precheck");
+        }
 
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
         timer.mark("apply_payment_plan");
-        boolean created = insertOrder(entity);
+        boolean created = asyncSubmitEnabled && !isTestApp(context.getMerchantApp())
+                ? insertOrderAndOutbox(entity)
+                : insertOrder(entity);
         timer.mark("insert_order");
         if (!created) {
             PayoutOrderResponse response = toResponse(entity);
@@ -187,8 +189,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             return response;
         }
         if (asyncSubmitEnabled) {
-            submitPayoutAsync(entity.getId(), paymentPlan);
-            timer.mark("submit_async");
+            timer.mark("create_outbox");
             PayoutOrderResponse response = toResponse(entity);
             timer.log("ACCEPTED", entity);
             return response;
@@ -280,53 +281,20 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         }
     }
 
-    private void submitPayoutAsync(Long orderId, PaymentPlan paymentPlan) {
-        AsynUtils.execute("OpenAPI payout async submit", () -> processPayoutAsync(orderId, paymentPlan));
-    }
-
-    private void processPayoutAsync(Long orderId, PaymentPlan paymentPlan) {
-        PayoutOrderEntity order = payoutOrderDao.selectById(orderId);
-        if (order == null || !PayoutOrderStatusEnum.CREATED.code().equals(order.getStatus())) {
-            return;
-        }
-        ApiReqContextHolder.set(ApiReqContext.builder()
-                .tenantId(order.getTenantId())
-                .merchantId(order.getMerchantId())
-                .merchantNo(order.getMerchantNo())
-                .merchantAppId(order.getMerchantAppId())
-                .appId(order.getAppId())
-                .build());
-        try {
-            freezePayout(order);
-            order.setStatus(PayoutOrderStatusEnum.FROZEN.code());
-            order.setStatusReason(null);
-            payoutOrderDao.updateById(order);
-            recordStatusChange(order, PayoutOrderStatusEnum.CREATED.code(), order.getStatus(), "PAYOUT_FROZEN", null, "SYSTEM");
-
-            submitToPsp(order, paymentPlan);
-        } catch (ApiException ex) {
-            log.warn("OpenAPI payout async submit failed, payoutOrderNo={}, merchantOrderNo={}, code={}, err={}",
-                    order.getPayoutOrderNo(), order.getMerchantOrderNo(), ex.getErrorCode().name(), ex.getMessage());
-            if (!PayoutOrderStatusEnum.FAILED.code().equals(order.getStatus())) {
-                releaseFrozenPayout(order);
-                markFailed(order, ex.getMessage(), ex.getErrorCode().name());
+    /**
+     * 把“创建代付订单”和“创建待提交 PSP 的 outbox 任务”放在同一个数据库事务里执行。
+     * @param order 订单
+     * @return Boolean
+     */
+    private Boolean insertOrderAndOutbox(PayoutOrderEntity order) {
+        // 表示开启一个 Spring 事务。里面的数据库操作要么一起成功，要么一起回滚。
+        return transactionTemplate.execute(status -> {
+            boolean created = insertOrder(order);
+            if (created) {
+                payoutSubmitOutboxProducer.create(order);
             }
-        } catch (Exception ex) {
-            log.error("OpenAPI payout async submit failed, payoutOrderNo={}, merchantOrderNo={}",
-                    order.getPayoutOrderNo(), order.getMerchantOrderNo(), ex);
-            if (!PayoutOrderStatusEnum.FAILED.code().equals(order.getStatus())) {
-                releaseFrozenPayout(order);
-                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
-            }
-        } finally {
-            ApiReqContextHolder.clear();
-        }
-    }
-
-    private void releaseFrozenPayout(PayoutOrderEntity order) {
-        if (StringUtils.isNotBlank(order.getHoldNo()) && StringUtils.isBlank(order.getReleaseJournalNo())) {
-            releasePayout(order);
-        }
+            return created;
+        });
     }
 
     /**
@@ -584,6 +552,19 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         order.setHoldNo(result.getHoldNo());
         order.setFreezeJournalNo(result.getJournalNo());
         payoutOrderDao.updateById(order);
+    }
+
+    private void precheckAvailableBalance(Long tenantId, Long merchantId, String currency, BigDecimal totalDebitAmount) {
+        BigDecimal available = defaultZero(ledgerBalanceDao.selectMerchantAvailableBalance(
+                tenantId,
+                merchantId,
+                SubjectTypeEnum.MERCHANT.code(),
+                LedgerAccountTypeEnum.AVAILABLE.code(),
+                currency
+        ));
+        if (available.compareTo(totalDebitAmount) < 0) {
+            throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE);
+        }
     }
 
     /**

@@ -5,31 +5,28 @@ import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
-@EnumDict("mqOutboxConsumeStatus")
-public enum MqOutboxConsumeStatusEnum implements StringCodeEnum {
+@EnumDict("mqOutboxPublishStatus")
+public enum MqOutboxPublishStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    INIT("INIT", "待消费", "enum.mqOutboxConsumeStatus.init"),
+    INIT("INIT", "待发布", "enum.mqOutboxPublishStatus.init"),
 
     @Style(StyleType.WARNING)
-    LOCKED("LOCKED", "消费锁定中", "enum.mqOutboxConsumeStatus.locked"),
+    LOCKED("LOCKED", "发布锁定中", "enum.mqOutboxPublishStatus.locked"),
 
     @Style(StyleType.SUCCESS)
-    DONE("DONE", "消费完成", "enum.mqOutboxConsumeStatus.done"),
+    SENT("SENT", "发布完成", "enum.mqOutboxPublishStatus.sent"),
 
     @Style(StyleType.WARNING)
-    FAILED("FAILED", "消费失败待重试", "enum.mqOutboxConsumeStatus.failed"),
+    FAILED("FAILED", "发布失败待重试", "enum.mqOutboxPublishStatus.failed"),
 
     @Style(StyleType.DANGER)
-    DEAD("DEAD", "消费死信", "enum.mqOutboxConsumeStatus.dead"),
-
-    @Style(StyleType.INFO)
-    SKIPPED("SKIPPED", "已跳过", "enum.mqOutboxConsumeStatus.skipped");
+    DEAD("DEAD", "发布死信", "enum.mqOutboxPublishStatus.dead");
 
     private final String code;
     private final String label;
     private final String i18nKey;
 
-    MqOutboxConsumeStatusEnum(String code, String label, String i18nKey) {
+    MqOutboxPublishStatusEnum(String code, String label, String i18nKey) {
         this.code = code;
         this.label = label;
         this.i18nKey = i18nKey;

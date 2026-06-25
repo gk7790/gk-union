@@ -10,6 +10,14 @@ import java.time.Instant;
 
 @Mapper
 public interface LedgerBalanceDao extends BaseDao<LedgerBalanceEntity> {
+    BigDecimal selectMerchantAvailableBalance(
+            @Param("tenantId") Long tenantId,
+            @Param("merchantId") Long merchantId,
+            @Param("ownerType") String ownerType,
+            @Param("accountType") String accountType,
+            @Param("currency") String currency
+    );
+
     int applyEntry(
             @Param("tenantId") Long tenantId,
             @Param("accountId") Long accountId,

@@ -3,6 +3,8 @@ package com.gk.infra.mq.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.infra.mq.dao.MqOutboxDao;
 import com.gk.infra.mq.entity.MqOutboxEntity;
+import com.gk.infra.mq.enums.MqOutboxConsumeStatusEnum;
+import com.gk.infra.mq.enums.MqOutboxPublishStatusEnum;
 import com.gk.infra.mq.service.MqOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -25,6 +27,10 @@ public class MqOutboxServiceImpl implements MqOutboxService {
 
     @Override
     public MqOutboxEntity createIfAbsent(MqOutboxEntity event) {
+        if (event == null) {
+            throw new IllegalArgumentException("mq outbox event is required");
+        }
+        applyDefaults(event);
         try {
             mqOutboxDao.insert(event);
             return event;
@@ -38,21 +44,49 @@ public class MqOutboxServiceImpl implements MqOutboxService {
         }
     }
 
+    private void applyDefaults(MqOutboxEntity event) {
+        if (StringUtils.isBlank(event.getPublishStatus())) {
+            event.setPublishStatus(MqOutboxPublishStatusEnum.INIT.code());
+        }
+        if (StringUtils.isBlank(event.getConsumeStatus())) {
+            event.setConsumeStatus(MqOutboxConsumeStatusEnum.INIT.code());
+        }
+        if (event.getRetryCount() == null) {
+            event.setRetryCount(0);
+        }
+        if (event.getMaxRetryCount() == null) {
+            event.setMaxRetryCount(16);
+        }
+        if (event.getNextRetryAt() == null) {
+            event.setNextRetryAt(Instant.now());
+        }
+    }
+
     @Override
     public List<MqOutboxEntity> lockDueEvents(String eventType, int limit, String workerId) {
         Instant now = Instant.now();
         String lockOwner = StringUtils.defaultIfBlank(workerId, defaultWorkerId());
-        List<MqOutboxEntity> candidates = mqOutboxDao.selectDueForConsume(eventType, now, limit);
+        List<MqOutboxEntity> candidates = mqOutboxDao.selectDueForConsume(
+                eventType,
+                now,
+                limit,
+                MqOutboxConsumeStatusEnum.INIT.code(),
+                MqOutboxConsumeStatusEnum.FAILED.code(),
+                MqOutboxConsumeStatusEnum.LOCKED.code()
+        );
         List<MqOutboxEntity> locked = new ArrayList<>();
         for (MqOutboxEntity candidate : candidates) {
             int updated = mqOutboxDao.lockForConsume(
                     candidate.getId(),
                     lockOwner,
                     now,
-                    now.plusSeconds(DEFAULT_LOCK_SECONDS)
+                    now.plusSeconds(DEFAULT_LOCK_SECONDS),
+                    MqOutboxConsumeStatusEnum.INIT.code(),
+                    MqOutboxConsumeStatusEnum.FAILED.code(),
+                    MqOutboxConsumeStatusEnum.LOCKED.code()
             );
             if (updated == 1) {
-                candidate.setConsumeStatus("LOCKED");
+                candidate.setConsumeStatus(MqOutboxConsumeStatusEnum.LOCKED.code());
                 candidate.setLockedBy(lockOwner);
                 locked.add(candidate);
             }
@@ -62,7 +96,12 @@ public class MqOutboxServiceImpl implements MqOutboxService {
 
     @Override
     public void markDone(Long id) {
-        mqOutboxDao.markConsumeDone(id, Instant.now());
+        mqOutboxDao.markConsumeDone(
+                id,
+                Instant.now(),
+                MqOutboxConsumeStatusEnum.DONE.code(),
+                MqOutboxConsumeStatusEnum.LOCKED.code()
+        );
     }
 
     @Override
@@ -72,7 +111,9 @@ public class MqOutboxServiceImpl implements MqOutboxService {
                 id,
                 nextRetryAt,
                 StringUtils.left(errorCode, MAX_ERROR_CODE_LENGTH),
-                StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH)
+                StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH),
+                MqOutboxConsumeStatusEnum.FAILED.code(),
+                MqOutboxConsumeStatusEnum.LOCKED.code()
         );
         if (updated != 1) {
             markDead(id, errorCode, errorMsg);
@@ -85,7 +126,9 @@ public class MqOutboxServiceImpl implements MqOutboxService {
                 id,
                 Instant.now(),
                 StringUtils.left(errorCode, MAX_ERROR_CODE_LENGTH),
-                StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH)
+                StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH),
+                MqOutboxConsumeStatusEnum.DEAD.code(),
+                MqOutboxConsumeStatusEnum.LOCKED.code()
         );
     }
 

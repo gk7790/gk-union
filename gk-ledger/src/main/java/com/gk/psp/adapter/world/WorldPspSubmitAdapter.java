@@ -57,8 +57,10 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
-        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
-        fillPayoutCreate(result, response, route.getPspAccountApiSecret());
+        fillFakePayoutCreate(result, order);
+        // Temporary fake response: do not call World PSP while payout submission is under local testing.
+        // JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        // fillPayoutCreate(result, response, route.getPspAccountApiSecret());
         return result;
     }
 
@@ -234,6 +236,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         }
     }
 
+    @SuppressWarnings("unused")
     private void fillPayoutCreate(PspPayoutDispatchResult result, JSONObject response, String secret) {
         result.setResponseStatus(200);
         result.setResponseCode(response.getString("code"));
@@ -256,6 +259,29 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setPspOrderNo(data.getString("system_order_id"));
         result.setResponseSign(data.getString("sign"));
         result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PayoutOrderStatusEnum.PROCESSING.code()));
+    }
+
+    private void fillFakePayoutCreate(PspPayoutDispatchResult result, PayoutOrderEntity order) {
+        String pspOrderNo = "MOCK_" + order.getPayoutOrderNo();
+        JSONObject data = new JSONObject();
+        data.put("merchant_order_id", order.getPayoutOrderNo());
+        data.put("system_order_id", pspOrderNo);
+        data.put("amount", amount(order.getAmount()));
+        data.put("order_status", "WAIT_PAY");
+        data.put("msg", "mock accepted");
+
+        JSONObject response = new JSONObject();
+        response.put("data", data);
+        response.put("code", 200);
+        response.put("message", "success");
+
+        result.setSuccess(true);
+        result.setResponseStatus(200);
+        result.setResponseCode("200");
+        result.setResponseMessage("success");
+        result.setRawResponseJson(response.toJSONString());
+        result.setPspOrderNo(pspOrderNo);
+        result.setRawStatus("WAIT_PAY");
     }
 
     private PspOrderQueryResult buildQueryResult(String systemOrderNo,
@@ -348,7 +374,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
             return Map.of();
         }
         try {
-            Map<String, Object> map = JSON.parseObject(json, new TypeReference<Map<String, Object>>() {
+            Map<String, Object> map = JSON.parseObject(json, new TypeReference<>() {
             });
             return map == null ? Map.of() : map;
         } catch (Exception ignored) {

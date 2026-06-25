@@ -1,22 +1,18 @@
 package com.gk.common.redis;
 
+import com.gk.common.tools.StringFormat;
+
 /**
  * @author Lowen
  * @since 1.0.0
  */
+@SuppressWarnings("unused")
 public class RedisKeys {
     /**
      * 系统参数Key
      */
     public static String getSysParamsKey(String key){
         return "sys:params:" + key;
-    }
-
-    /**
-     * 验证码Key
-     */
-    public static String getCaptchaKey(String uuid){
-        return "sys:captcha:" + uuid;
     }
 
     /**
@@ -41,38 +37,10 @@ public class RedisKeys {
     }
 
     /**
-     * 验证码Key
-     */
-    public static String getSysLonginMerchantKey(String key){
-        return "sys:login-merchant:" + key;
-    }
-
-    /**
-     * 验证码Key
-     */
-    public static String getMerchantAccessTokenKey(String key){
-        return "sys:merchant-access-token:" + key;
-    }
-
-    /**
      * 登录用户Key
      */
     public static String getSecurityUserKey(Long id){
         return "sys:security:user:" + id;
-    }
-
-    /**
-     * 系统日志Key
-     */
-    public static String getSysLogKey(){
-        return "sys:log";
-    }
-
-    /**
-     * 系统资源Key
-     */
-    public static String getSysResourceKey(){
-        return  "sys:resource";
     }
 
     /**
@@ -225,15 +193,15 @@ public class RedisKeys {
      * key 只包含配置维度，不包含订单金额；金额在决策表内部按 bucket 命中。
      */
     public static String getPaymentPlanActiveKey(Long tenantId, Long merchantId, Long merchantAppId,
-                                                 String direction, String countryCode, String currency, String methodCode) {
-        return "payment:plan:active:"
-                + nullToAll(tenantId) + ":"
-                + nullToAll(merchantId) + ":"
-                + nullToAll(merchantAppId) + ":"
-                + nullToAll(direction) + ":"
-                + nullToAll(countryCode) + ":"
-                + nullToAll(currency) + ":"
-                + nullToAll(methodCode);
+                                                 String direction, String currency, String methodCode) {
+        return "payment:plan:active:" + StringFormat.join(":",
+                nullToAll(tenantId),
+                nullToAll(merchantId),
+                nullToAll(merchantAppId),
+                nullToAll(direction),
+                nullToAll(currency),
+                nullToAll(methodCode)
+        );
     }
 
     public static String getPaymentPlanActivePattern() {

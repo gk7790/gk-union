@@ -1,7 +1,6 @@
 package com.gk.openapi.service.impl;
 
 import com.alibaba.fastjson2.JSONWriter;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.alibaba.fastjson2.JSON;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.constant.Constant;
@@ -33,6 +32,7 @@ import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.route.PspRouteResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -53,6 +53,7 @@ import java.util.Map;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
     private final PaymentPlanResolver paymentPlanResolver;
@@ -70,12 +71,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     @Override
     public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
+        if (request == null) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST);
+        }
+        PayoutCreateStepTimer timer = PayoutCreateStepTimer.start(request.getMerchantOrderId());
         // 先按商户订单号查重，保证商户重复请求时按幂等规则返回同一笔平台订单。
-        PayoutOrderEntity existed = payoutOrderDao.selectOne(
-                baseWrapper()
-                        .eq("merchant_order_no", StringUtils.trim(request.getMerchantOrderId()))
-                        .last("limit 1")
-        );
+        PayoutOrderEntity existed = findByMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        timer.mark("idempotency_check");
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new ApiException(ApiErrorCode.INVALID_AMOUNT);
         }
@@ -94,11 +96,15 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
         validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
         validatePayoutPayee(request, normalizedMethod);
+        timer.mark("validate_request");
 
         if (existed != null) {
             // 同一商户订单号再次请求时，金额、币种、方式、通知地址、收款账号必须一致。
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
-            return toResponse(existed);
+            timer.mark("return_idempotent_order");
+            PayoutOrderResponse response = toResponse(existed);
+            timer.log("SUCCESS", existed);
+            return response;
         }
 
         // 创建平台代付订单。代付会先进入 CREATED，冻结成功后再提交 PSP。
@@ -126,15 +132,18 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setQueryCount(0);
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
+        timer.mark("build_order");
 
         // 新系统阶段直接保存收款人明文信息，便于代付提交 PSP 和后台排查。
         applyPayee(entity, request);
+        timer.mark("apply_payee");
         PaymentPlan paymentPlan = null;
         if (!isTestApp(context.getMerchantApp())) {
             // 正式代付必须命中后台发布的支付方案，避免下单时实时拼装路由和费率。
             paymentPlan = paymentPlanResolver.resolvePayout(entity)
                     .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
         }
+        timer.mark("resolve_payment_plan");
         if (paymentPlan != null) {
             applyPaymentPlan(entity, paymentPlan);
         } else {
@@ -143,32 +152,57 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         }
 
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态。
+        timer.mark("apply_payment_plan");
         boolean created = insertOrder(entity);
+        timer.mark("insert_order");
         if (!created) {
-            return toResponse(entity);
+            PayoutOrderResponse response = toResponse(entity);
+            timer.log("SUCCESS", entity);
+            return response;
         }
         if (isTestApp(context.getMerchantApp())) {
             submitToSandbox(entity);
-            return toResponse(entity);
+            timer.mark("submit_sandbox");
+            PayoutOrderResponse response = toResponse(entity);
+            timer.log("SUCCESS", entity);
+            return response;
         }
         try {
             // 代付必须先冻结商户可用余额，避免 PSP 已受理后商户余额不足。
             freezePayout(entity);
+            timer.mark("freeze_payout");
         } catch (ApiException ex) {
+            timer.mark("freeze_payout_failed");
+            timer.log("FAILED:" + ex.getErrorCode().name(), entity);
             markFailed(entity, ex.getMessage(), ex.getErrorCode().name());
             throw ex;
         } catch (Exception ex) {
+            timer.mark("freeze_payout_failed");
             ApiErrorCode errorCode = StringUtils.containsIgnoreCase(ex.getMessage(), "Insufficient ledger balance")
                     ? ApiErrorCode.INSUFFICIENT_BALANCE
                     : ApiErrorCode.SYSTEM_ERROR;
+            timer.log("FAILED:" + errorCode.name(), entity);
             markFailed(entity, errorCode.getMessage(), errorCode.name());
             throw new ApiException(errorCode);
         }
 
         // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结。
-        submitToPsp(entity, paymentPlan);
+        try {
+            submitToPsp(entity, paymentPlan);
+            timer.mark("submit_psp");
+        } catch (ApiException ex) {
+            timer.mark("submit_psp_failed");
+            timer.log("FAILED:" + ex.getErrorCode().name(), entity);
+            throw ex;
+        } catch (RuntimeException ex) {
+            timer.mark("submit_psp_failed");
+            timer.log("FAILED:" + ex.getClass().getSimpleName(), entity);
+            throw ex;
+        }
 
-        return toResponse(entity);
+        PayoutOrderResponse response = toResponse(entity);
+        timer.log("SUCCESS", entity);
+        return response;
     }
 
     /**
@@ -176,10 +210,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     @Override
     public PayoutOrderResponse getByPayoutOrderNo(String payoutOrderNo) {
-        PayoutOrderEntity entity = payoutOrderDao.selectOne(
-                baseWrapper()
-                        .eq("payout_order_no", StringUtils.trim(payoutOrderNo))
-                        .last("limit 1")
+        PayoutOrderEntity entity = payoutOrderDao.selectOpenApiByPayoutOrderNo(
+                ApiReqContextHolder.getTenantId(),
+                ApiReqContextHolder.getMerchantId(),
+                StringUtils.trim(payoutOrderNo)
         );
         return toResponse(entity);
     }
@@ -189,11 +223,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     @Override
     public PayoutOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
-        PayoutOrderEntity entity = payoutOrderDao.selectOne(
-                baseWrapper()
-                        .eq("merchant_order_no", StringUtils.trim(merchantOrderNo))
-                        .last("limit 1")
-        );
+        PayoutOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
         return toResponse(entity);
     }
 
@@ -208,11 +238,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", null, "MERCHANT");
             return true;
         } catch (DuplicateKeyException ex) {
-            PayoutOrderEntity existed = payoutOrderDao.selectOne(
-                    baseWrapper()
-                            .eq("merchant_order_no", entity.getMerchantOrderNo())
-                            .last("limit 1")
-            );
+            PayoutOrderEntity existed = findByMerchantOrderNo(entity.getMerchantOrderNo());
             if (existed != null) {
                 validateIdempotentEntity(existed, entity);
                 copyOrder(existed, entity);
@@ -373,10 +399,58 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 计算商户手续费和总扣款金额。
+     * 代付创建接口分段耗时计时器。
      * <p>
-     * 代付冻结金额为代付本金加商户手续费，即 totalDebitAmount。
+     * 只用于定位慢接口，不参与任何业务判断；每次成功或已处理失败时输出一行 summary，方便按 traceId 排查。
      */
+    private static final class PayoutCreateStepTimer {
+        private final String merchantOrderNo;
+        private final long startNanos;
+        private long lastNanos;
+        private final StringBuilder steps = new StringBuilder();
+
+        private PayoutCreateStepTimer(String merchantOrderNo) {
+            this.merchantOrderNo = StringUtils.trimToNull(merchantOrderNo);
+            this.startNanos = System.nanoTime();
+            this.lastNanos = this.startNanos;
+        }
+
+        private static PayoutCreateStepTimer start(String merchantOrderNo) {
+            return new PayoutCreateStepTimer(merchantOrderNo);
+        }
+
+        private void mark(String step) {
+            long now = System.nanoTime();
+            if (!steps.isEmpty()) {
+                steps.append(", ");
+            }
+            steps.append(step).append('=').append(toMillis(now - lastNanos)).append("ms");
+            lastNanos = now;
+        }
+
+        private void log(String result, PayoutOrderEntity order) {
+            long totalMs = toMillis(System.nanoTime() - startNanos);
+            ApiReqContext context = ApiReqContextHolder.get();
+            log.info(
+                    "OpenAPI payout create profile result={}, traceId={}, tenantId={}, merchantId={}, appId={}, merchantOrderNo={}, payoutOrderNo={}, status={}, total={}ms, steps=[{}]",
+                    result,
+                    context == null ? null : context.getTraceId(),
+                    context == null ? null : context.getTenantId(),
+                    context == null ? null : context.getMerchantId(),
+                    context == null ? null : context.getAppId(),
+                    order == null ? merchantOrderNo : StringUtils.defaultIfBlank(order.getMerchantOrderNo(), merchantOrderNo),
+                    order == null ? null : order.getPayoutOrderNo(),
+                    order == null ? null : order.getStatus(),
+                    totalMs,
+                    steps
+            );
+        }
+
+        private static long toMillis(long nanos) {
+            return Math.max(0L, nanos / 1_000_000L);
+        }
+    }
+
     /**
      * 应用已发布支付决策表命中的代付方案。
      * <p>
@@ -458,9 +532,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 计算 PSP 手续费并保存规则快照。
-     */
-    /**
      * 校验重复商户订单号对应的请求参数是否一致。
      * <p>
      * 代付额外校验收款账号，避免同一商户订单号被用于不同收款人。
@@ -496,10 +567,10 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 校验当前商户应用是否允许使用指定币种和代付方式。
      */
     private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
-        if (!allowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
+        if (isNotAllowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is not allowed for app");
         }
-        if (!allowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
+        if (isNotAllowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
         }
     }
@@ -522,13 +593,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * <p>
      * 空配置表示不限制。
      */
-    private boolean allowed(String jsonArray, String value) {
+    private boolean isNotAllowed(String jsonArray, String value) {
         if (StringUtils.isBlank(jsonArray)) {
-            return true;
+            return false;
         }
         try {
             List<String> allowedValues = objectMapper.readValue(jsonArray, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-            return allowedValues.stream().anyMatch(item -> StringUtils.equalsIgnoreCase(item, value));
+            return allowedValues.stream().noneMatch(item -> StringUtils.equalsIgnoreCase(item, value));
         } catch (Exception ex) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
         }
@@ -617,10 +688,12 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * <p>
      * 所有商户查单只允许访问当前 app_id 所属租户和商户的数据。
      */
-    private QueryWrapper<PayoutOrderEntity> baseWrapper() {
-        return new QueryWrapper<PayoutOrderEntity>()
-                .eq("tenant_id", ApiReqContextHolder.getTenantId())
-                .eq("merchant_id", ApiReqContextHolder.getMerchantId());
+    private PayoutOrderEntity findByMerchantOrderNo(String merchantOrderNo) {
+        return payoutOrderDao.selectOpenApiByMerchantOrderNo(
+                ApiReqContextHolder.getTenantId(),
+                ApiReqContextHolder.getMerchantId(),
+                merchantOrderNo
+        );
     }
 
     /**
@@ -709,21 +782,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     private BigDecimal defaultZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    /**
-     * 返回第一个非空字符串。
-     */
-    private String firstNotBlank(String... values) {
-        if (values == null) {
-            return null;
-        }
-        for (String value : values) {
-            if (StringUtils.isNotBlank(value)) {
-                return StringUtils.trim(value);
-            }
-        }
-        return null;
     }
 
     private String requestPayeeAccountNo(PayoutOrderCreateRequest request) {

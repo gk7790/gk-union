@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PaymentPlanCacheService {
-    private static final long LOCAL_CACHE_TTL_MILLIS = Duration.ofSeconds(10).toMillis();
+    private static final long LOCAL_CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
     private static final long REDIS_CACHE_TTL_SECONDS = Duration.ofMinutes(30).toSeconds();
 
     private final RedisUtils redisUtils;
@@ -119,17 +119,7 @@ public class PaymentPlanCacheService {
     }
 
     private PaymentPlanCatalog loadActiveFromDb(PaymentPlanKey key) {
-        PaymentPlanCatalogEntity catalog = selectActiveCatalog(key, key.merchantAppId(), key.countryCode());
-        if (catalog == null && key.countryCode() != null && !key.countryCode().isBlank()) {
-            catalog = selectActiveCatalog(key, key.merchantAppId(), "");
-        }
-        if (catalog == null && key.merchantAppId() != null && key.merchantAppId() > 0) {
-            catalog = selectActiveCatalog(key, null, key.countryCode());
-        }
-        if (catalog == null && key.merchantAppId() != null && key.merchantAppId() > 0
-                && key.countryCode() != null && !key.countryCode().isBlank()) {
-            catalog = selectActiveCatalog(key, null, "");
-        }
+        PaymentPlanCatalogEntity catalog = selectActiveCatalog(key);
         if (catalog == null) {
             return null;
         }
@@ -165,17 +155,22 @@ public class PaymentPlanCacheService {
         return result;
     }
 
-    private PaymentPlanCatalogEntity selectActiveCatalog(PaymentPlanKey key, Long merchantAppId, String countryCode) {
+    private PaymentPlanCatalogEntity selectActiveCatalog(PaymentPlanKey key) {
+        boolean hasApp = key.merchantAppId() != null && key.merchantAppId() > 0;
+
+        List<Long> merchantAppIds = hasApp
+                ? List.of(key.merchantAppId(), 0L)
+                : List.of(0L);
+
         QueryWrapper<PaymentPlanCatalogEntity> wrapper = new QueryWrapper<PaymentPlanCatalogEntity>()
                 .eq("tenant_id", key.tenantId())
                 .eq("merchant_id", key.merchantId())
                 .eq("direction", key.direction())
-                .eq("country_code", countryCode == null ? "" : countryCode)
                 .eq("currency", key.currency())
                 .eq("method_code", key.methodCode())
                 .eq("status", PaymentPlanStatus.ACTIVE)
+                .in("merchant_app_id", merchantAppIds)
                 .orderByDesc("version");
-        wrapper.eq("merchant_app_id", merchantAppId == null || merchantAppId <= 0 ? 0L : merchantAppId);
         wrapper.last("limit 1");
         return paymentPlanCatalogDao.selectOne(wrapper);
     }

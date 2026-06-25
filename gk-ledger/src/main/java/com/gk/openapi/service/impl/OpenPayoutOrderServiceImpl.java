@@ -109,10 +109,13 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
         String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
-        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
-        validatePayoutPayee(request, normalizedMethod);
-        timer.mark("validate_request");
 
+        // 校验当前商户应用是否允许使用指定币种和代付方式
+        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
+        // 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping。
+        validatePayoutPayee(request, normalizedMethod);
+
+        timer.mark("validate_request");
         if (existed != null) {
             // 同一商户订单号再次请求时，金额、币种、方式、通知地址、收款账号必须一致。
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
@@ -151,6 +154,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
 
         // 新系统阶段直接保存收款人明文信息，便于代付提交 PSP 和后台排查。
         applyPayee(entity, request);
+
         timer.mark("apply_payee");
         PaymentPlan paymentPlan = null;
         if (!isTestApp(context.getMerchantApp())) {

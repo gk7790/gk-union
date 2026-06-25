@@ -84,13 +84,14 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         // OpenApiAuthFilter 已经根据 app_id 识别租户、商户和商户应用。
         ApiReqContext context = ApiReqContextHolder.get();
         MerchantEntity merchant = context.getMerchant();
-        // 币种和国家允许不传，优先从商户默认配置兜底。
+        // 币种允许不传并从商户默认配置兜底；国家只使用 API 显式传入值。
         String currency = StringUtils.defaultIfBlank(request.getCurrency(), merchant.getDefaultCurrency());
-        String countryCode = StringUtils.defaultIfBlank(request.getCountryCode(), merchant.getCountryCode());
-        if (StringUtils.isBlank(currency) || StringUtils.isBlank(countryCode)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency and country_code is required");
+        String countryCode = StringUtils.trimToNull(request.getCountryCode());
+        if (StringUtils.isBlank(currency)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is required");
         }
         String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
+        String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
         validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
         validatePayoutPayee(request, normalizedMethod);
@@ -116,7 +117,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
         entity.setOrderSource(OrderSourceEnum.API.code());
-        entity.setCountryCode(countryCode.toUpperCase(Locale.ROOT));
+        entity.setCountryCode(normalizedCountryCode);
         entity.setCurrency(normalizedCurrency);
         entity.setMethodCode(normalizedMethod);
         entity.setAmount(request.getAmount());

@@ -52,7 +52,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getMerchantAppId(),
-                null,
+                order.getCountryCode(),
                 order.getCurrency(),
                 order.getMethodCode(),
                 null,
@@ -216,6 +216,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
             return false;
         }
         return StringUtils.isBlank(countryCode)
+                || StringUtils.isBlank(method.getCountryCode())
                 || StringUtils.equalsIgnoreCase(StringUtils.trim(countryCode), StringUtils.trim(method.getCountryCode()));
     }
 

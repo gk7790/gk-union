@@ -11,14 +11,9 @@
           AND status = #{status}
           AND (psp_account_id = #{pspAccountId} OR psp_account_id IS NULL)
           AND (psp_method_id = #{pspMethodId} OR psp_method_id IS NULL)
-          <choose>
-              <when test="countryCode != null and countryCode != ''">
+          <if test="countryCode != null and countryCode != ''">
           AND (country_code = #{countryCode} OR country_code IS NULL OR country_code = '')
-              </when>
-              <otherwise>
-          AND (country_code IS NULL OR country_code = '')
-              </otherwise>
-          </choose>
+          </if>
           AND (method_code = #{methodCode} OR method_code IS NULL OR method_code = '')
           AND (min_amount &lt;= #{orderAmount} OR min_amount IS NULL OR min_amount &lt;= 0)
           AND (max_amount &gt;= #{orderAmount} OR max_amount IS NULL OR max_amount &lt;= 0)

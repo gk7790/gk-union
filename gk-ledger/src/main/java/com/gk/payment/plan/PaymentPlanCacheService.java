@@ -11,6 +11,7 @@ import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -169,8 +170,14 @@ public class PaymentPlanCacheService {
                 .eq("currency", key.currency())
                 .eq("method_code", key.methodCode())
                 .eq("status", PaymentPlanStatus.ACTIVE)
-                .in("merchant_app_id", merchantAppIds)
-                .orderByDesc("version");
+                .in("merchant_app_id", merchantAppIds);
+        if (StringUtils.isNotBlank(key.countryCode())) {
+            wrapper.and(item -> item.eq("country_code", key.countryCode()).or().isNull("country_code").or().eq("country_code", ""));
+            wrapper.orderByDesc("country_code");
+        }
+        wrapper
+                .orderByDesc("version")
+                .orderByDesc("id");
         wrapper.last("limit 1");
         return paymentPlanCatalogDao.selectOne(wrapper);
     }

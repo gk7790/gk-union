@@ -69,7 +69,7 @@ public class PaymentPlanResolver {
                 order.getMerchantId(),
                 order.getMerchantAppId(),
                 PayDirectionEnum.PAYIN.code(),
-                "",
+                order.getCountryCode(),
                 order.getCurrency(),
                 order.getMethodCode()
         );

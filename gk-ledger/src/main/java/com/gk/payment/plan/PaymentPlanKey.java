@@ -38,7 +38,7 @@ public record PaymentPlanKey(
     }
 
     public String redisKey() {
-        return RedisKeys.getPaymentPlanActiveKey(tenantId, merchantId, merchantAppId, direction, currency, methodCode);
+        return RedisKeys.getPaymentPlanActiveKey(tenantId, merchantId, merchantAppId, direction, countryCode, currency, methodCode);
     }
 
     public String localKey() {

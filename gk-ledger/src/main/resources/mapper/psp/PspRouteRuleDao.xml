@@ -10,7 +10,7 @@
             AND m.direction = #{direction}
             AND m.status = #{status}
             <if test="countryCode != null and countryCode != ''">
-            AND m.country_code = #{countryCode}
+            AND (m.country_code = #{countryCode} OR m.country_code IS NULL OR m.country_code = '')
             </if>
         <if test="direction == 'PAYOUT' and methodCode == 'BANK_CARD'">
         INNER JOIN psp_bank_mapping b ON b.psp_id = r.psp_id
@@ -23,7 +23,7 @@
         </if>
         WHERE r.tenant_id = #{tenantId}
           <if test="countryCode != null and countryCode != ''">
-          AND r.country_code = #{countryCode}
+          AND (r.country_code = #{countryCode} OR r.country_code IS NULL OR r.country_code = '')
           </if>
           AND r.currency = #{currency}
           AND (r.method_code = #{methodCode} OR r.method_code IS NULL OR r.method_code = '')
@@ -48,6 +48,9 @@
                 ELSE 100
             END ASC,
             CASE WHEN r.method_code = #{methodCode} THEN 0 ELSE 1 END ASC,
+            <if test="countryCode != null and countryCode != ''">
+            CASE WHEN r.country_code = #{countryCode} THEN 0 ELSE 1 END ASC,
+            </if>
             COALESCE(r.priority, 100) ASC,
             r.id ASC
         LIMIT 1

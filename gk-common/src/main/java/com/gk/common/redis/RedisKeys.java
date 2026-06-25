@@ -201,12 +201,13 @@ public class RedisKeys {
      * key 只包含配置维度，不包含订单金额；金额在决策表内部按 bucket 命中。
      */
     public static String getPaymentPlanActiveKey(Long tenantId, Long merchantId, Long merchantAppId,
-                                                 String direction, String currency, String methodCode) {
+                                                 String direction, String countryCode, String currency, String methodCode) {
         return "payment:plan:active:" + StringFormat.join(":",
                 nullToAll(tenantId),
                 nullToAll(merchantId),
                 nullToAll(merchantAppId),
                 nullToAll(direction),
+                nullToAll(countryCode),
                 nullToAll(currency),
                 nullToAll(methodCode)
         );

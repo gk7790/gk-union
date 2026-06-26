@@ -6,6 +6,7 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.payment.amount.AmountRangeUtils;
 import com.gk.payment.dao.PaymentRouteGroupDao;
 import com.gk.payment.dao.PaymentRouteRuleDao;
 import com.gk.payment.dto.PaymentRouteRuleDTO;
@@ -87,6 +88,7 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         if (dto == null) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Payment route rule is required");
         }
+        validateAmountRange(dto.getMinAmount(), dto.getMaxAmount());
         PaymentRouteGroupEntity group = dto.getGroupId() == null ? null : paymentRouteGroupDao.selectById(dto.getGroupId());
         if (group == null) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Payment route group does not exist");
@@ -109,6 +111,12 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         }
         if (notEqualsCode(dto.getMethodCode(), group.getMethodCode())) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Route rule method must match route group");
+        }
+    }
+
+    private void validateAmountRange(java.math.BigDecimal minAmount, java.math.BigDecimal maxAmount) {
+        if (!AmountRangeUtils.isValidConfigRange(minAmount, maxAmount)) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
         }
     }
 

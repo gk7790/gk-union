@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -76,6 +77,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(PspFeeRuleDTO dto) {
+        validateAmountRange(dto);
         fillPspMethodSnapshot(dto);
         inheritTenantFromPspAccount(dto);
         PspFeeRuleEntity entity = ConvertUtils.sourceToTarget(dto, PspFeeRuleEntity.class);
@@ -86,10 +88,17 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(PspFeeRuleDTO dto) {
+        validateAmountRange(dto);
         fillPspMethodSnapshot(dto);
         inheritTenantFromPspAccount(dto);
         super.update(dto);
         evictPayinPlanCache();
+    }
+
+    private void validateAmountRange(PspFeeRuleDTO dto) {
+        if (dto != null && !AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        }
     }
 
     @Override

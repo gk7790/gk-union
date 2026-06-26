@@ -233,8 +233,8 @@ public class PaymentPlanCompiler {
                         .eq("group_id", routeRule.getGroupId())
                         .eq("status", StatusEnum.NORMAL.code())
                         .and(item -> item.le("min_amount", sampleAmount).or().isNull("min_amount"))
-                        // 配置表中 max_amount <= 0 表示不限制最大金额
-                                                .and(item -> item.ge("max_amount", sampleAmount).or().isNull("max_amount").or().le("max_amount", BigDecimal.ZERO))
+                        // 配置表中 max_amount = 0 表示不限制最大金额
+                        .and(item -> item.ge("max_amount", sampleAmount).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                         .orderByAsc("priority")
                         .orderByAsc("fallback_order")
                         .orderByAsc("id"))
@@ -524,8 +524,8 @@ public class PaymentPlanCompiler {
                 .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
                 .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
                 .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount <= 0 表示无上限，因此与任意请求最小金额都有交集
-                                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().le("max_amount", BigDecimal.ZERO))
+                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
+                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"));
         if (StringUtils.isNotBlank(request.getCountryCode())) {
@@ -549,8 +549,8 @@ public class PaymentPlanCompiler {
                 .and(item -> item.eq("merchant_id", request.getMerchantId()).or().isNull("merchant_id"))
                 .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
                 .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount <= 0 表示无上限，因此与任意请求最小金额都有交集
-                                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().le("max_amount", BigDecimal.ZERO))
+                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
+                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"))
                 .orderByAsc("priority")
@@ -666,8 +666,8 @@ public class PaymentPlanCompiler {
                 .and(item -> item.eq("psp_method_id", channel.getPspMethodId()).or().isNull("psp_method_id"))
                 .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
                 .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount <= 0 表示无上限，因此与任意请求最小金额都有交集
-                                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().le("max_amount", BigDecimal.ZERO))
+                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
+                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"));
         String countryCode = effectiveCountryCode(request, group, method);

@@ -18,6 +18,7 @@ import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.payment.amount.AmountRangeUtils;
 import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
@@ -355,6 +356,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     @Override
     public void save(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
+        validateAmountRange(dto);
         super.save(dto);
         evictPayinPlanCache();
     }
@@ -362,9 +364,16 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     @Override
     public void update(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
+        validateAmountRange(dto);
         super.update(dto);
         clearMerchantAppWhenNeeded(dto);
         evictPayinPlanCache();
+    }
+
+    private void validateAmountRange(MerchantFeeRuleDTO dto) {
+        if (dto != null && !AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        }
     }
 
     @Override

@@ -8,6 +8,7 @@ import com.gk.common.model.DynMap;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.payment.dao.PaymentRouteChannelDao;
 import com.gk.payment.dao.PaymentRouteGroupDao;
+import com.gk.payment.amount.AmountRangeUtils;
 import com.gk.payment.dto.PaymentRouteChannelDTO;
 import com.gk.payment.dto.PaymentRouteChannelOptionsResponse;
 import com.gk.payment.entity.PaymentRouteChannelEntity;
@@ -354,6 +355,7 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
         if (dto == null) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Payment route channel is required");
         }
+        validateAmountRange(dto.getMinAmount(), dto.getMaxAmount());
         PaymentRouteGroupEntity group = dto.getGroupId() == null ? null : paymentRouteGroupDao.selectById(dto.getGroupId());
         if (group == null) {
             throw new GkException(ErrorCode.BAD_REQUEST, "Payment route group does not exist");
@@ -395,6 +397,12 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
 
         dto.setTenantId(group.getTenantId());
         return group;
+    }
+
+    private void validateAmountRange(java.math.BigDecimal minAmount, java.math.BigDecimal maxAmount) {
+        if (!AmountRangeUtils.isValidConfigRange(minAmount, maxAmount)) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        }
     }
 
     private void validatePspFeeRule(PaymentRouteChannelDTO dto, PaymentRouteGroupEntity group) {

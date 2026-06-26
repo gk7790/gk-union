@@ -3,6 +3,7 @@ package com.gk.psp.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
@@ -106,6 +107,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         if (dto == null) {
             return;
         }
+        validateAmountRange(dto);
         PspMethodEntity method = dto.getPspMethodId() == null ? null : pspMethodDao.selectById(dto.getPspMethodId());
         if (method == null) {
             throw new GkException(ErrorCode.BAD_REQUEST, "PSP payment method not found");
@@ -136,6 +138,12 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
 
         dto.setTenantId(account.getTenantId());
         dto.setMethodCode(StrUtil.trim(method.getMethodCode()));
+    }
+
+    private void validateAmountRange(PspRouteRuleDTO dto) {
+        if (!AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        }
     }
     private boolean notEqualsCode(String left, String right) {
         return !StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));

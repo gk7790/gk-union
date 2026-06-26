@@ -5,6 +5,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONException;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
@@ -146,6 +147,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(PspMethodDTO dto) {
+        validateAmountRange(dto);
         normalizeConfigJson(dto);
         super.save(dto);
         evictPayinPlanCache();
@@ -156,12 +158,19 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     @Transactional(rollbackFor = Exception.class)
     public void update(PspMethodDTO dto) {
         PspMethodEntity before = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
+        validateAmountRange(dto);
         normalizeConfigJson(dto);
         super.update(dto);
         PspMethodEntity after = dto == null || dto.getId() == null ? null : baseDao.selectById(dto.getId());
         syncRuleMethodSnapshot(before, after);
         evictPayinPlanCache();
         evictMethodDictCache();
+    }
+
+    private void validateAmountRange(PspMethodDTO dto) {
+        if (dto != null && !AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        }
     }
 
     @Override

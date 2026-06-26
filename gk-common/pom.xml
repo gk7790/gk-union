@@ -14,12 +14,6 @@
     <packaging>jar</packaging>
     <description>gk-common</description>
     <version>1.0.0</version>
-
-    <properties>
-        <hutool.version>5.8.34</hutool.version>
-        <commons.lang.version>3.17.0</commons.lang.version>
-        <fastjson.version>2.0.61</fastjson.version>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>com.baomidou</groupId>

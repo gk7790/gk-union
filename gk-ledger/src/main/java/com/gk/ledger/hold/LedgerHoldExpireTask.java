@@ -1,7 +1,7 @@
 package com.gk.ledger.hold;
 
 import com.gk.ledger.service.LedgerHoldService;
-import com.gk.quartz.task.ITask;
+import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

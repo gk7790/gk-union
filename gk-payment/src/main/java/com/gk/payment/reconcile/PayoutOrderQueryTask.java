@@ -1,6 +1,6 @@
 package com.gk.payment.reconcile;
 
-import com.gk.quartz.task.ITask;
+import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

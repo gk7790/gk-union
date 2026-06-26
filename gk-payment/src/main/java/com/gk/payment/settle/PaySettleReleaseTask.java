@@ -1,7 +1,7 @@
 package com.gk.payment.settle;
 
 import com.gk.payment.service.PayOrderService;
-import com.gk.quartz.task.ITask;
+import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

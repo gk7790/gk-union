@@ -4,7 +4,7 @@ import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.service.MqOutboxService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
-import com.gk.quartz.task.ITask;
+import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

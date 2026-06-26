@@ -1,6 +1,6 @@
 package com.gk.payment.notify;
 
-import com.gk.quartz.task.ITask;
+import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

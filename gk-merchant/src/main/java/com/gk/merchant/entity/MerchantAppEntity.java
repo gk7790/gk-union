@@ -32,6 +32,5 @@ public class MerchantAppEntity extends SimpleEntity {
     private String returnUrl;
     private Integer rateLimitQps;
     private Integer nonceTtlSeconds;
-    private String configJson;
     private String remark;
 }

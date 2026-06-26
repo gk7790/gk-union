@@ -46,8 +46,6 @@ public class MerchantAppDTO {
     private Integer rateLimitQps;
     @Schema(title = "nonce防重放有效秒")
     private Integer nonceTtlSeconds;
-    @Schema(title = "应用扩展配置JSON")
-    private String configJson;
     @Schema(title = "备注")
     private String remark;
     @Schema(title = "创建人ID")

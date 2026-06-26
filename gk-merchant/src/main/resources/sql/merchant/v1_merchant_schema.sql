@@ -80,7 +80,6 @@ CREATE TABLE `merchant_app`  (
   `return_url` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '默认同步跳转地址',
   `rate_limit_qps` int NOT NULL DEFAULT 50 COMMENT '接口限流QPS',
   `nonce_ttl_seconds` int NOT NULL DEFAULT 300 COMMENT 'nonce防重放有效秒数',
-  `config_json` json NULL COMMENT '应用扩展配置JSON',
   `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
   `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
   `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',

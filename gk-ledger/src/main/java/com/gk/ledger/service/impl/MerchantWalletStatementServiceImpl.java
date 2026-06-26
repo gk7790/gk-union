@@ -2,21 +2,97 @@ package com.gk.ledger.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.ledger.dao.MerchantWalletStatementDao;
 import com.gk.ledger.dto.MerchantWalletStatementDTO;
 import com.gk.ledger.entity.MerchantWalletStatementEntity;
 import com.gk.ledger.service.MerchantWalletStatementService;
+import com.gk.ledger.support.SubjectDisplayEnricher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<MerchantWalletStatementDao, MerchantWalletStatementEntity, MerchantWalletStatementDTO>
         implements MerchantWalletStatementService {
+    private static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
+    private static final Map<String, String> ORDER_FIELD_MAP = Map.ofEntries(
+            Map.entry("id", "id"),
+            Map.entry("tenantId", "tenant_id"),
+            Map.entry("statementNo", "statement_no"),
+            Map.entry("merchantId", "merchant_id"),
+            Map.entry("merchantNo", "merchant_no"),
+            Map.entry("merchantAppId", "merchant_app_id"),
+            Map.entry("journalId", "journal_id"),
+            Map.entry("journalNo", "journal_no"),
+            Map.entry("entryId", "entry_id"),
+            Map.entry("bizType", "biz_type"),
+            Map.entry("bizId", "biz_id"),
+            Map.entry("bizNo", "biz_no"),
+            Map.entry("merchantOrderNo", "merchant_order_no"),
+            Map.entry("eventType", "event_type"),
+            Map.entry("accountId", "account_id"),
+            Map.entry("accountNo", "account_no"),
+            Map.entry("accountType", "account_type"),
+            Map.entry("currency", "currency"),
+            Map.entry("effectType", "effect_type"),
+            Map.entry("sourceType", "source_type"),
+            Map.entry("status", "status"),
+            Map.entry("postedAt", "posted_at"),
+            Map.entry("traceId", "trace_id"),
+            Map.entry("createdAt", "created_at"),
+            Map.entry("updatedAt", "updated_at")
+    );
+
+    @Autowired(required = false)
+    private SubjectDisplayEnricher subjectDisplayEnricher;
+
+    @Override
+    public PageData<MerchantWalletStatementDTO> page(DynMap params) {
+        normalizeOrderField(params);
+        IPage<MerchantWalletStatementEntity> page = baseDao.selectPage(
+                getPage(params, null, false),
+                getWrapper(params)
+        );
+
+        PageData<MerchantWalletStatementDTO> result = getPageData(page, currentDtoClass());
+        enrichStatements(result.getItems());
+        return result;
+    }
+
+    @Override
+    public List<MerchantWalletStatementDTO> list(DynMap params) {
+        List<MerchantWalletStatementDTO> items = super.list(params);
+        enrichStatements(items);
+        return items;
+    }
+
+    @Override
+    public MerchantWalletStatementDTO get(Long id) {
+        MerchantWalletStatementDTO dto = super.get(id);
+        if (dto != null) {
+            enrichStatements(List.of(dto));
+        }
+        return dto;
+    }
+
+    private void enrichStatements(List<MerchantWalletStatementDTO> items) {
+        if (subjectDisplayEnricher != null) {
+            subjectDisplayEnricher.enrichMerchantWalletStatements(items);
+        }
+    }
 
     @Override
     public QueryWrapper<MerchantWalletStatementEntity> getWrapper(DynMap params) {
@@ -42,17 +118,17 @@ public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<Merchant
         String sourceType = params.getStr("sourceType");
         String status = params.getStr("status");
         String traceId = params.getStr("traceId");
+        Instant postedAtStart = getInstant(params, "postedAtStart", "startTime");
+        Instant postedAtEnd = getInstant(params, "postedAtEnd", "endTime");
         ReqContext context = ReqContextHolder.get();
 
-        if (context != null && SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
             wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        } else if (context != null && SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
+        } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
             wrapper.eq("tenant_id", context.getTenantId());
-        } else if (context != null) {
+        } else {
             wrapper.eq("tenant_id", context.getTenantId());
             merchantId = context.getMerchantId();
-        } else {
-            wrapper.eq(tenantId != null, "tenant_id", tenantId);
         }
 
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
@@ -75,9 +151,43 @@ public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<Merchant
         wrapper.eq(StrUtil.isNotBlank(sourceType), "source_type", sourceType);
         wrapper.eq(StrUtil.isNotBlank(status), "status", status);
         wrapper.eq(StrUtil.isNotBlank(traceId), "trace_id", traceId);
+        wrapper.ge(postedAtStart != null, "posted_at", postedAtStart);
+        wrapper.le(postedAtEnd != null, "posted_at", postedAtEnd);
         if (StrUtil.isBlank(params.getStr(Constant.ORDER_FIELD))) {
             wrapper.orderByDesc("posted_at").orderByDesc("id");
         }
         return wrapper;
+    }
+
+    private void normalizeOrderField(DynMap params) {
+        String orderField = params.getStr(Constant.ORDER_FIELD);
+        if (StrUtil.isBlank(orderField)) {
+            return;
+        }
+        String column = ORDER_FIELD_MAP.get(orderField);
+        if (StrUtil.isBlank(column) && ORDER_FIELD_MAP.containsValue(orderField)) {
+            column = orderField;
+        }
+        if (StrUtil.isBlank(column)) {
+            params.remove(Constant.ORDER_FIELD);
+            params.remove(Constant.ORDER);
+            return;
+        }
+        params.put(Constant.ORDER_FIELD, column);
+    }
+
+    private Instant getInstant(DynMap params, String... keys) {
+        for (String key : keys) {
+            LocalDateTime value;
+            try {
+                value = params.getLocalDateTime(key);
+            } catch (Exception ignored) {
+                continue;
+            }
+            if (value != null) {
+                return value.atZone(DEFAULT_ZONE_ID).toInstant();
+            }
+        }
+        return null;
     }
 }

@@ -7,6 +7,7 @@ import com.gk.ledger.dto.LedgerBalanceDTO;
 import com.gk.ledger.dto.LedgerEntryDTO;
 import com.gk.ledger.dto.LedgerHoldDTO;
 import com.gk.ledger.dto.LedgerJournalDTO;
+import com.gk.ledger.dto.MerchantWalletStatementDTO;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.subject.model.SubjectDisplay;
 import com.gk.subject.model.SubjectRef;
@@ -133,6 +134,24 @@ public class SubjectDisplayEnricher {
         });
     }
 
+    public void enrichMerchantWalletStatements(Collection<MerchantWalletStatementDTO> items) {
+        if (CollectionUtils.isEmpty(items)) {
+            return;
+        }
+        Map<SubjectRef, SubjectDisplay> displays = subjectDisplayService.batchGet(items.stream()
+                .flatMap(item -> Stream.of(
+                        ref(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId()),
+                        ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId())
+                ))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList());
+        items.forEach(item -> {
+            applyMerchant(item, displays.get(ref(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId())));
+            applyTenant(item, displays.get(ref(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId())));
+        });
+    }
+
     private SubjectRef ref(Long tenantId, String subjectType, Long subjectId) {
         if (tenantId == null || subjectType == null || subjectId == null) {
             return null;
@@ -197,6 +216,20 @@ public class SubjectDisplayEnricher {
         item.setOwnerNo(null);
         item.setOwnerShortName(null);
         item.setOwnerDisplayName(null);
+    }
+
+    private void applyTenant(MerchantWalletStatementDTO item, SubjectDisplay display) {
+        if (display == null) {
+            return;
+        }
+        item.setTenantName(tenantName(display));
+    }
+
+    private void applyMerchant(MerchantWalletStatementDTO item, SubjectDisplay display) {
+        if (display == null) {
+            return;
+        }
+        item.setMerchantName(ownerName(display));
     }
 
     private String ownerName(SubjectDisplay display) {

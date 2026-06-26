@@ -107,9 +107,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
 
-        // 校验当前商户应用是否允许使用指定币种和代付方
-        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
-        // 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping
         validatePayoutPayee(request, normalizedMethod);
 
         timer.mark("validate_request");
@@ -641,18 +638,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 校验当前商户应用是否允许使用指定币种和代付方式
-     */
-    private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
-        if (isNotAllowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is not allowed for app");
-        }
-        if (isNotAllowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
-        }
-    }
-
-    /**
      * 银行卡代付必须携带系统标准银行编码，后续运行时会用它匹配 psp_bank_mapping
      */
     private void validatePayoutPayee(PayoutOrderCreateRequest request, String methodCode) {
@@ -662,23 +647,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         PayoutOrderCreateRequest.Payee payee = request == null ? null : request.getPayee();
         if (payee == null || StringUtils.isBlank(payee.getBankCode())) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "payee.bank_code is required for BANK_CARD payout");
-        }
-    }
-
-    /**
-     * 判断配置列表是否允许当前值
-     * <p>
-     * 空配置表示不限制
-     */
-    private boolean isNotAllowed(String jsonArray, String value) {
-        if (StringUtils.isBlank(jsonArray)) {
-            return false;
-        }
-        try {
-            List<String> allowedValues = JSON.parseArray(jsonArray, String.class);
-            return allowedValues.stream().noneMatch(item -> StringUtils.equalsIgnoreCase(item, value));
-        } catch (Exception ex) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
         }
     }
 

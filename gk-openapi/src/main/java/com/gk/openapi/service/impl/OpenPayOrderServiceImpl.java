@@ -90,7 +90,6 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
         String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
         String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
-        validateMerchantAppAccess(context.getMerchantApp(), normalizedCurrency, normalizedMethod);
         timer.mark("validate_request");
 
         if (existed != null) {
@@ -564,33 +563,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 校验当前商户应用是否允许使用指定币种和支付方式     */
-    private void validateMerchantAppAccess(MerchantAppEntity app, String currency, String methodCode) {
-        if (isNotAllowed(app == null ? null : app.getAllowedCurrencyJson(), currency)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is not allowed for app");
-        }
-        if (isNotAllowed(app == null ? null : app.getAllowedMethodJson(), methodCode)) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "method is not allowed for app");
-        }
-    }
-
-    /**
-     * 判断配置列表是否允许当前值     * <p>
-     * 空配置表示不限制     */
-    private boolean isNotAllowed(String jsonArray, String value) {
-        if (StringUtils.isBlank(jsonArray)) {
-            return false;
-        }
-        try {
-            List<String> allowedValues = JSON.parseArray(jsonArray, String.class);
-            return allowedValues.stream().noneMatch(item -> StringUtils.equalsIgnoreCase(item, value));
-        } catch (Exception ex) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
-        }
-    }
-
-    /**
-     * 校验金额小数位     */
+     * 校验金额小数位
+     */
     private void validateAmountScale(BigDecimal amount) {
         if (amount.scale() > 8) {
             throw new ApiException(ApiErrorCode.INVALID_AMOUNT, "amount scale must be less than or equal to 8");

@@ -1,6 +1,5 @@
 package com.gk.payment.plan;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dao.MerchantDao;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -23,7 +21,6 @@ import java.util.Locale;
 public class PayinPlanServiceImpl implements PayinPlanService {
     private final MerchantDao merchantDao;
     private final MerchantAppDao merchantAppDao;
-    private final ObjectMapper objectMapper;
     private final PaymentPlanResolver paymentPlanResolver;
     private final PaymentPlanCacheService paymentPlanCacheService;
 
@@ -116,12 +113,6 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         if (!StatusEnum.NORMAL.code().equals(app.getStatus())) {
             result.addError("MERCHANT_APP_DISABLED", "merchant app is disabled");
         }
-        if (notAllowed(app.getAllowedCurrencyJson(), request.getCurrency())) {
-            result.addError("CURRENCY_NOT_ALLOWED", "currency is not allowed for app");
-        }
-        if (notAllowed(app.getAllowedMethodJson(), request.getMethodCode())) {
-            result.addError("METHOD_NOT_ALLOWED", "method is not allowed for app");
-        }
     }
 
     private PayOrderEntity toOrder(PayinConfigPrecheckRequest request, MerchantEntity merchant, MerchantAppEntity app) {
@@ -160,22 +151,6 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         }
         ApiErrorCode errorCode = ex.getErrorCode();
         return errorCode == null ? "PAYIN_PLAN_INVALID" : errorCode.name();
-    }
-
-    private boolean allowed(String jsonArray, String value) {
-        if (StringUtils.isBlank(jsonArray)) {
-            return true;
-        }
-        try {
-            List<String> allowedValues = objectMapper.readValue(jsonArray, objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-            return allowedValues.stream().anyMatch(item -> StringUtils.equalsIgnoreCase(item, value));
-        } catch (Exception ex) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid app allowed config");
-        }
-    }
-
-    private boolean notAllowed(String jsonArray, String value) {
-        return !allowed(jsonArray, value);
     }
 
     private String normalize(String value) {

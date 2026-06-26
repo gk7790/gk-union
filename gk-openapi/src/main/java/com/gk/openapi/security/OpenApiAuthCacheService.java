@@ -209,8 +209,6 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
         private Integer nonceTtlSeconds;
         private Integer rateLimitQps;
         private String appEnv;
-        private String allowedCurrencyJson;
-        private String allowedMethodJson;
         private String merchantNo;
         private Integer merchantStatus;
         private String riskStatus;
@@ -230,8 +228,6 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             snapshot.setNonceTtlSeconds(row.getNonceTtlSeconds());
             snapshot.setRateLimitQps(row.getRateLimitQps());
             snapshot.setAppEnv(row.getAppEnv());
-            snapshot.setAllowedCurrencyJson(row.getAllowedCurrencyJson());
-            snapshot.setAllowedMethodJson(row.getAllowedMethodJson());
             snapshot.setMerchantNo(row.getMerchantNo());
             snapshot.setMerchantStatus(row.getMerchantStatus());
             snapshot.setRiskStatus(row.getRiskStatus());
@@ -252,8 +248,6 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             app.setNonceTtlSeconds(nonceTtlSeconds);
             app.setRateLimitQps(rateLimitQps);
             app.setAppEnv(appEnv);
-            app.setAllowedCurrencyJson(allowedCurrencyJson);
-            app.setAllowedMethodJson(allowedMethodJson);
 
             MerchantEntity merchant = new MerchantEntity();
             merchant.setId(merchantId);

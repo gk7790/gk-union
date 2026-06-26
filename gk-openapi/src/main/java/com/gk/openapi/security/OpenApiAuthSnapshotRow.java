@@ -15,8 +15,6 @@ public class OpenApiAuthSnapshotRow {
     private Integer nonceTtlSeconds;
     private Integer rateLimitQps;
     private String appEnv;
-    private String allowedCurrencyJson;
-    private String allowedMethodJson;
 
     private String merchantNo;
     private Integer merchantStatus;

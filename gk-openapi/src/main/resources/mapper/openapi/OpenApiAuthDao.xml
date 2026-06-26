@@ -16,8 +16,6 @@
             a.nonce_ttl_seconds  AS nonceTtlSeconds,
             a.rate_limit_qps     AS rateLimitQps,
             a.app_env            AS appEnv,
-            a.allowed_currency_json AS allowedCurrencyJson,
-            a.allowed_method_json   AS allowedMethodJson,
             m.merchant_no        AS merchantNo,
             m.status             AS merchantStatus,
             m.risk_status        AS riskStatus,

@@ -42,12 +42,6 @@ public class MerchantAppDTO {
     private String notifyUrl;
     @Schema(title = "默认同步跳转地址")
     private String returnUrl;
-    @Schema(title = "IP白名单JSON数组")
-    private String ipWhitelistJson;
-    @Schema(title = "允许币种JSON数组")
-    private String allowedCurrencyJson;
-    @Schema(title = "允许支付方式JSON数组")
-    private String allowedMethodJson;
     @Schema(title = "接口限流QPS")
     private Integer rateLimitQps;
     @Schema(title = "nonce防重放有效秒")

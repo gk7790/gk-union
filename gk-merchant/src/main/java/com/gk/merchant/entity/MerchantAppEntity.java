@@ -30,9 +30,6 @@ public class MerchantAppEntity extends SimpleEntity {
     private String platformPublicKey;
     private String notifyUrl;
     private String returnUrl;
-    private String ipWhitelistJson;
-    private String allowedCurrencyJson;
-    private String allowedMethodJson;
     private Integer rateLimitQps;
     private Integer nonceTtlSeconds;
     private String configJson;

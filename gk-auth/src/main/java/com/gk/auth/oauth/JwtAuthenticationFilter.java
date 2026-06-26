@@ -8,6 +8,10 @@ import com.gk.auth.utils.JwtUtils;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
+import com.alibaba.fastjson2.JSONObject;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
+import com.gk.common.model.R;
 import com.gk.common.utils.IpUtils;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -17,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,8 +30,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -46,78 +52,86 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException {
         try {
-            // 获取 Token
-            String jwt = getJwtFromRequest(request);
-            // 验证 Token
-            if (StringUtils.isNotBlank(jwt) && JwtUtils.validateToken(jwt)) {
-                Claims claims = JwtUtils.parseToken(jwt);
-
-                ReqContext context = formContext(claims, request);
-
-                if (Constant.ADMIN.equals(claims.getSubject()) || Constant.ORG.equals(claims.getSubject())) {
-                    // 确保用户未认证且用户名有效
-                    if (context.getUserId() > 0) {
-
-                        // 加载用户信息
-                        SysUser userDetails = userDetailsService.getUserByUserId(Constant.ADMIN, context.getUserId());
-
-                        context.setSAdmin(userDetails.isSuperAdmin());
-                        Boolean jwtSAdmin = claims.get(JwtUtils.SUPER_Admin, Boolean.class);
-                        if (Boolean.TRUE.equals(jwtSAdmin)) {
-                            context.setSAdmin(true);
-                        }
-
-                        Set<Long> roleDeptIds = userDetailsService.getDataScopeList(userDetails.getSubjectId());
-                        if (roleDeptIds != null && !roleDeptIds.isEmpty()) {
-                            context.setDeptIdList(roleDeptIds);
-                        } if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {
-                            Set<Long> subDeptIdList = userDetailsService.getSubDeptIdList(userDetails.getDeptId());
-                            context.setDeptIdList(subDeptIdList);
-                        }
-
-                        Set<String> authList = Optional.of(userDetails).map(SysUser::getAuthList).orElse(Set.of());
-                        Set<String> roleList = Optional.of(userDetails).map(SysUser::getRoleList).orElse(Set.of());
-
-                        List<SimpleGrantedAuthority> authorities = new ArrayList<>(roleList.size() + authList.size());
-                        for (String auth : roleList) {
-                            authorities.add(new SimpleGrantedAuthority("ROLE_" + auth));
-                        }
-                        for (String permission : authList) {
-                            authorities.add(new SimpleGrantedAuthority(permission));
-                        }
-
-                        // 创建认证对象
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
-
-                        // 设置认证详情
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                        // 设置到 SecurityContext
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    }
-                } else if (Constant.CLIENT.equals(claims.getSubject())) {
-                    // 创建认证对象
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(claims, null, List.of());
-                    // 设置认证详情
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    // 设置到 SecurityContext
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-                // ========== 3. MDC（日志追踪强烈建议） ==========
-                MDC.put("traceId", context.getTraceId());
-                ReqContextHolder.set(context);
-            }
+            authenticate(request);
             filterChain.doFilter(request, response);
-        } catch (Exception e) {
-            log.error("JWT 认证失败: {}", e.getMessage());
+        } catch (GkException ex) {
             SecurityContextHolder.clearContext();
+            log.warn("JWT auth rejected: code={}, uri={}", ex.getCode(), request.getRequestURI());
+            writeAuthError(response, ex);
+        } catch (Exception ex) {
+            SecurityContextHolder.clearContext();
+            log.error("JWT auth failed: uri={}", request.getRequestURI(), ex);
+            writeAuthError(response);
         } finally {
-            // ========== 4. 清理上下文（必须） ==========
             ReqContextHolder.clear();
             MDC.clear();
         }
+    }
+
+    private void authenticate(HttpServletRequest request) {
+        String jwt = getJwtFromRequest(request);
+        if (StringUtils.isBlank(jwt)) {
+            throw new GkException(ErrorCode.TOKEN_NOT_EMPTY);
+        }
+
+        Claims claims = JwtUtils.parseToken(jwt);
+        ReqContext context = formContext(claims, request);
+        if (Constant.ADMIN.equals(claims.getSubject()) || Constant.ORG.equals(claims.getSubject())) {
+            if (context.getUserId() > 0) {
+                SysUser userDetails = userDetailsService.getUserByUserId(Constant.ADMIN, context.getUserId());
+
+                context.setSAdmin(userDetails.isSuperAdmin());
+                Boolean jwtSAdmin = claims.get(JwtUtils.SUPER_Admin, Boolean.class);
+                if (Boolean.TRUE.equals(jwtSAdmin)) {
+                    context.setSAdmin(true);
+                }
+
+                Set<Long> roleDeptIds = userDetailsService.getDataScopeList(userDetails.getSubjectId());
+                if (roleDeptIds != null && !roleDeptIds.isEmpty()) {
+                    context.setDeptIdList(roleDeptIds);
+                } else if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {
+                    Set<Long> subDeptIdList = userDetailsService.getSubDeptIdList(userDetails.getDeptId());
+                    context.setDeptIdList(subDeptIdList);
+                }
+
+                Set<String> authList = Optional.of(userDetails).map(SysUser::getAuthList).orElse(Set.of());
+                Set<String> roleList = Optional.of(userDetails).map(SysUser::getRoleList).orElse(Set.of());
+
+                List<SimpleGrantedAuthority> authorities = new ArrayList<>(roleList.size() + authList.size());
+                for (String auth : roleList) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + auth));
+                }
+                for (String permission : authList) {
+                    authorities.add(new SimpleGrantedAuthority(permission));
+                }
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        } else if (Constant.CLIENT.equals(claims.getSubject())) {
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(claims, null, List.of());
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
+
+        MDC.put("traceId", context.getTraceId());
+        ReqContextHolder.set(context);
+    }
+
+    private void writeAuthError(HttpServletResponse response, GkException ex) throws IOException {
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write(JSONObject.toJSONString(R.errorMsg(ex.getCode(), ex.getMsg())));
+    }
+
+    private void writeAuthError(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.getWriter().write(JSONObject.toJSONString(R.error(ErrorCode.UNAUTHORIZED)));
     }
 
     /**
@@ -138,24 +152,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return null;
     }
-
-    /**
-     * 从 Token 中提取权限信息
-     */
-    private List<SimpleGrantedAuthority> getAuthoritiesFromToken(String token) {
-        try {
-            List<String> authorities = JwtUtils.getAuthoritiesFromToken(token);
-            if (authorities != null) {
-                return authorities.stream()
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
-            }
-        } catch (Exception e) {
-            log.warn("从 Token 中提取权限失败: {}", e.getMessage());
-        }
-        return Collections.emptyList();
-    }
-
 
     public ReqContext formContext(Claims claims, HttpServletRequest request) {
         Long userId = claims.get(JwtUtils.USER_ID, Long.class);

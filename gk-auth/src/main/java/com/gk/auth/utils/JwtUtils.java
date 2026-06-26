@@ -1,18 +1,15 @@
 package com.gk.auth.utils;
 
-import com.gk.auth.entity.SysUser;
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import io.jsonwebtoken.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.jwt.*;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -65,75 +62,21 @@ public class JwtUtils {
                     .getBody();
         } catch (ExpiredJwtException e) {
             log.warn("JWT Token 已过期: {}", token);
-            throw new RuntimeException("Token 已过期");
+            throw new GkException(ErrorCode.TOKEN_INVALID);
         } catch (UnsupportedJwtException e) {
             log.warn("不支持的 JWT Token: {}", token);
-            throw new RuntimeException("不支持的 Token 格式");
+            throw new GkException(ErrorCode.TOKEN_INVALID);
         } catch (MalformedJwtException e) {
             log.warn("JWT Token 格式错误: {}", token);
-            throw new RuntimeException("Token 格式错误");
+            throw new GkException(ErrorCode.TOKEN_INVALID);
         } catch (SignatureException e) {
             log.warn("JWT Token 签名无效: {}", token);
-            throw new RuntimeException("Token 签名无效");
+            throw new GkException(ErrorCode.TOKEN_INVALID);
+        } catch (GkException e) {
+            throw e;
         } catch (Exception e) {
             log.warn("JWT Token 解析失败: {}", e.getMessage());
-            throw new RuntimeException("Token 解析失败");
+            throw new GkException(ErrorCode.TOKEN_INVALID);
         }
-    }
-
-    /**
-     * 验证 Token 是否有效
-     */
-    public static boolean validateToken(String token) {
-        try {
-            parseToken(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * 从 Token 中获取权限列表
-     */
-    @SuppressWarnings("unchecked")
-    public static java.util.List<String> getAuthoritiesFromToken(String token) {
-        Claims claims = parseToken(token);
-        return claims.get("authorities", java.util.List.class);
-    }
-
-    /**
-     * 刷新 Token（生成新Token）
-     */
-    public static String refreshToken(String token) {
-        Claims claims = parseToken(token);
-
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expiration);
-
-        return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
-                .compact();
-    }
-
-    /**
-     * 检查 Token 是否过期
-     */
-    private boolean isTokenExpired(Jwt jwt) {
-        return jwt.getExpiresAt() != null &&
-                jwt.getExpiresAt().isBefore(Instant.now());
-    }
-
-    public static JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(getSecretKey()).build();
-    }
-
-
-    // 获取 SecretKey
-    private static SecretKey getSecretKey() {
-        return new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 }

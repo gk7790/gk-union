@@ -65,7 +65,7 @@ public class MerchantAppController {
 
     @PostMapping("{id}/reset-secret")
     @Operation(summary = "重置API密钥")
-    @PreAuthorize("hasAuthority('merchant:app:update')")
+    @PreAuthorize("hasAuthority('merchant:app:reset-secret')")
     public R<?> resetSecret(@PathVariable("id") Long id) {
         AssertUtils.isReserved(id);
         return R.ok(merchantAppService.resetApiSecret(id));

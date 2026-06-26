@@ -29,6 +29,7 @@ public class MerchantBalanceQueryServiceImpl implements MerchantBalanceQueryServ
 
     @Override
     public PageData<MerchantBalanceDTO> page(DynMap params) {
+        applyDataScope(params);
         long page = Math.max(params.getLong(Constant.PAGE, 1L), 1L);
         long limit = Math.max(params.getLong(Constant.LIMIT, 10L), 1L);
         params.put("offset", (page - 1) * limit);
@@ -55,6 +56,16 @@ public class MerchantBalanceQueryServiceImpl implements MerchantBalanceQueryServ
                 .peek(this::normalizeBalanceView)
                 .map(this::toWalletBalance)
                 .toList();
+    }
+
+    private void applyDataScope(DynMap params) {
+        if (SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType())) {
+            return;
+        }
+        params.put("tenantId", ReqContextHolder.getTenantId());
+        if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
+            params.put("merchantId", ReqContextHolder.getMerchantId());
+        }
     }
 
     private MerchantWalletBalanceDTO toWalletBalance(MerchantBalanceDTO source) {

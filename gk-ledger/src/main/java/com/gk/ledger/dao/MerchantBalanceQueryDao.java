@@ -3,7 +3,6 @@ package com.gk.ledger.dao;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.dto.MerchantBalanceDTO;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 

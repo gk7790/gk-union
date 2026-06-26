@@ -3,6 +3,7 @@ package com.gk.payment.fee;
 import com.gk.common.enums.FeeBearerEnum;
 import com.gk.common.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.amount.FeeLimitUtils;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 
 import java.math.BigDecimal;
@@ -32,14 +33,7 @@ public final class MerchantFeeCalculator {
             case RATE_FIXED -> amount.multiply(defaultZero(rule.getFeeRate())).add(defaultZero(rule.getFeeFixed()));
         };
 
-        if (rule.getMinFee() != null && fee.compareTo(rule.getMinFee()) < 0) {
-            fee = rule.getMinFee();
-        }
-        if (rule.getMaxFee() != null && fee.compareTo(rule.getMaxFee()) > 0) {
-            fee = rule.getMaxFee();
-        }
-
-        fee = scale(fee);
+        fee = scale(FeeLimitUtils.apply(fee, rule.getMinFee(), rule.getMaxFee()));
         BigDecimal settleAmount = amount;
         if (!FeeBearerEnum.CUSTOMER.matches(rule.getFeeBearer())) {
             settleAmount = amount.subtract(fee);

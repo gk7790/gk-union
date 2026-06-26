@@ -31,8 +31,10 @@
           AND r.status = #{status}
           AND (r.merchant_id IS NULL OR r.merchant_id = #{merchantId})
           AND (r.merchant_app_id IS NULL OR r.merchant_app_id = #{merchantAppId})
-          AND (r.min_amount IS NULL OR r.min_amount &lt;= 0 OR r.min_amount &lt;= #{amount})
-          AND (r.max_amount IS NULL OR r.max_amount = 0 OR r.max_amount &gt;= #{amount})
+          AND r.min_amount &lt;= #{amount}
+          AND (r.max_amount = 0 OR r.max_amount &gt;= #{amount})
+          AND r.min_amount &gt;= 0
+          AND r.max_amount &gt;= 0
           AND (
                 r.start_time IS NULL
                 OR r.end_time IS NULL

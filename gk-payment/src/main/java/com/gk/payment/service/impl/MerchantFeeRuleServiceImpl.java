@@ -18,7 +18,8 @@ import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
-import com.gk.payment.amount.AmountRangeUtils;
+import com.gk.common.amount.AmountRangeUtils;
+import com.gk.common.amount.FeeLimitUtils;
 import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
@@ -357,6 +358,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     public void save(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
         validateAmountRange(dto);
+        validateFeeLimit(dto);
         super.save(dto);
         evictPayinPlanCache();
     }
@@ -365,14 +367,39 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     public void update(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
         validateAmountRange(dto);
+        validateFeeLimit(dto);
         super.update(dto);
         clearMerchantAppWhenNeeded(dto);
         evictPayinPlanCache();
     }
 
     private void validateAmountRange(MerchantFeeRuleDTO dto) {
-        if (dto != null && !AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        if (dto == null) {
+            return;
+        }
+        try {
+            AmountRangeUtils.validateConfigRange(dto.getMinAmount(), dto.getMaxAmount());
+        } catch (IllegalArgumentException ex) {
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    private void validateFeeLimit(MerchantFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        validateNonNegative(dto.getFeeRate(), "fee_rate cannot be negative");
+        validateNonNegative(dto.getFeeFixed(), "fee_fixed cannot be negative");
+        try {
+            FeeLimitUtils.validateFeeLimit(dto.getMinFee(), dto.getMaxFee());
+        } catch (IllegalArgumentException ex) {
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    private void validateNonNegative(BigDecimal value, String message) {
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new GkException(ErrorCode.BAD_REQUEST, message);
         }
     }
 

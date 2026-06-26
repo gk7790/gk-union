@@ -141,8 +141,13 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
     }
 
     private void validateAmountRange(PspRouteRuleDTO dto) {
-        if (!AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        if (dto == null) {
+            return;
+        }
+        try {
+            AmountRangeUtils.validateConfigRange(dto.getMinAmount(), dto.getMaxAmount());
+        } catch (IllegalArgumentException ex) {
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
         }
     }
     private boolean notEqualsCode(String left, String right) {

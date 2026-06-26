@@ -6,6 +6,7 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.amount.AmountRangeUtils;
+import com.gk.common.amount.FeeLimitUtils;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -78,6 +79,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     @Transactional(rollbackFor = Exception.class)
     public void save(PspFeeRuleDTO dto) {
         validateAmountRange(dto);
+        validateFeeLimit(dto);
         fillPspMethodSnapshot(dto);
         inheritTenantFromPspAccount(dto);
         PspFeeRuleEntity entity = ConvertUtils.sourceToTarget(dto, PspFeeRuleEntity.class);
@@ -89,6 +91,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     @Transactional(rollbackFor = Exception.class)
     public void update(PspFeeRuleDTO dto) {
         validateAmountRange(dto);
+        validateFeeLimit(dto);
         fillPspMethodSnapshot(dto);
         inheritTenantFromPspAccount(dto);
         super.update(dto);
@@ -96,8 +99,32 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
     }
 
     private void validateAmountRange(PspFeeRuleDTO dto) {
-        if (dto != null && !AmountRangeUtils.isValidConfigRange(dto.getMinAmount(), dto.getMaxAmount())) {
-            throw new GkException(ErrorCode.BAD_REQUEST, "Amount range is invalid");
+        if (dto == null) {
+            return;
+        }
+        try {
+            AmountRangeUtils.validateConfigRange(dto.getMinAmount(), dto.getMaxAmount());
+        } catch (IllegalArgumentException ex) {
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    private void validateFeeLimit(PspFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        validateNonNegative(dto.getFeeRate(), "fee_rate cannot be negative");
+        validateNonNegative(dto.getFeeFixed(), "fee_fixed cannot be negative");
+        try {
+            FeeLimitUtils.validateFeeLimit(dto.getMinFee(), dto.getMaxFee());
+        } catch (IllegalArgumentException ex) {
+            throw new GkException(ErrorCode.BAD_REQUEST, ex.getMessage());
+        }
+    }
+
+    private void validateNonNegative(BigDecimal value, String message) {
+        if (value != null && value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new GkException(ErrorCode.BAD_REQUEST, message);
         }
     }
 

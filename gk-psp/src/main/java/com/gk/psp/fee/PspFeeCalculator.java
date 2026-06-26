@@ -1,5 +1,6 @@
 package com.gk.psp.fee;
 
+import com.gk.common.amount.FeeLimitUtils;
 import com.gk.common.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.psp.entity.PspFeeRuleEntity;
@@ -31,13 +32,7 @@ public final class PspFeeCalculator {
             case RATE_FIXED -> amount.multiply(defaultZero(rule.getFeeRate())).add(defaultZero(rule.getFeeFixed()));
         };
 
-        if (rule.getMinFee() != null && fee.compareTo(rule.getMinFee()) < 0) {
-            fee = rule.getMinFee();
-        }
-        if (rule.getMaxFee() != null && fee.compareTo(rule.getMaxFee()) > 0) {
-            fee = rule.getMaxFee();
-        }
-        return fee.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+        return FeeLimitUtils.apply(fee, rule.getMinFee(), rule.getMaxFee()).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal defaultZero(BigDecimal value) {

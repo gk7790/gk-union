@@ -5,7 +5,7 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.payment.amount.AmountRangeUtils;
+import com.gk.common.amount.AmountRangeUtils;
 import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dao.PaymentRouteChannelDao;
@@ -228,16 +228,15 @@ public class PaymentPlanCompiler {
             return List.of();
         }
 
-        List<PaymentRouteChannelEntity> channels = paymentRouteChannelDao.selectList(new QueryWrapper<PaymentRouteChannelEntity>()
+        QueryWrapper<PaymentRouteChannelEntity> channelWrapper = new QueryWrapper<PaymentRouteChannelEntity>()
                         .eq("tenant_id", routeRule.getTenantId())
                         .eq("group_id", routeRule.getGroupId())
                         .eq("status", StatusEnum.NORMAL.code())
-                        .and(item -> item.le("min_amount", sampleAmount).or().isNull("min_amount"))
-                        // 配置表中 max_amount = 0 表示不限制最大金额
-                        .and(item -> item.ge("max_amount", sampleAmount).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                         .orderByAsc("priority")
                         .orderByAsc("fallback_order")
-                        .orderByAsc("id"))
+                        .orderByAsc("id");
+        AmountRangeUtils.appendMatchesAmount(channelWrapper, sampleAmount);
+        List<PaymentRouteChannelEntity> channels = paymentRouteChannelDao.selectList(channelWrapper)
                 .stream()
                 .filter(channel -> AmountRangeUtils.contains(channel.getMinAmount(), channel.getMaxAmount(), sampleAmount))
                 .toList();
@@ -523,11 +522,9 @@ public class PaymentPlanCompiler {
                 .eq("status", StatusEnum.NORMAL.code())
                 .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
                 .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
-                .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
-                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"));
+        AmountRangeUtils.appendOverlapsRange(wrapper, request.getMinAmount(), request.getMaxAmount());
         if (StringUtils.isNotBlank(request.getCountryCode())) {
             wrapper.and(item -> item.eq("country_code", request.getCountryCode()).or().isNull("country_code").or().eq("country_code", ""));
         }
@@ -548,13 +545,11 @@ public class PaymentPlanCompiler {
                 .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
                 .and(item -> item.eq("merchant_id", request.getMerchantId()).or().isNull("merchant_id"))
                 .and(item -> item.eq("merchant_app_id", request.getMerchantAppId()).or().isNull("merchant_app_id"))
-                .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
-                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"))
                 .orderByAsc("priority")
                 .orderByAsc("id");
+        AmountRangeUtils.appendOverlapsRange(wrapper, request.getMinAmount(), request.getMaxAmount());
         if (StringUtils.isNotBlank(request.getCountryCode())) {
             wrapper.and(item -> item.eq("country_code", request.getCountryCode()).or().isNull("country_code").or().eq("country_code", ""));
         }
@@ -665,11 +660,9 @@ public class PaymentPlanCompiler {
                 .and(item -> item.eq("psp_account_id", channel.getPspAccountId()).or().isNull("psp_account_id"))
                 .and(item -> item.eq("psp_method_id", channel.getPspMethodId()).or().isNull("psp_method_id"))
                 .and(item -> item.eq("method_code", request.getMethodCode()).or().isNull("method_code").or().eq("method_code", ""))
-                .and(item -> item.le("min_amount", request.getMaxAmount()).or().isNull("min_amount"))
-                // 配置中的 max_amount = 0 表示无上限，因此与任意请求最小金额都有交集
-                .and(item -> item.ge("max_amount", request.getMinAmount()).or().isNull("max_amount").or().eq("max_amount", BigDecimal.ZERO))
                 .and(item -> item.le("effective_at", Instant.now()).or().isNull("effective_at"))
                 .and(item -> item.gt("expire_at", Instant.now()).or().isNull("expire_at"));
+        AmountRangeUtils.appendOverlapsRange(wrapper, request.getMinAmount(), request.getMaxAmount());
         String countryCode = effectiveCountryCode(request, group, method);
         if (StringUtils.isNotBlank(countryCode)) {
             wrapper.and(item -> item.eq("country_code", countryCode).or().isNull("country_code").or().eq("country_code", ""));
@@ -746,8 +739,7 @@ public class PaymentPlanCompiler {
 
     /**
      * 在查询配置前校验编译请求     *
-     * <p>配置里的 maxAmount 可以0 表示无上限，但请求里maxAmount
-     * 必须大于 0，因payment_plan_bucket 需要一个有限的发布范围/p>
+     * <p>规则配置允许 max=0 表示无上限；发布请求则必须指定有限的 maxAmount 以便切分 bucket。
      */
     private void validate(PaymentPlanCompileRequest request, PaymentPlanCompileResult result) {
         if (request == null) {
@@ -769,15 +761,8 @@ public class PaymentPlanCompiler {
         if (StringUtils.isBlank(request.getMethodCode())) {
             result.addError("METHOD_CODE_REQUIRED", "methodCode is required");
         }
-        if (request.getMinAmount() == null || request.getMinAmount().compareTo(BigDecimal.ZERO) < 0) {
-            result.addError("MIN_AMOUNT_INVALID", "minAmount must be greater than or equal to 0");
-        }
-        if (request.getMaxAmount() == null || request.getMaxAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            result.addError("MAX_AMOUNT_INVALID", "maxAmount must be greater than 0");
-        }
-        if (request.getMinAmount() != null && request.getMaxAmount() != null
-                && request.getMinAmount().compareTo(request.getMaxAmount()) > 0) {
-            result.addError("AMOUNT_RANGE_INVALID", "minAmount must be less than or equal to maxAmount");
+        if (!AmountRangeUtils.isValidPublishRange(request.getMinAmount(), request.getMaxAmount())) {
+            result.addError("AMOUNT_RANGE_INVALID", "publish minAmount must be >= 0 and maxAmount must be > 0");
         }
     }
 

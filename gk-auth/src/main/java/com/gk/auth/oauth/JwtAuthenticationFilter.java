@@ -46,6 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         return uri != null && (uri.startsWith("/api/v1/")
                 || uri.startsWith("/open-api/")
+                || uri.startsWith("/swagger-ui")
+                || uri.startsWith("/v3/api-docs")
                 || uri.startsWith("/psp/callback/"));
     }
 

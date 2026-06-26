@@ -67,7 +67,7 @@ CREATE TABLE `merchant_app`  (
   `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户应用ID，对外API身份标识',
   `app_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '应用名称',
   `app_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'API' COMMENT '应用类型: API/ADMIN/SYSTEM',
-  `app_env` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TEST' COMMENT '应用环境: TEST/PROD',
+  `app_env` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PROD' COMMENT '应用环境: TEST/PROD',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 1正常 2暂停 3停用',
   `sign_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'HMAC_SHA256' COMMENT '签名类型: HMAC_SHA256/RSA2',
   `encrypt_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NONE' COMMENT '加密类型: NONE/AES/RSA',

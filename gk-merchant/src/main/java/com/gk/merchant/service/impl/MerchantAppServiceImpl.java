@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
@@ -116,6 +117,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         entity.setAppId(null);
         entity.setApiSecret(null);
         applyCreateDefaults(entity);
+        validateTestAppUnique(entity, null);
 
         String apiSecret = BizKeyUtils.genApiSecret();
         entity.setApiSecret(apiSecret);
@@ -143,6 +145,18 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         }
 
         MerchantAppEntity entity = ConvertUtils.sourceToTarget(dto, MerchantAppEntity.class);
+        if (entity.getTenantId() == null) {
+            entity.setTenantId(existed.getTenantId());
+        }
+        if (entity.getMerchantId() == null) {
+            entity.setMerchantId(existed.getMerchantId());
+        }
+        if (StrUtil.isBlank(entity.getAppEnv())) {
+            entity.setAppEnv(existed.getAppEnv());
+        } else {
+            entity.setAppEnv(normalizeAppEnv(entity.getAppEnv()));
+        }
+        validateTestAppUnique(entity, existed.getId());
         entity.setAppId(existed.getAppId());
         entity.setApiSecret(existed.getApiSecret());
         entity.setSecretVersion(existed.getSecretVersion());
@@ -208,14 +222,6 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         if (!MerchantAppEnvEnum.TEST.code().equals(testApp.getAppEnv())) {
             throw new GkException("only TEST app can create PROD app");
         }
-        Long existed = baseDao.selectCount(new QueryWrapper<MerchantAppEntity>()
-                .eq("tenant_id", testApp.getTenantId())
-                .eq("merchant_id", testApp.getMerchantId())
-                .eq("app_env", MerchantAppEnvEnum.PROD.code()));
-        if (existed != null && existed > 0) {
-            throw new GkException("PROD app already exists");
-        }
-
         MerchantAppDTO dto = ConvertUtils.sourceToTarget(testApp, MerchantAppDTO.class);
         dto.setId(null);
         dto.setAppId(null);
@@ -233,7 +239,9 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             entity.setAppType(MerchantAppTypeEnum.API.code());
         }
         if (StrUtil.isBlank(entity.getAppEnv())) {
-            entity.setAppEnv(MerchantAppEnvEnum.TEST.code());
+            entity.setAppEnv(MerchantAppEnvEnum.PROD.code());
+        } else {
+            entity.setAppEnv(normalizeAppEnv(entity.getAppEnv()));
         }
         if (StrUtil.isBlank(entity.getSignType())) {
             entity.setSignType(SignTypeEnum.HMAC_SHA256.code());
@@ -249,6 +257,31 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         }
     }
 
+    private String normalizeAppEnv(String appEnv) {
+        MerchantAppEnvEnum env = StringCodeEnum.fromCode(MerchantAppEnvEnum.class, appEnv);
+        if (env == null) {
+            throw new GkException("invalid app_env");
+        }
+        return env.code();
+    }
+
+    private void validateTestAppUnique(MerchantAppEntity entity, Long excludeId) {
+        if (MerchantAppEnvEnum.TEST.matches(entity.getAppEnv())
+                && existsAppEnv(entity.getTenantId(), entity.getMerchantId(), entity.getAppEnv(), excludeId)) {
+            throw new GkException("TEST app already exists");
+        }
+    }
+
+    private boolean existsAppEnv(Long tenantId, Long merchantId, String appEnv, Long excludeId) {
+        QueryWrapper<MerchantAppEntity> wrapper = new QueryWrapper<MerchantAppEntity>()
+                .eq("tenant_id", tenantId)
+                .eq("merchant_id", merchantId)
+                .eq("app_env", appEnv);
+        wrapper.ne(excludeId != null, "id", excludeId);
+        Long count = baseDao.selectCount(wrapper);
+        return count != null && count > 0;
+    }
+
     private void insertWithGeneratedAppId(MerchantAppEntity entity) {
         for (int attempt = 0; attempt < APP_ID_GENERATE_MAX_ATTEMPTS; attempt++) {
             entity.setAppId(generateUniqueAppId());
@@ -256,6 +289,10 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
                 insert(entity);
                 return;
             } catch (DuplicateKeyException ignored) {
+                if (MerchantAppEnvEnum.TEST.matches(entity.getAppEnv())
+                        && existsAppEnv(entity.getTenantId(), entity.getMerchantId(), entity.getAppEnv(), null)) {
+                    throw new GkException("TEST app already exists");
+                }
                 // app_id collision, retry with a new id
             }
         }

@@ -37,8 +37,8 @@ import java.util.Objects;
 
 @Service
 public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, MerchantAppEntity, MerchantAppDTO> implements MerchantAppService {
-    private static final int DEFAULT_RATE_LIMIT_QPS = 50;
-    private static final int DEFAULT_NONCE_TTL_SECONDS = 300;
+    private static final int DEFAULT_RATE_LIMIT_QPS = 100;
+    private static final int DEFAULT_NONCE_TTL_SECONDS = 3000;
     private static final int APP_ID_GENERATE_MAX_ATTEMPTS = 5;
 
     @Autowired(required = false)
@@ -49,9 +49,18 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
         QueryWrapper<MerchantAppEntity> wrapper = new QueryWrapper<>();
-
-        Long tenantId = params.getLong("tenantId", null);
-        Long merchantId = params.getLong("merchantId", null);
+        ReqContext context = ReqContextHolder.get();
+        if (SubjectTypeEnum.PLATFORM.code().equals(context.getSubjectType())) {
+            Long tenantId = params.getLong("tenantId", null);
+            Long merchantId = params.getLong("merchantId", null);
+            wrapper.eq(tenantId != null, "tenant_id", tenantId);
+            wrapper.eq(merchantId != null, "merchant_id", merchantId);
+        } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
+            wrapper.eq("tenant_id", context.getTenantId());
+        } else {
+            wrapper.eq("tenant_id", context.getTenantId());
+            wrapper.eq("merchant_id", context.getMerchantId());
+        }
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
         String appId = params.getStr("appId");
         String appName = params.getStr("appName");
@@ -59,8 +68,6 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         String appEnv = params.getStr("appEnv");
         String signType = params.getStr("signType");
 
-        wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(status != null, "status", status);
         wrapper.eq(StrUtil.isNotBlank(appId), "app_id", appId);
         wrapper.like(StrUtil.isNotBlank(appName), "app_name", appName);

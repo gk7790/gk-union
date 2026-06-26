@@ -7,30 +7,37 @@ import com.gk.ledger.entity.LedgerAccountEntity;
 public interface LedgerAccountService extends CrudService<LedgerAccountEntity, LedgerAccountDTO> {
 
     /**
-     * 商户开户：创建默认可用/冻结账户及余额行�?     */
+     * Creates default merchant available, pending-settle and frozen accounts.
+     */
     void provisionMerchantAccounts(Long tenantId, Long merchantId, String currency);
 
     /**
-     * 获取商户账户；不存在时幂等创建�?     */
+     * Returns a merchant account, creating it idempotently when missing.
+     */
     LedgerAccountEntity requireMerchantAccount(Long tenantId, Long merchantId, String accountType, String currency);
 
     /**
-     * PSP账户初始化：创建默认清算账户及余额行�?     */
+     * Creates default PSP clearing accounts.
+     */
     void provisionPspAccounts(Long tenantId, Long pspAccountId, String currency);
 
     /**
-     * 获取PSP账户；不存在时幂等创建�?     */
+     * Returns a PSP account, creating it idempotently when missing.
+     */
     LedgerAccountEntity requirePspAccount(Long tenantId, Long pspAccountId, String accountType, String currency);
 
     /**
-     * 租户级账户初始化：创建内部清算、内部手续费收入账户及余额行�?     */
+     * Creates default tenant internal clearing and fee-income accounts.
+     */
     void provisionTenantAccounts(Long tenantId, String currency);
 
     /**
-     * 获取内部户账户；不存在时幂等创建�?     */
+     * Returns an internal tenant account, creating it idempotently when missing.
+     */
     LedgerAccountEntity requireInternalAccount(Long tenantId, String accountType, String currency);
 
     /**
-     * 获取平台级账户；不存在时幂等创建�?     */
+     * Returns a platform-level account, creating it idempotently when missing.
+     */
     LedgerAccountEntity requirePlatformAccount(Long tenantId, String accountType, String currency);
 }

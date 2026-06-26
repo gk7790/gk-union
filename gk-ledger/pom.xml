@@ -33,6 +33,16 @@
             <artifactId>gk-scheduler</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-merchant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-psp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>

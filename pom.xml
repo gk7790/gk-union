@@ -24,9 +24,12 @@
         <module>gk-auth</module>
         <module>gk-devtools</module>
         <module>gk-iam</module>
-        <module>gk-cloak</module>
         <module>gk-notify</module>
+        <module>gk-merchant</module>
+        <module>gk-psp</module>
         <module>gk-ledger</module>
+        <module>gk-payment</module>
+        <module>gk-openapi</module>
     </modules>
 
     <properties>

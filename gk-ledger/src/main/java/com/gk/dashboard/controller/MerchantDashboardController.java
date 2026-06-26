@@ -25,7 +25,7 @@ public class MerchantDashboardController {
     private final MerchantDashboardService merchantDashboardService;
 
     @GetMapping("summary")
-    @Operation(summary = "首页汇�?)
+    @Operation(summary = "首页汇")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardSummaryDTO> summary(
             @Parameter(description = "today/yesterday/last7d/last30d")
@@ -39,7 +39,7 @@ public class MerchantDashboardController {
     @Operation(summary = "首页趋势")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardTrendDTO> trend(
-            @Parameter(description = "today/yesterday/last7d/last30d，默�?last7d")
+            @Parameter(description = "today/yesterday/last7d/last30d，默last7d")
             @RequestParam(defaultValue = "last7d") String range,
             @RequestParam(required = false) String currency) {
         return R.ok(merchantDashboardService.trend(range, currency));
@@ -52,19 +52,19 @@ public class MerchantDashboardController {
             @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/PROCESSING_PAY/PROCESSING_PAYOUT")
             @RequestParam String type,
             @RequestParam(required = false) String currency,
-            @Parameter(description = "默认10，最�?0")
+            @Parameter(description = "默认10，最0")
             @RequestParam(defaultValue = "10") int limit) {
         return R.ok(merchantDashboardService.todos(type, currency, limit));
     }
 
     @GetMapping("recent-orders")
-    @Operation(summary = "最近订�?)
+    @Operation(summary = "最近订")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardRecentOrderDTO> recentOrders(
             @Parameter(description = "PAY/PAYOUT")
             @RequestParam String bizType,
             @RequestParam(required = false) String currency,
-            @Parameter(description = "默认5，最�?0")
+            @Parameter(description = "默认5，最0")
             @RequestParam(defaultValue = "5") int limit) {
         return R.ok(merchantDashboardService.recentOrders(bizType, currency, limit));
     }

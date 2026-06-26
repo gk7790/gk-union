@@ -14,7 +14,7 @@ public class LedgerJournalDTO {
     private Long tenantId;
     @Schema(title = "租户名称")
     private String tenantName;
-    @Schema(title = "凭证�?)
+    @Schema(title = "凭证")
     private String journalNo;
     @Schema(title = "业务类型")
     private String bizType;
@@ -26,17 +26,17 @@ public class LedgerJournalDTO {
     private String eventType;
     @Schema(title = "币种")
     private String currency;
-    @Schema(title = "凭证总金�?)
+    @Schema(title = "凭证总金")
     private BigDecimal totalAmount;
     @Schema(title = "分录数量")
     private Integer entryCount;
-    @Schema(title = "幂等�?)
+    @Schema(title = "幂等")
     private String idempotencyKey;
-    @Schema(title = "状�?)
+    @Schema(title = "状")
     private String status;
-    @Schema(title = "冲正来源凭证�?)
+    @Schema(title = "冲正来源凭证")
     private String reverseOfJournalNo;
-    @Schema(title = "冲正凭证�?)
+    @Schema(title = "冲正凭证")
     private String reversedByJournalNo;
     @Schema(title = "记账来源")
     private String sourceType;

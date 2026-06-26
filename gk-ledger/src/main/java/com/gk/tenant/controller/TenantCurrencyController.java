@@ -31,10 +31,10 @@ public class TenantCurrencyController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录", in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选�?asc、desc)", in = ParameterIn.QUERY),
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选asc、desc)", in = ParameterIn.QUERY),
             @Parameter(name = "tenantId", description = "租户ID，平台登录时可传", in = ParameterIn.QUERY)
     })
     @PreAuthorize("hasAuthority('sys:tenant-currency:page')")
@@ -43,7 +43,7 @@ public class TenantCurrencyController {
     }
 
     @GetMapping("dict")
-    @Operation(summary = "租户可用币种字典", description = "返回当前租户已启用的币种及币种详情。租户登录自动取当前租户；平台登录需�?tenantId�?)
+    @Operation(summary = "租户可用币种字典", description = "返回当前租户已启用的币种及币种详情。租户登录自动取当前租户；平台登录需tenantId")
     @Parameters({
             @Parameter(name = "tenantId", description = "租户ID，平台登录时必填", in = ParameterIn.QUERY)
     })

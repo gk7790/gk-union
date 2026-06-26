@@ -13,7 +13,7 @@ public class MerchantBalanceAdjustOrderDTO {
     private Long tenantId;
     @Schema(title = "商户ID")
     private Long merchantId;
-    @Schema(title = "商户�?)
+    @Schema(title = "商户")
     private String merchantNo;
     @Schema(title = "调整单号")
     private String adjustOrderNo;
@@ -25,21 +25,21 @@ public class MerchantBalanceAdjustOrderDTO {
     private String currency;
     @Schema(title = "金额")
     private BigDecimal amount;
-    @Schema(title = "状�?)
+    @Schema(title = "状")
     private String status;
     @Schema(title = "原因")
     private String reason;
     @Schema(title = "关联业务单号")
     private String relatedOrderNo;
-    @Schema(title = "冲正来源凭证�?)
+    @Schema(title = "冲正来源凭证")
     private String reverseOfJournalNo;
-    @Schema(title = "账本凭证�?)
+    @Schema(title = "账本凭证")
     private String ledgerJournalNo;
     @Schema(title = "链路追踪ID")
     private String traceId;
     @Schema(title = "入账时间")
     private Instant postedAt;
-    @Schema(title = "操作方类�?)
+    @Schema(title = "操作方类")
     private String operatorType;
     @Schema(title = "操作方ID")
     private String operatorId;

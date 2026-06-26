@@ -23,5 +23,10 @@
             <artifactId>gk-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-payment</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

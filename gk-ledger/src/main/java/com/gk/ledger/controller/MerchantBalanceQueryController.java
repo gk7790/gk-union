@@ -28,10 +28,10 @@ public class MerchantBalanceQueryController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开�?, in = ParameterIn.QUERY, required = true),
-            @Parameter(name = Constant.LIMIT, description = "每页显示记录�?, in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.LIMIT, description = "每页显示记录", in = ParameterIn.QUERY, required = true),
             @Parameter(name = "tenantId", description = "租户ID", in = ParameterIn.QUERY),
-            @Parameter(name = "merchantNo", description = "商户�?, in = ParameterIn.QUERY),
+            @Parameter(name = "merchantNo", description = "商户", in = ParameterIn.QUERY),
             @Parameter(name = "merchantName", description = "商户名称", in = ParameterIn.QUERY),
             @Parameter(name = "currency", description = "币种", in = ParameterIn.QUERY)
     })

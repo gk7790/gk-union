@@ -6,11 +6,11 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 冻结单状态�? */
+ * 冻结单状态 */
 @EnumDict("ledgerHoldStatus")
 public enum LedgerHoldStatusEnum implements StringCodeEnum {
     @Style(StyleType.WARNING)
-    HOLDING("HOLDING", "冻结�?, "enum.ledgerHoldStatus.holding"),
+    HOLDING("HOLDING", "冻结", "enum.ledgerHoldStatus.holding"),
 
     @Style(StyleType.INFO)
     PART_RELEASED("PART_RELEASED", "部分解冻", "enum.ledgerHoldStatus.partReleased"),
@@ -19,13 +19,13 @@ public enum LedgerHoldStatusEnum implements StringCodeEnum {
     EXPIRED("EXPIRED", "已过期待处理", "enum.ledgerHoldStatus.expired"),
 
     @Style(StyleType.SUCCESS)
-    RELEASED("RELEASED", "已解�?, "enum.ledgerHoldStatus.released"),
+    RELEASED("RELEASED", "已解", "enum.ledgerHoldStatus.released"),
 
     @Style(StyleType.SUCCESS)
-    CONSUMED("CONSUMED", "已消�?, "enum.ledgerHoldStatus.consumed"),
+    CONSUMED("CONSUMED", "已消", "enum.ledgerHoldStatus.consumed"),
 
     @Style(StyleType.DANGER)
-    CANCELLED("CANCELLED", "已取�?, "enum.ledgerHoldStatus.cancelled");
+    CANCELLED("CANCELLED", "已取", "enum.ledgerHoldStatus.cancelled");
 
     private final String code;
     private final String label;

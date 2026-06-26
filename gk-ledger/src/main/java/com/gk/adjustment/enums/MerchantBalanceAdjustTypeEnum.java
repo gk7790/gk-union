@@ -9,7 +9,7 @@ import com.gk.ledger.enums.LedgerPostingEventEnum;
 @EnumDict("merchantBalanceAdjustType")
 public enum MerchantBalanceAdjustTypeEnum implements StringCodeEnum {
     @Style(StyleType.SUCCESS)
-    RECHARGE("RECHARGE", "充�?, "enum.merchantBalanceAdjustType.recharge", LedgerPostingEventEnum.MANUAL_RECHARGE.code(), true),
+    RECHARGE("RECHARGE", "充", "enum.merchantBalanceAdjustType.recharge", LedgerPostingEventEnum.MANUAL_RECHARGE.code(), true),
 
     @Style(StyleType.DANGER)
     DEDUCT("DEDUCT", "扣减", "enum.merchantBalanceAdjustType.deduct", LedgerPostingEventEnum.MANUAL_DEDUCT.code(), false),

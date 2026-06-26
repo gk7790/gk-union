@@ -8,7 +8,7 @@ import com.gk.common.enums.StyleType;
 import java.util.Set;
 
 /**
- * 分录来源类型�?
+ * 分录来源类型
  */
 @EnumDict("ledgerJournalSource")
 public enum LedgerJournalSourceEnum implements StringCodeEnum {

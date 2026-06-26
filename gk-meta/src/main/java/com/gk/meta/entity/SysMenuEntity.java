@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.gk.common.core.entity.SimpleEntity;
 import com.gk.meta.dto.SysMenuMeta;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.List;
 
@@ -16,6 +17,7 @@ import java.util.List;
  * @author Lowen
  */
 @Data
+@EqualsAndHashCode(callSuper = false)
 @TableName(value = "sys_menu", autoResultMap = true)
 public class SysMenuEntity extends SimpleEntity {
     /**

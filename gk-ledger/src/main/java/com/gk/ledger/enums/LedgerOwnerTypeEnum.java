@@ -6,7 +6,7 @@ import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 
 /**
- * 账本资金主体类型�?
+ * 账本资金主体类型
  */
 @EnumDict("ledgerOwnerType")
 public enum LedgerOwnerTypeEnum implements StringCodeEnum {

@@ -27,9 +27,9 @@ public class LedgerAccountDTO {
     private String currency;
     @Schema(title = "账户余额方向")
     private String normalSide;
-    @Schema(title = "是否允许负余�?)
+    @Schema(title = "是否允许负余")
     private Integer allowNegative;
-    @Schema(title = "状�?)
+    @Schema(title = "状")
     private Integer status;
     @Schema(title = "备注")
     private String remark;

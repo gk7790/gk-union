@@ -16,9 +16,9 @@ public class LedgerEntryDTO {
     private String tenantName;
     @Schema(title = "凭证ID")
     private Long journalId;
-    @Schema(title = "凭证�?)
+    @Schema(title = "凭证")
     private String journalNo;
-    @Schema(title = "凭证内分录序�?)
+    @Schema(title = "凭证内分录序")
     private Integer entryNo;
     @Schema(title = "账户ID")
     private Long accountId;
@@ -42,9 +42,9 @@ public class LedgerEntryDTO {
     private BigDecimal amount;
     @Schema(title = "余额变动金额")
     private BigDecimal balanceChange;
-    @Schema(title = "变动前余�?)
+    @Schema(title = "变动前余")
     private BigDecimal balanceBefore;
-    @Schema(title = "变动后余�?)
+    @Schema(title = "变动后余")
     private BigDecimal balanceAfter;
     @Schema(title = "业务类型快照")
     private String bizType;

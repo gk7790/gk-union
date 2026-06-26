@@ -8,20 +8,20 @@ import com.gk.common.enums.StyleType;
 import java.util.Set;
 
 /**
- * 账本账户类型�?
+ * 账本账户类型
  */
 @EnumDict("ledgerAccountType")
 public enum LedgerAccountTypeEnum implements StringCodeEnum {
     @Style(StyleType.SUCCESS)
     AVAILABLE("AVAILABLE", "可用", "enum.ledgerAccountType.available"),
     @Style(StyleType.WARNING)
-    PENDING_SETTLE("PENDING_SETTLE", "待结�?, "enum.ledgerAccountType.pendingSettle"),
+    PENDING_SETTLE("PENDING_SETTLE", "待结", "enum.ledgerAccountType.pendingSettle"),
     @Style(StyleType.DANGER)
     FROZEN("FROZEN", "冻结", "enum.ledgerAccountType.frozen"),
     @Style(StyleType.PRIMARY)
     CLEARING("CLEARING", "清算", "enum.ledgerAccountType.clearing"),
     @Style(StyleType.PRIMARY)
-    FEE_INCOME("FEE_INCOME", "手续费收�?, "enum.ledgerAccountType.feeIncome");
+    FEE_INCOME("FEE_INCOME", "手续费收", "enum.ledgerAccountType.feeIncome");
 
     private final String code;
     private final String label;

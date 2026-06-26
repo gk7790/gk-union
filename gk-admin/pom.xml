@@ -50,13 +50,18 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
+            <artifactId>gk-openapi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
             <artifactId>gk-notify</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-cloak</artifactId>
-            <version>1.0.0</version>
+            <artifactId>gk-psp</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 

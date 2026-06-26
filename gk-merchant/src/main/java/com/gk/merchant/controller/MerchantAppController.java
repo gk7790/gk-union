@@ -2,12 +2,19 @@ package com.gk.merchant.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContext;
+import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.ErrorCode;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
+import com.gk.common.utils.NumberUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.merchant.dto.MerchantAppDTO;
+import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.service.MerchantAppService;
+import com.gk.merchant.service.MerchantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -25,6 +32,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MerchantAppController {
     private final MerchantAppService merchantAppService;
+    private final MerchantService merchantService;
 
     @GetMapping("page")
     @Operation(summary = "分页")
@@ -52,6 +60,18 @@ public class MerchantAppController {
     @Operation(summary = "保存")
     @PreAuthorize("hasAuthority('merchant:app:save')")
     public R<?> save(@RequestBody MerchantAppDTO dto) {
+        ReqContext context = ReqContextHolder.get();
+        if (SubjectTypeEnum.MERCHANT.code().equals(context.getSubjectType())) {
+            dto.setTenantId(context.getTenantId());
+            dto.setMerchantId(context.getMerchantId());
+        } else {
+            Long merchantId = dto.getMerchantId();
+            if (!NumberUtils.isPositive(merchantId)) {
+                return R.error(ErrorCode.BAD_REQUEST);
+            }
+            MerchantEntity merchant = merchantService.selectById(merchantId);
+            dto.setTenantId(merchant.getTenantId());
+        }
         merchantAppService.save(dto);
         return R.ok(dto);
     }

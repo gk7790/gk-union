@@ -9,7 +9,9 @@ import java.util.List;
 
 @Mapper
 public interface MerchantBalanceQueryDao {
-    Long countMerchantBalances(@Param("params") DynMap params);
+    Long countMerchantBalances(DynMap params);
 
-    List<MerchantBalanceDTO> pageMerchantBalances(@Param("params") DynMap params);
+    List<MerchantBalanceDTO> pageMerchantBalances(DynMap params);
+
+    List<MerchantBalanceDTO> listMerchantBalances(DynMap params);
 }

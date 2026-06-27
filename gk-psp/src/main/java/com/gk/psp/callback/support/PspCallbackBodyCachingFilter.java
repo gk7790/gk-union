@@ -30,6 +30,10 @@ public class PspCallbackBodyCachingFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String uri = request.getRequestURI();
+        String contextPath = request.getContextPath();
+        if (uri != null && contextPath != null && !contextPath.isBlank() && uri.startsWith(contextPath)) {
+            uri = uri.substring(contextPath.length());
+        }
         return uri == null || !uri.startsWith("/psp/callback/");
     }
 
@@ -42,7 +46,7 @@ public class PspCallbackBodyCachingFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         CachedBodyRequest wrapped = new CachedBodyRequest(request);
         // 原始 body 通过 request attribute 暴露Controller/Service，避免重复读流失败
-                wrapped.setAttribute(ATTR_RAW_BODY, new String(wrapped.body, StandardCharsets.UTF_8));
+        wrapped.setAttribute(ATTR_RAW_BODY, new String(wrapped.body, StandardCharsets.UTF_8));
         filterChain.doFilter(wrapped, response);
     }
 

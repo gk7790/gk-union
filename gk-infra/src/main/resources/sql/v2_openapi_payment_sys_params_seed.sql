@@ -10,7 +10,7 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'PSP
 
 INSERT INTO `sys_params`
 (`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
-SELECT 3000000000000000004, 'MERCHANT_DEFAULT_CONFIG_KEY', '{"timezone":"Asia/Shanghai","lang":"zh-CN","countryCode":"PH","configJson":{}}', 1, 'Merchant default config', NOW()
+SELECT 3000000000000000004, 'MERCHANT_DEFAULT_CONFIG_KEY', '{"timezone":"UTC","lang":"zh-CN","countryCode":"PH","configJson":{}}', 1, 'Merchant default config', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'MERCHANT_DEFAULT_CONFIG_KEY');
 
 INSERT INTO `sys_params`

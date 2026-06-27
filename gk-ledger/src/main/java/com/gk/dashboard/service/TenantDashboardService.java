@@ -93,7 +93,7 @@ public class TenantDashboardService {
         }
 
         String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
-        String timezone = StringUtils.defaultIfBlank(tenant.getTimezone(), "Asia/Shanghai");
+        String timezone = StringUtils.defaultIfBlank(tenant.getTimezone(), "UTC");
         ZoneId zoneId = resolveZoneId(timezone);
         RangeWindow window = resolveRange(normalizeTrendRange(range), timezone, false);
         String tzOffset = resolveTzOffset(zoneId, LocalDate.ofInstant(window.start, zoneId));
@@ -332,7 +332,7 @@ public class TenantDashboardService {
         TenantDashboardSummaryDTO.Meta meta = new TenantDashboardSummaryDTO.Meta();
         meta.setTenantId(tenant.getId());
         meta.setTenantName(tenant.getName());
-        meta.setTimezone(StringUtils.defaultIfBlank(tenant.getTimezone(), "Asia/Shanghai"));
+        meta.setTimezone(StringUtils.defaultIfBlank(tenant.getTimezone(), "UTC"));
         meta.setCurrency(currency);
         meta.setRange(window.range);
         meta.setRangeStart(window.start);
@@ -454,9 +454,9 @@ public class TenantDashboardService {
 
     private ZoneId resolveZoneId(String timezone) {
         try {
-            return ZoneId.of(StringUtils.defaultIfBlank(timezone, "Asia/Shanghai"));
+            return ZoneId.of(StringUtils.defaultIfBlank(timezone, "UTC"));
         } catch (Exception ex) {
-            return ZoneId.of("Asia/Shanghai");
+            return ZoneId.of("UTC");
         }
     }
 

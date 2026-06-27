@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class MerchantDefaultConfig {
-    private String timezone = "Asia/Shanghai";
+    private String timezone = "UTC";
     private String lang = "zh-CN";
     private String countryCode = "PH";
     private Object configJson = "{}";

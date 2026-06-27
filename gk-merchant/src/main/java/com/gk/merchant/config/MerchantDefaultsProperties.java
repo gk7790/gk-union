@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "gk.merchant.defaults")
 public class MerchantDefaultsProperties {
     private String countryCode = "PH";
-    private String timezone = "Asia/Shanghai";
+    private String timezone = "UTC";
     private String lang = "zh-CN";
     private String configJson = "{}";
 }

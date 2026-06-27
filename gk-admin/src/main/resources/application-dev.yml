@@ -42,7 +42,7 @@ gk:
       async-submit: true
   redis:
     open: true
-  time-zone: Asia/Shanghai
+  time-zone: UTC
 
 logging:
   level:

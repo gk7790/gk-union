@@ -166,7 +166,7 @@ public class MerchantDashboardService {
     }
 
     private String resolveTimezone(MerchantDTO merchant) {
-        return StringUtils.defaultIfBlank(merchant.getTimezone(), "Asia/Shanghai");
+        return StringUtils.defaultIfBlank(merchant.getTimezone(), "UTC");
     }
 
     private TenantDashboardSummaryDTO.Meta buildMeta(MerchantDTO merchant, String currency, RangeWindow window) {

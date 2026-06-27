@@ -39,7 +39,7 @@ public class GkRunProperties {
 
     @Data
     public static class Defaults {
-        private String timezone = "Asia/Shanghai";
+        private String timezone = "UTC";
         private String lang = "zh-CN";
         private String countryCode = "PH";
         private String configJson = "{}";

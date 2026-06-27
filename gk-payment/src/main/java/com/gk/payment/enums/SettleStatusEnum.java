@@ -79,9 +79,9 @@ public enum SettleStatusEnum implements StringCodeEnum {
         }
         ZoneId zone;
         try {
-            zone = ZoneId.of(StringUtils.defaultIfBlank(timezone, "Asia/Shanghai"));
+            zone = ZoneId.of(StringUtils.defaultIfBlank(timezone, "UTC"));
         } catch (Exception ex) {
-            zone = ZoneId.of("Asia/Shanghai");
+            zone = ZoneId.of("UTC");
         }
         ZonedDateTime paidZoned = base.atZone(zone);
         return paidZoned.toLocalDate().plusDays(days).atStartOfDay(zone).toInstant();

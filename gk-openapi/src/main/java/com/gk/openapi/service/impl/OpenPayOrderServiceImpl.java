@@ -104,7 +104,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         }
 
         // 生成平台代收订单，订单号、租户、商户、应用等信息均来自认证上下文和平台规则
-                PayOrderEntity entity = new PayOrderEntity();
+        PayOrderEntity entity = new PayOrderEntity();
         entity.setTenantId(context.getTenantId());
         entity.setMerchantId(context.getMerchantId());
         entity.setMerchantNo(context.getMerchantNo());

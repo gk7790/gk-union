@@ -80,7 +80,7 @@ gk:
       base-url: ${PSP_CALLBACK_BASE_URL:http://mqmq.vip.cpolar.cn}
   merchant:
     defaults:
-      timezone: ${MERCHANT_DEFAULT_TIMEZONE:Asia/Shanghai}
+      timezone: ${MERCHANT_DEFAULT_TIMEZONE:UTC}
       lang: ${MERCHANT_DEFAULT_LANG:zh-CN}
       countryCode: ${MERCHANT_DEFAULT_COUNTRY_CODE:PH}
       config-json: '${MERCHANT_DEFAULT_CONFIG_JSON:{}}'

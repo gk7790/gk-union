@@ -96,9 +96,9 @@ public final class DashboardSupport {
 
     public static ZoneId resolveZoneId(String timezone) {
         try {
-            return ZoneId.of(StringUtils.defaultIfBlank(timezone, "Asia/Shanghai"));
+            return ZoneId.of(StringUtils.defaultIfBlank(timezone, "UTC"));
         } catch (Exception ex) {
-            return ZoneId.of("Asia/Shanghai");
+            return ZoneId.of("UTC");
         }
     }
 

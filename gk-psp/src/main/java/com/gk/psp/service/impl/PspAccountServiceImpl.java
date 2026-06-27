@@ -26,8 +26,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -120,7 +122,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        stopAccounts(Arrays.asList(ids));
         evictPayinPlanCache();
         evictDictCache();
         evictCallbackAccountCache();
@@ -128,7 +130,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        stopAccounts(List.of(id));
         evictPayinPlanCache();
         evictDictCache();
         evictCallbackAccountCache();
@@ -136,6 +138,26 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     private void evictPayinPlanCache() {
         // PSP ģ鲻ֱ payment 棬ģ¼ͳһ
+    }
+
+    private void stopAccounts(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        List<Long> accountIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        if (accountIds.isEmpty()) {
+            return;
+        }
+        List<PspAccountEntity> accounts = baseDao.selectBatchIds(accountIds);
+        if (accounts.size() != accountIds.size()) {
+            throw new GkException(ErrorCode.NOT_FOUND, "PSP account not found");
+        }
+        for (Long id : accountIds) {
+            PspAccountEntity entity = new PspAccountEntity();
+            entity.setId(id);
+            entity.setStatus(StatusEnum.STOP.code());
+            baseDao.updateById(entity);
+        }
     }
 
     private String genUniquePspAccountNo() {

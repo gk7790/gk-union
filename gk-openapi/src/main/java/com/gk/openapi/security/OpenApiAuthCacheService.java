@@ -65,10 +65,10 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             throw new ApiException(ApiErrorCode.MERCHANT_DISABLED, "Merchant risk status is not normal");
         }
 
-//        validateTimestamp(timestamp);
+        validateTimestamp(timestamp);
         validateNonce(appId, nonce, snapshot.getNonceTtlSeconds());
         validateRateLimit(appId, snapshot.getRateLimitQps());
-//        validateSortedParamSignature(signParams, signature, snapshot.getApiSecret(), signType);
+        validateSortedParamSignature(signParams, signature, snapshot.getApiSecret(), signType);
 
         return snapshot.toContext(traceId, clientIp);
     }

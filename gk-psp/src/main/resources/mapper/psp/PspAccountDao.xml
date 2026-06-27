@@ -4,6 +4,8 @@
 <mapper namespace="com.gk.psp.dao.PspAccountDao">
     <select id="selectCallbackAccount" resultType="com.gk.psp.callback.model.PspCallbackAccount">
         SELECT
+            a.tenant_id AS tenantId,
+            a.psp_id AS pspId,
             a.id AS pspAccountId,
             p.psp_code AS pspCode,
             a.api_secret AS apiSecret

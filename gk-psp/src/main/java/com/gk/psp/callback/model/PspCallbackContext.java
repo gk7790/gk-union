@@ -5,6 +5,9 @@ import lombok.Data;
 
 @Data
 public class PspCallbackContext {
+    private Long tenantId;
+    private Long pspId;
+    private Long pspAccountId;
     private String pspCode;
     private String bizType;
     private PspCallbackRequest request;

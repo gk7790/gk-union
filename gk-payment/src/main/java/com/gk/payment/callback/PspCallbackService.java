@@ -120,6 +120,9 @@ public class PspCallbackService {
             CallbackAccount account = accountResult.getData();
             request.setPspCode(account.pspCode());
             request.setApiSecret(account.apiSecret());
+            context.setTenantId(account.tenantId());
+            context.setPspId(account.pspId());
+            context.setPspAccountId(account.pspAccountId());
             context.setPspCode(account.pspCode());
 
             // 校验来源 IP 用 pspCode 或 pspAccountId 找白名单. 不通过直接拒绝。
@@ -163,7 +166,8 @@ public class PspCallbackService {
                 rollbackIfActive();
             }
             if (context.getLog() == null) {
-                context.setLog(logRecorder.failed(context.getPspCode(), bizType, request, ex));
+                context.setLog(logRecorder.failed(context.getPspCode(), bizType, request, ex,
+                        context.getTenantId(), context.getPspId()));
             }
             logRecorder.finish(
                     context.getLog(),
@@ -309,7 +313,8 @@ public class PspCallbackService {
     private PspCallbackResponse finishFailed(PspCallbackContext context, Result<?> failure, String failResponse) {
         if (context.getLog() == null) {
             context.setLog(logRecorder.failed(context.getPspCode(), context.getBizType(), context.getRequest(),
-                    new IllegalStateException(failureMessage(failure))));
+                    new IllegalStateException(failureMessage(failure)),
+                    context.getTenantId(), context.getPspId()));
         }
         String code = failureMessage(failure);
         String verifyStatus = verifyStatusForFailure(code);
@@ -348,7 +353,13 @@ public class PspCallbackService {
         if (account == null || StringUtils.isBlank(account.getPspCode())) {
             return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
-        CallbackAccount data = new CallbackAccount(account.getPspAccountId(), account.getPspCode(), account.getApiSecret());
+        CallbackAccount data = new CallbackAccount(
+                account.getTenantId(),
+                account.getPspId(),
+                account.getPspAccountId(),
+                account.getPspCode(),
+                account.getApiSecret()
+        );
         return Result.success(data);
     }
 
@@ -476,6 +487,6 @@ public class PspCallbackService {
                 pspCode, bizType, status.value(), ex.getMessage());
     }
 
-    private record CallbackAccount(Long pspAccountId, String pspCode, String apiSecret) {
+    private record CallbackAccount(Long tenantId, Long pspId, Long pspAccountId, String pspCode, String apiSecret) {
     }
 }

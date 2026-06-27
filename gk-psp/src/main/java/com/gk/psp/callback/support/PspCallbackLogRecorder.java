@@ -80,12 +80,17 @@ public class PspCallbackLogRecorder {
      * 构建尚未定位到订单的 PSP 回调日志上下文     * <p>
      * 即使还没有订单上下文，也会尽量保留原始请求，方便后续人工排查     */
     public PspCallbackLogEntity failed(String pspCode, String bizType, PspCallbackRequest request, Exception ex) {
+        return failed(pspCode, bizType, request, ex, null, null);
+    }
+
+    public PspCallbackLogEntity failed(String pspCode, String bizType, PspCallbackRequest request, Exception ex,
+                                       Long tenantId, Long pspId) {
         PspProviderEntity provider = pspProviderDao.selectOne(new QueryWrapper<PspProviderEntity>()
                 .eq("psp_code", pspCode)
                 .last("limit 1"));
         PspCallbackLogEntity entity = new PspCallbackLogEntity();
-        entity.setTenantId(0L);
-        entity.setPspId(provider == null ? 0L : provider.getId());
+        entity.setTenantId(PspCallbackUtils.defaultLong(tenantId == null && provider != null ? provider.getTenantId() : tenantId));
+        entity.setPspId(PspCallbackUtils.defaultLong(pspId == null && provider != null ? provider.getId() : pspId));
         entity.setPspCode(pspCode);
         entity.setBizType(bizType);
         entity.setCallbackType(bizType);

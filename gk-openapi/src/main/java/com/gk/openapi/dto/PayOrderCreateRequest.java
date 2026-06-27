@@ -26,14 +26,6 @@ public class PayOrderCreateRequest {
     private String notifyUrl;
     @NotBlank(message = "return_url is required")
     private String returnUrl;
-    private String customerId;
-    private String customerType;
-    private String customerName;
-    private String customerPhone;
-    private String customerEmail;
-    private String customerIdCard;
-    private String bankCode;
-    private String selectChannel;
     private Map<String, Object> payer;
     private Map<String, Object> extra;
 }

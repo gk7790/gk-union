@@ -9,6 +9,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 @TableName("psp_provider")
 public class PspProviderEntity extends SimpleEntity {
+    private Long tenantId;
     private String pspCode;
     private String pspName;
     private String countryCode;

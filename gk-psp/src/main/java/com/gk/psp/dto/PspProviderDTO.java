@@ -7,6 +7,7 @@ import java.time.Instant;
 @Data
 public class PspProviderDTO {
     private Long id;
+    private Long tenantId;
     private String pspCode;
     private String pspName;
     private String countryCode;

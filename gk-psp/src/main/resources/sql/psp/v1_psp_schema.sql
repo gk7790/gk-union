@@ -159,6 +159,7 @@ CREATE TABLE `psp_method`  (
 DROP TABLE IF EXISTS `psp_provider`;
 CREATE TABLE `psp_provider`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `psp_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PSP编码',
   `psp_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'PSP名称',
   `country_code` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '主要国家编码',
@@ -174,9 +175,9 @@ CREATE TABLE `psp_provider`  (
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_psp_provider_code`(`psp_code` ASC) USING BTREE,
-  INDEX `idx_psp_provider_country_status`(`country_code` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_psp_provider_status`(`status` ASC) USING BTREE
+  UNIQUE INDEX `uk_psp_provider_tenant_code`(`tenant_id` ASC, `psp_code` ASC) USING BTREE,
+  INDEX `idx_psp_provider_country_status`(`tenant_id` ASC, `country_code` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_psp_provider_status`(`tenant_id` ASC, `status` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2063997149537304578 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'PSP三方支付公司' ROW_FORMAT = Dynamic;
 
 -- ----------------------------

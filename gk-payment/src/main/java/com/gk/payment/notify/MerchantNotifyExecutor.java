@@ -23,8 +23,10 @@ import org.springframework.web.client.RestClient;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -137,16 +139,17 @@ public class MerchantNotifyExecutor {
             return Result.fail("通知任务正在处理 请稍后再");
         }
         try {
-            if (attempt(task, true)) {
+            Map<String, Object> outcome = attempt(task, true);
+            if (Boolean.TRUE.equals(outcome.get("acknowledged"))) {
                 return Result.success(null, "通知成功");
             }
             String message = StringUtils.defaultIfBlank(
-                    StringUtils.abbreviate(task.getLastErrorMsg(), MAX_FAIL_MSG_LEN),
+                    StringUtils.abbreviate(String.valueOf(outcome.get("errorMessage")), MAX_FAIL_MSG_LEN),
                     "商户未确认通知");
             return Result.fail(message);
         } catch (Exception e) {
             log.error("Merchant notify resend error, taskId={}", taskId, e);
-            return Result.fail("通知发送异 {}", e.getMessage());
+            return Result.fail("通知发送异常: {}", e.getMessage());
         }
     }
 
@@ -160,25 +163,68 @@ public class MerchantNotifyExecutor {
         return resendByBizOrder(BizTypeEnum.PAYOUT_ORDER.code(), orderId);
     }
 
+    /**
+     * 同步发送一次商户通知，并返回完整 HTTP 结果，供沙箱 mock 回调页面展示。
+     */
+    public Map<String, Object> sendOnceByBizOrder(String bizType, Long orderId) {
+        MerchantNotifyTaskEntity task = findLatestTask(bizType, orderId);
+        if (task == null) {
+            return notifySkipped("该订单暂无商户通知任务");
+        }
+        return sendOnce(task.getId());
+    }
+
+    /**
+     * 同步发送一次商户通知，并返回完整 HTTP 结果。
+     */
+    public Map<String, Object> sendOnce(Long taskId) {
+        MerchantNotifyTaskEntity existing = repository.getById(taskId);
+        if (existing == null) {
+            return notifySkipped("通知任务不存在");
+        }
+        Instant lockUntil = Instant.now().plusSeconds(LOCK_SECONDS);
+        MerchantNotifyTaskEntity task = repository.forceClaim(taskId, workerId, Instant.now(), lockUntil);
+        if (task == null) {
+            return notifySkipped("通知任务正在处理，请稍后再试");
+        }
+        try {
+            return attempt(task, true);
+        } catch (Exception e) {
+            log.error("Merchant notify sendOnce error, taskId={}", taskId, e);
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("sent", true);
+            result.put("acknowledged", false);
+            result.put("notifyTaskId", task.getId());
+            result.put("taskNo", task.getTaskNo());
+            result.put("notifyUrl", task.getNotifyUrl());
+            result.put("errorMessage", truncate("notify send error: " + e.getMessage()));
+            return result;
+        }
+    }
+
     private Result<Void> resendByBizOrder(String bizType, Long orderId) {
-        MerchantNotifyTaskEntity task = merchantNotifyTaskDao.selectOne(new QueryWrapper<MerchantNotifyTaskEntity>()
-                .eq("biz_type", bizType)
-                .eq("biz_id", orderId)
-                .orderByDesc("created_at")
-                .last("limit 1"));
+        MerchantNotifyTaskEntity task = findLatestTask(bizType, orderId);
         if (task == null) {
             return Result.fail("该订单暂无商户通知任务");
         }
         return resend(task.getId());
     }
 
+    private MerchantNotifyTaskEntity findLatestTask(String bizType, Long orderId) {
+        return merchantNotifyTaskDao.selectOne(new QueryWrapper<MerchantNotifyTaskEntity>()
+                .eq("biz_type", bizType)
+                .eq("biz_id", orderId)
+                .orderByDesc("created_at")
+                .last("limit 1"));
+    }
+
     /**
      * 执行一次通知尝试并落库
      *
      * @param manual 是否人工触发(人工触发失败不直接进死信, 而是重新挂回重试队列)
-     * @return 本次是否成功
+     * @return 本次通知完整结果
      */
-    private boolean attempt(MerchantNotifyTaskEntity task, boolean manual) {
+    private Map<String, Object> attempt(MerchantNotifyTaskEntity task, boolean manual) {
         int attemptNo = safeInt(task.getRetryCount()) + 1;
         int maxRetry = task.getMaxRetryCount() == null ? 16 : task.getMaxRetryCount();
         String payloadJson = task.getPayloadJson();
@@ -199,15 +245,18 @@ public class MerchantNotifyExecutor {
         MerchantAppEntity app = loadApp(task);
         String apiSecret = app == null ? null : app.getApiSecret();
         HttpOutcome outcome;
+        String signedBody = payloadJson;
+        String signature = null;
         if (StringUtils.isBlank(apiSecret)) {
             outcome = HttpOutcome.transportError("merchant app api secret missing, merchantAppId=" + task.getMerchantAppId());
         } else {
             MerchantNotifySigned signed = signer.sign(payloadJson, apiSecret, resolveSignType(app, task));
-            record.setRequestSignature(signed.sign());
-            // 最终发送的报文(sign), 覆盖原始 payload
-            record.setRequestBody(signed.body());
-            task.setSignature(signed.sign());
-            outcome = doPost(task, signed.body());
+            signature = signed.sign();
+            signedBody = signed.body();
+            record.setRequestSignature(signature);
+            record.setRequestBody(signedBody);
+            task.setSignature(signature);
+            outcome = doPost(task, signedBody);
         }
 
         long costMs = System.currentTimeMillis() - startedAt.toEpochMilli();
@@ -230,7 +279,29 @@ public class MerchantNotifyExecutor {
             log.warn("Merchant notify failed, taskNo={}, attempt={}, status={}, err={}",
                     task.getTaskNo(), attemptNo, outcome.status(), failReason(outcome));
         }
-        return success;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sent", true);
+        result.put("acknowledged", success);
+        result.put("notifyUrl", task.getNotifyUrl());
+        result.put("requestBody", signedBody);
+        result.put("requestSignature", signature);
+        result.put("httpStatus", outcome.status());
+        result.put("responseBody", truncate(outcome.body()));
+        result.put("errorMessage", success ? null : truncate(failReason(outcome)));
+        result.put("costMs", costMs);
+        result.put("notifyTaskId", task.getId());
+        result.put("taskNo", task.getTaskNo());
+        result.put("attemptNo", attemptNo);
+        return result;
+    }
+
+    private Map<String, Object> notifySkipped(String reason) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sent", false);
+        result.put("acknowledged", false);
+        result.put("errorMessage", reason);
+        return result;
     }
 
     private void applyResultToTask(MerchantNotifyTaskEntity task, int attemptNo, int maxRetry,

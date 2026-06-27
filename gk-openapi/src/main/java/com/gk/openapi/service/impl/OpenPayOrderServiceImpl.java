@@ -40,7 +40,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -240,7 +239,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         order.setPspCode(Constant.SANDBOX);
         order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayOrderNo());
-        order.setPspPayUrl("/sandbox/pay/" + order.getPayOrderNo());
+        order.setPspPayUrl(null);
         order.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
         order.setPspRawStatus(PayOrderStatusEnum.PROCESSING.code());
         order.setStatus(PayOrderStatusEnum.PROCESSING.code());
@@ -543,9 +542,9 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private void validateIdempotentRequest(PayOrderEntity existed, PayOrderCreateRequest request, String currency, String methodCode) {
         if (existed.getAmount() == null || request.getAmount() == null
                 || existed.getAmount().compareTo(request.getAmount()) != 0
-                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
-                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))) {
+                || differsIgnoreCase(existed.getCurrency(), currency)
+                || differsIgnoreCase(existed.getMethodCode(), methodCode)
+                || differsTrimmed(existed.getNotifyUrl(), request.getNotifyUrl())) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -555,9 +554,9 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private void validateIdempotentEntity(PayOrderEntity existed, PayOrderEntity entity) {
         if (existed.getAmount() == null || entity.getAmount() == null
                 || existed.getAmount().compareTo(entity.getAmount()) != 0
-                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
-                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))) {
+                || differsIgnoreCase(existed.getCurrency(), entity.getCurrency())
+                || differsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
+                || differsTrimmed(existed.getNotifyUrl(), entity.getNotifyUrl())) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -573,6 +572,17 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
     /**
      * 转换代收订单OpenAPI 响应     */
+    private boolean differsIgnoreCase(String left, String right) {
+        return left == null ? right != null : !left.equalsIgnoreCase(right);
+    }
+
+    private boolean differsTrimmed(String left, String right) {
+        return !StringUtils.trimToEmpty(left).equals(StringUtils.trimToEmpty(right));
+    }
+
+    /**
+     * 转换代收订单OpenAPI 响应
+     */
     private PayOrderResponse toResponse(PayOrderEntity entity) {
         if (entity == null) {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);

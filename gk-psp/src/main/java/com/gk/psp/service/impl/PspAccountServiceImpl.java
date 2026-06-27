@@ -5,10 +5,13 @@ import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dto.PspAccountDTO;
@@ -27,6 +30,7 @@ import java.util.Set;
 @Slf4j
 public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAccountEntity, PspAccountDTO> implements PspAccountService {
     private static final long PSP_ACCOUNT_DICT_CACHE_SECONDS = 60 * 60L;
+    private static final int PSP_ACCOUNT_NO_MAX_RETRY = 10;
     @Autowired
     private RedisUtils redisUtils;
 
@@ -77,16 +81,30 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     @Override
     public void save(PspAccountDTO dto) {
+        if (StrUtil.isBlank(dto.getPspAccountNo())) {
+            dto.setPspAccountNo(genUniquePspAccountNo());
+        }
         super.save(dto);
         evictPayinPlanCache();
         evictDictCache();
+        evictCallbackAccountCache();
     }
 
     @Override
     public void update(PspAccountDTO dto) {
+        PspAccountEntity existing = baseDao.selectById(dto.getId());
+        if (existing == null) {
+            throw new GkException(ErrorCode.NOT_FOUND, "PSP account not found");
+        }
+        if (StrUtil.isNotBlank(dto.getPspAccountNo())
+                && !StrUtil.equals(dto.getPspAccountNo(), existing.getPspAccountNo())) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "pspAccountNo cannot be changed");
+        }
+        dto.setPspAccountNo(null);
         super.update(dto);
         evictPayinPlanCache();
         evictDictCache();
+        evictCallbackAccountCache();
     }
 
     @Override
@@ -94,6 +112,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         super.delete(ids);
         evictPayinPlanCache();
         evictDictCache();
+        evictCallbackAccountCache();
     }
 
     @Override
@@ -101,10 +120,23 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         super.delete(id);
         evictPayinPlanCache();
         evictDictCache();
+        evictCallbackAccountCache();
     }
 
     private void evictPayinPlanCache() {
         // PSP ģ鲻ֱ payment 棬ģ¼ͳһ
+    }
+
+    private String genUniquePspAccountNo() {
+        for (int i = 0; i < PSP_ACCOUNT_NO_MAX_RETRY; i++) {
+            String pspAccountNo = BizKeyUtils.genPspAccountNo();
+            Long count = baseDao.selectCount(new QueryWrapper<PspAccountEntity>()
+                    .eq("psp_account_no", pspAccountNo));
+            if (count == null || count == 0) {
+                return pspAccountNo;
+            }
+        }
+        throw new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "Generate PSP account no failed");
     }
 
     private List<LabelDTO> getCachedDict(String cacheKey) {
@@ -149,6 +181,17 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
             }
         } catch (Exception e) {
             log.warn("Evict PSP account dict cache failed: {}", e.getMessage());
+        }
+    }
+
+    private void evictCallbackAccountCache() {
+        try {
+            Set<String> keys = redisUtils.keys(RedisKeys.getPspCallbackAccountPattern());
+            if (keys != null && !keys.isEmpty()) {
+                redisUtils.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("Evict PSP callback account cache failed: {}", e.getMessage());
         }
     }
 }

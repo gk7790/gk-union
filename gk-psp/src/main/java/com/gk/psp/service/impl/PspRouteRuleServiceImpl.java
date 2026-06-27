@@ -18,6 +18,7 @@ import com.gk.psp.service.PspLedgerAccountProvisioner;
 import com.gk.psp.service.PspRouteRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -151,7 +152,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         }
     }
     private boolean notEqualsCode(String left, String right) {
-        return !StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
+        return !Strings.CI.equals(StringUtils.trim(left), StringUtils.trim(right));
     }
 
     private boolean notEqualsLong(Long left, Long right) {

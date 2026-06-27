@@ -130,24 +130,8 @@ public class PayinPlanServiceImpl implements PayinPlanService {
     }
 
     private String toConfigErrorCode(ApiException ex) {
-        String message = StringUtils.defaultString(ex.getMessage());
-        if (StringUtils.containsIgnoreCase(message, "payment plan")) {
-            return "PAYMENT_PLAN_NOT_PUBLISHED";
-        }
-        if (StringUtils.containsIgnoreCase(message, "Merchant fee rule")) {
-            return "MERCHANT_FEE_RULE_MISSING";
-        }
-        if (StringUtils.containsIgnoreCase(message, "PSP provider")) {
-            return "PSP_PROVIDER_UNAVAILABLE";
-        }
-        if (StringUtils.containsIgnoreCase(message, "PSP method")) {
-            return "PSP_METHOD_UNAVAILABLE";
-        }
-        if (StringUtils.containsIgnoreCase(message, "PSP account")) {
-            return "PSP_ACCOUNT_UNAVAILABLE";
-        }
-        if (StringUtils.containsIgnoreCase(message, "PSP fee rule")) {
-            return "PSP_FEE_RULE_MISSING";
+        if (StringUtils.isNotBlank(ex.getDetailCode())) {
+            return ex.getDetailCode();
         }
         ApiErrorCode errorCode = ex.getErrorCode();
         return errorCode == null ? "PAYIN_PLAN_INVALID" : errorCode.name();

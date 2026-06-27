@@ -210,7 +210,7 @@ public class PaymentPlanResolver {
         result.setPspCode(provider.getPspCode());
         result.setPspBaseUrl(provider.getBaseUrl());
         result.setProviderConfigJson(provider.getConfigJson());
-        result.setPspCallbackUrl(platformCallbackUrl(provider.getPspCode(), direction));
+        result.setPspCallbackUrl(platformCallbackUrl(account.getPspAccountNo(), direction));
         result.setPspMethodId(method.getId());
         result.setPspMethodCode(method.getPspMethodCode());
         result.setMethodConfigJson(method.getConfigJson());
@@ -300,23 +300,23 @@ public class PaymentPlanResolver {
                 || !PaymentMethodCodes.isBankCard(key.methodCode());
     }
 
-    private String platformCallbackUrl(String pspCode, String direction) {
+    private String platformCallbackUrl(String pspAccountNo, String direction) {
         if (PayDirectionEnum.PAYOUT.code().equals(direction)) {
-            return callbackUrlBuilder.payoutCallbackUrl(pspCode);
+            return callbackUrlBuilder.payoutCallbackUrl(pspAccountNo);
         }
-        return callbackUrlBuilder.payCallbackUrl(pspCode);
+        return callbackUrlBuilder.payCallbackUrl(pspAccountNo);
     }
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {
         PspProviderEntity provider = cached(providerCache, pspId, pspProviderDao::selectById);
         if (provider == null || !StatusEnum.NORMAL.code().equals(provider.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
         }
         boolean supported = PayDirectionEnum.PAYOUT.code().equals(direction)
                 ? Integer.valueOf(1).equals(provider.getSupportPayout())
                 : Integer.valueOf(1).equals(provider.getSupportPayin());
         if (!supported) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP provider is not available");
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
         }
         return provider;
     }
@@ -324,7 +324,7 @@ public class PaymentPlanResolver {
     private PspMethodEntity requireMethod(Long pspMethodId) {
         PspMethodEntity method = cached(methodCache, pspMethodId, pspMethodDao::selectById);
         if (method == null || !StatusEnum.NORMAL.code().equals(method.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP method is not available");
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_METHOD_UNAVAILABLE", "PSP method is not available");
         }
         return method;
     }
@@ -332,7 +332,7 @@ public class PaymentPlanResolver {
     private PspAccountEntity requirePspAccount(Long pspAccountId) {
         PspAccountEntity account = cached(accountCache, pspAccountId, pspAccountDao::selectById);
         if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP account is not available");
+            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_ACCOUNT_UNAVAILABLE", "PSP account is not available");
         }
         return account;
     }

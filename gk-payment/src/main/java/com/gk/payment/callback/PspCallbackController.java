@@ -24,22 +24,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class PspCallbackController {
     private final PspCallbackService pspCallbackService;
 
-    @PostMapping("/{pspCode}/pay")
+    @PostMapping("/{pspAccountNo}/pay")
     public ResponseEntity<String> payCallback(
-            @PathVariable String pspCode,
+            @PathVariable String pspAccountNo,
             HttpServletRequest request,
             @RequestBody(required = false) String rawBody
     ) {
-        return toResponse(pspCallbackService.handlePayCallback(pspCode, request, rawBody(request, rawBody)));
+        return toResponse(pspCallbackService.handlePayCallback(pspAccountNo, request, rawBody(request, rawBody)));
     }
 
-    @PostMapping("/{pspCode}/payout")
+    @PostMapping("/{pspAccountNo}/payout")
     public ResponseEntity<String> payoutCallback(
-            @PathVariable String pspCode,
+            @PathVariable String pspAccountNo,
             HttpServletRequest request,
             @RequestBody(required = false) String rawBody
     ) {
-        return toResponse(pspCallbackService.handlePayoutCallback(pspCode, request, rawBody(request, rawBody)));
+        return toResponse(pspCallbackService.handlePayoutCallback(pspAccountNo, request, rawBody(request, rawBody)));
     }
 
     @ExceptionHandler(PspCallbackException.class)

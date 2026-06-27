@@ -158,7 +158,7 @@ public class PayoutSubmitOutboxConsumer {
         route.setPspCode(order.getPspCode());
         route.setPspBaseUrl(provider.getBaseUrl());
         route.setProviderConfigJson(provider.getConfigJson());
-        route.setPspCallbackUrl(callbackUrlBuilder.payoutCallbackUrl(order.getPspCode()));
+        route.setPspCallbackUrl(callbackUrlBuilder.payoutCallbackUrl(order.getPspAccountNo()));
         route.setPspMethodId(order.getPspMethodId());
         route.setPspMethodCode(order.getPspMethodCode());
         route.setMethodConfigJson(method == null ? null : method.getConfigJson());

@@ -39,7 +39,7 @@ CREATE TABLE `psp_account`  (
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_psp_account_scope`(`tenant_id` ASC, `psp_id` ASC, `psp_account_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_psp_account_no`(`psp_account_no` ASC) USING BTREE,
   INDEX `idx_psp_account_tenant`(`tenant_id` ASC, `psp_id` ASC, `status` ASC) USING BTREE,
   INDEX `idx_psp_account_no`(`psp_id` ASC, `psp_account_no` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2063994839394340866 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'PSP账户配置' ROW_FORMAT = Dynamic;

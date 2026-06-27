@@ -38,6 +38,7 @@ import com.gk.ledger.service.LedgerPostingService;
 import com.gk.ledger.enums.MerchantWalletStatementEffectEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -147,7 +148,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             // 插入凭证时遇到唯一键冲突，说明并发线程已经完成入账，返回已有凭证
                         return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
-        // 真正ledger_entry 并更ledger_balance        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
+        // 真正写入 ledger_entry 并更新 ledger_balance
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -194,7 +196,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
         }
-        // 发布分录并原子更新两个账户余额        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
+        // 发布分录并原子更新两个账户余额
+        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -247,7 +250,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             LedgerPostingResult result = existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
             markLedgerStep(profileSteps, profileLastNanos, "load_existing");
-            logLedgerProfileIfSlow("freeze_payout", request, profileStartNanos, profileSteps, "EXISTED");
+            logLedgerProfileIfSlow(request, profileStartNanos, profileSteps, "EXISTED");
             return result;
         }
         postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
@@ -278,7 +281,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         ledgerHoldDao.insert(hold);
         markLedgerStep(profileSteps, profileLastNanos, "insert_hold");
         LedgerPostingResult result = LedgerPostingResult.posted(journal.getJournalNo(), hold.getHoldNo());
-        logLedgerProfileIfSlow("freeze_payout", request, profileStartNanos, profileSteps, "POSTED");
+        logLedgerProfileIfSlow(request, profileStartNanos, profileSteps, "POSTED");
         return result;
     }
 
@@ -324,7 +327,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
         postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
 
-        // 分录落账后把冻结记录标记为已消费，防止后续再次释放        hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
+        // 分录落账后把冻结记录标记为已消费，防止后续再次释放
+        hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
         hold.setRemainingAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         hold.setStatus(LedgerHoldStatusEnum.CONSUMED.code());
         hold.setConsumeJournalNo(journal.getJournalNo());
@@ -365,7 +369,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
         postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, amount));
 
-        // 释放完成后清remainingAmount，并记录最后一次释放凭证号        hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
+        // 释放完成后清 remainingAmount，并记录最后一次释放凭证号
+        hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
         hold.setRemainingAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         hold.setStatus(LedgerHoldStatusEnum.RELEASED.code());
         hold.setLastReleaseJournalNo(journal.getJournalNo());
@@ -455,7 +460,8 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         journal.setCurrency(normalize(currency));
         journal.setTotalAmount(scale(totalAmount));
         journal.setEntryCount(entryCount);
-        // 幂等键必须稳定，保证重复回调、重试任务不会重复入账        journal.setIdempotencyKey(idempotencyKey(bizNo, eventType));
+        // 幂等键必须稳定，保证重复回调、重试任务不会重复入账
+        journal.setIdempotencyKey(idempotencyKey(bizNo, eventType));
         journal.setStatus(LedgerJournalStatusEnum.POSTED.code());
         journal.setSourceType(sourceType);
         journal.setReverseOfJournalNo(reverseOfJournalNo);
@@ -482,76 +488,6 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         }
         LedgerHoldEntity hold = withHold ? findHold(tenantId, bizNo) : null;
         return LedgerPostingResult.existed(existed.getJournalNo(), hold == null ? null : hold.getHoldNo());
-    }
-
-    /**
-     * 写入凭证分录并更新账户余额     *
-     * <p>每条 PostingLine 会生成一ledger_entry，再通过 ledgerBalanceDao.applyEntry 原子更新余额/p>
-     */
-    private void postEntries(LedgerJournalEntity journal, List<PostingLine> lines, MerchantStatementSnapshot statementSnapshot) {
-        Map<Long, LedgerBalanceEntity> lockedBalances = lockBalances(lines.stream()
-                .filter(line -> positive(line.amount()))
-                .map(PostingLine::account)
-                .toList());
-        List<MerchantWalletStatementEntity> walletStatements = new ArrayList<>();
-        int entryNo = 1;
-        for (PostingLine line : lines) {
-            if (!positive(line.amount())) {
-                continue;
-            }
-            // 先锁定余额行，保证同一账户并发入账时余额前后值连续
-                        LedgerBalanceEntity balance = lockedBalances.get(line.account().getId());
-            BigDecimal before = scale(balance.getBalance());
-            // 根据账户正常余额方向计算本次入账对余额的正负影响
-                        BigDecimal change = balanceChange(line.account(), line.direction(), line.amount());
-            BigDecimal after = scale(before.add(change));
-
-            // 分录保存账户、业务单、事件、余额前后值快照，便于审计追踪
-                        LedgerEntryEntity entry = new LedgerEntryEntity();
-            entry.setTenantId(journal.getTenantId());
-            entry.setJournalId(journal.getId());
-            entry.setJournalNo(journal.getJournalNo());
-            entry.setEntryNo(entryNo++);
-            entry.setAccountId(line.account().getId());
-            entry.setAccountNo(line.account().getAccountNo());
-            entry.setOwnerType(line.account().getOwnerType());
-            entry.setOwnerId(line.account().getOwnerId());
-            entry.setAccountType(line.account().getAccountType());
-            entry.setCurrency(line.account().getCurrency());
-            entry.setNormalSide(line.account().getNormalSide());
-            entry.setDirection(line.direction());
-            entry.setAmount(scale(line.amount()));
-            entry.setBalanceChange(change);
-            entry.setBalanceBefore(before);
-            entry.setBalanceAfter(after);
-            entry.setBizType(journal.getBizType());
-            entry.setBizId(journal.getBizId());
-            entry.setBizNo(journal.getBizNo());
-            entry.setEventType(journal.getEventType());
-            entry.setSummary(line.summary());
-            ledgerEntryDao.insert(entry);
-            MerchantWalletStatementEntity walletStatement = merchantWalletStatement(journal, entry, statementSnapshot);
-            if (walletStatement != null) {
-                walletStatements.add(walletStatement);
-            }
-
-            // applyEntry 同时累加借贷发生额，并在不允许负余额时阻止扣成负数
-                        int updated = ledgerBalanceDao.applyEntry(
-                    journal.getTenantId(),
-                    line.account().getId(),
-                    change,
-                    LedgerDirectionEnum.DEBIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
-                    LedgerDirectionEnum.CREDIT.code().equals(line.direction()) ? scale(line.amount()) : BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
-                    entry.getId(),
-                    journal.getJournalNo(),
-                    journal.getPostedAt(),
-                    line.account().getAllowNegative()
-            );
-            if (updated != 1) {
-                throw new InsufficientLedgerBalanceException(line.account().getAccountNo());
-            }
-        }
-        createMerchantWalletStatements(journal, walletStatements);
     }
 
     private void postEntriesOptimized(LedgerJournalEntity journal, List<PostingLine> lines, MerchantStatementSnapshot statementSnapshot) {
@@ -1010,7 +946,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
      */
     private BigDecimal balanceChange(LedgerAccountEntity account, String direction, BigDecimal amount) {
         BigDecimal scaled = scale(amount);
-        return StringUtils.equalsIgnoreCase(account.getNormalSide(), direction) ? scaled : scaled.negate();
+        return Strings.CI.equals(account.getNormalSide(), direction) ? scaled : scaled.negate();
     }
 
     /**
@@ -1109,8 +1045,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         return now;
     }
 
-    private void logLedgerProfileIfSlow(String action,
-                                        PayoutPostingRequest request,
+    private void logLedgerProfileIfSlow(PayoutPostingRequest request,
                                         long startNanos,
                                         StringBuilder steps,
                                         String result) {
@@ -1119,7 +1054,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return;
         }
         log.info("Ledger posting profile action={}, result={}, tenantId={}, merchantId={}, orderNo={}, total={}ms, steps=[{}]",
-                action,
+                "freeze_payout",
                 result,
                 request == null ? null : request.getTenantId(),
                 request == null ? null : request.getMerchantId(),

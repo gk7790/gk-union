@@ -1,6 +1,7 @@
 package com.gk.payment.constant;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 /**
  * 系统标准支付方式编码 */
@@ -13,6 +14,6 @@ public final class PaymentMethodCodes {
     /**
      * 判断是否为银行卡转账方式     */
     public static boolean isBankCard(String methodCode) {
-        return StringUtils.equalsIgnoreCase(StringUtils.trim(methodCode), BANK_CARD);
+        return Strings.CI.equals(StringUtils.trim(methodCode), BANK_CARD);
     }
 }

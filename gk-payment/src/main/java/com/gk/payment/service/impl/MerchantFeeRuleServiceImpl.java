@@ -36,6 +36,7 @@ import com.gk.payment.plan.PayinPlanCache;
 import com.gk.payment.service.MerchantFeeRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -182,7 +183,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         if (StringUtils.isBlank(requestCountryCode)) {
             return 0;
         }
-        return StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), requestCountryCode) ? 0 : 1;
+        return Strings.CI.equals(StringUtils.trim(rule.getCountryCode()), requestCountryCode) ? 0 : 1;
     }
 
     private String feeViewUniqueKey(MerchantFeeRuleEntity rule, String requestCountryCode) {
@@ -263,16 +264,16 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
 
     private int methodSpecificity(MerchantFeeRuleEntity rule, PaymentMethodEntity method) {
         int score = 0;
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getDirection()), StringUtils.trim(method.getDirection()))
+        if (!Strings.CI.equals(StringUtils.trim(rule.getDirection()), StringUtils.trim(method.getDirection()))
                 && !"BOTH".equalsIgnoreCase(StringUtils.trim(method.getDirection()))) {
             score += 4;
         }
         if (StringUtils.isNotBlank(method.getCurrency())
-                && !StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCurrency()), StringUtils.trim(method.getCurrency()))) {
+                && !Strings.CI.equals(StringUtils.trim(rule.getCurrency()), StringUtils.trim(method.getCurrency()))) {
             score += 2;
         }
         if (StringUtils.isNotBlank(method.getCountryCode())
-                && !StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), StringUtils.trim(method.getCountryCode()))) {
+                && !Strings.CI.equals(StringUtils.trim(rule.getCountryCode()), StringUtils.trim(method.getCountryCode()))) {
             score += 1;
         }
         return score;

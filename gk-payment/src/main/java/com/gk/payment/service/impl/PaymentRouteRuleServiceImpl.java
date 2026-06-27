@@ -17,6 +17,7 @@ import com.gk.payment.plan.PaymentPlanCacheService;
 import com.gk.payment.service.PaymentRouteRuleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -130,7 +131,7 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
     }
 
     private boolean notEqualsCode(String left, String right) {
-        return !StringUtils.equalsIgnoreCase(StringUtils.trim(left), StringUtils.trim(right));
+        return !Strings.CI.equals(StringUtils.trim(left), StringUtils.trim(right));
     }
 
     private void evictPlanCache() {

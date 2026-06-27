@@ -195,6 +195,14 @@ public class RedisKeys {
         return "psp:callback-ip-whitelist:*";
     }
 
+    public static String getPspCallbackAccountKey(String pspAccountNo) {
+        return "psp:callback-account:" + nullToAll(pspAccountNo);
+    }
+
+    public static String getPspCallbackAccountPattern() {
+        return "psp:callback-account:*";
+    }
+
     /**
      * 当前生效的支付决策表缓存 Key。
      * <p>

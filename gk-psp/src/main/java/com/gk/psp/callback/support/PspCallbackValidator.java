@@ -1,11 +1,13 @@
 package com.gk.psp.callback.support;
 
 import com.gk.common.model.Result;
+import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -26,18 +28,8 @@ public class PspCallbackValidator {
         try {
             validateTerminalCallback(result, order);
             return Result.success(null);
-        } catch (IllegalStateException ex) {
-            String message = StringUtils.defaultString(ex.getMessage());
-            if (StringUtils.containsIgnoreCase(message, "amount")) {
-                return Result.fail(PspCallbackAckMapper.AMOUNT_MISMATCH);
-            }
-            if (StringUtils.containsIgnoreCase(message, "currency")) {
-                return Result.fail(PspCallbackAckMapper.CURRENCY_MISMATCH);
-            }
-            if (StringUtils.containsIgnoreCase(message, "PSP")) {
-                return Result.fail(PspCallbackAckMapper.PSP_CODE_MISMATCH);
-            }
-            return Result.fail(PspCallbackAckMapper.SYSTEM_ERROR);
+        } catch (PspCallbackBizException ex) {
+            return Result.fail(ex.getAckCode());
         }
     }
 
@@ -49,12 +41,12 @@ public class PspCallbackValidator {
      */
     public void validateTerminalCallback(PspCallbackResult result, PspCallbackOrder order) {
         if (result == null || order == null) {
-            throw new IllegalStateException("Invalid PSP callback context");
+            throw new PspCallbackBizException(PspCallbackAckMapper.SYSTEM_ERROR, "Invalid PSP callback context");
         }
         if (StringUtils.isNotBlank(result.getPspCode())
                 && StringUtils.isNotBlank(order.pspCode())
-                && !StringUtils.equalsIgnoreCase(result.getPspCode(), order.pspCode())) {
-            throw new IllegalStateException("PSP callback PSP code mismatch");
+                && !Strings.CI.equals(result.getPspCode(), order.pspCode())) {
+            throw new PspCallbackBizException(PspCallbackAckMapper.PSP_CODE_MISMATCH, "PSP callback PSP code mismatch");
         }
 
         currencyResolver.resolve(result, order);
@@ -69,13 +61,13 @@ public class PspCallbackValidator {
 
     private void validateRequiredAmount(BigDecimal callbackAmount, BigDecimal orderAmount) {
         if (callbackAmount == null || orderAmount == null || callbackAmount.compareTo(orderAmount) != 0) {
-            throw new IllegalStateException("PSP callback amount mismatch");
+            throw new PspCallbackBizException(PspCallbackAckMapper.AMOUNT_MISMATCH, "PSP callback amount mismatch");
         }
     }
 
     private void validateOptionalAmount(BigDecimal callbackAmount, BigDecimal orderAmount) {
         if (callbackAmount != null && orderAmount != null && callbackAmount.compareTo(orderAmount) != 0) {
-            throw new IllegalStateException("PSP callback amount mismatch");
+            throw new PspCallbackBizException(PspCallbackAckMapper.AMOUNT_MISMATCH, "PSP callback amount mismatch");
         }
     }
 }

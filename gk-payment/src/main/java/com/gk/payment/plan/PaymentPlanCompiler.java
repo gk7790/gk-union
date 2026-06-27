@@ -33,6 +33,7 @@ import com.gk.psp.entity.PspProviderEntity;
 import com.gk.psp.fee.PspFeeCalculator;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -462,14 +463,14 @@ public class PaymentPlanCompiler {
         if (feeRule.getPspMethodId() != null && !Objects.equals(channel.getPspMethodId(), feeRule.getPspMethodId())) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getDirection()), StringUtils.trim(feeRule.getDirection()))) {
+        if (!Strings.CI.equals(StringUtils.trim(request.getDirection()), StringUtils.trim(feeRule.getDirection()))) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCurrency()), StringUtils.trim(feeRule.getCurrency()))) {
+        if (!Strings.CI.equals(StringUtils.trim(request.getCurrency()), StringUtils.trim(feeRule.getCurrency()))) {
             return false;
         }
         if (StringUtils.isNotBlank(feeRule.getMethodCode())
-                && !StringUtils.equalsIgnoreCase(StringUtils.trim(request.getMethodCode()), StringUtils.trim(feeRule.getMethodCode()))) {
+                && !Strings.CI.equals(StringUtils.trim(request.getMethodCode()), StringUtils.trim(feeRule.getMethodCode()))) {
             return false;
         }
         String countryCode = effectiveCountryCode(request, group, method);
@@ -478,7 +479,7 @@ public class PaymentPlanCompiler {
         }
         if (StringUtils.isNotBlank(countryCode)
                 && StringUtils.isNotBlank(feeRule.getCountryCode())
-                && !StringUtils.equalsIgnoreCase(StringUtils.trim(countryCode), StringUtils.trim(feeRule.getCountryCode()))) {
+                && !Strings.CI.equals(StringUtils.trim(countryCode), StringUtils.trim(feeRule.getCountryCode()))) {
             return false;
         }
         return AmountRangeUtils.contains(feeRule.getMinAmount(), feeRule.getMaxAmount(), sampleAmount);
@@ -838,8 +839,8 @@ public class PaymentPlanCompiler {
     /**
      * 分数越小，表示路由规则越精确     */
     private int paymentRouteSpecificity(PaymentRouteRuleEntity rule, PaymentPlanCompileRequest request) {
-        int methodOffset = StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getMethodCode()), request.getMethodCode()) ? 0 : 1;
-        int countryOffset = StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), request.getCountryCode()) ? 0 : 2;
+        int methodOffset = Strings.CI.equals(StringUtils.trim(rule.getMethodCode()), request.getMethodCode()) ? 0 : 1;
+        int countryOffset = Strings.CI.equals(StringUtils.trim(rule.getCountryCode()), request.getCountryCode()) ? 0 : 2;
         if (Objects.equals(rule.getMerchantId(), request.getMerchantId())
                 && Objects.equals(rule.getMerchantAppId(), request.getMerchantAppId())) {
             return countryOffset + methodOffset;
@@ -859,17 +860,17 @@ public class PaymentPlanCompiler {
         if (method == null) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getMethodCode()), StringUtils.trim(method.getMethodCode()))) {
+        if (!Strings.CI.equals(StringUtils.trim(request.getMethodCode()), StringUtils.trim(method.getMethodCode()))) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getDirection()), StringUtils.trim(method.getDirection()))) {
+        if (!Strings.CI.equals(StringUtils.trim(request.getDirection()), StringUtils.trim(method.getDirection()))) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCurrency()), StringUtils.trim(method.getCurrency()))) {
+        if (!Strings.CI.equals(StringUtils.trim(request.getCurrency()), StringUtils.trim(method.getCurrency()))) {
             return false;
         }
         return StringUtils.isBlank(request.getCountryCode())
-                || StringUtils.equalsIgnoreCase(StringUtils.trim(request.getCountryCode()), StringUtils.trim(method.getCountryCode()));
+                || Strings.CI.equals(StringUtils.trim(request.getCountryCode()), StringUtils.trim(method.getCountryCode()));
     }
 
     /**
@@ -880,10 +881,10 @@ public class PaymentPlanCompiler {
         }
         return Objects.equals(rule.getTenantId(), group.getTenantId())
                 && StatusEnum.NORMAL.code().equals(group.getStatus())
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getDirection()), StringUtils.trim(group.getDirection()))
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCountryCode()), StringUtils.trim(group.getCountryCode()))
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getCurrency()), StringUtils.trim(group.getCurrency()))
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(rule.getMethodCode()), StringUtils.trim(group.getMethodCode()));
+                && Strings.CI.equals(StringUtils.trim(rule.getDirection()), StringUtils.trim(group.getDirection()))
+                && Strings.CI.equals(StringUtils.trim(rule.getCountryCode()), StringUtils.trim(group.getCountryCode()))
+                && Strings.CI.equals(StringUtils.trim(rule.getCurrency()), StringUtils.trim(group.getCurrency()))
+                && Strings.CI.equals(StringUtils.trim(rule.getMethodCode()), StringUtils.trim(group.getMethodCode()));
     }
 
     /**
@@ -899,11 +900,11 @@ public class PaymentPlanCompiler {
                 && Objects.equals(channel.getPspId(), method.getPspId())
                 && Objects.equals(channel.getPspId(), account.getPspId())
                 && Objects.equals(group.getTenantId(), account.getTenantId())
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(group.getDirection()), StringUtils.trim(method.getDirection()))
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(group.getCurrency()), StringUtils.trim(method.getCurrency()))
-                && StringUtils.equalsIgnoreCase(StringUtils.trim(group.getMethodCode()), StringUtils.trim(method.getMethodCode()))
+                && Strings.CI.equals(StringUtils.trim(group.getDirection()), StringUtils.trim(method.getDirection()))
+                && Strings.CI.equals(StringUtils.trim(group.getCurrency()), StringUtils.trim(method.getCurrency()))
+                && Strings.CI.equals(StringUtils.trim(group.getMethodCode()), StringUtils.trim(method.getMethodCode()))
                 && (StringUtils.isBlank(group.getCountryCode())
-                || StringUtils.equalsIgnoreCase(StringUtils.trim(group.getCountryCode()), StringUtils.trim(method.getCountryCode())));
+                || Strings.CI.equals(StringUtils.trim(group.getCountryCode()), StringUtils.trim(method.getCountryCode())));
     }
 
     /**

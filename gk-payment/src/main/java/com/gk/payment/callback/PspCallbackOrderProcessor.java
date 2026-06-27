@@ -10,8 +10,10 @@ import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.service.OrderStatusLogService;
+import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
+import com.gk.psp.callback.support.PspCallbackAckMapper;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -54,7 +56,7 @@ public class PspCallbackOrderProcessor {
             return updated;
         }
         if (!PspCallbackUtils.isTerminal(targetStatus)) {
-            throw new IllegalStateException("Unsupported callback order status");
+            throw new PspCallbackBizException(PspCallbackAckMapper.UNSUPPORTED_STATUS, "Unsupported callback order status");
         }
         if (targetStatus.equals(fromStatus) || PspCallbackUtils.isFinalTerminal(fromStatus)) {
             // 同状态重复回调或已最终终态订单直接忽略，保证回调幂等

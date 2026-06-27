@@ -21,6 +21,7 @@ import com.gk.psp.route.PspRouteResult;
 import com.gk.psp.route.PspRouteSelector;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -123,7 +124,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         result.setPspCode(provider.getPspCode());
         result.setPspBaseUrl(provider.getBaseUrl());
         result.setProviderConfigJson(provider.getConfigJson());
-        result.setPspCallbackUrl(platformCallbackUrl(provider.getPspCode(), normalizedDirection));
+        result.setPspCallbackUrl(platformCallbackUrl(account.getPspAccountNo(), normalizedDirection));
         result.setPspMethodId(method.getId());
         result.setPspMethodCode(method.getPspMethodCode());
         result.setMethodConfigJson(method.getConfigJson());
@@ -167,11 +168,11 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
     private boolean isBankCardMethod(String methodCode) {
         return "BANK_CARD".equalsIgnoreCase(StringUtils.trim(methodCode));
     }
-    private String platformCallbackUrl(String pspCode, String direction) {
+    private String platformCallbackUrl(String pspAccountNo, String direction) {
         if (PayDirectionEnum.PAYOUT.code().equals(direction)) {
-            return callbackUrlBuilder.payoutCallbackUrl(pspCode);
+            return callbackUrlBuilder.payoutCallbackUrl(pspAccountNo);
         }
-        return callbackUrlBuilder.payCallbackUrl(pspCode);
+        return callbackUrlBuilder.payCallbackUrl(pspAccountNo);
     }
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {
@@ -208,18 +209,18 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         if (method == null) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(methodCode), StringUtils.trim(method.getMethodCode()))) {
+        if (!Strings.CI.equals(StringUtils.trim(methodCode), StringUtils.trim(method.getMethodCode()))) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(direction), StringUtils.trim(method.getDirection()))) {
+        if (!Strings.CI.equals(StringUtils.trim(direction), StringUtils.trim(method.getDirection()))) {
             return false;
         }
-        if (!StringUtils.equalsIgnoreCase(StringUtils.trim(currency), StringUtils.trim(method.getCurrency()))) {
+        if (!Strings.CI.equals(StringUtils.trim(currency), StringUtils.trim(method.getCurrency()))) {
             return false;
         }
         return StringUtils.isBlank(countryCode)
                 || StringUtils.isBlank(method.getCountryCode())
-                || StringUtils.equalsIgnoreCase(StringUtils.trim(countryCode), StringUtils.trim(method.getCountryCode()));
+                || Strings.CI.equals(StringUtils.trim(countryCode), StringUtils.trim(method.getCountryCode()));
     }
 
     private String normalize(String value) {

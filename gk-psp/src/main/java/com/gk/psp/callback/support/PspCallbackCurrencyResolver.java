@@ -1,11 +1,13 @@
 package com.gk.psp.callback.support;
 
+import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.enums.PspCallbackCurrencyPolicy;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -40,7 +42,7 @@ public class PspCallbackCurrencyResolver {
      */
     public void resolve(PspCallbackResult result, PspCallbackOrder order, PspCallbackCurrencyPolicy policy) {
         if (result == null || order == null) {
-            throw new IllegalStateException("Invalid PSP callback context");
+            throw new PspCallbackBizException(PspCallbackAckMapper.SYSTEM_ERROR, "Invalid PSP callback context");
         }
         String pspCurrency = normalize(result.getCurrency());
         String orderCurrency = normalize(order.currency());
@@ -52,20 +54,20 @@ public class PspCallbackCurrencyResolver {
         }
 
         if (policy == PspCallbackCurrencyPolicy.REQUIRE_PSP) {
-            throw new IllegalStateException("PSP callback currency missing");
+            throw new PspCallbackBizException(PspCallbackAckMapper.CURRENCY_MISMATCH, "PSP callback currency missing");
         }
         if (StringUtils.isBlank(orderCurrency)) {
-            throw new IllegalStateException("PSP callback currency missing");
+            throw new PspCallbackBizException(PspCallbackAckMapper.CURRENCY_MISMATCH, "PSP callback currency missing");
         }
         result.setCurrency(orderCurrency);
     }
 
     private void assertMatch(String pspCurrency, String orderCurrency) {
         if (StringUtils.isBlank(orderCurrency)) {
-            throw new IllegalStateException("PSP callback currency mismatch");
+            throw new PspCallbackBizException(PspCallbackAckMapper.CURRENCY_MISMATCH, "PSP callback currency mismatch");
         }
-        if (!StringUtils.equalsIgnoreCase(pspCurrency, orderCurrency)) {
-            throw new IllegalStateException("PSP callback currency mismatch");
+        if (!Strings.CI.equals(pspCurrency, orderCurrency)) {
+            throw new PspCallbackBizException(PspCallbackAckMapper.CURRENCY_MISMATCH, "PSP callback currency mismatch");
         }
     }
 

@@ -1,6 +1,7 @@
 package com.gk.psp.adapter.world;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +28,7 @@ public final class WorldPspSignUtils {
         if (StringUtils.isBlank(signature)) {
             return false;
         }
-        return StringUtils.equalsIgnoreCase(sign(params, secret), signature);
+        return Strings.CI.equals(sign(params, secret), signature);
     }
 
     public static boolean notVerify(Map<String, ?> params, String secret, String signature) {

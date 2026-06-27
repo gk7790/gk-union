@@ -2,6 +2,8 @@ package com.gk.payment.callback;
 
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.model.Result;
+import com.gk.common.redis.RedisKeys;
+import com.gk.common.redis.RedisUtils;
 import com.gk.infra.ipwhitelist.service.PspCallbackIpWhitelistService;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
@@ -9,8 +11,10 @@ import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.payment.enums.PayOrderStatusEnum;
 import com.gk.payment.service.PayOrderService;
+import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.PspCallbackException;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.callback.model.PspCallbackAccount;
 import com.gk.psp.callback.model.PspCallbackContext;
 import com.gk.psp.callback.model.PspCallbackHandleResult;
 import com.gk.psp.callback.model.PspCallbackOrder;
@@ -22,9 +26,9 @@ import com.gk.psp.callback.support.PspCallbackLogRecorder;
 import com.gk.psp.callback.support.PspCallbackRequestFactory;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.callback.support.PspCallbackValidator;
+import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.enums.PspCallbackProcessStatusEnum;
 import com.gk.psp.enums.PspCallbackVerifyStatusEnum;
-
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,21 +42,25 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.List;
 
 /**
- * PSP 回调处理编排服务 * <p>
- * 本类不负责某PSP 的报文解析或订单 SQL 细节，只负责把回调主链路串起来：
+ * PSP 回调统一编排服务。
+ *
+ * <p>企业级回调主链路必须先确认来源，再信任报文内容，最后才允许推进订单和账务：
  * <ol>
- *   <li>组装统一请求、IP 白名单校验、选择适配器并解析报文</li>
- *   <li>定位平台订单、记录回调日志、验签与终态字段校/li>
- *   <li>更新订单状态、执行账务入解冻、创建商户通知任务</li>
- *   <li>PSP 协议映射 HTTP 响应（成功返PSP 约定文本，失败返回结构化 Result/li>
+ *     <li>根据回调路径中的 pspAccountNo 定位 PSP 账号、pspCode 和验签密钥。</li>
+ *     <li>按 pspCode 校验 PSP 回调 IP 白名单。</li>
+ *     <li>选择 PSP 回调适配器，并把原始报文解析成平台统一结果。</li>
+ *     <li>使用账号密钥验签；验签失败时不查询订单、不更新业务数据。</li>
+ *     <li>验签通过后再定位平台订单，并校验金额、币种、PSP 编码和终态合法性。</li>
+ *     <li>幂等推进订单状态，必要时执行账务入账或解冻，并创建商户通知任务。</li>
+ *     <li>按 PSP 协议返回成功或失败响应，同时记录完整回调日志。</li>
  * </ol>
- * <p>
- * 代收与代付共{@link #handle} 主流程，通过 {@code bizType} 区分；要求回调日志可追溯 * 重复回调幂等、终态才触发账务，且订单状态与账务凭证保持一致
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class PspCallbackService {
+    private static final long CALLBACK_ACCOUNT_CACHE_SECONDS = 60L;
+
     private final List<PspCallbackAdapter> adapters;
     private final PspCallbackRequestFactory requestFactory;
     private final PspCallbackOrderResolver orderResolver;
@@ -64,42 +72,58 @@ public class PspCallbackService {
     private final PayOrderService payOrderService;
     private final PspCallbackIpWhitelistService pspCallbackIpWhitelistService;
     private final PspCallbackAckMapper ackMapper;
+    private final PspAccountDao pspAccountDao;
+    private final RedisUtils redisUtils;
 
     /**
-     * 处理 PSP 代收回调     *
+     * 处理 PSP 代收回调。
      *
-     * @param pspCode PSP 编码，用于选择对应回调适配     * @param request HTTP 原始请求
-     * @param rawBody 原始请求体，供验签、日志及 JSON 解析使用
-     * @return HTTP 状态与响应体的回调应答，成功时 body PSP 约定成功文本
+     * @param pspAccountNo 回调路径中的 PSP 账号路由号
+     * @param request HTTP 原始请求
+     * @param rawBody 原始请求体
+     * @return PSP 协议响应
      */
     @Transactional(rollbackFor = Exception.class)
-    public PspCallbackResponse handlePayCallback(String pspCode, HttpServletRequest request, String rawBody) {
-        return handle(pspCode, BizTypeEnum.PAY_ORDER.code(), request, rawBody);
+    public PspCallbackResponse handlePayCallback(String pspAccountNo, HttpServletRequest request, String rawBody) {
+        return handle(pspAccountNo, BizTypeEnum.PAY_ORDER.code(), request, rawBody);
     }
 
     /**
-     * 处理 PSP 代付回调     *
+     * 处理 PSP 代付回调。
      *
-     * @param pspCode PSP 编码，用于选择对应回调适配     * @param request HTTP 原始请求
-     * @param rawBody 原始请求体，供验签、日志及 JSON 解析使用
-     * @return HTTP 状态与响应体的回调应答，成功时 body PSP 约定成功文本
+     * @param pspAccountNo 回调路径中的 PSP 账号路由号
+     * @param request HTTP 原始请求
+     * @param rawBody 原始请求体
+     * @return PSP 协议响应
      */
     @Transactional(rollbackFor = Exception.class)
-    public PspCallbackResponse handlePayoutCallback(String pspCode, HttpServletRequest request, String rawBody) {
-        return handle(pspCode, BizTypeEnum.PAYOUT_ORDER.code(), request, rawBody);
+    public PspCallbackResponse handlePayoutCallback(String pspAccountNo, HttpServletRequest request, String rawBody) {
+        return handle(pspAccountNo, BizTypeEnum.PAYOUT_ORDER.code(), request, rawBody);
     }
 
     /**
-     * PSP 回调统一处理主流程     * <p>
-     * 分三阶段推进：{@link #prepare} {@link #verifyAndValidate} {@link #process}     * 任一阶段失败则写失败日志并按 PSP 协议返回失败应答；订单已变更但后续失败时会回滚事务
+     * PSP 回调统一入口。
+     *
+     * <p>处理顺序是：账号定位 -> IP 白名单 -> 适配器解析 -> 验签 -> 查订单/业务校验 -> 幂等处理。
      */
-    private PspCallbackResponse handle(String pspCode, String bizType, HttpServletRequest servletRequest, String rawBody) {
-        PspCallbackRequest request = requestFactory.create(pspCode, bizType, servletRequest, rawBody);
-        PspCallbackContext context = PspCallbackContext.of(pspCode, bizType, request);
-        // 默认失败应答；解析成功后替换为适配器配置的 failResponse
+    private PspCallbackResponse handle(String pspAccountNo, String bizType, HttpServletRequest servletRequest, String rawBody) {
+        PspCallbackRequest request = requestFactory.create(pspAccountNo, bizType, servletRequest, rawBody);
+        PspCallbackContext context = PspCallbackContext.of(pspAccountNo, bizType, request);
         String failResponse = PspCallbackResponse.DEFAULT_FAIL_BODY;
         try {
-            // 数据准备阶段：IP 白名单、适配器解析、订单定位、回调日志上下文组装
+            // 根据 pspAccountNo 定位 PSP 账号配置
+            Result<CallbackAccount> accountResult = resolveCallbackAccount(pspAccountNo);
+            if (accountResult.isFail()) {
+                return finishFailed(context, accountResult, failResponse);
+            }
+
+            CallbackAccount account = accountResult.getData();
+            request.setPspCode(account.pspCode());
+            request.setApiSecret(account.apiSecret());
+            context.setPspCode(account.pspCode());
+
+            // 校验来源 IP 用 pspCode 或 pspAccountId 找白名单. 不通过直接拒绝。
+            // 选择根据 pspCode 找对应适配器，比如 WorldPspCallbackAdapter。
             Result<PspCallbackContext> prepared = prepare(context);
             if (prepared.isFail()) {
                 return finishFailed(context, prepared, failResponse);
@@ -108,13 +132,18 @@ public class PspCallbackService {
             context = prepared.getData();
             failResponse = failBody(context.getResult());
 
-            // 校验阶段：验签、判断是否终态、终态时校验金额/币种/PSP编码等关键字段
-            Result<PspCallbackContext> verified = verifyAndValidate(context);
+            // 验签阶段：使用 pspAccountNo 对应账号的密钥验证 PSP 签名。
+            Result<PspCallbackContext> signed = verifySignature(context);
+            if (signed.isFail()) {
+                return finishFailed(context, signed, failResponse);
+            }
+
+            // 业务校验阶段：定位订单并校验终态回调字段。
+            Result<PspCallbackContext> verified = resolveAndValidate(context, account);
             if (verified.isFail()) {
                 return finishFailed(context, verified, failResponse);
             }
 
-            // 处理阶段：更新订单、终态入解冻、补写流水号、创建商户通知
             Result<PspCallbackHandleResult> handled = process(context);
             if (handled.isFail()) {
                 return finishFailed(context, handled, failResponse);
@@ -132,10 +161,9 @@ public class PspCallbackService {
             boolean rollback = context.isOrderChanged();
             if (rollback) {
                 rollbackIfActive();
-                // 订单已更新但账务/通知失败时，标记事务回滚，避免订单终态与账务不一致                rollbackIfActive();
             }
             if (context.getLog() == null) {
-                context.setLog(logRecorder.failed(pspCode, bizType, request, ex));
+                context.setLog(logRecorder.failed(context.getPspCode(), bizType, request, ex));
             }
             logRecorder.finish(
                     context.getLog(),
@@ -144,7 +172,7 @@ public class PspCallbackService {
                     ex.getMessage()
             );
             PspCallbackResponse response = ackMapper.toResponse(Result.fail(PspCallbackAckMapper.SYSTEM_ERROR), failResponse);
-            logFailure(pspCode, bizType, response.status(), ex);
+            logFailure(context.getPspCode(), bizType, response.status(), ex);
             if (rollback) {
                 throw new PspCallbackException(response.status(), ex.getMessage(), response.body());
             }
@@ -153,11 +181,11 @@ public class PspCallbackService {
     }
 
     /**
-     * 准备阶段：IP 白名单、适配器解析、订单定位、回调日志上下文组装
+     * 准备阶段：校验 IP 白名单、选择适配器、解析原始回调报文。
+     *
+     * <p>本阶段只做来源和报文格式处理，不查询订单，也不修改任何业务数据。
      */
     private Result<PspCallbackContext> prepare(PspCallbackContext context) {
-        // 回调验签密钥来自订单绑定的 PSP 账户。
-        // 本阶段可以先定位订单取密钥，但验签通过前不能修改订单、账务或商户通知。
         PspCallbackRequest request = context.getRequest();
         if (!pspCallbackIpWhitelistService.isPspCallbackAllowed(request.getPspCode(), request.getClientIp())) {
             return Result.fail(PspCallbackAckMapper.IP_FORBIDDEN);
@@ -168,14 +196,13 @@ public class PspCallbackService {
             return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
 
-        // 适配器将 PSP 原始报文解析为平台统一PspCallbackResult（含 orderStatus 映射）
         Result<PspCallbackResult> parsed = BizTypeEnum.PAY_ORDER.matches(context.getBizType())
                 ? adapter.parsePayCallback(request)
                 : adapter.parsePayoutCallback(request);
-
         if (parsed.isFail()) {
             return Result.fail(parsed.getMsg());
         }
+
         PspCallbackResult result = parsed.getData();
         if (result == null) {
             return Result.fail(PspCallbackAckMapper.PARSE_FAILED);
@@ -184,38 +211,47 @@ public class PspCallbackService {
             result.setPspCode(request.getPspCode());
         }
         context.setResult(result);
-
-        try {
-            // 解析 PSP 回调对应的平台订单
-            PspCallbackOrder order = orderResolver.resolve(context.getBizType(), context.getResult());
-            context.setOrder(order);
-            request.setApiSecret(order.apiSecret());
-            context.setLog(logRecorder.received(request, context.getResult(), order));
-            // 先组装回调日志上下文，验处理结果finish 时异步落库            context.setLog(logRecorder.received(request, context.getResult(), order));
-            return Result.success(context);
-        } catch (IllegalStateException ex) {
-            return Result.fail(orderResolveCode(ex));
-        }
+        return Result.success(context);
     }
 
     /**
-     * 校验阶段：验签、判断是否终态、终态时校验金额/币种/PSP 编码等关键字段
+     * 验签阶段：使用 pspAccountNo 对应账号的密钥验证 PSP 签名。
+     *
+     * <p>验签失败直接拒绝，不查询订单、不推进状态、不触发账务。
      */
-    private Result<PspCallbackContext> verifyAndValidate(PspCallbackContext context) {
+    private Result<PspCallbackContext> verifySignature(PspCallbackContext context) {
         PspCallbackAdapter adapter = findAdapter(context.getRequest().getPspCode());
         if (adapter == null) {
             return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
 
-        Result<Void> signed = adapter.verifySign(context.getRequest(), context.getOrder());
+        Result<Void> signed = adapter.verifySign(context.getRequest());
         if (signed.isFail()) {
             return Result.fail(StringUtils.defaultIfBlank(signed.getMsg(), PspCallbackAckMapper.SIGN_INVALID));
         }
+        return Result.success(context);
+    }
 
-        // orderStatus 已由适配器映射为平台枚举；此处判断是否为 SUCCESS/FAILED/CLOSED 等终态        context.setTerminal(PspCallbackUtils.isTerminal(context.getResult().getOrderStatus()));
+    /**
+     * 验签后的业务校验阶段：定位订单并校验终态回调字段。
+     */
+    private Result<PspCallbackContext> resolveAndValidate(PspCallbackContext context, CallbackAccount account) {
+        try {
+            PspCallbackOrder order = orderResolver.resolve(
+                    context.getBizType(),
+                    context.getResult(),
+                    account.pspAccountId(),
+                    account.pspCode(),
+                    account.apiSecret()
+            );
+            context.setOrder(order);
+            context.setLog(logRecorder.received(context.getRequest(), context.getResult(), order));
+        } catch (PspCallbackBizException ex) {
+            return Result.fail(ex.getAckCode());
+        }
+
         context.setTerminal(PspCallbackUtils.isTerminal(context.getResult().getOrderStatus()));
         if (!context.isTerminal()) {
-            // 中间态（PROCESSING）只更新订单进度，不做终态金额校验
             return Result.success(context);
         }
 
@@ -230,8 +266,7 @@ public class PspCallbackService {
     }
 
     /**
-     * 处理阶段：更新订单、终态入解冻、补写流水号、创建商户通知     * <p>
-     * 仅当 {@code orderChanged && terminal} 时才执行账务与通知，避免重复回调或中间态误入账
+     * 处理阶段：幂等推进订单，终态变更后执行账务处理并创建商户通知。
      */
     private Result<PspCallbackHandleResult> process(PspCallbackContext context) {
         try {
@@ -248,11 +283,10 @@ public class PspCallbackService {
                 if (BizTypeEnum.PAY_ORDER.matches(context.getBizType())
                         && PayOrderStatusEnum.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(context.getResult().getOrderStatus()))) {
                     payOrderService.onPaySuccessPosted(context.getOrder().id());
-                    // 代收成功入账后计算待结算释放时间                    payOrderService.onPaySuccessPosted(context.getOrder().id());
                 }
                 notifyCreator.create(context.getBizType(), context.getResult(), context.getOrder(), context.getLog());
             }
-            // 重复回调或未发生状态变更记IGNORED，仍PSP 返回成功应答
+
             String processStatus = orderChanged
                     ? PspCallbackProcessStatusEnum.SUCCESS.code()
                     : PspCallbackProcessStatusEnum.IGNORED.code();
@@ -264,16 +298,13 @@ public class PspCallbackService {
                     context.isTerminal()
             );
             return Result.success(result);
-        } catch (IllegalStateException ex) {
-            if (StringUtils.containsIgnoreCase(ex.getMessage(), "Unsupported callback order status")) {
-                return Result.fail(PspCallbackAckMapper.UNSUPPORTED_STATUS);
-            }
-            throw ex;
+        } catch (PspCallbackBizException ex) {
+            return Result.fail(ex.getAckCode());
         }
     }
 
     /**
-     * 阶段失败统一收尾：补写失败日志，并按错误码映HTTP 应答
+     * 阶段失败统一收口：补写失败日志，并按错误码映射 PSP 响应。
      */
     private PspCallbackResponse finishFailed(PspCallbackContext context, Result<?> failure, String failResponse) {
         if (context.getLog() == null) {
@@ -281,7 +312,6 @@ public class PspCallbackService {
                     new IllegalStateException(failureMessage(failure))));
         }
         String code = failureMessage(failure);
-        // 验签已通过但业务校验失败（如金额不符）时，日志verify=SUCCESS 便于区分攻击与业务拒绝
         String verifyStatus = verifyStatusForFailure(code);
         logRecorder.finish(
                 context.getLog(),
@@ -300,25 +330,61 @@ public class PspCallbackService {
     }
 
     /**
-     * 根据失败错误码决定回调日志中的验签状态     * <p>
-     * 金额/币种/PSP 编码不匹配等属于「验签后业务拒绝」，与签名无效区分开
+     * 根据 pspAccountNo 读取回调账号上下文。
+     *
+     * <p>账号信息来自 Redis 缓存，未命中时通过 psp_account 和 psp_provider 联表查询。
      */
-    private String verifyStatusForFailure(String code) {
-        if (StringUtils.equalsAny(code,
-                PspCallbackAckMapper.AMOUNT_MISMATCH,
-                PspCallbackAckMapper.CURRENCY_MISMATCH,
-                PspCallbackAckMapper.PSP_CODE_MISMATCH,
-                PspCallbackAckMapper.UNSUPPORTED_STATUS)) {
-            return PspCallbackVerifyStatusEnum.SUCCESS.code();
+    private Result<CallbackAccount> resolveCallbackAccount(String pspAccountNo) {
+        if (StringUtils.isBlank(pspAccountNo)) {
+            return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
-        return PspCallbackVerifyStatusEnum.FAILED.code();
+        String trimmedAccountNo = StringUtils.trim(pspAccountNo);
+        String cacheKey = RedisKeys.getPspCallbackAccountKey(trimmedAccountNo);
+        PspCallbackAccount account = getCachedCallbackAccount(cacheKey);
+        if (account == null) {
+            account = pspAccountDao.selectCallbackAccount(trimmedAccountNo);
+            cacheCallbackAccount(cacheKey, account);
+        }
+        if (account == null || StringUtils.isBlank(account.getPspCode())) {
+            return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
+        }
+        CallbackAccount data = new CallbackAccount(account.getPspAccountId(), account.getPspCode(), account.getApiSecret());
+        return Result.success(data);
     }
 
-    private String orderResolveCode(Exception ex) {
-        if (StringUtils.containsIgnoreCase(ex.getMessage(), "not found")) {
-            return PspCallbackAckMapper.ORDER_NOT_FOUND;
+    private PspCallbackAccount getCachedCallbackAccount(String cacheKey) {
+        try {
+            return redisUtils.get(cacheKey, PspCallbackAccount.class);
+        } catch (Exception ex) {
+            log.warn("Get PSP callback account cache failed: {}", ex.getMessage());
+            return null;
         }
-        return PspCallbackAckMapper.SYSTEM_ERROR;
+    }
+
+    private void cacheCallbackAccount(String cacheKey, PspCallbackAccount account) {
+        if (account == null || StringUtils.isBlank(account.getPspCode())) {
+            return;
+        }
+        try {
+            redisUtils.set(cacheKey, account, CALLBACK_ACCOUNT_CACHE_SECONDS);
+        } catch (Exception ex) {
+            log.warn("Set PSP callback account cache failed: {}", ex.getMessage());
+        }
+    }
+
+    /**
+     * 根据失败原因决定日志里的验签状态。
+     *
+     * <p>金额、币种、PSP 编码和状态不支持属于验签后的业务拒绝，不应记为签名失败。
+     */
+    private String verifyStatusForFailure(String code) {
+        return switch (StringUtils.defaultString(code)) {
+            case PspCallbackAckMapper.AMOUNT_MISMATCH,
+                 PspCallbackAckMapper.CURRENCY_MISMATCH,
+                 PspCallbackAckMapper.PSP_CODE_MISMATCH,
+                 PspCallbackAckMapper.UNSUPPORTED_STATUS -> PspCallbackVerifyStatusEnum.SUCCESS.code();
+            default -> PspCallbackVerifyStatusEnum.FAILED.code();
+        };
     }
 
     private String failBody(PspCallbackResult result) {
@@ -328,9 +394,6 @@ public class PspCallbackService {
         return StringUtils.defaultIfBlank(result.getFailResponse(), PspCallbackResponse.DEFAULT_FAIL_BODY);
     }
 
-    /**
-     * PSP 编码选择支持PSP 的回调适配器
-     */
     private PspCallbackAdapter findAdapter(String pspCode) {
         return adapters.stream()
                 .filter(adapter -> adapter.supports(pspCode))
@@ -339,8 +402,7 @@ public class PspCallbackService {
     }
 
     /**
-     * 根据回调终态执行账务处理     * <p>
-     * 代收成功：清算户 商户待结+ 内部手续费收入；代付成功：消费冻结；代付失败：释放冻结回可用
+     * 根据终态执行账务处理。
      */
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
@@ -357,7 +419,7 @@ public class PspCallbackService {
     }
 
     /**
-     * 构建代收成功入账请求；回调金额为空时回退到订单金额
+     * 构建代收成功入账请求；回调金额为空时回退到订单金额。
      */
     private PaySuccessPostingRequest paySuccessRequest(PspCallbackResult result, PspCallbackOrder order) {
         PaySuccessPostingRequest request = new PaySuccessPostingRequest();
@@ -377,7 +439,7 @@ public class PspCallbackService {
     }
 
     /**
-     * 构建代付账务请求；成功消费冻结与失败解冻共用同一批订单金额信息
+     * 构建代付账务请求；成功扣减冻结，失败释放冻结。
      */
     private PayoutPostingRequest payoutRequest(PspCallbackOrder order) {
         PayoutPostingRequest request = new PayoutPostingRequest();
@@ -397,7 +459,7 @@ public class PspCallbackService {
     }
 
     /**
-     * 将当Spring 事务标记为仅回滚，用于订单已更新但后续步骤失败的补偿
+     * 当前事务中订单已变更但后续步骤失败时，标记事务回滚，避免订单状态和账务不一致。
      */
     private void rollbackIfActive() {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -412,5 +474,8 @@ public class PspCallbackService {
         }
         log.warn("PSP callback rejected, pspCode={}, bizType={}, status={}, reason={}",
                 pspCode, bizType, status.value(), ex.getMessage());
+    }
+
+    private record CallbackAccount(Long pspAccountId, String pspCode, String apiSecret) {
     }
 }

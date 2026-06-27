@@ -2,7 +2,6 @@ package com.gk.psp.adapter.world;
 
 import com.gk.common.model.Result;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
-import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackAckMapper;
@@ -19,8 +18,9 @@ import java.util.Map;
 public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     @Override
     public boolean supports(String pspCode) {
-        return StringUtils.isNotBlank(pspCode)
-                && StringUtils.containsAnyIgnoreCase(pspCode, "WORLD", "WP001");
+        String normalized = StringUtils.upperCase(pspCode, Locale.ROOT);
+        return StringUtils.isNotBlank(normalized)
+                && (normalized.contains("WORLD") || normalized.contains("WP001"));
     }
 
     @Override
@@ -34,8 +34,8 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     }
 
     @Override
-    public Result<Void> verifySign(PspCallbackRequest request, PspCallbackOrder order) {
-        String apiSecret = order == null ? null : order.apiSecret();
+    public Result<Void> verifySign(PspCallbackRequest request) {
+        String apiSecret = request.getApiSecret();
         if (StringUtils.isBlank(apiSecret)) {
             return Result.fail(PspCallbackAckMapper.SIGN_INVALID);
         }
@@ -76,27 +76,21 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
 
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
-        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED")) {
-            return PspCallbackUtils.STATUS_SUCCESS;
-        }
-        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED")) {
-            return PspCallbackUtils.STATUS_FAILED;
-        }
-        return PspCallbackUtils.STATUS_PROCESSING;
+        return switch (value) {
+            case "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
+            default -> PspCallbackUtils.STATUS_PROCESSING;
+        };
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
-        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "COMPLETED")) {
-            return PspCallbackUtils.STATUS_SUCCESS;
-        }
-        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "REJECTED")) {
-            return PspCallbackUtils.STATUS_FAILED;
-        }
-        if (StringUtils.equalsAny(value, "CANCELLED", "CANCELED")) {
-            return PspCallbackUtils.STATUS_CANCELLED;
-        }
-        return PspCallbackUtils.STATUS_PROCESSING;
+        return switch (value) {
+            case "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAY_FAILED", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
+            case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
+            default -> PspCallbackUtils.STATUS_PROCESSING;
+        };
     }
 
     private BigDecimal decimal(Map<String, Object> params, String... names) {

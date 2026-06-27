@@ -5,6 +5,7 @@ import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.StyleType;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -55,7 +56,7 @@ public enum SettleStatusEnum implements StringCodeEnum {
 
     /** AUTO 以外（含 MANUAL）均不自动释放*/
     public static boolean isAutoReleaseMode(String settleMode) {
-        return StringUtils.equalsIgnoreCase(StringUtils.defaultString(settleMode).trim(), "AUTO");
+        return Strings.CI.equals(StringUtils.defaultString(settleMode).trim(), "AUTO");
     }
 
     /**

@@ -11,9 +11,7 @@ public class BizKeyUtils {
     private static final char[] BASE32_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
 
     private static final int APP_ID_RANDOM_LENGTH = 26;
-    private static final int PSP_NO_RANDOM_LENGTH = 15;
     private static final int SHORT_CODE_LENGTH = 8;
-    private static final int NONCE_LENGTH = 16;
     private static final int API_SECRET_BYTES = 32;
 
     private BizKeyUtils() {
@@ -25,10 +23,6 @@ public class BizKeyUtils {
 
     public static String genMerchantNo() {
         return "M" + encodeId(IdWorker.getId());
-    }
-
-    public static String genPspNo() {
-        return "P" + randomUpperCode(PSP_NO_RANDOM_LENGTH);
     }
 
     public static String genPayOrderNo() {
@@ -79,12 +73,12 @@ public class BizKeyUtils {
         return "MBA" + encodeId(IdWorker.getId());
     }
 
-    public static String genShortCode() {
-        return randomUpperCode(SHORT_CODE_LENGTH);
+    public static String genPspAccountNo() {
+        return "PA" + randomUpperCode(SHORT_CODE_LENGTH);
     }
 
-    public static String genNonce() {
-        return randomUpperCode(NONCE_LENGTH);
+    public static String genShortCode() {
+        return randomUpperCode(SHORT_CODE_LENGTH);
     }
 
     public static String genApiSecret() {
@@ -98,7 +92,7 @@ public class BizKeyUtils {
     }
 
     /**
-     * 雪花 ID 转 Base32 短码（与单号后缀同一套字母表）。
+     * 将雪花 ID 编码成短 Base32 字符串，用作各类业务单号后缀。
      */
     public static String encodeId(long id) {
         if (id <= 0) {
@@ -113,39 +107,6 @@ public class BizKeyUtils {
         return result.reverse().toString();
     }
 
-    /**
-     * Base32 短码还原为雪花 ID。
-     */
-    public static long decodeId(String code) {
-        if (code == null || code.isBlank()) {
-            throw new IllegalArgumentException("code must not be blank");
-        }
-        long result = 0;
-        for (int i = 0; i < code.length(); i++) {
-            int digit = base32CharValue(code.charAt(i));
-            if (digit < 0) {
-                throw new IllegalArgumentException("invalid base32 character: " + code.charAt(i));
-            }
-            result = (result << 5) | digit;
-        }
-        if (result <= 0) {
-            throw new IllegalArgumentException("code must decode to a positive id");
-        }
-        return result;
-    }
-
-    private static int base32CharValue(char c) {
-        if (c >= 'a' && c <= 'z') {
-            c = Character.toUpperCase(c);
-        }
-        for (int i = 0; i < BASE32_CHARS.length; i++) {
-            if (BASE32_CHARS[i] == c) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     private static String randomUpperCode(int length) {
         StringBuilder code = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
@@ -153,5 +114,4 @@ public class BizKeyUtils {
         }
         return code.toString();
     }
-
 }

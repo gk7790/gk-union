@@ -14,17 +14,17 @@ public class PspCallbackUrlBuilder {
     private final PspCallbackProperties properties;
     private final GkSysParamsConfigService configService;
 
-    public String payCallbackUrl(String pspCode) {
-        return callbackUrl(pspCode, "pay");
+    public String payCallbackUrl(String pspAccountNo) {
+        return callbackUrl(pspAccountNo, "pay");
     }
 
-    public String payoutCallbackUrl(String pspCode) {
-        return callbackUrl(pspCode, "payout");
+    public String payoutCallbackUrl(String pspAccountNo) {
+        return callbackUrl(pspAccountNo, "payout");
     }
 
-    private String callbackUrl(String pspCode, String callbackType) {
-        if (StringUtils.isBlank(pspCode)) {
-            throw new IllegalArgumentException("pspCode is required");
+    private String callbackUrl(String pspAccountNo, String callbackType) {
+        if (StringUtils.isBlank(pspAccountNo)) {
+            throw new IllegalArgumentException("pspAccountNo is required");
         }
         String baseUrl = StringUtils.trimToNull(configService.pspCallbackConfig().getBaseUrl());
         if (baseUrl == null) {
@@ -36,7 +36,7 @@ public class PspCallbackUrlBuilder {
         return removeTrailingSlash(baseUrl)
                 + CALLBACK_ROOT
                 + "/"
-                + StringUtils.trim(pspCode)
+                + StringUtils.trim(pspAccountNo)
                 + "/"
                 + callbackType;
     }

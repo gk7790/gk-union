@@ -3,6 +3,8 @@ package com.gk.payment.notify;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.model.Result;
 import com.gk.common.validator.AssertUtils;
+import com.gk.infra.config.model.MerchantNotifyConfig;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
@@ -65,6 +67,7 @@ public class MerchantNotifyExecutor {
     private final MerchantAppDao merchantAppDao;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
+    private final GkSysParamsConfigService configService;
 
     private String workerId;
 
@@ -226,7 +229,7 @@ public class MerchantNotifyExecutor {
      */
     private Map<String, Object> attempt(MerchantNotifyTaskEntity task, boolean manual) {
         int attemptNo = safeInt(task.getRetryCount()) + 1;
-        int maxRetry = task.getMaxRetryCount() == null ? 16 : task.getMaxRetryCount();
+        int maxRetry = task.getMaxRetryCount() == null ? defaultMaxRetryCount() : task.getMaxRetryCount();
         String payloadJson = task.getPayloadJson();
         Instant startedAt = Instant.now();
 
@@ -335,9 +338,9 @@ public class MerchantNotifyExecutor {
     }
 
     private HttpOutcome doPost(MerchantNotifyTaskEntity task, String bodyJson) {
-        int readTimeout = task.getTimeoutMs() == null ? DEFAULT_READ_TIMEOUT_MS : task.getTimeoutMs();
+        int readTimeout = task.getTimeoutMs() == null ? defaultReadTimeoutMs() : task.getTimeoutMs();
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        factory.setConnectTimeout(defaultConnectTimeoutMs());
         factory.setReadTimeout(readTimeout);
         RestClient client = RestClient.builder().requestFactory(factory).build();
         try {
@@ -368,7 +371,7 @@ public class MerchantNotifyExecutor {
             return false;
         }
         String normalized = body.trim().toLowerCase(Locale.ROOT);
-        return SUCCESS_TOKENS.stream().anyMatch(normalized::contains);
+        return successTokens().stream().anyMatch(normalized::contains);
     }
 
     private String failReason(HttpOutcome outcome) {
@@ -406,6 +409,30 @@ public class MerchantNotifyExecutor {
 
     private String truncate(String value) {
         return StringUtils.abbreviate(value, MAX_STORE_LEN);
+    }
+
+    private int defaultConnectTimeoutMs() {
+        int timeout = notifyConfig().getConnectTimeoutMs();
+        return timeout <= 0 ? CONNECT_TIMEOUT_MS : timeout;
+    }
+
+    private int defaultReadTimeoutMs() {
+        int timeout = notifyConfig().getReadTimeoutMs();
+        return timeout <= 0 ? DEFAULT_READ_TIMEOUT_MS : timeout;
+    }
+
+    private int defaultMaxRetryCount() {
+        int maxRetryCount = notifyConfig().getMaxRetryCount();
+        return maxRetryCount <= 0 ? 16 : maxRetryCount;
+    }
+
+    private List<String> successTokens() {
+        List<String> tokens = notifyConfig().getSuccessTokens();
+        return tokens == null || tokens.isEmpty() ? SUCCESS_TOKENS : tokens;
+    }
+
+    private MerchantNotifyConfig notifyConfig() {
+        return configService.merchantNotifyConfig();
     }
 
     private int safeInt(Integer value) {

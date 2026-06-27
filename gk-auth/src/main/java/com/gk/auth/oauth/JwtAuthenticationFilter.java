@@ -2,6 +2,7 @@ package com.gk.auth.oauth;
 
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.ObjUtil;
+import com.gk.auth.config.PublicEndpoints;
 import com.gk.auth.entity.SysUser;
 import com.gk.auth.service.JpaUserDetailsService;
 import com.gk.auth.utils.JwtUtils;
@@ -43,13 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri != null && (uri.startsWith("/api/v1/")
-                || uri.startsWith("/open-api/")
-                || uri.startsWith("/swagger-ui")
-                || uri.startsWith("/v3/api-docs")
-                || uri.startsWith("/auth/")
-                || uri.startsWith("/psp/callback/"));
+        return PublicEndpoints.matches(request);
     }
 
     @Override

@@ -6,9 +6,11 @@ import com.gk.common.constant.Constant;
 import com.gk.common.enums.OrderSourceEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
+import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
@@ -39,7 +41,6 @@ import com.gk.psp.route.PspRouteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,7 +48,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -71,8 +71,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutSubmitOutboxProducer payoutSubmitOutboxProducer;
     private final LedgerBalanceDao ledgerBalanceDao;
     private final TransactionTemplate transactionTemplate;
-    @Value("${gk.openapi.payout.async-submit:false}")
-    private boolean asyncSubmitEnabled;
+    private final GkSysParamsConfigService configService;
 
     /**
      * 创建代付订单
@@ -170,6 +169,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
 
         // 先落平台订单再冻结资金，便于冻结失败时留下可追踪订单状态
         timer.mark("apply_payment_plan");
+        boolean asyncSubmitEnabled = configService.openApiConfig().isPayoutAsyncSubmit()
+                && configService.payoutSubmitConfig().isAsyncSubmit();
         boolean created = asyncSubmitEnabled && !isTestApp(context.getMerchantApp())
                 ? insertOrderAndOutbox(entity)
                 : insertOrder(entity);
@@ -201,20 +202,20 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             timer.log("FAILED:" + ex.getErrorCode().name(), entity);
             markFailed(entity, ex.getMessage(), ex.getErrorCode().name());
             throw ex;
+        } catch (InsufficientLedgerBalanceException ex) {
+            timer.mark("freeze_payout_failed");
+            timer.log("FAILED:" + ApiErrorCode.INSUFFICIENT_BALANCE.name(), entity);
+            markFailed(entity, ApiErrorCode.INSUFFICIENT_BALANCE.getMessage(), ApiErrorCode.INSUFFICIENT_BALANCE.name());
+            throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE, ex);
         } catch (Exception ex) {
             timer.mark("freeze_payout_failed");
-            ApiErrorCode errorCode = StringUtils.containsIgnoreCase(ex.getMessage(), "Insufficient ledger balance")
-                    ? ApiErrorCode.INSUFFICIENT_BALANCE
-                    : ApiErrorCode.SYSTEM_ERROR;
-            if (errorCode == ApiErrorCode.SYSTEM_ERROR) {
-                log.error("OpenAPI payout freeze failed, payoutOrderNo={}, merchantOrderNo={}",
-                        entity.getPayoutOrderNo(),
-                        entity.getMerchantOrderNo(),
-                        ex);
-            }
-            timer.log("FAILED:" + errorCode.name(), entity);
-            markFailed(entity, errorCode.getMessage(), errorCode.name());
-            throw new ApiException(errorCode, ex);
+            log.error("OpenAPI payout freeze failed, payoutOrderNo={}, merchantOrderNo={}",
+                    entity.getPayoutOrderNo(),
+                    entity.getMerchantOrderNo(),
+                    ex);
+            timer.log("FAILED:" + ApiErrorCode.SYSTEM_ERROR.name(), entity);
+            markFailed(entity, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
         }
 
         // 冻结成功后再提交 PSP；如果提交失败，会尝试释放冻结
@@ -386,7 +387,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             entity.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
             entity.setSubmittedAt(Instant.now());
             // 设置下一次主动查单时间，兜底处理 PSP 回调丢失或延迟
-            entity.setNextQueryAt(Instant.now().plusSeconds(60));
+            entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
         }
@@ -613,11 +614,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private void validateIdempotentRequest(PayoutOrderEntity existed, PayoutOrderCreateRequest request, String currency, String methodCode) {
         if (existed.getAmount() == null || request.getAmount() == null
                 || existed.getAmount().compareTo(request.getAmount()) != 0
-                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), currency)
-                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), methodCode)
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(request.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(requestPayeeAccountNo(request)))
-                || !StringUtils.equalsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(requestPayeeBankCode(request)))) {
+                || differsIgnoreCase(existed.getCurrency(), currency)
+                || differsIgnoreCase(existed.getMethodCode(), methodCode)
+                || differsTrimmed(existed.getNotifyUrl(), request.getNotifyUrl())
+                || differsTrimmed(existed.getPayeeAccountNo(), requestPayeeAccountNo(request))
+                || differsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(requestPayeeBankCode(request)))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -628,11 +629,11 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private void validateIdempotentEntity(PayoutOrderEntity existed, PayoutOrderEntity entity) {
         if (existed.getAmount() == null || entity.getAmount() == null
                 || existed.getAmount().compareTo(entity.getAmount()) != 0
-                || !StringUtils.equalsIgnoreCase(existed.getCurrency(), entity.getCurrency())
-                || !StringUtils.equalsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getNotifyUrl()), StringUtils.trimToEmpty(entity.getNotifyUrl()))
-                || !StringUtils.equals(StringUtils.trimToEmpty(existed.getPayeeAccountNo()), StringUtils.trimToEmpty(entity.getPayeeAccountNo()))
-                || !StringUtils.equalsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(entity.getPayeeBankCode()))) {
+                || differsIgnoreCase(existed.getCurrency(), entity.getCurrency())
+                || differsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
+                || differsTrimmed(existed.getNotifyUrl(), entity.getNotifyUrl())
+                || differsTrimmed(existed.getPayeeAccountNo(), entity.getPayeeAccountNo())
+                || differsIgnoreCase(StringUtils.trimToEmpty(existed.getPayeeBankCode()), StringUtils.trimToEmpty(entity.getPayeeBankCode()))) {
             throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
         }
     }
@@ -827,6 +828,19 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     private BigDecimal defaultZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private long firstQueryDelaySeconds() {
+        long seconds = configService.payoutSubmitConfig().getFirstQueryDelaySeconds();
+        return seconds <= 0 ? 60L : seconds;
+    }
+
+    private boolean differsIgnoreCase(String left, String right) {
+        return left == null ? right != null : !left.equalsIgnoreCase(right);
+    }
+
+    private boolean differsTrimmed(String left, String right) {
+        return !StringUtils.trimToEmpty(left).equals(StringUtils.trimToEmpty(right));
     }
 
     private String requestPayeeAccountNo(PayoutOrderCreateRequest request) {

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.infra.config.model.PspQueryConfig;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.payment.dao.PayOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayOrderEntity;
@@ -32,7 +34,7 @@ public class PspOrderQueryExecutor {
     private static final int BATCH_SIZE = 50;
     private static final int MAX_DRAIN_LOOPS = 5;
     private static final int MAX_QUERY_COUNT = 30;
-    private static final long[] BACKOFF_SECONDS = {60, 120, 300, 600, 900, 1800};
+    private static final List<Long> BACKOFF_SECONDS = List.of(60L, 120L, 300L, 600L, 900L, 1800L);
 
     private final PayOrderDao payOrderDao;
     private final PayoutOrderDao payoutOrderDao;
@@ -40,6 +42,7 @@ public class PspOrderQueryExecutor {
     private final PspPayoutQueryService payoutQueryService;
     private final PspOrderResultHandler resultHandler;
     private final PspCallbackOrderResolver orderResolver;
+    private final GkSysParamsConfigService configService;
 
     public int drainPayOrders() {
         int total = 0;
@@ -70,7 +73,7 @@ public class PspOrderQueryExecutor {
         List<PayOrderEntity> orders = payOrderDao.selectList(new QueryWrapper<PayOrderEntity>()
                 .eq("status", PayOrderStatusEnum.PROCESSING.code())
                 .and(wrapper -> wrapper.ne("psp_code", Constant.SANDBOX).or().isNull("psp_code"))
-                .and(wrapper -> wrapper.lt("query_count", MAX_QUERY_COUNT).or().isNull("query_count"))
+                .and(wrapper -> wrapper.lt("query_count", maxQueryCount()).or().isNull("query_count"))
                 .and(wrapper -> wrapper.le("next_query_at", now).or().isNull("next_query_at"))
                 .orderByAsc("next_query_at", "id")
                 .last("limit " + BATCH_SIZE));
@@ -85,7 +88,7 @@ public class PspOrderQueryExecutor {
         List<PayoutOrderEntity> orders = payoutOrderDao.selectList(new QueryWrapper<PayoutOrderEntity>()
                 .eq("status", PayoutOrderStatusEnum.PROCESSING.code())
                 .and(wrapper -> wrapper.ne("psp_code", Constant.SANDBOX).or().isNull("psp_code"))
-                .and(wrapper -> wrapper.lt("query_count", MAX_QUERY_COUNT).or().isNull("query_count"))
+                .and(wrapper -> wrapper.lt("query_count", maxQueryCount()).or().isNull("query_count"))
                 .and(wrapper -> wrapper.le("next_query_at", now).or().isNull("next_query_at"))
                 .orderByAsc("next_query_at", "id")
                 .last("limit " + BATCH_SIZE));
@@ -164,11 +167,21 @@ public class PspOrderQueryExecutor {
     }
 
     private Instant nextQueryAt(int attemptNo) {
-        int index = Math.max(0, attemptNo - 1);
-        if (index >= BACKOFF_SECONDS.length) {
-            index = BACKOFF_SECONDS.length - 1;
+        List<Long> backoffSeconds = configService.pspQueryConfig().getBackoffSeconds();
+        if (backoffSeconds == null || backoffSeconds.isEmpty()) {
+            backoffSeconds = BACKOFF_SECONDS;
         }
-        return Instant.now().plusSeconds(BACKOFF_SECONDS[index]);
+        int index = Math.max(0, attemptNo - 1);
+        if (index >= backoffSeconds.size()) {
+            index = backoffSeconds.size() - 1;
+        }
+        return Instant.now().plusSeconds(Math.max(1L, backoffSeconds.get(index)));
+    }
+
+    private int maxQueryCount() {
+        PspQueryConfig config = configService.pspQueryConfig();
+        int maxQueryCount = config.getMaxQueryCount();
+        return maxQueryCount <= 0 ? MAX_QUERY_COUNT : maxQueryCount;
     }
 
     private int safeCount(Integer value) {

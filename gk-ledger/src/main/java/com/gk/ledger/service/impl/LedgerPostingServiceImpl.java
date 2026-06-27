@@ -28,6 +28,7 @@ import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.entity.LedgerHoldEntity;
 import com.gk.ledger.entity.LedgerJournalEntity;
 import com.gk.ledger.entity.MerchantWalletStatementEntity;
+import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.MerchantBalanceAdjustPostingRequest;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
@@ -547,7 +548,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                     line.account().getAllowNegative()
             );
             if (updated != 1) {
-                throw new IllegalStateException("Insufficient ledger balance: " + line.account().getAccountNo());
+                throw new InsufficientLedgerBalanceException(line.account().getAccountNo());
             }
         }
         createMerchantWalletStatements(journal, walletStatements);
@@ -603,7 +604,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                     line.account().getAllowNegative()
             );
             if (updated != 1) {
-                throw new IllegalStateException("Insufficient ledger balance: " + line.account().getAccountNo());
+                throw new InsufficientLedgerBalanceException(line.account().getAccountNo());
             }
         }
         profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "apply_balances");

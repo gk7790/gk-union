@@ -6,6 +6,7 @@ import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.log.MerchantRequestLogger;
@@ -45,6 +46,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
 
     private final OpenApiAuthCacheService openApiAuthCacheService;
     private final MerchantRequestLogger merchantRequestLogger;
+    private final GkSysParamsConfigService configService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -99,7 +101,11 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         String appId = requireParam(signParams, PARAM_APP_ID);
         String timestamp = requireParam(signParams, PARAM_TIMESTAMP);
         String nonce = getParam(signParams, PARAM_NONCE);
-        String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), SignTypeEnum.MD5.code());
+        String defaultSignType = StringUtils.defaultIfBlank(
+                configService.openApiConfig().getDefaultSignType(),
+                SignTypeEnum.HMAC_SHA256.code()
+        );
+        String signType = StringUtils.defaultIfBlank(getParam(signParams, PARAM_SIGN_TYPE), defaultSignType);
         String signature = requireParam(signParams, PARAM_SIGN);
 
         return openApiAuthCacheService.authenticate(

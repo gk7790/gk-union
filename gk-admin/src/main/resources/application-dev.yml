@@ -31,7 +31,7 @@ spring:
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 
 # 是否开启redis缓存  true开启   false关闭
@@ -43,8 +43,6 @@ gk:
   redis:
     open: true
   time-zone: Asia/Shanghai
-  feign-name: gk-member
-  feign-url: http://localhost:8080/survey
 
 logging:
   level:

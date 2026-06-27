@@ -13,8 +13,9 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.common.openapi.OpenApiAuthCacheEvictor;
+import com.gk.infra.config.model.MerchantDefaultConfig;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.merchant.config.MerchantDefaultsProperties;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
 import com.gk.merchant.enums.MerchantSettleCycleEnum;
@@ -45,7 +46,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
 
     private final MerchantAppService merchantAppService;
     private final ObjectProvider<MerchantLedgerAccountProvisioner> ledgerAccountProvisioner;
-    private final MerchantDefaultsProperties merchantDefaultsProperties;
+    private final GkSysParamsConfigService configService;
 
     @Autowired
     private OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
@@ -144,6 +145,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     }
 
     private void applyCreateDefaults(MerchantEntity entity) {
+        MerchantDefaultConfig defaults = configService.merchantDefaultConfig();
         if (entity.getStatus() == null) {
             entity.setStatus(DEFAULT_STATUS);
         }
@@ -154,13 +156,13 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setRiskStatus(MerchantRiskStatusEnum.NORMAL.code());
         }
         if (StrUtil.isBlank(entity.getTimezone())) {
-            entity.setTimezone(merchantDefaultsProperties.getTimezone());
+            entity.setTimezone(defaults.getTimezone());
         }
         if (StrUtil.isBlank(entity.getLang())) {
-            entity.setLang(merchantDefaultsProperties.getLang());
+            entity.setLang(defaults.getLang());
         }
         if (StrUtil.isBlank(entity.getCountryCode())) {
-            entity.setCountryCode(merchantDefaultsProperties.getCountryCode());
+            entity.setCountryCode(defaults.getCountryCode());
         }
         if (StrUtil.isBlank(entity.getSettleMode())) {
             entity.setSettleMode(MerchantSettleModeEnum.MANUAL.code());
@@ -169,7 +171,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
             entity.setSettleCycle(MerchantSettleCycleEnum.T1.code());
         }
         if (StrUtil.isBlank(entity.getConfigJson())) {
-            entity.setConfigJson(merchantDefaultsProperties.getConfigJson());
+            entity.setConfigJson(defaults.configJsonText());
         }
     }
 

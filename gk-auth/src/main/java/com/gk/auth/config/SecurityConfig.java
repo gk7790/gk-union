@@ -10,6 +10,7 @@ import com.gk.auth.oauth.JwtAuthenticationFilter;
 import com.gk.auth.service.JpaUserDetailsService;
 import com.gk.auth.utils.JwtUtils;
 import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -18,12 +19,11 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.*;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -40,7 +40,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -72,12 +71,9 @@ public class SecurityConfig {
      */
     @Bean
     public AuthenticationManager authenticationManager() {
-        return new ProviderManager(
-                new DaoAuthenticationProvider() {{
-                    setUserDetailsService(userDetailsService);
-                    setPasswordEncoder(passwordEncoder());
-                }}
-        );
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        return new ProviderManager(authenticationProvider);
     }
 
     /**
@@ -86,6 +82,13 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(userDetailsService);
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     /**
@@ -101,26 +104,11 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
         // 配置 JSON 登录过滤器
-        return http.authorizeHttpRequests(authorize ->authorize.requestMatchers(
-                        "/auth/**", // 认证相关端点
-                        "/internal/**", // 内部接口使用
-                        "/public/**",
-                        "/api/v1/**",
-                        "/open-api/**", // 商户Api
-                        "/psp/callback/**", // PSP回调
-                        "/tg/webhook/**", // Telegram入站Webhook(自带secret_token校验)
-                        "/static/**",
-                        "/.well-known/**", // OIDC发现端点
-                        "/favicon.ico",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/v3/api-docs/**",
-                        "/webjars/**",
-                        "/error"  // 错误端点
-                        ).permitAll().anyRequest().authenticated()
+        return http.authorizeHttpRequests(authorize -> authorize.requestMatchers(PublicEndpoints.PATTERNS)
+                        .permitAll().anyRequest().authenticated()
                 )
                 // 禁用CSRF - 前后端分离通常不需要
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 // 启用 CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // 添加 JWT 过滤器（在 JSON 登录过滤器之前）
@@ -273,38 +261,15 @@ public class SecurityConfig {
         };
     }
 
-    // ==================== 辅助方法 ====================
-
-    // 构建用户信息
-    private Map<String, Object> buildUserInfo(Authentication authentication) {
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("username", authentication.getName());
-        userInfo.put("authorities", authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList()));
-
-        if (authentication.getPrincipal() instanceof SysUser user) {
-            userInfo.put("userId", user.getId());
-            userInfo.put("email", user.getEmail());
-        }
-
-        return userInfo;
-    }
-
     // 获取错误信息
     private int getError(Exception exception) {
-        if (exception instanceof BadCredentialsException) {
-            return ErrorCode.ACCOUNT_PASSWORD_ERROR;
-        } else if (exception instanceof DisabledException) {
-            return ErrorCode.ACCOUNT_DISABLE;
-        } else if (exception instanceof LockedException) {
-            return ErrorCode.ACCOUNT_LOCK;
-        } else if (exception instanceof AccountExpiredException) {
-            return ErrorCode.ACCOUNT_DISABLE;
-        } else if (exception instanceof CredentialsExpiredException) {
-            return ErrorCode.TOKEN_INVALID;
-        } else {
-            return ErrorCode.FAILURE;
-        }
+        return switch (exception) {
+            case BadCredentialsException ignored -> ErrorCode.ACCOUNT_PASSWORD_ERROR;
+            case DisabledException ignored -> ErrorCode.ACCOUNT_DISABLE;
+            case LockedException ignored -> ErrorCode.ACCOUNT_LOCK;
+            case AccountExpiredException ignored -> ErrorCode.ACCOUNT_DISABLE;
+            case CredentialsExpiredException ignored -> ErrorCode.TOKEN_INVALID;
+            default -> ErrorCode.FAILURE;
+        };
     }
 }

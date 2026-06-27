@@ -2,6 +2,7 @@ package com.gk.payment.outbox;
 
 import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.service.MqOutboxService;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.common.task.ITask;
@@ -25,6 +26,7 @@ public class PayoutSubmitOutboxTask implements ITask {
 
     private final MqOutboxService mqOutboxService;
     private final PayoutSubmitOutboxConsumer consumer;
+    private final GkSysParamsConfigService configService;
 
     /**
      * 扫描、锁定并消费一批到outbox 事件     * <p>
@@ -80,12 +82,20 @@ public class PayoutSubmitOutboxTask implements ITask {
      * 解析 Quartz 参数中的批量大小，限制在 1 100，避免单次任务处理过多事件     */
     private int parseBatchSize(String params) {
         if (StringUtils.isBlank(params)) {
-            return DEFAULT_BATCH_SIZE;
+            return defaultBatchSize();
         }
         try {
             return Math.max(1, Math.min(100, Integer.parseInt(params.trim())));
         } catch (NumberFormatException ignored) {
-            return DEFAULT_BATCH_SIZE;
+            return defaultBatchSize();
         }
+    }
+
+    private int defaultBatchSize() {
+        int batchSize = configService.payoutSubmitConfig().getDefaultBatchSize();
+        if (batchSize <= 0) {
+            batchSize = DEFAULT_BATCH_SIZE;
+        }
+        return Math.min(100, batchSize);
     }
 }

@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.constant.Constant;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
@@ -40,6 +41,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -56,6 +58,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final PspPayDispatchService pspPayDispatchService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
+    private final GkSysParamsConfigService configService;
 
     /**
      * 创建代收订单     * <p>
@@ -288,7 +291,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             entity.setStatus(PayOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
             entity.setSubmittedAt(Instant.now());
-            // 设置下一次主动查单时间，兜底处理 PSP 回调丢失或延迟            entity.setNextQueryAt(Instant.now().plusSeconds(60));
+            entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
         }
@@ -578,6 +581,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
     private boolean differsTrimmed(String left, String right) {
         return !StringUtils.trimToEmpty(left).equals(StringUtils.trimToEmpty(right));
+    }
+
+    private long firstQueryDelaySeconds() {
+        List<Long> backoffSeconds = configService.pspQueryConfig().getBackoffSeconds();
+        if (backoffSeconds == null || backoffSeconds.isEmpty()) {
+            return 60L;
+        }
+        return Math.max(1L, backoffSeconds.getFirst());
     }
 
     /**

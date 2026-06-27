@@ -3,6 +3,8 @@ package com.gk.payment.outbox;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
@@ -47,6 +49,7 @@ public class PayoutSubmitOutboxConsumer {
     private final PspMethodDao pspMethodDao;
     private final PspCallbackUrlBuilder callbackUrlBuilder;
     private final OrderStatusLogService orderStatusLogService;
+    private final GkSysParamsConfigService configService;
 
     /**
      * 消费单条 outbox payload     * <p>
@@ -96,15 +99,15 @@ public class PayoutSubmitOutboxConsumer {
             order.setStatusReason(null);
             payoutOrderDao.updateById(order);
             recordStatusChange(order, PayoutOrderStatusEnum.CREATED.code(), order.getStatus(), "PAYOUT_FROZEN", null);
+        } catch (InsufficientLedgerBalanceException ex) {
+            markFailed(order, ApiErrorCode.INSUFFICIENT_BALANCE.getMessage(), ApiErrorCode.INSUFFICIENT_BALANCE.name());
+            throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE, ex);
         } catch (Exception ex) {
-            ApiErrorCode errorCode = StringUtils.containsIgnoreCase(ex.getMessage(), "Insufficient ledger balance")
-                    ? ApiErrorCode.INSUFFICIENT_BALANCE
-                    : ApiErrorCode.SYSTEM_ERROR;
             if (frozen) {
                 releasePayout(order);
             }
-            markFailed(order, errorCode.getMessage(), errorCode.name());
-            throw new ApiException(errorCode, ex);
+            markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
+            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
         }
     }
 
@@ -194,7 +197,7 @@ public class PayoutSubmitOutboxConsumer {
             order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
             order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
             order.setSubmittedAt(Instant.now());
-            order.setNextQueryAt(Instant.now().plusSeconds(60));
+            order.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             recordStatusChange(order, fromStatus, order.getStatus(), "PSP_SUBMIT", null);
             return;
         }
@@ -255,6 +258,11 @@ public class PayoutSubmitOutboxConsumer {
         request.setMerchantFeeAmount(order.getMerchantFeeAmount());
         request.setTotalDebitAmount(order.getTotalDebitAmount());
         return request;
+    }
+
+    private long firstQueryDelaySeconds() {
+        long seconds = configService.payoutSubmitConfig().getFirstQueryDelaySeconds();
+        return seconds <= 0 ? 60L : seconds;
     }
 
     /**

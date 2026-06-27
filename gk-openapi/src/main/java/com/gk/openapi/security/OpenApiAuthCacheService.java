@@ -5,6 +5,7 @@ import com.gk.common.openapi.OpenApiAuthCacheEvictor;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.IpPatternUtils;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
@@ -31,6 +32,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
 
     private final OpenApiAuthDao openApiAuthDao;
     private final RedisUtils redisUtils;
+    private final GkSysParamsConfigService configService;
 
     public ApiReqContext authenticate(String appId,
                                       String clientIp,
@@ -48,7 +50,8 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
         if (!StatusEnum.NORMAL.code().equals(snapshot.getAppStatus())) {
             throw new ApiException(ApiErrorCode.APP_DISABLED);
         }
-        String appSignType = StringUtils.defaultIfBlank(snapshot.getSignType(), SignTypeEnum.MD5.code());
+        String defaultSignType = StringUtils.defaultIfBlank(configService.openApiConfig().getDefaultSignType(), SignTypeEnum.HMAC_SHA256.code());
+        String appSignType = StringUtils.defaultIfBlank(snapshot.getSignType(), defaultSignType);
         if (!supportedSignType(signType) || !signType.equalsIgnoreCase(appSignType)) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
         }
@@ -66,6 +69,9 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
         }
 
         validateTimestamp(timestamp);
+        if (configService.openApiConfig().isRequireNonce() && StringUtils.isBlank(nonce)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "request parameters 'nonce' is empty");
+        }
         validateNonce(appId, nonce, snapshot.getNonceTtlSeconds());
         validateRateLimit(appId, snapshot.getRateLimitQps());
         validateSortedParamSignature(signParams, signature, snapshot.getApiSecret(), signType);

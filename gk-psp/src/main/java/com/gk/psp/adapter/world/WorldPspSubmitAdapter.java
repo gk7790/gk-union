@@ -31,14 +31,17 @@ import java.util.Map;
 public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
     // 下单需要同步拿 pay_url，超时要短而明确，避免PSP 长时间占用商户请求线程
-        private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
+    private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
     private static final int READ_TIMEOUT_MILLIS = 8_000;
     private volatile RestClient restClient;
 
     @Override
     public boolean supports(String pspCode) {
-        return StringUtils.isNotBlank(pspCode)
-                && StringUtils.containsAnyIgnoreCase(pspCode, "WORLD", "WP001");
+        if (StringUtils.isBlank(pspCode)) {
+            return false;
+        }
+        String normalized = pspCode.toUpperCase(Locale.ROOT);
+        return normalized.contains("WORLD") || normalized.contains("WP001");
     }
 
     @Override
@@ -56,10 +59,8 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
-        fillFakePayoutCreate(result, order);
-        // Temporary fake response: do not call World PSP while payout submission is under local testing.
-        // JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
-        // fillPayoutCreate(result, response, route.getPspAccountApiSecret());
+        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        fillPayoutCreate(result, response, route.getPspAccountApiSecret());
         return result;
     }
 
@@ -138,7 +139,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     private JSONObject post(String baseUrl, String path, Map<String, Object> params, String secret) {
         Map<String, Object> signed = WorldPspSignUtils.withSign(params, secret);
-        String url = StringUtils.removeEnd(StringUtils.trimToEmpty(baseUrl), "/") + path;
+        String url = baseUrl(baseUrl) + path;
         try {
             String body = restClient().post()
                     .uri(url)
@@ -184,7 +185,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private PspPayDispatchResult basePayResult(PspOrderRequest order, PspRouteResult route, String path, Map<String, Object> params) {
         PspPayDispatchResult result = new PspPayDispatchResult();
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
-        result.setRequestUrl(StringUtils.removeEnd(route.getPspBaseUrl(), "/") + path);
+        result.setRequestUrl(baseUrl(route.getPspBaseUrl()) + path);
         result.setHttpMethod("POST");
         result.setRequestHeadersJson(HEADERS_JSON);
         result.setRequestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())));
@@ -195,7 +196,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private PspPayoutDispatchResult basePayoutResult(PspOrderRequest order, PspRouteResult route, String path, Map<String, Object> params) {
         PspPayoutDispatchResult result = new PspPayoutDispatchResult();
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
-        result.setRequestUrl(StringUtils.removeEnd(route.getPspBaseUrl(), "/") + path);
+        result.setRequestUrl(baseUrl(route.getPspBaseUrl()) + path);
         result.setHttpMethod("POST");
         result.setRequestHeadersJson(HEADERS_JSON);
         result.setRequestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())));
@@ -235,7 +236,6 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         }
     }
 
-    @SuppressWarnings("unused")
     private void fillPayoutCreate(PspPayoutDispatchResult result, JSONObject response, String secret) {
         result.setResponseStatus(200);
         result.setResponseCode(response.getString("code"));
@@ -260,29 +260,6 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));
     }
 
-    private void fillFakePayoutCreate(PspPayoutDispatchResult result, PspOrderRequest order) {
-        String pspOrderNo = "MOCK_" + order.getOrderNo();
-        JSONObject data = new JSONObject();
-        data.put("merchant_order_id", order.getOrderNo());
-        data.put("system_order_id", pspOrderNo);
-        data.put("amount", amount(order.getAmount()));
-        data.put("order_status", "WAIT_PAY");
-        data.put("msg", "mock accepted");
-
-        JSONObject response = new JSONObject();
-        response.put("data", data);
-        response.put("code", 200);
-        response.put("message", "success");
-
-        result.setSuccess(true);
-        result.setResponseStatus(200);
-        result.setResponseCode("200");
-        result.setResponseMessage("success");
-        result.setRawResponseJson(response.toJSONString());
-        result.setPspOrderNo(pspOrderNo);
-        result.setRawStatus("WAIT_PAY");
-    }
-
     private PspOrderQueryResult buildQueryResult(String systemOrderNo,
                                                  String merchantOrderNo,
                                                  BigDecimal orderAmount,
@@ -299,7 +276,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                 .merchantOrderNo(merchantOrderNo)
                 .currency(currency)
                 .pspRequestNo(BizKeyUtils.genPspRequestNo())
-                .requestUrl(StringUtils.removeEnd(route.getPspBaseUrl(), "/") + path)
+                .requestUrl(baseUrl(route.getPspBaseUrl()) + path)
                 .httpMethod("POST")
                 .requestHeadersJson(HEADERS_JSON)
                 .requestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())))
@@ -329,27 +306,21 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
-        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED")) {
-            return PspCallbackUtils.STATUS_SUCCESS;
-        }
-        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED")) {
-            return PspCallbackUtils.STATUS_FAILED;
-        }
-        return PspCallbackUtils.STATUS_PROCESSING;
+        return switch (value) {
+            case "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
+            default -> PspCallbackUtils.STATUS_PROCESSING;
+        };
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
-        if (StringUtils.equalsAny(value, "PAY_SUCCESS", "SUCCESS", "COMPLETED")) {
-            return PspCallbackUtils.STATUS_SUCCESS;
-        }
-        if (StringUtils.equalsAny(value, "PAY_FAILED", "FAILED", "REJECTED")) {
-            return PspCallbackUtils.STATUS_FAILED;
-        }
-        if (StringUtils.equalsAny(value, "CANCELLED", "CANCELED")) {
-            return PspCallbackUtils.STATUS_CANCELLED;
-        }
-        return PspCallbackUtils.STATUS_PROCESSING;
+        return switch (value) {
+            case "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAY_FAILED", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
+            case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
+            default -> PspCallbackUtils.STATUS_PROCESSING;
+        };
     }
 
     private void mergeJson(Map<String, Object> target, String json) {
@@ -387,6 +358,14 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     private String amount(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private String baseUrl(String value) {
+        String url = StringUtils.trimToEmpty(value);
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url;
     }
 
     private String firstText(Map<String, Object> first, Map<String, Object> second, String... keys) {

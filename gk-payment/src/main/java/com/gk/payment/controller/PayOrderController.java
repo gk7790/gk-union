@@ -69,7 +69,7 @@ public class PayOrderController {
 
     @PostMapping("{id}/sandbox/mock-callback")
     @Operation(summary = "沙箱 mock 回调", description = "测试应用订单模拟 PSP 终态回调，并同步 POST 商户 notify_url；无论商户应答是否成功，都返回完整结果供前端展示")
-    @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
+    @PreAuthorize("hasAuthority('payment:mock-callback:resend')")
     public R<SandboxOrderResult> sandboxMockCallback(@PathVariable("id") Long id, @RequestBody DynMap params) {
         AssertUtils.isNull(id, "id");
         return R.ok(sandboxOrderService.mockPayCallback(id, params));

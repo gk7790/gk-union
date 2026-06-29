@@ -3,9 +3,13 @@ package com.gk.payment.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.PayDirectionEnum;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.dto.PayoutOrderDTO;
 import com.gk.payment.entity.PayoutOrderEntity;
@@ -27,6 +31,22 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
     private static final String MANUAL_REVIEW_REASON = "Payout order exceeded active query limit or SLA";
 
     private final OrderStatusLogService orderStatusLogService;
+
+    @Override
+    public PageData<PayoutOrderDTO> page(DynMap params) {
+        params.put("showTenantName", ReqContextHolder.isPlatform());
+        params.put("showMerchantName", !SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType()));
+        long pageNo = Math.max(params.getLong(Constant.PAGE, 1L), 1L);
+        long limit = Math.max(params.getLong(Constant.LIMIT, 10L), 1L);
+        params.put("offset", (pageNo - 1) * limit);
+        params.put("limitValue", limit);
+
+        Long total = baseDao.countPageWithName(params);
+        List<PayoutOrderDTO> list = total == null || total == 0L
+                ? List.of()
+                : baseDao.selectPageWithName(params);
+        return new PageData<>(list, total == null ? 0L : total);
+    }
 
     @Override
     public QueryWrapper<PayoutOrderEntity> getWrapper(DynMap params) {

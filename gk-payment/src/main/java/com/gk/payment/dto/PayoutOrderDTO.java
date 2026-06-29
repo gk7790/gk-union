@@ -9,9 +9,12 @@ import java.time.Instant;
 public class PayoutOrderDTO {
     private Long id;
     private Long tenantId;
+    private String tenantName;
     private Long merchantId;
+    private String merchantName;
     private String merchantNo;
     private Long merchantAppId;
+    private String merchantAppName;
     private String appId;
     private String payoutOrderNo;
     private String merchantOrderNo;

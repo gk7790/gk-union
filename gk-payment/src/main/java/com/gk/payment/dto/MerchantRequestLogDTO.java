@@ -47,7 +47,7 @@ public class MerchantRequestLogDTO {
     private String timestampValue;
     @Schema(title = "商户提交nonce")
     private String nonceValue;
-    @Schema(title = "业务类型: PAY_ORDER/PAYOUT_ORDER/BALANCE/QUERY")
+    @Schema(title = "业务类型: PAYIN_ORDER/PAYOUT_ORDER/BALANCE/QUERY")
     private String bizType;
     @Schema(title = "平台业务单号")
     private String bizNo;

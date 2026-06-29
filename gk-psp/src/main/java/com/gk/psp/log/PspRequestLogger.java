@@ -162,7 +162,7 @@ public class PspRequestLogger {
         entity.setMerchantId(order == null ? null : order.getMerchantId());
         entity.setPspId(route == null ? null : route.getPspId());
         entity.setPspCode(route == null ? null : route.getPspCode());
-        entity.setBizType(BizTypeEnum.PAY_ORDER.code());
+        entity.setBizType(BizTypeEnum.PAYIN_ORDER.code());
         entity.setBizId(order == null ? null : order.getId());
         entity.setBizNo(order == null ? null : order.getOrderNo());
         String pspRequestNo = result == null ? null : result.getPspRequestNo();
@@ -197,7 +197,7 @@ public class PspRequestLogger {
      * 当适配器没有提供原始请求体时，使用该快照作为日志请求体，至少保留订单、金额     * 币种、支付方式和 PSP 账户等关键排查信息     */
     private Map<String, Object> payRequestSnapshot(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("pay_order_no", order == null ? null : order.getOrderNo());
+        snapshot.put("payin_order_no", order == null ? null : order.getOrderNo());
         snapshot.put("merchant_order_no", order == null ? null : order.getMerchantOrderNo());
         snapshot.put("amount", order == null ? null : order.getAmount());
         snapshot.put("currency", order == null ? null : order.getCurrency());

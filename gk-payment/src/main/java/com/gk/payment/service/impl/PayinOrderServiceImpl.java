@@ -10,13 +10,13 @@ import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.payment.dao.PayOrderDao;
-import com.gk.payment.dto.PayOrderDTO;
-import com.gk.payment.entity.PayOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.dao.PayinOrderDao;
+import com.gk.payment.dto.PayinOrderDTO;
+import com.gk.payment.entity.PayinOrderEntity;
+import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.service.OrderStatusLogService;
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,14 +29,14 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEntity, PayOrderDTO> implements PayOrderService {
+public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinOrderEntity, PayinOrderDTO> implements PayinOrderService {
 
     private static final int SETTLE_DRAIN_BATCH = 50;
     private static final int EXPIRE_DRAIN_BATCH = 50;
     private static final int MANUAL_REVIEW_DRAIN_BATCH = 50;
     private static final int MAX_ACTIVE_QUERY_COUNT = 30;
     private static final long PROCESSING_SLA_SECONDS = 2 * 60 * 60;
-    private static final String PAY_ORDER_EXPIRED_REASON = "Pay order expired";
+    private static final String PAYIN_ORDER_EXPIRED_REASON = "Pay order expired";
     private static final String MANUAL_REVIEW_REASON = "Pay order exceeded active query limit or SLA";
 
     private final MerchantDao merchantDao;
@@ -44,10 +44,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     private final OrderStatusLogService orderStatusLogService;
 
     /**
-     * 代收订单成功入账后的结算入口     * <p>
-     * PSP 回调或主动查单确认代收成功后，账务先把商户净额记入待结算账户     * 本方法负责根据商户结算周期计算计划释放时间；若商户是 AUTO 模式且已到释放时间，
-     * 则继续调{@link #releaseSettle(Long)} 把待结算余额释放到商户可用余额     *
-     * @param orderId 代收订单ID
+     * 代收订单成功入账后的结算入口。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -55,8 +52,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         if (orderId == null) {
             return;
         }
-        PayOrderEntity order = baseDao.selectById(orderId);
-        if (order == null || !PayOrderStatusEnum.SUCCESS.code().equals(order.getStatus())) {
+        PayinOrderEntity order = baseDao.selectById(orderId);
+        if (order == null || !PayinOrderStatusEnum.SUCCESS.code().equals(order.getStatus())) {
             return;
         }
         if (!SettleStatusEnum.PENDING.code().equals(order.getSettleStatus())) {
@@ -69,7 +66,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         Instant paidAt = order.getPaidAt() != null ? order.getPaidAt() : Instant.now();
         Instant releaseAt = SettleStatusEnum.computeReleaseAt(merchant.getSettleCycle(), paidAt, merchant.getTimezone());
         if (order.getSettleReleaseAt() == null) {
-            PayOrderEntity patch = new PayOrderEntity();
+            PayinOrderEntity patch = new PayinOrderEntity();
             patch.setId(orderId);
             patch.setSettleReleaseAt(releaseAt);
             baseDao.updateById(patch);
@@ -81,10 +78,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 单笔释放待结算余额至商户可用余额     * <p>
-     * 适用于运营手动释放，或自动结算任务内部调用。方法会校验订单必须是代收成功且
-     * settle_status=PENDING，然后调用账务服务生SETTLE_RELEASE 凭证，最后回写订     * 的释放状态、释放时间和账务凭证号     *
-     * @param orderId 代收订单ID
+     * 单笔释放待结算余额至商户可用余额。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -92,25 +86,25 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         if (orderId == null) {
             throw new IllegalArgumentException("order id is required");
         }
-        PayOrderEntity order = baseDao.selectById(orderId);
+        PayinOrderEntity order = baseDao.selectById(orderId);
         if (order == null) {
             throw new IllegalArgumentException("Pay order not found: " + orderId);
         }
-        if (!PayOrderStatusEnum.SUCCESS.code().equals(order.getStatus())) {
-            throw new IllegalStateException("Pay order is not success: " + order.getPayOrderNo());
+        if (!PayinOrderStatusEnum.SUCCESS.code().equals(order.getStatus())) {
+            throw new IllegalStateException("Pay order is not success: " + order.getPayinOrderNo());
         }
         if (SettleStatusEnum.RELEASED.code().equals(order.getSettleStatus())) {
             return;
         }
         if (!SettleStatusEnum.PENDING.code().equals(order.getSettleStatus())) {
-            throw new IllegalStateException("Pay order settle status is not pending: " + order.getPayOrderNo());
+            throw new IllegalStateException("Pay order settle status is not pending: " + order.getPayinOrderNo());
         }
 
         PaySuccessPostingRequest request = settlePostingRequest(order);
         LedgerPostingResult postingResult = ledgerPostingService.releasePaySettle(request);
 
         Instant now = Instant.now();
-        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
                 .eq("settle_status", SettleStatusEnum.PENDING.code())
                 .set("settle_status", SettleStatusEnum.RELEASED.code())
@@ -124,7 +118,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
-                order.getPayOrderNo(),
+                order.getPayinOrderNo(),
                 SettleStatusEnum.PENDING.code(),
                 SettleStatusEnum.RELEASED.code(),
                 "SETTLE_RELEASE",
@@ -137,22 +131,20 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 扫描到期的待结算代收订单并自动释放     * <p>
-     * {@code paySettleReleaseTask} 定时任务调用。只处理订单状态为 SUCCESS     * settle_status=PENDING settle_release_at 已到期的订单；再次读取商户配置，
-     * 确认商户仍为 AUTO 结算模式后才执行释放，避免商户结算模式变更后继续自动释放     *
-     * @return 本轮成功释放的订单数     */
+     * 扫描到期的待结算代收订单并自动释放。
+     */
     @Override
     public int drainDueSettlements() {
         Instant now = Instant.now();
-        List<PayOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayOrderEntity>()
-                .eq("status", PayOrderStatusEnum.SUCCESS.code())
+        List<PayinOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayinOrderEntity>()
+                .eq("status", PayinOrderStatusEnum.SUCCESS.code())
                 .eq("settle_status", SettleStatusEnum.PENDING.code())
                 .isNotNull("settle_release_at")
                 .le("settle_release_at", now)
                 .orderByAsc("settle_release_at", "id")
                 .last("limit " + SETTLE_DRAIN_BATCH));
         int released = 0;
-        for (PayOrderEntity order : orders) {
+        for (PayinOrderEntity order : orders) {
             try {
                 MerchantEntity merchant = merchantDao.selectById(order.getMerchantId());
                 if (merchant == null || !shouldAutoRelease(merchant, order.getSettleReleaseAt())) {
@@ -161,22 +153,20 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
                 releaseSettle(order.getId());
                 released++;
             } catch (Exception ex) {
-                log.warn("Pay settle release failed, orderNo={}, err={}", order.getPayOrderNo(), ex.getMessage());
+                log.warn("Pay settle release failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
             }
         }
         return released;
     }
 
     /**
-     * 扫描超时未支付的代收订单并关闭     * <p>
-     * {@code payOrderCloseTask} 定时任务调用。只扫描 expire_at 已到期、未支付     * 未入账的 CREATED/PROCESSING 订单，并通过条件更新改为 CLOSED，避免与支付成功
-     * 回调或主动查单并发时误关闭已支付订单     *
-     * @return 本轮成功关闭的订单数     */
+     * 扫描超时未支付的代收订单并关闭。
+     */
     @Override
-    public int drainExpiredPayOrders() {
+    public int drainExpiredPayinOrders() {
         Instant now = Instant.now();
-        List<PayOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayOrderEntity>()
-                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code())
+        List<PayinOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayinOrderEntity>()
+                .in("status", PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code())
                 .isNotNull("expire_at")
                 .le("expire_at", now)
                 .isNull("paid_at")
@@ -184,34 +174,34 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
                 .orderByAsc("expire_at", "id")
                 .last("limit " + EXPIRE_DRAIN_BATCH));
         int closed = 0;
-        for (PayOrderEntity order : orders) {
+        for (PayinOrderEntity order : orders) {
             try {
-                if (closeExpiredPayOrder(order, now)) {
+                if (closeExpiredPayinOrder(order, now)) {
                     closed++;
                 }
             } catch (Exception ex) {
-                log.warn("Pay order close expired failed, orderNo={}, err={}", order.getPayOrderNo(), ex.getMessage());
+                log.warn("Pay order close expired failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
             }
         }
         return closed;
     }
 
     /**
-     * 扫描长时间处理中的代收订单并转人工处理     * <p>
-     * 触发条件与代付一致：主动查单次数达到上限，或提交 PSP 后超SLA 仍未终态     */
+     * 扫描长时间处理中的代收订单并转人工处理。
+     */
     @Override
     public int drainLongProcessingOrders() {
         Instant now = Instant.now();
         Instant slaTime = now.minusSeconds(PROCESSING_SLA_SECONDS);
-        List<PayOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayOrderEntity>()
-                .eq("status", PayOrderStatusEnum.PROCESSING.code())
+        List<PayinOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayinOrderEntity>()
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
                 .and(wrapper -> wrapper.ge("query_count", MAX_ACTIVE_QUERY_COUNT)
                         .or()
                         .isNotNull("submitted_at").le("submitted_at", slaTime))
                 .orderByAsc("submitted_at", "id")
                 .last("limit " + MANUAL_REVIEW_DRAIN_BATCH));
         int marked = 0;
-        for (PayOrderEntity order : orders) {
+        for (PayinOrderEntity order : orders) {
             if (markManualReview(order)) {
                 marked++;
             }
@@ -219,11 +209,11 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         return marked;
     }
 
-    private boolean markManualReview(PayOrderEntity order) {
-        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+    private boolean markManualReview(PayinOrderEntity order) {
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
-                .eq("status", PayOrderStatusEnum.PROCESSING.code())
-                .set("status", PayOrderStatusEnum.MANUAL_REVIEW.code())
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("status", PayinOrderStatusEnum.MANUAL_REVIEW.code())
                 .set("status_reason", MANUAL_REVIEW_REASON)
                 .set("next_query_at", null);
         if (baseDao.update(null, wrapper) == 0) {
@@ -234,9 +224,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
-                order.getPayOrderNo(),
+                order.getPayinOrderNo(),
                 order.getStatus(),
-                PayOrderStatusEnum.MANUAL_REVIEW.code(),
+                PayinOrderStatusEnum.MANUAL_REVIEW.code(),
                 "PAY_MANUAL_REVIEW",
                 MANUAL_REVIEW_REASON,
                 "SYSTEM",
@@ -248,19 +238,16 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 关闭单笔超时代收订单     * <p>
-     * 使用条件更新保证幂等和并发安全：只有订单仍处CREATED/PROCESSING 且未支付     * 才会转为 CLOSED。关闭成功后记录订单状态轨迹，方便运营追踪超时关单原因     *
-     * @param order 待关闭订     * @param now 本轮扫描时间
-     * @return 是否实际完成关闭
+     * 关闭单笔超时代收订单。
      */
-    private boolean closeExpiredPayOrder(PayOrderEntity order, Instant now) {
-        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+    private boolean closeExpiredPayinOrder(PayinOrderEntity order, Instant now) {
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
-                .in("status", PayOrderStatusEnum.CREATED.code(), PayOrderStatusEnum.PROCESSING.code())
+                .in("status", PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code())
                 .isNull("paid_at")
                 .and(item -> item.isNull("paid_amount").or().eq("paid_amount", BigDecimal.ZERO))
-                .set("status", PayOrderStatusEnum.CLOSED.code())
-                .set("status_reason", PAY_ORDER_EXPIRED_REASON)
+                .set("status", PayinOrderStatusEnum.CLOSED.code())
+                .set("status_reason", PAYIN_ORDER_EXPIRED_REASON)
                 .set("closed_at", now)
                 .set("next_query_at", null);
         if (baseDao.update(null, wrapper) == 0) {
@@ -271,11 +258,11 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
-                order.getPayOrderNo(),
+                order.getPayinOrderNo(),
                 order.getStatus(),
-                PayOrderStatusEnum.CLOSED.code(),
+                PayinOrderStatusEnum.CLOSED.code(),
                 "ORDER_EXPIRED",
-                PAY_ORDER_EXPIRED_REASON,
+                PAYIN_ORDER_EXPIRED_REASON,
                 "SYSTEM",
                 null,
                 order.getMerchantOrderNo(),
@@ -285,11 +272,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 判断订单是否可以按商户配置自动释放待结算余额     * <p>
-     * 只有商户结算模式AUTO，且计划释放时间不晚于当前时间时，才允许定时任务自动释放     *
-     * @param merchant 商户
-     * @param releaseAt 计划释放时间
-     * @return 是否允许自动释放
+     * 判断是否可以按商户配置自动释放待结算余额。
      */
     private boolean shouldAutoRelease(MerchantEntity merchant, Instant releaseAt) {
         if (!SettleStatusEnum.isAutoReleaseMode(merchant.getSettleMode())) {
@@ -299,12 +282,9 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 构建待结算释放的账务请求     * <p>
-     * releasePaySettle 需要知道商户、订单、币种、实收金额、商户手续费和待释放净额     * paidAmount 为空或为 0 时回退到订单原始金额，兼容部分 PSP 未回传实付金额的场景     *
-     * @param order 代收订单
-     * @return 账务释放请求
+     * 构建待结算释放的账务请求。
      */
-    private PaySuccessPostingRequest settlePostingRequest(PayOrderEntity order) {
+    private PaySuccessPostingRequest settlePostingRequest(PayinOrderEntity order) {
         PaySuccessPostingRequest request = new PaySuccessPostingRequest();
         request.setTenantId(order.getTenantId());
         request.setMerchantId(order.getMerchantId());
@@ -313,7 +293,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         request.setMerchantOrderNo(order.getMerchantOrderNo());
         request.setPspAccountId(order.getPspAccountId());
         request.setBizId(order.getId());
-        request.setPayOrderNo(order.getPayOrderNo());
+        request.setPayinOrderNo(order.getPayinOrderNo());
         request.setCurrency(order.getCurrency());
         request.setAmount(defaultAmount(order.getPaidAmount(), order.getAmount()));
         request.setMerchantFeeAmount(order.getMerchantFeeAmount());
@@ -322,11 +302,8 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 选择有效金额     * <p>
-     * 优先使用大于 0 的主金额；主金额为空或非正数时，使用兜底金额     *
-     * @param primary 优先金额
-     * @param fallback 兜底金额
-     * @return 最终金     */
+     * 选择有效金额。
+     */
     private BigDecimal defaultAmount(BigDecimal primary, BigDecimal fallback) {
         if (primary != null && primary.compareTo(BigDecimal.ZERO) > 0) {
             return primary;
@@ -335,21 +312,18 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
     }
 
     /**
-     * 构建后台代收订单分页查询条件     * <p>
-     * 支持按租户、商户、商户应用、PSP、订单号、商户订单号、状态、结算状态     * 国家、币种、支付方式和账务凭证号等维度过滤     *
-     * @param params 查询参数
-     * @return MyBatis-Plus 查询条件
+     * 构建后台代收订单分页查询条件。
      */
     @Override
-    public QueryWrapper<PayOrderEntity> getWrapper(DynMap params) {
-        QueryWrapper<PayOrderEntity> wrapper = new QueryWrapper<>();
+    public QueryWrapper<PayinOrderEntity> getWrapper(DynMap params) {
+        QueryWrapper<PayinOrderEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
         Long merchantId = params.getLong("merchantId", null);
         Long merchantAppId = params.getLong("merchantAppId", null);
         Long pspId = params.getLong("pspId", null);
         Long merchantFeeRuleId = params.getLong("merchantFeeRuleId", null);
         Long pspFeeRuleId = params.getLong("pspFeeRuleId", null);
-        String payOrderNo = params.getStr("payOrderNo");
+        String payinOrderNo = params.getStr("payinOrderNo");
         String merchantOrderNo = params.getStr("merchantOrderNo");
         String idempotencyKey = params.getStr("idempotencyKey");
         String requestId = params.getStr("requestId");
@@ -370,7 +344,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(merchantFeeRuleId != null, "merchant_fee_rule_id", merchantFeeRuleId);
         wrapper.eq(pspFeeRuleId != null, "psp_fee_rule_id", pspFeeRuleId);
-        wrapper.eq(StrUtil.isNotBlank(payOrderNo), "pay_order_no", payOrderNo);
+        wrapper.eq(StrUtil.isNotBlank(payinOrderNo), "payin_order_no", payinOrderNo);
         wrapper.eq(StrUtil.isNotBlank(merchantOrderNo), "merchant_order_no", merchantOrderNo);
         wrapper.eq(StrUtil.isNotBlank(idempotencyKey), "idempotency_key", idempotencyKey);
         wrapper.eq(StrUtil.isNotBlank(requestId), "request_id", requestId);

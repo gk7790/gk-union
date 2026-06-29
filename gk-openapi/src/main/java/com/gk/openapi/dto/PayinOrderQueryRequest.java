@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @OpenApiModel
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PayOrderQueryRequest {
+public class PayinOrderQueryRequest {
     /** 平台订单*/
     private String systemOrderId;
     /** 商户订单*/

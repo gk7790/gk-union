@@ -49,13 +49,13 @@ public class PaymentMethodController {
     }
 
     @GetMapping("options")
-    @Operation(summary = "支付方式缓存选项", description = "返回可用于管理后台前端缓存的支付方式配置全量列表，前端按方向、国地区、币种自行通配过滤")
+    @Operation(summary = "支付方式缓存选项", description = "返回可用于管理后台前端缓存的支付方式配置全量列表，前端按方向、国家/地区、币种自行通配过滤")
     public R<List<PaymentMethodDTO>> options(@RequestMap DynMap params) {
         return R.ok(paymentMethodService.getOptions(params));
     }
 
     @GetMapping("dict")
-    @Operation(summary = "支付方式字典", description = "按方向、国地区、币种、类型查询可用支付方")
+    @Operation(summary = "支付方式字典", description = "按方向、国家/地区、币种、类型查询可用支付方式")
     public R<List<PaymentMethodDTO>> dict(@RequestMap DynMap params) {
         return R.ok(paymentMethodService.getDict(params));
     }

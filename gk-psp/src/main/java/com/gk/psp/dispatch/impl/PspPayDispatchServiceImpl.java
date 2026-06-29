@@ -28,7 +28,7 @@ public class PspPayDispatchServiceImpl implements PspPayDispatchService {
                     .findFirst()
                     .orElseThrow(() -> new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "PSP adapter is not configured"));
 
-            PspPayDispatchResult result = adapter.createPayOrder(order, route);
+            PspPayDispatchResult result = adapter.createPayinOrder(order, route);
             pspRequestLogger.paySubmitSuccess(order, route, result, System.currentTimeMillis() - startMs);
             return result;
         } catch (RuntimeException ex) {

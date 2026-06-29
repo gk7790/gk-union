@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
-import com.gk.payment.dao.PayOrderDao;
-import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.dao.PayinOrderDao;
+import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.dao.PayoutOrderDao;
@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 @Component
 @RequiredArgsConstructor
 public class PspCallbackOrderProcessor {
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
     private final OrderStatusLogService orderStatusLogService;
 
@@ -42,16 +42,16 @@ public class PspCallbackOrderProcessor {
     public boolean process(String bizType, PspCallbackResult result, PspCallbackOrder order, LedgerPostingResult postingResult) {
         String fromStatus = order.status();
         String targetStatus = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (PayOrderStatusEnum.PROCESSING.code().equals(targetStatus)) {
+        if (PayinOrderStatusEnum.PROCESSING.code().equals(targetStatus)) {
             if (PspCallbackUtils.isFinalTerminal(fromStatus)
-                    || PayOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)
+                    || PayinOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)
                     || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(fromStatus)) {
                 return false;
             }
             // 中间态只允许 CREATED/PROCESSING 继续推进，不触发账务和商户通知终态逻辑
-                        boolean updated = update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayOrderStatusEnum.PROCESSING.code(), result, order));
+                        boolean updated = update(bizType, order.id(), wrapper -> applyCommon(wrapper, PayinOrderStatusEnum.PROCESSING.code(), result, order));
             if (updated) {
-                recordChange(bizType, order, fromStatus, PayOrderStatusEnum.PROCESSING.code(), statusEventType(bizType, PayOrderStatusEnum.PROCESSING.code()), result);
+                recordChange(bizType, order, fromStatus, PayinOrderStatusEnum.PROCESSING.code(), statusEventType(bizType, PayinOrderStatusEnum.PROCESSING.code()), result);
             }
             return updated;
         }
@@ -79,11 +79,11 @@ public class PspCallbackOrderProcessor {
         }
         String normalizedStatus = PspCallbackUtils.normalizeStatus(targetStatus);
         boolean updated = updateJournalNo(bizType, orderId, wrapper -> {
-            if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
+            if (BizTypeEnum.PAYIN_ORDER.matches(bizType)) {
                 wrapper.set("ledger_journal_no", journalNo);
-            } else if (PayOrderStatusEnum.SUCCESS.code().equals(normalizedStatus)) {
+            } else if (PayinOrderStatusEnum.SUCCESS.code().equals(normalizedStatus)) {
                 wrapper.set("success_journal_no", journalNo);
-            } else if (PayOrderStatusEnum.FAILED.code().equals(normalizedStatus)) {
+            } else if (PayinOrderStatusEnum.FAILED.code().equals(normalizedStatus)) {
                 wrapper.set("release_journal_no", journalNo);
             }
         });
@@ -100,10 +100,10 @@ public class PspCallbackOrderProcessor {
         applyCommon(wrapper, targetStatus, result, order);
         String statusReason = result.getErrorMessage();
         wrapper.set(statusReason != null, "status_reason", statusReason);
-        boolean success = PayOrderStatusEnum.SUCCESS.code().equals(targetStatus);
+        boolean success = PayinOrderStatusEnum.SUCCESS.code().equals(targetStatus);
         String journalNo = postingResult == null ? null : postingResult.getJournalNo();
         Instant now = Instant.now();
-        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType)) {
             if (success) {
                 // 代收成功后资金进入待结算账户，后续由结算释放任务转入可用余额
                                 wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
@@ -143,8 +143,8 @@ public class PspCallbackOrderProcessor {
     /**
      * 根据业务类型选择对应订单表执行状态更新     */
     private boolean update(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
-        return BizTypeEnum.PAY_ORDER.matches(bizType)
-                ? update(payOrderDao, id, setter)
+        return BizTypeEnum.PAYIN_ORDER.matches(bizType)
+                ? update(payinOrderDao, id, setter)
                 : update(payoutOrderDao, id, setter);
     }
 
@@ -155,9 +155,9 @@ public class PspCallbackOrderProcessor {
         UpdateWrapper<T> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", id)
                 .in("status",
-                        PayOrderStatusEnum.CREATED.code(),
-                        PayOrderStatusEnum.PROCESSING.code(),
-                        PayOrderStatusEnum.MANUAL_REVIEW.code(),
+                        PayinOrderStatusEnum.CREATED.code(),
+                        PayinOrderStatusEnum.PROCESSING.code(),
+                        PayinOrderStatusEnum.MANUAL_REVIEW.code(),
                         PayoutOrderStatusEnum.MANUAL_REVIEW.code());
         setter.accept(wrapper);
         return dao.update(null, wrapper) > 0;
@@ -166,8 +166,8 @@ public class PspCallbackOrderProcessor {
     /**
      * 根据业务类型选择对应订单表补写账务流水号     */
     private boolean updateJournalNo(String bizType, Long id, Consumer<UpdateWrapper<?>> setter) {
-        return BizTypeEnum.PAY_ORDER.matches(bizType)
-                ? updateJournalNo(payOrderDao, id, setter)
+        return BizTypeEnum.PAYIN_ORDER.matches(bizType)
+                ? updateJournalNo(payinOrderDao, id, setter)
                 : updateJournalNo(payoutOrderDao, id, setter);
     }
 
@@ -204,13 +204,13 @@ public class PspCallbackOrderProcessor {
     /**
      * 转换订单类型文本     */
     private String direction(String bizType) {
-        return BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAYIN" : "PAYOUT";
+        return BizTypeEnum.PAYIN_ORDER.matches(bizType) ? "PAYIN" : "PAYOUT";
     }
 
     /**
      * 生成状态变更事件类型     */
     private String statusEventType(String bizType, String status) {
-        String prefix = BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+        String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 }

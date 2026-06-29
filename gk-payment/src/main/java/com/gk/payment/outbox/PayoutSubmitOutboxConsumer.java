@@ -53,7 +53,9 @@ public class PayoutSubmitOutboxConsumer {
 
     /**
      * 消费单条 outbox payload     * <p>
-     * 方法具备业务幂等：如果订单已经进PROCESSING/SUCCESS/FAILED/CANCELLED     * 说明已提交或已终结，直接返回，让 outbox 事件可以被标记为完成     */
+     * 方法具备业务幂等：如果订单已经进入 PROCESSING/SUCCESS/FAILED/CANCELLED，
+     * 说明已提交或已终结，直接返回，让 outbox 事件可以被标记为完成。
+     */
     public void consume(String payloadJson) {
         PayoutSubmitOutboxPayload payload = JSON.parseObject(payloadJson, PayoutSubmitOutboxPayload.class);
         if (payload == null || StringUtils.isBlank(payload.payoutOrderNo())) {
@@ -83,8 +85,11 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 在提PSP 前冻结商户可用余额     * <p>
-     * 如果订单已有 holdNo，说明此前已经冻结成功，重试时不再重复冻结     * 如果冻结成功但更新订单失败，会尝试释放冻结资金，避免资金长期卡在冻结户     */
+     * 在提交 PSP 前冻结商户可用余额。
+     * <p>
+     * 如果订单已有 holdNo，说明此前已经冻结成功，重试时不再重复冻结。
+     * 如果冻结成功但更新订单失败，会尝试释放冻结资金，避免资金长期卡在冻结户。
+     */
     private void freezeIfNeeded(PayoutOrderEntity order) {
         if (StringUtils.isNotBlank(order.getHoldNo())) {
             return;
@@ -112,8 +117,10 @@ public class PayoutSubmitOutboxConsumer {
     }
 
     /**
-     * 使用订单保存的路由快照提PSP     * <p>
-     * 这里不重新解析支付方案，避免异步消费时后台配置变化导致路由、账户或费率与下单时不一致     */
+     * 使用订单保存的路由快照提交 PSP。
+     * <p>
+     * 这里不重新解析支付方案，避免异步消费时后台配置变化导致路由、账户或费率与下单时不一致。
+     */
     private void submitToPsp(PayoutOrderEntity order) {
         try {
             PspRouteResult route = routeSnapshot(order);

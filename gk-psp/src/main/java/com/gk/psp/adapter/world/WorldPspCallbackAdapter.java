@@ -49,7 +49,7 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
         return Result.success(null);
     }
 
-    private Result<PspCallbackResult> parse(PspCallbackRequest request, boolean payOrder) {
+    private Result<PspCallbackResult> parse(PspCallbackRequest request, boolean payinOrder) {
         try {
             Map<String, Object> params = request.getParams();
             String pspStatus = text(params, "order_status", "status");
@@ -61,7 +61,7 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
             result.setMerchantOrderNo(text(params, "merchant_order_no"));
             result.setPspOrderNo(text(params, "system_order_id"));
             result.setPspStatus(pspStatus);
-            result.setOrderStatus(payOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus));
+            result.setOrderStatus(payinOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus));
             result.setAmount(decimal(params, "amount"));
             result.setCurrency(text(params, "currency"));
             result.setSignature(text(params, "sign"));

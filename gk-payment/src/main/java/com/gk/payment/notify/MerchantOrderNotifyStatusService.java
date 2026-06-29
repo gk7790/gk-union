@@ -1,9 +1,9 @@
 package com.gk.payment.notify;
 
-import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.payment.enums.MerchantNotifyStatusEnum;
@@ -21,7 +21,7 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class MerchantOrderNotifyStatusService {
 
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
 
     public String initialStatus(String notifyUrl) {
@@ -71,13 +71,13 @@ public class MerchantOrderNotifyStatusService {
     }
 
     private void updateOrder(String bizType, Long orderId, String status, Instant notifyAt, Long taskId) {
-        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
-            PayOrderEntity update = new PayOrderEntity();
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType)) {
+            PayinOrderEntity update = new PayinOrderEntity();
             update.setId(orderId);
             update.setMerchantNotifyStatus(status);
             update.setMerchantNotifyAt(notifyAt);
             update.setMerchantNotifyTaskId(taskId);
-            payOrderDao.updateById(update);
+            payinOrderDao.updateById(update);
             return;
         }
         if (BizTypeEnum.PAYOUT_ORDER.matches(bizType)) {

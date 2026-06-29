@@ -13,7 +13,7 @@ import java.util.List;
 @Mapper
 public interface MerchantDashboardDao {
 
-    TenantDashboardSummaryDTO.OrderMetric selectPayOrderStats(@Param("tenantId") Long tenantId,
+    TenantDashboardSummaryDTO.OrderMetric selectPayinOrderStats(@Param("tenantId") Long tenantId,
                                                               @Param("merchantId") Long merchantId,
                                                               @Param("currency") String currency,
                                                               @Param("rangeStart") Instant rangeStart,
@@ -53,7 +53,7 @@ public interface MerchantDashboardDao {
                                                     @Param("type") String type,
                                                     @Param("limit") int limit);
 
-    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayOrders(@Param("tenantId") Long tenantId,
+    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayinOrders(@Param("tenantId") Long tenantId,
                                                                           @Param("merchantId") Long merchantId,
                                                                           @Param("currency") String currency,
                                                                           @Param("limit") int limit);

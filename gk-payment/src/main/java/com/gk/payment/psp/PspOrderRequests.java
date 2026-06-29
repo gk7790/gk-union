@@ -1,6 +1,6 @@
 package com.gk.payment.psp;
 
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.request.PspOrderRequest;
 
@@ -11,13 +11,13 @@ public final class PspOrderRequests {
     private PspOrderRequests() {
     }
 
-    public static PspOrderRequest fromPayOrder(PayOrderEntity order) {
+    public static PspOrderRequest fromPayinOrder(PayinOrderEntity order) {
         return PspOrderRequest.builder()
                 .id(order.getId())
                 .tenantId(order.getTenantId())
                 .merchantId(order.getMerchantId())
                 .merchantAppId(order.getMerchantAppId())
-                .orderNo(order.getPayOrderNo())
+                .orderNo(order.getPayinOrderNo())
                 .merchantOrderNo(order.getMerchantOrderNo())
                 .countryCode(order.getCountryCode())
                 .currency(order.getCurrency())

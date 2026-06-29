@@ -23,13 +23,13 @@ public class PspPayQueryServiceImpl implements PspPayQueryService {
     @Override
     public PspOrderQueryResult query(PspOrderRequest order) {
         long startMs = System.currentTimeMillis();
-        PspRouteResult route = routeSnapshot.fromPayOrder(order);
+        PspRouteResult route = routeSnapshot.fromPayinOrder(order);
         try {
             PspPayAdapter adapter = adapters.stream()
                     .filter(item -> item.supports(route.getPspCode()))
                     .findFirst()
                     .orElseThrow(() -> new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "PSP pay query adapter is not configured"));
-            PspOrderQueryResult result = adapter.queryPayOrder(order, route);
+            PspOrderQueryResult result = adapter.queryPayinOrder(order, route);
             if (result == null) {
                 throw new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "PSP pay query result is empty");
             }

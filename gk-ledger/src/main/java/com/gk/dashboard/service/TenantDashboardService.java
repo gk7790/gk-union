@@ -55,7 +55,7 @@ public class TenantDashboardService {
         RangeWindow window = resolveRange(range, tenant.getTimezone(), compare);
 
         TenantDashboardSummaryDTO.OrderMetric payIn = normalizeOrderMetric(
-                tenantDashboardDao.selectPayOrderStats(tenantId, resolvedCurrency, window.start, window.end),
+                tenantDashboardDao.selectPayinOrderStats(tenantId, resolvedCurrency, window.start, window.end),
                 true);
         TenantDashboardSummaryDTO.OrderMetric payOut = normalizeOrderMetric(
                 tenantDashboardDao.selectPayoutOrderStats(tenantId, resolvedCurrency, window.start, window.end),
@@ -67,7 +67,7 @@ public class TenantDashboardService {
         summary.setPayOut(payOut);
         if (compare) {
             TenantDashboardSummaryDTO.OrderMetric payInPrev = normalizeOrderMetric(
-                    tenantDashboardDao.selectPayOrderStats(tenantId, resolvedCurrency, window.compareStart, window.compareEnd),
+                    tenantDashboardDao.selectPayinOrderStats(tenantId, resolvedCurrency, window.compareStart, window.compareEnd),
                     true);
             TenantDashboardSummaryDTO.OrderMetric payOutPrev = normalizeOrderMetric(
                     tenantDashboardDao.selectPayoutOrderStats(tenantId, resolvedCurrency, window.compareStart, window.compareEnd),
@@ -185,7 +185,7 @@ public class TenantDashboardService {
         String resolvedCurrency = resolveCurrency(currency, tenant.getCurrency());
         int resolvedLimit = Math.min(Math.max(limit, 1), RECENT_ORDER_LIMIT_MAX);
         List<TenantDashboardRecentOrderDTO.RecentOrder> items = "PAY".equals(resolvedBizType)
-                ? tenantDashboardDao.selectRecentPayOrders(tenantId, resolvedCurrency, resolvedLimit)
+                ? tenantDashboardDao.selectRecentPayinOrders(tenantId, resolvedCurrency, resolvedLimit)
                 : tenantDashboardDao.selectRecentPayoutOrders(tenantId, resolvedCurrency, resolvedLimit);
         if (items == null) {
             items = List.of();

@@ -17,7 +17,7 @@ class PspOrderRouteSnapshot {
     private final PspProviderDao pspProviderDao;
     private final PspAccountDao pspAccountDao;
 
-    PspRouteResult fromPayOrder(PspOrderRequest order) {
+    PspRouteResult fromPayinOrder(PspOrderRequest order) {
         PspRouteResult route = base(order.getPspId(), order.getPspAccountId());
         route.setRouteRuleId(order.getRouteRuleId());
         route.setPspCode(order.getPspCode());

@@ -42,7 +42,7 @@ public class PspPayDispatchResult {
     private String pspOrderNo;
 
     /**
-     * Platform order number echoed by the PSP. Usually validated against pay_order_no.
+     * Platform order number echoed by the PSP. Usually validated against payin_order_no.
      */
     private String pspMerchantOrderNo;
 

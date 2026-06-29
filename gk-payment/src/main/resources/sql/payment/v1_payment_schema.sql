@@ -19,17 +19,17 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 
 -- ----------------------------
--- Table structure for pay_order
+-- Table structure for payin_order
 -- ----------------------------
-DROP TABLE IF EXISTS `pay_order`;
-CREATE TABLE `pay_order`  (
+DROP TABLE IF EXISTS `payin_order`;
+CREATE TABLE `payin_order`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `merchant_id` bigint NOT NULL COMMENT '平台商户ID',
   `merchant_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台商户号快照',
   `merchant_app_id` bigint NOT NULL COMMENT '商户应用ID',
   `app_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户应用ID快照',
-  `pay_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台代收订单号',
+  `payin_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台代收订单号',
   `merchant_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户订单号',
   `idempotency_key` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '商户请求幂等键',
   `request_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '请求ID/链路请求号',
@@ -98,23 +98,23 @@ CREATE TABLE `pay_order`  (
   `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_pay_order_no`(`tenant_id` ASC, `pay_order_no` ASC) USING BTREE,
+  UNIQUE INDEX `uk_payin_order_no`(`tenant_id` ASC, `payin_order_no` ASC) USING BTREE,
   UNIQUE INDEX `uk_pay_merchant_order`(`tenant_id` ASC, `merchant_id` ASC, `merchant_order_no` ASC) USING BTREE,
   UNIQUE INDEX `uk_pay_idempotency`(`tenant_id` ASC, `merchant_id` ASC, `idempotency_key` ASC) USING BTREE,
-  INDEX `idx_pay_order_status`(`tenant_id` ASC, `status` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_query`(`tenant_id` ASC, `status` ASC, `next_query_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_expire`(`tenant_id` ASC, `status` ASC, `expire_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_settle`(`tenant_id` ASC, `settle_status` ASC, `paid_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_settle_release`(`tenant_id` ASC, `settle_status` ASC, `settle_release_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_merchant`(`tenant_id` ASC, `merchant_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_psp`(`psp_id` ASC, `psp_order_no` ASC) USING BTREE,
-  INDEX `idx_pay_order_payment_plan`(`tenant_id` ASC, `payment_plan_catalog_id` ASC, `payment_plan_version` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_route_source`(`tenant_id` ASC, `route_group_id` ASC, `route_channel_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_psp_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE,
-  INDEX `idx_pay_order_merchant_fee_rule`(`tenant_id` ASC, `merchant_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
-  INDEX `idx_pay_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE,
-  INDEX `idx_pay_order_merchant_notify`(`tenant_id` ASC, `merchant_notify_status` ASC, `created_at` ASC) USING BTREE
+  INDEX `idx_payin_order_status`(`tenant_id` ASC, `status` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_query`(`tenant_id` ASC, `status` ASC, `next_query_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_expire`(`tenant_id` ASC, `status` ASC, `expire_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_settle`(`tenant_id` ASC, `settle_status` ASC, `paid_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_settle_release`(`tenant_id` ASC, `settle_status` ASC, `settle_release_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_merchant`(`tenant_id` ASC, `merchant_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_psp`(`psp_id` ASC, `psp_order_no` ASC) USING BTREE,
+  INDEX `idx_payin_order_payment_plan`(`tenant_id` ASC, `payment_plan_catalog_id` ASC, `payment_plan_version` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_route_source`(`tenant_id` ASC, `route_group_id` ASC, `route_channel_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_psp_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE,
+  INDEX `idx_payin_order_merchant_fee_rule`(`tenant_id` ASC, `merchant_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_psp_fee_rule`(`tenant_id` ASC, `psp_fee_rule_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payin_order_method`(`tenant_id` ASC, `country_code` ASC, `currency` ASC, `method_code` ASC) USING BTREE,
+  INDEX `idx_payin_order_merchant_notify`(`tenant_id` ASC, `merchant_notify_status` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2064284667210047491 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代收订单' ROW_FORMAT = Dynamic;
 
 -- ----------------------------

@@ -163,7 +163,7 @@ CREATE TABLE `ledger_journal`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `journal_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '凭证号',
-  `biz_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务类型: PAY_ORDER/PAYOUT_ORDER/SETTLE_BATCH/RECON_ADJUST等',
+  `biz_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务类型: PAYIN_ORDER/PAYOUT_ORDER/SETTLE_BATCH/RECON_ADJUST等',
   `biz_id` bigint NULL DEFAULT NULL COMMENT '业务ID',
   `biz_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务编号',
   `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务事件: PAY_SUCCESS/PAYOUT_FREEZE/PAYOUT_SUCCESS/PAYOUT_FAILED等',

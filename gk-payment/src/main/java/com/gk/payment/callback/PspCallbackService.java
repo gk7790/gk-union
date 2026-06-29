@@ -9,8 +9,8 @@ import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
-import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.enums.PayinOrderStatusEnum;
+import com.gk.payment.service.PayinOrderService;
 import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.PspCallbackException;
 import com.gk.psp.callback.adapter.PspCallbackAdapter;
@@ -69,7 +69,7 @@ public class PspCallbackService {
     private final PspCallbackNotifyCreator notifyCreator;
     private final LedgerPostingService ledgerPostingService;
     private final PspCallbackValidator callbackValidator;
-    private final PayOrderService payOrderService;
+    private final PayinOrderService payinOrderService;
     private final PspCallbackIpWhitelistService pspCallbackIpWhitelistService;
     private final PspCallbackAckMapper ackMapper;
     private final PspAccountDao pspAccountDao;
@@ -85,7 +85,7 @@ public class PspCallbackService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PspCallbackResponse handlePayCallback(String pspAccountNo, HttpServletRequest request, String rawBody) {
-        return handle(pspAccountNo, BizTypeEnum.PAY_ORDER.code(), request, rawBody);
+        return handle(pspAccountNo, BizTypeEnum.PAYIN_ORDER.code(), request, rawBody);
     }
 
     /**
@@ -200,7 +200,7 @@ public class PspCallbackService {
             return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
 
-        Result<PspCallbackResult> parsed = BizTypeEnum.PAY_ORDER.matches(context.getBizType())
+        Result<PspCallbackResult> parsed = BizTypeEnum.PAYIN_ORDER.matches(context.getBizType())
                 ? adapter.parsePayCallback(request)
                 : adapter.parsePayoutCallback(request);
         if (parsed.isFail()) {
@@ -284,9 +284,9 @@ public class PspCallbackService {
                         context.getResult().getOrderStatus(),
                         postingResult
                 );
-                if (BizTypeEnum.PAY_ORDER.matches(context.getBizType())
-                        && PayOrderStatusEnum.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(context.getResult().getOrderStatus()))) {
-                    payOrderService.onPaySuccessPosted(context.getOrder().id());
+                if (BizTypeEnum.PAYIN_ORDER.matches(context.getBizType())
+                        && PayinOrderStatusEnum.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(context.getResult().getOrderStatus()))) {
+                    payinOrderService.onPaySuccessPosted(context.getOrder().id());
                 }
                 notifyCreator.create(context.getBizType(), context.getResult(), context.getOrder(), context.getLog());
             }
@@ -417,7 +417,7 @@ public class PspCallbackService {
      */
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (BizTypeEnum.PAY_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
         if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
@@ -441,7 +441,7 @@ public class PspCallbackService {
         request.setMerchantOrderNo(order.merchantOrderNo());
         request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
-        request.setPayOrderNo(order.orderNo());
+        request.setPayinOrderNo(order.orderNo());
         request.setCurrency(order.currency());
         request.setAmount(PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()));
         request.setMerchantFeeAmount(order.merchantFeeAmount());

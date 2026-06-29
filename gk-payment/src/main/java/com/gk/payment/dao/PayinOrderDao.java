@@ -1,18 +1,18 @@
 package com.gk.payment.dao;
 
 import com.gk.common.core.dao.BaseDao;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-public interface PayOrderDao extends BaseDao<PayOrderEntity> {
+public interface PayinOrderDao extends BaseDao<PayinOrderEntity> {
 
-    PayOrderEntity selectOpenApiByMerchantOrderNo(@Param("tenantId") Long tenantId,
+    PayinOrderEntity selectOpenApiByMerchantOrderNo(@Param("tenantId") Long tenantId,
                                                   @Param("merchantId") Long merchantId,
                                                   @Param("merchantOrderNo") String merchantOrderNo);
 
-    PayOrderEntity selectOpenApiByPayOrderNo(@Param("tenantId") Long tenantId,
+    PayinOrderEntity selectOpenApiByPayinOrderNo(@Param("tenantId") Long tenantId,
                                              @Param("merchantId") Long merchantId,
-                                             @Param("payOrderNo") String payOrderNo);
+                                             @Param("payinOrderNo") String payinOrderNo);
 }

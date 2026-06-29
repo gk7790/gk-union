@@ -61,7 +61,7 @@ CREATE TABLE `mq_outbox`  (
   `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件类型: PAY_SUCCESS/PAYOUT_FAILED/LEDGER_POSTED等',
   `event_version` int NOT NULL DEFAULT 1 COMMENT '事件版本',
   `source_service` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '事件来源模块: gk-ledger/gk-notify/gk-admin等',
-  `aggregate_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '聚合类型: PAY_ORDER/PAYOUT_ORDER/LEDGER_JOURNAL/SETTLE_BATCH等',
+  `aggregate_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '聚合类型: PAYIN_ORDER/PAYOUT_ORDER/LEDGER_JOURNAL/SETTLE_BATCH等',
   `aggregate_id` bigint NULL DEFAULT NULL COMMENT '聚合ID',
   `aggregate_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '聚合编号/业务编号',
   `biz_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务类型',

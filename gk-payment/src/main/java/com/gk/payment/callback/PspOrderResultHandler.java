@@ -5,7 +5,7 @@ import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackUtils;
@@ -23,7 +23,7 @@ public class PspOrderResultHandler {
     private final PspCallbackValidator callbackValidator;
     private final LedgerPostingService ledgerPostingService;
     private final PspCallbackNotifyCreator notifyCreator;
-    private final PayOrderService payOrderService;
+    private final PayinOrderService payinOrderService;
 
     @Transactional(rollbackFor = Exception.class)
     public boolean handle(String bizType, PspCallbackOrder order, PspOrderQueryResult queryResult) {
@@ -36,9 +36,9 @@ public class PspOrderResultHandler {
         if (orderChanged && terminal) {
             LedgerPostingResult postingResult = postLedger(bizType, result, order);
             orderProcessor.attachPostingResult(bizType, order.id(), result.getOrderStatus(), postingResult);
-            if (BizTypeEnum.PAY_ORDER.matches(bizType)
+            if (BizTypeEnum.PAYIN_ORDER.matches(bizType)
                     && PspCallbackUtils.STATUS_SUCCESS.equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
-                payOrderService.onPaySuccessPosted(order.id());
+                payinOrderService.onPaySuccessPosted(order.id());
             }
             notifyCreator.create(bizType, result, order, null);
         }
@@ -47,7 +47,7 @@ public class PspOrderResultHandler {
 
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (BizTypeEnum.PAY_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
         if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
@@ -68,7 +68,7 @@ public class PspOrderResultHandler {
         request.setMerchantOrderNo(order.merchantOrderNo());
         request.setPspAccountId(order.pspAccountId());
         request.setBizId(order.id());
-        request.setPayOrderNo(order.orderNo());
+        request.setPayinOrderNo(order.orderNo());
         request.setCurrency(order.currency());
         request.setAmount(PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()));
         request.setMerchantFeeAmount(order.merchantFeeAmount());

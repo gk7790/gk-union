@@ -9,18 +9,18 @@ import com.gk.infra.utils.AsynUtils;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
-import com.gk.openapi.dto.PayOrderCreateRequest;
-import com.gk.openapi.dto.PayOrderResponse;
+import com.gk.openapi.dto.PayinOrderCreateRequest;
+import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
-import com.gk.openapi.service.OpenPayOrderService;
+import com.gk.openapi.service.OpenPayinOrderService;
 import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.common.enums.OrderSourceEnum;
-import com.gk.payment.enums.PayOrderStatusEnum;
-import com.gk.payment.dao.PayOrderDao;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.enums.PayinOrderStatusEnum;
+import com.gk.payment.dao.PayinOrderDao;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.plan.PayinPlan;
@@ -46,13 +46,17 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * 商户 OpenAPI 代收订单服务实现 * <p>
- * 本类负责商户代收下单和查单的应用层编排：校验请求、处理商户订单号幂等 * 计算商户手续费、选择 PSP 路由、提PSP 下单，并把订单状态变化写入状态日志 * 真正PSP 协议差异{@link PspPayDispatchService} PSP adapter 承接 */
+ * 商户 OpenAPI 代收订单服务实现。
+ * <p>
+ * 本类负责商户代收下单和查单的应用层编排：校验请求、处理商户订单号幂等、
+ * 计算商户手续费、选择 PSP 路由、提交 PSP 下单，并把订单状态变化写入状态日志。
+ * 真正的 PSP 协议差异由 {@link PspPayDispatchService} 和 PSP adapter 承接。
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class OpenPayOrderServiceImpl implements OpenPayOrderService {
-    private final PayOrderDao payOrderDao;
+public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
+    private final PayinOrderDao payinOrderDao;
     private final MerchantFeeRuleService merchantFeeRuleService;
     private final PayinPlanService payinPlanService;
     private final PspPayDispatchService pspPayDispatchService;
@@ -61,17 +65,19 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     private final GkSysParamsConfigService configService;
 
     /**
-     * 创建代收订单     * <p>
-     * 主流程：检查幂-> 校验金额和商户应用权-> 组装平台订单 -> 计算商户手续->
-     * 落库 -> 提交 PSP -> 返回支付链接和订单状态     */
+     * 创建代收订单。
+     * <p>
+     * 主流程：检查幂等 -> 校验金额和商户应用权限 -> 组装平台订单 -> 计算费用和路由 ->
+     * 落库 -> 提交 PSP -> 返回支付链接和订单状态。
+     */
     @Override
-    public PayOrderResponse create(PayOrderCreateRequest request) {
+    public PayinOrderResponse create(PayinOrderCreateRequest request) {
         if (request == null) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST);
         }
         PayCreateStepTimer timer = PayCreateStepTimer.start(request.getMerchantOrderId());
         // 先按商户订单号查重，保证商户重复请求时能按幂等规则返回同一笔平台订单
-                PayOrderEntity existed = findByMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        PayinOrderEntity existed = findByMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         timer.mark("idempotency_check");
 
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
@@ -98,19 +104,19 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             // 同一商户订单号再次请求时，核心请求参数必须一致，否则按重复请求冲突处理
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
             timer.mark("return_idempotent_order");
-            PayOrderResponse response = toResponse(existed);
+            PayinOrderResponse response = toResponse(existed);
             timer.log("SUCCESS", existed);
             return response;
         }
 
         // 生成平台代收订单，订单号、租户、商户、应用等信息均来自认证上下文和平台规则
-        PayOrderEntity entity = new PayOrderEntity();
+        PayinOrderEntity entity = new PayinOrderEntity();
         entity.setTenantId(context.getTenantId());
         entity.setMerchantId(context.getMerchantId());
         entity.setMerchantNo(context.getMerchantNo());
         entity.setMerchantAppId(context.getMerchantAppId());
         entity.setAppId(context.getAppId());
-        entity.setPayOrderNo(BizKeyUtils.genPayOrderNo());
+        entity.setPayinOrderNo(BizKeyUtils.genPayinOrderNo());
         entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
         entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
         entity.setOrderSource(OrderSourceEnum.API.code());
@@ -127,7 +133,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setNotifyUrl(request.getNotifyUrl());
         entity.setReturnUrl(request.getReturnUrl());
         entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
-        entity.setStatus(PayOrderStatusEnum.CREATED.code());
+        entity.setStatus(PayinOrderStatusEnum.CREATED.code());
         entity.setSettleStatus(SettleStatusEnum.PENDING.code());
         entity.setQueryCount(0);
         entity.setExtraJson(toJson(request.getExtra()));
@@ -137,35 +143,35 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         PayinPlan payinPlan = null;
         if (isTestApp(context.getMerchantApp())) {
             applyMerchantFee(entity);
-            // 测试 App 不请求真PSP，只计算商户侧费率并走沙箱成功流程            applyMerchantFee(entity);
+            // 测试 App 不请求真实 PSP，只计算商户侧费率并走沙箱流程
             timer.mark("resolve_payment_plan");
             timer.mark("apply_payment_plan");
         } else {
             payinPlan = payinPlanService.resolve(entity);
-            // 正式 App 先解析完PayinPlan，确保商户费率、PSP 路由、PSP 成本费率都已准备好            payinPlan = payinPlanService.resolve(entity);
+            // 正式 App 先解析完 PayinPlan，确保商户费率、PSP 路由、PSP 成本费率都已准备好
             timer.mark("resolve_payment_plan");
             applyPayinPlan(entity, payinPlan);
-            // 解析结果立即写入订单快照，后续即使配置变化，也不影响这笔订单的审计口径            applyPayinPlan(entity, payinPlan);
+            // 解析结果立即写入订单快照，后续即使配置变化，也不影响这笔订单的审计口径
             timer.mark("apply_payment_plan");
         }
 
-        // 先落平台订单再请PSP，避PSP 已受理但平台没有订单记录
-                boolean created = insertOrder(entity);
+        // 先落平台订单再请求 PSP，避免 PSP 已受理但平台没有订单记录
+        boolean created = insertOrder(entity);
         timer.mark("insert_order");
         if (!created) {
-            PayOrderResponse response = toResponse(entity);
+            PayinOrderResponse response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
         if (isTestApp(context.getMerchantApp())) {
             submitToSandbox(entity);
             timer.mark("submit_sandbox");
-            PayOrderResponse response = toResponse(entity);
+            PayinOrderResponse response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
-        // 提交上游 PSP 成功后，订单进入 PROCESSING，等PSP 回调或查单补偿推进终态
-                try {
+        // 提交上游 PSP 成功后，订单进入 PROCESSING，等待 PSP 回调或查单补偿推进终态
+        try {
             submitToPsp(entity, payinPlan);
             timer.mark("submit_psp");
         } catch (ApiException ex) {
@@ -177,21 +183,23 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             timer.log("FAILED:" + ex.getClass().getSimpleName(), entity);
             throw ex;
         }
-        PayOrderResponse response = toResponse(entity);
+        PayinOrderResponse response = toResponse(entity);
         timer.log("SUCCESS", entity);
         return response;
     }
 
     /**
-     * 插入代收订单并记录创建状态日志     * <p>
-     * 如果并发请求触发唯一键冲突，会重新查询已有订单并按幂等规则复用     */
-    private boolean insertOrder(PayOrderEntity entity) {
+     * 插入代收订单并记录创建状态日志。
+     * <p>
+     * 如果并发请求触发唯一键冲突，会重新查询已有订单并按幂等规则复用。
+     */
+    private boolean insertOrder(PayinOrderEntity entity) {
         try {
-            payOrderDao.insert(entity);
+            payinOrderDao.insert(entity);
             recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", null, "MERCHANT");
             return true;
         } catch (DuplicateKeyException ex) {
-            PayOrderEntity existed = findByMerchantOrderNo(entity.getMerchantOrderNo());
+            PayinOrderEntity existed = findByMerchantOrderNo(entity.getMerchantOrderNo());
             if (existed != null) {
                 validateIdempotentEntity(existed, entity);
                 copyOrder(existed, entity);
@@ -202,32 +210,35 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 提交代收订单PSP     * <p>
-     * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新     * 出现异常时会把订单标记为 FAILED，并继续向上抛出 OpenAPI 错误     *
+     * 提交代收订单到 PSP。
+     * <p>
+     * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新。
+     * 出现异常时会把订单标记为 FAILED，并继续向上抛出 OpenAPI 错误。
+     *
      * @param order 订单
      */
-    private void submitToPsp(PayOrderEntity order, PayinPlan payinPlan) {
+    private void submitToPsp(PayinOrderEntity order, PayinPlan payinPlan) {
         try {
             if (payinPlan == null || payinPlan.getRoute() == null) {
                 throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payin plan is not resolved");
             }
             // PSP 提交必须使用下单前已经解析并落库的路由，避免落单后再次选路由导致订单快照不一致
-                        PspRouteResult route = payinPlan.getRoute();
+            PspRouteResult route = payinPlan.getRoute();
 
-            // 调用 PSP 分发服务，真正的 HTTP 协议由具PSP adapter 处理
-                        PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(PspOrderRequests.fromPayOrder(order), route);
+            // 调用 PSP 分发服务，真正的 HTTP 协议由具体 PSP adapter 处理
+            PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(PspOrderRequests.fromPayinOrder(order), route);
 
             applyDispatchResult(order, dispatchResult);
 
-            payOrderDao.updateById(order);
+            payinOrderDao.updateById(order);
         } catch (ApiException ex) {
             if (order != null) {
                 markFailed(order, ex.getMessage());
             }
             throw ex;
         } catch (Exception ex) {
-            log.error("OpenAPI pay submit failed, payOrderNo={}, merchantOrderNo={}",
-                    order == null ? null : order.getPayOrderNo(),
+            log.error("OpenAPI pay submit failed, payinOrderNo={}, merchantOrderNo={}",
+                    order == null ? null : order.getPayinOrderNo(),
                     order == null ? null : order.getMerchantOrderNo(),
                     ex);
             if (order != null) {
@@ -237,17 +248,17 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         }
     }
 
-    private void submitToSandbox(PayOrderEntity order) {
+    private void submitToSandbox(PayinOrderEntity order) {
         String fromStatus = order.getStatus();
         order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         order.setPspCode(Constant.SANDBOX);
-        order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayOrderNo());
+        order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayinOrderNo());
         order.setPspPayUrl(null);
-        order.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
-        order.setPspRawStatus(PayOrderStatusEnum.PROCESSING.code());
-        order.setStatus(PayOrderStatusEnum.PROCESSING.code());
+        order.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setPspRawStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setNextQueryAt(null);
-        payOrderDao.updateById(order);
+        payinOrderDao.updateById(order);
         recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
     }
 
@@ -256,12 +267,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 保存 PSP 路由结果到订单     * <p>
-     * 后续 PSP 回调、主动查单和问题排查都依赖这PSP 标识和账户信息     *
+     * 保存 PSP 路由结果到订单。
+     * <p>
+     * 后续 PSP 回调、主动查单和问题排查都依赖这些 PSP 标识和账户信息。
+     *
      * @param entity 订单
      * @param route 路由
      */
-    private void applyRoute(PayOrderEntity entity, PspRouteResult route) {
+    private void applyRoute(PayinOrderEntity entity, PspRouteResult route) {
         entity.setRouteRuleId(route.getRouteRuleId());
         entity.setRouteGroupId(route.getRouteGroupId());
         entity.setRouteChannelId(route.getRouteChannelId());
@@ -275,12 +288,15 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 应用 PSP 下单返回结果     * <p>
-     * 适配器返回成功表PSP 已受理，订单进入 PROCESSING     * 适配器返回失败表PSP 明确拒绝，订单直接置FAILED     *
+     * 应用 PSP 下单返回结果。
+     * <p>
+     * 适配器返回成功表示 PSP 已受理，订单进入 PROCESSING。
+     * 适配器返回失败表示 PSP 明确拒绝，订单直接置 FAILED。
+     *
      * @param entity 订单
      * @param result 请求结果
      */
-    private void applyDispatchResult(PayOrderEntity entity, PspPayDispatchResult result) {
+    private void applyDispatchResult(PayinOrderEntity entity, PspPayDispatchResult result) {
         String fromStatus = entity.getStatus();
         entity.setPspRequestNo(result.getPspRequestNo());
         entity.setPspOrderNo(result.getPspOrderNo());
@@ -288,15 +304,15 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         entity.setPspPayParamsJson(result.getPayParamsJson());
         entity.setPspRawStatus(result.getRawStatus());
         if (result.isSuccess()) {
-            entity.setStatus(PayOrderStatusEnum.PROCESSING.code());
-            entity.setPspStatus(PayOrderStatusEnum.PROCESSING.code());
+            entity.setStatus(PayinOrderStatusEnum.PROCESSING.code());
+            entity.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
             entity.setSubmittedAt(Instant.now());
             entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
             return;
         }
-        entity.setStatus(PayOrderStatusEnum.FAILED.code());
-        entity.setPspStatus(PayOrderStatusEnum.FAILED.code());
+        entity.setStatus(PayinOrderStatusEnum.FAILED.code());
+        entity.setPspStatus(PayinOrderStatusEnum.FAILED.code());
         String reason = StringUtils.defaultIfBlank(
                 result.getErrorMessage(),
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
@@ -310,29 +326,29 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * @param entity 订单
      * @param reason 失败原因
      */
-    private void markFailed(PayOrderEntity entity, String reason) {
+    private void markFailed(PayinOrderEntity entity, String reason) {
         String fromStatus = entity.getStatus();
-        entity.setStatus(PayOrderStatusEnum.FAILED.code());
+        entity.setStatus(PayinOrderStatusEnum.FAILED.code());
         String message = StringUtils.defaultIfBlank(reason, "Pay order failed");
         entity.setStatusReason(message);
-        payOrderDao.updateById(entity);
+        payinOrderDao.updateById(entity);
         recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
     }
 
     /**
      * 记录代收订单状态变更     */
-    private void recordStatusChange(PayOrderEntity entity,
+    private void recordStatusChange(PayinOrderEntity entity,
                                     String fromStatus,
                                     String toStatus,
                                     String eventType,
                                     String reason,
                                     String operatorType) {
         AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
-                    "PAY",
+                    "PAYIN",
                     entity.getTenantId(),
                     entity.getMerchantId(),
                     entity.getId(),
-                    entity.getPayOrderNo(),
+                    entity.getPayinOrderNo(),
                     fromStatus,
                     toStatus,
                     eventType,
@@ -376,18 +392,18 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
             lastNanos = now;
         }
 
-        private void log(String result, PayOrderEntity order) {
+        private void log(String result, PayinOrderEntity order) {
             long totalMs = toMillis(System.nanoTime() - startNanos);
             ApiReqContext context = ApiReqContextHolder.get();
             log.info(
-                    "OpenAPI pay create profile result={}, traceId={}, tenantId={}, merchantId={}, appId={}, merchantOrderNo={}, payOrderNo={}, status={}, total={}ms, steps=[{}]",
+                    "OpenAPI pay create profile result={}, traceId={}, tenantId={}, merchantId={}, appId={}, merchantOrderNo={}, payinOrderNo={}, status={}, total={}ms, steps=[{}]",
                     result,
                     context == null ? null : context.getTraceId(),
                     context == null ? null : context.getTenantId(),
                     context == null ? null : context.getMerchantId(),
                     context == null ? null : context.getAppId(),
                     order == null ? merchantOrderNo : StringUtils.defaultIfBlank(order.getMerchantOrderNo(), merchantOrderNo),
-                    order == null ? null : order.getPayOrderNo(),
+                    order == null ? null : order.getPayinOrderNo(),
                     order == null ? null : order.getStatus(),
                     totalMs,
                     steps
@@ -400,7 +416,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 将扩Map 转成 JSON     */
+     * 将扩展 Map 转成 JSON。
+     */
     private String toJson(Map<String, Object> value) {
         if (value == null || value.isEmpty()) {
             return null;
@@ -415,14 +432,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     /**
      * 把已有订单字段复制到当前对象     * <p>
      * 用于并发幂等场景，调用方可继续用当前对象生成统一响应     */
-    private void copyOrder(PayOrderEntity source, PayOrderEntity target) {
+    private void copyOrder(PayinOrderEntity source, PayinOrderEntity target) {
         target.setId(source.getId());
         target.setTenantId(source.getTenantId());
         target.setMerchantId(source.getMerchantId());
         target.setMerchantNo(source.getMerchantNo());
         target.setMerchantAppId(source.getMerchantAppId());
         target.setAppId(source.getAppId());
-        target.setPayOrderNo(source.getPayOrderNo());
+        target.setPayinOrderNo(source.getPayinOrderNo());
         target.setMerchantOrderNo(source.getMerchantOrderNo());
         target.setStatus(source.getStatus());
         target.setStatusReason(source.getStatusReason());
@@ -453,11 +470,11 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     /**
      * 按平台代收订单号查询订单     */
     @Override
-    public PayOrderResponse getByPayOrderNo(String payOrderNo) {
-        PayOrderEntity entity = payOrderDao.selectOpenApiByPayOrderNo(
+    public PayinOrderResponse getByPayinOrderNo(String payinOrderNo) {
+        PayinOrderEntity entity = payinOrderDao.selectOpenApiByPayinOrderNo(
                 ApiReqContextHolder.getTenantId(),
                 ApiReqContextHolder.getMerchantId(),
-                StringUtils.trim(payOrderNo)
+                StringUtils.trim(payinOrderNo)
         );
         return toResponse(entity);
     }
@@ -465,17 +482,16 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     /**
      * 按商户订单号查询订单     */
     @Override
-    public PayOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
-        PayOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
+    public PayinOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
+        PayinOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
         return toResponse(entity);
     }
 
     /**
-     * 构建商户 OpenAPI 查询基础条件     * <p>
-     * 所有商户查单只允许访问当前 app_id 所属租户和商户的数据     *
-     * @return 返回筛选条     */
-    private PayOrderEntity findByMerchantOrderNo(String merchantOrderNo) {
-        return payOrderDao.selectOpenApiByMerchantOrderNo(
+     * 按商户订单号查询当前商户的代收订单。
+     */
+    private PayinOrderEntity findByMerchantOrderNo(String merchantOrderNo) {
+        return payinOrderDao.selectOpenApiByMerchantOrderNo(
                 ApiReqContextHolder.getTenantId(),
                 ApiReqContextHolder.getMerchantId(),
                 merchantOrderNo
@@ -488,7 +504,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * 手续费进入平台收入或成本相关账户     *
      * @param entity 订单
      */
-    private void applyMerchantFee(PayOrderEntity entity) {
+    private void applyMerchantFee(PayinOrderEntity entity) {
         MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayin(entity);
         entity.setMerchantFeeAmount(feeResult.getMerchantFeeAmount());
         entity.setSettleAmount(feeResult.getSettleAmount());
@@ -501,7 +517,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
      * PSP 手续费是平台对上游的成本，用于后续利润、对账和报表     *
      * @param entity 订单
      */
-    private void applyPayinPlan(PayOrderEntity entity, PayinPlan plan) {
+    private void applyPayinPlan(PayinOrderEntity entity, PayinPlan plan) {
         entity.setPaymentPlanCatalogId(plan.getCatalogId());
         entity.setPaymentPlanVersion(plan.getCatalogVersion());
         entity.setPaymentPlanBucketId(plan.getBucketId());
@@ -521,7 +537,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
         }
     }
 
-    private String routeSnapshotJson(PayOrderEntity entity, PspRouteResult route) {
+    private String routeSnapshotJson(PayinOrderEntity entity, PspRouteResult route) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("catalogId", entity.getPaymentPlanCatalogId());
         snapshot.put("catalogVersion", entity.getPaymentPlanVersion());
@@ -542,7 +558,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
     /**
      * 校验重复商户订单号对应的请求参数是否一致     */
-    private void validateIdempotentRequest(PayOrderEntity existed, PayOrderCreateRequest request, String currency, String methodCode) {
+    private void validateIdempotentRequest(PayinOrderEntity existed, PayinOrderCreateRequest request, String currency, String methodCode) {
         if (existed.getAmount() == null || request.getAmount() == null
                 || existed.getAmount().compareTo(request.getAmount()) != 0
                 || differsIgnoreCase(existed.getCurrency(), currency)
@@ -554,7 +570,7 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
 
     /**
      * 校验并发插入冲突后查到的已有订单是否与当前订单一致     */
-    private void validateIdempotentEntity(PayOrderEntity existed, PayOrderEntity entity) {
+    private void validateIdempotentEntity(PayinOrderEntity existed, PayinOrderEntity entity) {
         if (existed.getAmount() == null || entity.getAmount() == null
                 || existed.getAmount().compareTo(entity.getAmount()) != 0
                 || differsIgnoreCase(existed.getCurrency(), entity.getCurrency())
@@ -574,7 +590,8 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 转换代收订单OpenAPI 响应     */
+     * 比较两个字符串是否存在大小写无关差异。
+     */
     private boolean differsIgnoreCase(String left, String right) {
         return left == null ? right != null : !left.equalsIgnoreCase(right);
     }
@@ -592,14 +609,14 @@ public class OpenPayOrderServiceImpl implements OpenPayOrderService {
     }
 
     /**
-     * 转换代收订单OpenAPI 响应
+     * 转换代收订单 OpenAPI 响应。
      */
-    private PayOrderResponse toResponse(PayOrderEntity entity) {
+    private PayinOrderResponse toResponse(PayinOrderEntity entity) {
         if (entity == null) {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
-        PayOrderResponse response = new PayOrderResponse();
-        response.setSystemOrderId(entity.getPayOrderNo());
+        PayinOrderResponse response = new PayinOrderResponse();
+        response.setSystemOrderId(entity.getPayinOrderNo());
         response.setMerchantOrderId(entity.getMerchantOrderNo());
         response.setStatus(entity.getStatus());
         response.setStatusReason(entity.getStatusReason());

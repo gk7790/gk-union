@@ -54,9 +54,9 @@ import java.util.Map;
 /**
  * 商户 OpenAPI 代付订单服务实现
  * <p>
- * 本类负责商户代付下单和查单的应用层编排：校验请求、处理商户订单号幂等
- * 保存收款人脱敏信息、计算商户手续费、冻结商户余额、选择 PSP 路由、提PSP 代付
- * 并在提交失败时尽量释放冻结资金
+ * 本类负责商户代付下单和查单的应用层编排：校验请求、处理商户订单号幂等、
+ * 保存收款人信息、计算商户手续费、冻结商户余额、选择 PSP 路由、提交 PSP 代付，
+ * 并在提交失败时尽量释放冻结资金。
  */
 @Service
 @Slf4j
@@ -118,7 +118,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             return response;
         }
 
-        // 创建平台代付订单。代付会先进CREATED，冻结成功后再提PSP
+        // 创建平台代付订单。代付会先进入 CREATED，冻结成功后再提交 PSP
         PayoutOrderEntity entity = new PayoutOrderEntity();
         entity.setTenantId(context.getTenantId());
         entity.setMerchantId(context.getMerchantId());
@@ -145,7 +145,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setVersion(0);
         timer.mark("build_order");
 
-        // 新系统阶段直接保存收款人明文信息，便于代付提PSP 和后台排查
+        // 新系统阶段直接保存收款人明文信息，便于代付提交 PSP 和后台排查
         applyPayee(entity, request);
 
         timer.mark("apply_payee");
@@ -310,7 +310,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             PspRouteResult route = paymentPlan.getRoute();
             // 使用下单前已经命中的支付方案路由，避免冻结后再次实时选路由导致快照不一致
 
-            // 调用 PSP 分发服务，具PSP 协议由对adapter 处理
+            // 调用 PSP 分发服务，具体 PSP 协议由对应 adapter 处理
             PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(order), route);
             applyDispatchResult(order, dispatchResult);
             if (!dispatchResult.isSuccess()) {
@@ -374,8 +374,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     /**
      * 应用 PSP 代付提交结果
      * <p>
-     * PSP 受理成功后订单进PROCESSING，等PSP 回调或主动查单推进终态；
-     * PSP 明确拒绝时订单直FAILED
+     * PSP 受理成功后订单进入 PROCESSING，等待 PSP 回调或主动查单推进终态；
+     * PSP 明确拒绝时订单直接进入 FAILED。
      */
     private void applyDispatchResult(PayoutOrderEntity entity, PspPayoutDispatchResult result) {
         String fromStatus = entity.getStatus();

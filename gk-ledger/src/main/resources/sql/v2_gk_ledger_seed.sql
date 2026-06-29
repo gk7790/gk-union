@@ -120,7 +120,7 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000
 
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
-SELECT 2064290000000000002, 'payment', 'payOrderQueryTask', NULL, '0/30 * * * * ?', 1, '代收订单主动查单补偿', NOW()
+SELECT 2064290000000000002, 'payment', 'payinOrderQueryTask', NULL, '0/30 * * * * ?', 1, '代收订单主动查单补偿', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000002);
 
 INSERT INTO `schedule_job`
@@ -135,7 +135,7 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000
 
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
-SELECT 2064290000000000005, 'payment', 'payOrderCloseTask', NULL, '0/30 * * * * ?', 1, '代收超时未支付关单', NOW()
+SELECT 2064290000000000005, 'payment', 'payinOrderCloseTask', NULL, '0/30 * * * * ?', 1, '代收超时未支付关单', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000005);
 
 INSERT INTO `schedule_job`
@@ -150,5 +150,5 @@ FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000
 
 INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
-SELECT 2064290000000000008, 'payment', 'payOrderExceptionTask', NULL, '0 0/5 * * * ?', 1, '代收长时间处理中转人工处理', NOW()
+SELECT 2064290000000000008, 'payment', 'payinOrderExceptionTask', NULL, '0 0/5 * * * ?', 1, '代收长时间处理中转人工处理', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000008);

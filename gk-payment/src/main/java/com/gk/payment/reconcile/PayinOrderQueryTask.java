@@ -4,14 +4,14 @@ import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@Component("payOrderQueryTask")
+@Component("payinOrderQueryTask")
 @RequiredArgsConstructor
-public class PayOrderQueryTask implements ITask {
+public class PayinOrderQueryTask implements ITask {
     private final PspOrderQueryExecutor executor;
 
     @Override
     public String run(String params) {
-        int handled = executor.drainPayOrders();
+        int handled = executor.drainPayinOrders();
         return "pay-order-query handled=" + handled;
     }
 }

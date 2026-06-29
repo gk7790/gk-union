@@ -6,11 +6,11 @@ import com.gk.common.constant.Constant;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.infra.config.model.PspQueryConfig;
 import com.gk.infra.config.service.GkSysParamsConfigService;
-import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.psp.PspOrderRequests;
 import com.gk.psp.callback.support.PspCallbackUtils;
@@ -36,7 +36,7 @@ public class PspOrderQueryExecutor {
     private static final int MAX_QUERY_COUNT = 30;
     private static final List<Long> BACKOFF_SECONDS = List.of(60L, 120L, 300L, 600L, 900L, 1800L);
 
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
     private final PspPayQueryService payQueryService;
     private final PspPayoutQueryService payoutQueryService;
@@ -44,7 +44,7 @@ public class PspOrderQueryExecutor {
     private final PspCallbackOrderResolver orderResolver;
     private final GkSysParamsConfigService configService;
 
-    public int drainPayOrders() {
+    public int drainPayinOrders() {
         int total = 0;
         for (int loop = 0; loop < MAX_DRAIN_LOOPS; loop++) {
             int handled = queryPayBatch();
@@ -70,14 +70,14 @@ public class PspOrderQueryExecutor {
 
     private int queryPayBatch() {
         Instant now = Instant.now();
-        List<PayOrderEntity> orders = payOrderDao.selectList(new QueryWrapper<PayOrderEntity>()
-                .eq("status", PayOrderStatusEnum.PROCESSING.code())
+        List<PayinOrderEntity> orders = payinOrderDao.selectList(new QueryWrapper<PayinOrderEntity>()
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
                 .and(wrapper -> wrapper.ne("psp_code", Constant.SANDBOX).or().isNull("psp_code"))
                 .and(wrapper -> wrapper.lt("query_count", maxQueryCount()).or().isNull("query_count"))
                 .and(wrapper -> wrapper.le("next_query_at", now).or().isNull("next_query_at"))
                 .orderByAsc("next_query_at", "id")
                 .last("limit " + BATCH_SIZE));
-        for (PayOrderEntity order : orders) {
+        for (PayinOrderEntity order : orders) {
             queryPay(order);
         }
         return orders.size();
@@ -98,18 +98,18 @@ public class PspOrderQueryExecutor {
         return orders.size();
     }
 
-    private void queryPay(PayOrderEntity order) {
+    private void queryPay(PayinOrderEntity order) {
         int attemptNo = safeCount(order.getQueryCount()) + 1;
         try {
-            PspOrderQueryResult result = payQueryService.query(PspOrderRequests.fromPayOrder(order));
-            resultHandler.handle(BizTypeEnum.PAY_ORDER.code(), orderResolver.fromPayOrder(order, null), result);
+            PspOrderQueryResult result = payQueryService.query(PspOrderRequests.fromPayinOrder(order));
+            resultHandler.handle(BizTypeEnum.PAYIN_ORDER.code(), orderResolver.fromPayinOrder(order, null), result);
             if (!PspCallbackUtils.isTerminal(result.getOrderStatus())) {
                 reschedulePay(order.getId(), attemptNo, null);
             } else {
                 markPayQueryFinished(order.getId(), attemptNo);
             }
         } catch (Exception ex) {
-            log.warn("Pay order query failed, orderNo={}, err={}", order.getPayOrderNo(), ex.getMessage());
+            log.warn("Pay order query failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
             reschedulePay(order.getId(), attemptNo, ex.getMessage());
         }
     }
@@ -131,13 +131,13 @@ public class PspOrderQueryExecutor {
     }
 
     private void reschedulePay(Long orderId, int attemptNo, String reason) {
-        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
-                .eq("status", PayOrderStatusEnum.PROCESSING.code())
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
                 .set("query_count", attemptNo)
                 .set("next_query_at", nextQueryAt(attemptNo))
                 .set(StringUtils.isNotBlank(reason), "status_reason", StringUtils.left(reason, 512));
-        payOrderDao.update(null, wrapper);
+        payinOrderDao.update(null, wrapper);
     }
 
     private void reschedulePayout(Long orderId, int attemptNo, String reason) {
@@ -151,11 +151,11 @@ public class PspOrderQueryExecutor {
     }
 
     private void markPayQueryFinished(Long orderId, int attemptNo) {
-        UpdateWrapper<PayOrderEntity> wrapper = new UpdateWrapper<>();
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
                 .set("query_count", attemptNo)
                 .set("next_query_at", null);
-        payOrderDao.update(null, wrapper);
+        payinOrderDao.update(null, wrapper);
     }
 
     private void markPayoutQueryFinished(Long orderId, int attemptNo) {

@@ -3,9 +3,9 @@ package com.gk.payment.callback;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gk.common.enums.BizTypeEnum;
-import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.model.PspCallbackOrder;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class PspCallbackOrderResolver {
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
 
     /**
@@ -35,12 +35,12 @@ public class PspCallbackOrderResolver {
      */
     public PspCallbackOrder resolve(String bizType, PspCallbackResult result,
                                     Long pspAccountId, String pspCode, String apiSecret) {
-        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
-            PayOrderEntity order = findOne(payOrderDao, "pay_order_no", result, pspAccountId, pspCode);
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType)) {
+            PayinOrderEntity order = findOne(payinOrderDao, "payin_order_no", result, pspAccountId, pspCode);
             if (order == null) {
                 throw new PspCallbackBizException(PspCallbackAckMapper.ORDER_NOT_FOUND, "Pay order not found");
             }
-            return fromPayOrder(order, apiSecret);
+            return fromPayinOrder(order, apiSecret);
         }
 
         PayoutOrderEntity order = findOne(payoutOrderDao, "payout_order_no", result, pspAccountId, pspCode);
@@ -53,11 +53,11 @@ public class PspCallbackOrderResolver {
     /**
      * 将代收订单实体转换为回调处理需要的统一订单快照。
      */
-    public PspCallbackOrder fromPayOrder(PayOrderEntity order, String apiSecret) {
+    public PspCallbackOrder fromPayinOrder(PayinOrderEntity order, String apiSecret) {
         return new PspCallbackOrder(
                 order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                 order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
-                order.getPspAccountId(), apiSecret, order.getPayOrderNo(), order.getMerchantOrderNo(),
+                order.getPspAccountId(), apiSecret, order.getPayinOrderNo(), order.getMerchantOrderNo(),
                 order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
                 order.getSettleAmount(), null, order.getCurrency(), order.getNotifyUrl()
         );

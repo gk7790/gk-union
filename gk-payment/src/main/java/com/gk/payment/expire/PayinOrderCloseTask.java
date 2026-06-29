@@ -1,20 +1,20 @@
 package com.gk.payment.expire;
 
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * 代收超时关单定时任务 */
-@Component("payOrderCloseTask")
+@Component("payinOrderCloseTask")
 @RequiredArgsConstructor
-public class PayOrderCloseTask implements ITask {
-    private final PayOrderService payOrderService;
+public class PayinOrderCloseTask implements ITask {
+    private final PayinOrderService payinOrderService;
 
     @Override
     public String run(String params) {
-        int closed = payOrderService.drainExpiredPayOrders();
+        int closed = payinOrderService.drainExpiredPayinOrders();
         return "pay-order-close closed=" + closed;
     }
 }

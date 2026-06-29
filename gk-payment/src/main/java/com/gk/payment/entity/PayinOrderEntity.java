@@ -10,14 +10,14 @@ import java.time.Instant;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-@TableName("pay_order")
-public class PayOrderEntity extends SimpleEntity {
+@TableName("payin_order")
+public class PayinOrderEntity extends SimpleEntity {
     private Long tenantId;
     private Long merchantId;
     private String merchantNo;
     private Long merchantAppId;
     private String appId;
-    private String payOrderNo;
+    private String payinOrderNo;
     private String merchantOrderNo;
     private String idempotencyKey;
     private String requestId;

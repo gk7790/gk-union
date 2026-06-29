@@ -60,7 +60,9 @@ public enum SettleStatusEnum implements StringCodeEnum {
     }
 
     /**
-     * 按商户结算周期计算计划释放时刻（商户时区日历日）     * T0=支付成功即时；T1=次日起算；TN=N 个自然日0 点     */
+     * 按商户结算周期计算计划释放时刻（商户时区日历日）。
+     * T0=支付成功即时；T1=次日起算；TN=N 个自然日 0 点。
+     */
     public static Instant computeReleaseAt(String settleCycle, Instant paidAt, String timezone) {
         Instant base = paidAt == null ? Instant.now() : paidAt;
         String cycle = StringUtils.defaultIfBlank(settleCycle, "T1").trim().toUpperCase(Locale.ROOT);

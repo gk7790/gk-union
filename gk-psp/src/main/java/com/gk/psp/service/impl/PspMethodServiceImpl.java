@@ -60,9 +60,6 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String direction = params.getStr("direction");
-        if (StrUtil.isBlank(direction)) {
-            direction = params.getStr("orderType");
-        }
 
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(status != null, "status", status);

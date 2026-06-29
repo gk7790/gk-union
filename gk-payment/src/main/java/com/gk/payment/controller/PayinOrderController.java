@@ -6,11 +6,11 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
-import com.gk.payment.dto.PayOrderDTO;
+import com.gk.payment.dto.PayinOrderDTO;
 import com.gk.payment.notify.MerchantNotifyExecutor;
 import com.gk.payment.sandbox.SandboxOrderResult;
 import com.gk.payment.sandbox.SandboxOrderService;
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -24,8 +24,8 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/payment/pay-order")
 @RequiredArgsConstructor
-public class PayOrderController {
-    private final PayOrderService payOrderService;
+public class PayinOrderController {
+    private final PayinOrderService payinOrderService;
     private final MerchantNotifyExecutor merchantNotifyExecutor;
     private final SandboxOrderService sandboxOrderService;
 
@@ -39,7 +39,7 @@ public class PayOrderController {
     })
     @PreAuthorize("hasAuthority('payment:pay-order:page')")
     public R<?> page(@RequestMap DynMap params) {
-        PageData<PayOrderDTO> page = payOrderService.page(params);
+        PageData<PayinOrderDTO> page = payinOrderService.page(params);
         return R.ok(page);
     }
 
@@ -47,7 +47,7 @@ public class PayOrderController {
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('payment:pay-order:info')")
     public R<?> get(@PathVariable("id") Long id) {
-        return R.ok(payOrderService.get(id));
+        return R.ok(payinOrderService.get(id));
     }
 
     @PostMapping("{id}/release-settle")
@@ -55,7 +55,7 @@ public class PayOrderController {
     @PreAuthorize("hasAuthority('payment:pay-order:release-settle')")
     public R<Void> releaseSettle(@PathVariable("id") Long id) {
         AssertUtils.isNull(id, "id");
-        payOrderService.releaseSettle(id);
+        payinOrderService.releaseSettle(id);
         return R.ok();
     }
 
@@ -64,7 +64,7 @@ public class PayOrderController {
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
     public R<Void> notifyMerchant(@PathVariable("id") Long id) {
         AssertUtils.isNull(id, "id");
-        return R.fromResult(merchantNotifyExecutor.resendPayOrder(id));
+        return R.fromResult(merchantNotifyExecutor.resendPayinOrder(id));
     }
 
     @PostMapping("{id}/sandbox/mock-callback")

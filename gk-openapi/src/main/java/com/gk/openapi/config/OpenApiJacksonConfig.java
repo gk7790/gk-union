@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.gk.openapi.dto.BalanceQueryRequest;
 import com.gk.openapi.dto.BalanceResponse;
-import com.gk.openapi.dto.PayOrderCreateRequest;
-import com.gk.openapi.dto.PayOrderQueryRequest;
-import com.gk.openapi.dto.PayOrderResponse;
+import com.gk.openapi.dto.PayinOrderCreateRequest;
+import com.gk.openapi.dto.PayinOrderQueryRequest;
+import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.dto.PaymentMethodQueryRequest;
 import com.gk.openapi.dto.PaymentMethodResponse;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
@@ -33,9 +33,9 @@ public class OpenApiJacksonConfig {
     }
 
     public static void applySnakeCaseMixIns(Jackson2ObjectMapperBuilder builder) {
-        builder.mixIn(PayOrderResponse.class, OpenApiSnakeCaseMixIn.class);
-        builder.mixIn(PayOrderCreateRequest.class, OpenApiSnakeCaseMixIn.class);
-        builder.mixIn(PayOrderQueryRequest.class, OpenApiSnakeCaseMixIn.class);
+        builder.mixIn(PayinOrderResponse.class, OpenApiSnakeCaseMixIn.class);
+        builder.mixIn(PayinOrderCreateRequest.class, OpenApiSnakeCaseMixIn.class);
+        builder.mixIn(PayinOrderQueryRequest.class, OpenApiSnakeCaseMixIn.class);
         builder.mixIn(PayoutOrderResponse.class, OpenApiSnakeCaseMixIn.class);
         builder.mixIn(PayoutOrderCreateRequest.class, OpenApiSnakeCaseMixIn.class);
         builder.mixIn(PayoutOrderCreateRequest.Payee.class, OpenApiSnakeCaseMixIn.class);

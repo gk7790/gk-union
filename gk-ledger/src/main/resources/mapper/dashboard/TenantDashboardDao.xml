@@ -3,7 +3,7 @@
 
 <mapper namespace="com.gk.dashboard.dao.TenantDashboardDao">
 
-    <select id="selectPayOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
+    <select id="selectPayinOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
         SELECT
             COALESCE(SUM(CASE
                 WHEN status = 'SUCCESS'
@@ -33,7 +33,7 @@
             COALESCE(SUM(CASE
                 WHEN status IN ('CREATED', 'PROCESSING')
                 THEN 1 ELSE 0 END), 0) AS processingCount
-        FROM pay_order
+        FROM payin_order
         WHERE tenant_id = #{tenantId}
           AND currency = #{currency}
     </select>
@@ -72,7 +72,7 @@
         SELECT COUNT(DISTINCT merchant_id)
         FROM (
             SELECT merchant_id
-            FROM pay_order
+            FROM payin_order
             WHERE tenant_id = #{tenantId}
               AND currency = #{currency}
               AND status = 'SUCCESS'
@@ -122,7 +122,7 @@
         SELECT
             (
                 SELECT COUNT(1)
-                FROM pay_order
+                FROM payin_order
                 WHERE tenant_id = #{tenantId}
                   AND currency = #{currency}
                   AND status = 'MANUAL_REVIEW'
@@ -135,7 +135,7 @@
             ) AS manualReview,
             (
                 SELECT COUNT(1)
-                FROM pay_order
+                FROM payin_order
                 WHERE tenant_id = #{tenantId}
                   AND currency = #{currency}
                   AND merchant_notify_status = 'FAILED'
@@ -148,7 +148,7 @@
             ) AS notifyFailed,
             (
                 SELECT COUNT(1)
-                FROM pay_order
+                FROM payin_order
                 WHERE tenant_id = #{tenantId}
                   AND currency = #{currency}
                   AND status = 'SUCCESS'
@@ -158,7 +158,7 @@
             ) AS settleDue,
             (
                 SELECT COUNT(1)
-                FROM pay_order
+                FROM payin_order
                 WHERE tenant_id = #{tenantId}
                   AND currency = #{currency}
                   AND status IN ('CREATED', 'PROCESSING')
@@ -177,7 +177,7 @@
             DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
             COUNT(1) AS payInCount,
             COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount
-        FROM pay_order
+        FROM payin_order
         WHERE tenant_id = #{tenantId}
           AND currency = #{currency}
           AND status = 'SUCCESS'
@@ -209,7 +209,7 @@
                     SELECT
                         'PAY' AS bizType,
                         o.id AS orderId,
-                        o.pay_order_no AS orderNo,
+                        o.payin_order_no AS orderNo,
                         o.merchant_id AS merchantId,
                         o.merchant_no AS merchantNo,
                         m.merchant_name AS merchantName,
@@ -218,7 +218,7 @@
                         o.status AS status,
                         o.updated_at AS eventAt,
                         o.status_reason AS reason
-                    FROM pay_order o
+                    FROM payin_order o
                     LEFT JOIN merchant m
                       ON m.tenant_id = o.tenant_id
                      AND m.id = o.merchant_id
@@ -254,7 +254,7 @@
                     SELECT
                         'PAY' AS bizType,
                         o.id AS orderId,
-                        o.pay_order_no AS orderNo,
+                        o.payin_order_no AS orderNo,
                         o.merchant_id AS merchantId,
                         o.merchant_no AS merchantNo,
                         m.merchant_name AS merchantName,
@@ -263,7 +263,7 @@
                         o.status AS status,
                         o.merchant_notify_at AS eventAt,
                         o.status_reason AS reason
-                    FROM pay_order o
+                    FROM payin_order o
                     LEFT JOIN merchant m
                       ON m.tenant_id = o.tenant_id
                      AND m.id = o.merchant_id
@@ -298,7 +298,7 @@
                 SELECT
                     'PAY' AS bizType,
                     o.id AS orderId,
-                    o.pay_order_no AS orderNo,
+                    o.payin_order_no AS orderNo,
                     o.merchant_id AS merchantId,
                     o.merchant_no AS merchantNo,
                     m.merchant_name AS merchantName,
@@ -307,7 +307,7 @@
                     o.status AS status,
                     o.settle_release_at AS eventAt,
                     o.status_reason AS reason
-                FROM pay_order o
+                FROM payin_order o
                 LEFT JOIN merchant m
                   ON m.tenant_id = o.tenant_id
                  AND m.id = o.merchant_id
@@ -324,7 +324,7 @@
                 SELECT
                     'PAY' AS bizType,
                     o.id AS orderId,
-                    o.pay_order_no AS orderNo,
+                    o.payin_order_no AS orderNo,
                     o.merchant_id AS merchantId,
                     o.merchant_no AS merchantNo,
                     m.merchant_name AS merchantName,
@@ -333,7 +333,7 @@
                     o.status AS status,
                     o.updated_at AS eventAt,
                     o.status_reason AS reason
-                FROM pay_order o
+                FROM payin_order o
                 LEFT JOIN merchant m
                   ON m.tenant_id = o.tenant_id
                  AND m.id = o.merchant_id
@@ -382,7 +382,7 @@
         FROM merchant m
         INNER JOIN (
             SELECT merchant_id
-            FROM pay_order
+            FROM payin_order
             WHERE tenant_id = #{tenantId}
               AND currency = #{currency}
               AND status = 'SUCCESS'
@@ -402,7 +402,7 @@
                 merchant_id,
                 COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount,
                 COUNT(1) AS payInCount
-            FROM pay_order
+            FROM payin_order
             WHERE tenant_id = #{tenantId}
               AND currency = #{currency}
               AND status = 'SUCCESS'
@@ -428,10 +428,10 @@
         LIMIT #{limit}
     </select>
 
-    <select id="selectRecentPayOrders" resultType="com.gk.dashboard.dto.TenantDashboardRecentOrderDTO$RecentOrder">
+    <select id="selectRecentPayinOrders" resultType="com.gk.dashboard.dto.TenantDashboardRecentOrderDTO$RecentOrder">
         SELECT
             o.id AS orderId,
-            o.pay_order_no AS orderNo,
+            o.payin_order_no AS orderNo,
             o.merchant_order_no AS merchantOrderNo,
             o.merchant_id AS merchantId,
             o.merchant_no AS merchantNo,
@@ -442,7 +442,7 @@
             o.method_code AS methodCode,
             o.created_at AS createdAt,
             o.paid_at AS paidAt
-        FROM pay_order o
+        FROM payin_order o
         LEFT JOIN merchant m
           ON m.tenant_id = o.tenant_id
          AND m.id = o.merchant_id

@@ -105,7 +105,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         validatePaySuccess(request);
         String eventType = LedgerPostingEventEnum.PAY_SUCCESS.code();
         // 幂等检查：同一代收订单成功回调只能入账一次
-                LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType);
+                LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType);
         if (existed != null) {
             return LedgerPostingResult.existed(existed.getJournalNo(), null);
         }
@@ -134,9 +134,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
 
         LedgerJournalEntity journal = createJournal(
                 request.getTenantId(),
-                BizTypeEnum.PAY_ORDER.code(),
+                BizTypeEnum.PAYIN_ORDER.code(),
                 request.getBizId(),
-                request.getPayOrderNo(),
+                request.getPayinOrderNo(),
                 eventType,
                 request.getCurrency(),
                 settleAmount.add(feeAmount),
@@ -146,7 +146,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         );
         if (journal == null) {
             // 插入凭证时遇到唯一键冲突，说明并发线程已经完成入账，返回已有凭证
-                        return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
+                        return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType, false);
         }
         // 真正写入 ledger_entry 并更新 ledger_balance
         postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
@@ -163,7 +163,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         validatePaySuccess(request);
         String eventType = LedgerPostingEventEnum.SETTLE_RELEASE.code();
         // 幂等检查：同一代收订单只能释放一次同类型结算事件
-                LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType);
+                LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType);
         if (existed != null) {
             return LedgerPostingResult.existed(existed.getJournalNo(), null);
         }
@@ -183,9 +183,9 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
 
         LedgerJournalEntity journal = createJournal(
                 request.getTenantId(),
-                BizTypeEnum.PAY_ORDER.code(),
+                BizTypeEnum.PAYIN_ORDER.code(),
                 request.getBizId(),
-                request.getPayOrderNo(),
+                request.getPayinOrderNo(),
                 eventType,
                 request.getCurrency(),
                 settleAmount,
@@ -194,7 +194,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 "Pay settle release posting"
         );
         if (journal == null) {
-            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAY_ORDER.code(), request.getPayOrderNo(), eventType, false);
+            return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType, false);
         }
         // 发布分录并原子更新两个账户余额
         postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
@@ -972,7 +972,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     /**
      * 校验代收成功/结算释放请求的必要字段     */
     private void validatePaySuccess(PaySuccessPostingRequest request) {
-        if (request == null || request.getTenantId() == null || request.getMerchantId() == null || StringUtils.isBlank(request.getPayOrderNo())
+        if (request == null || request.getTenantId() == null || request.getMerchantId() == null || StringUtils.isBlank(request.getPayinOrderNo())
                 || StringUtils.isBlank(request.getCurrency()) || !positive(request.getAmount())) {
             throw new GkException("Invalid pay success posting request");
         }

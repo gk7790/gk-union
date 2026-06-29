@@ -25,7 +25,7 @@ import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
 import com.gk.payment.dto.MerchantFeeViewResponse;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.entity.PaymentMethodEntity;
 import com.gk.payment.fee.MerchantFeeAmount;
@@ -453,7 +453,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
      * 代收成功后入账使settleAmount，当前由 {@link MerchantFeeCalculator}
      * 根据手续费承担方计算“订单金- 商户手续费”或保持订单金额不变     */
     @Override
-    public MerchantFeeResult calculatePayin(PayOrderEntity order) {
+    public MerchantFeeResult calculatePayin(PayinOrderEntity order) {
         return calculate(
                 order.getTenantId(),
                 order.getMerchantId(),

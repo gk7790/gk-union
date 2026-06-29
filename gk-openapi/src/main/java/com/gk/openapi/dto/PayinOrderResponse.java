@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 @OpenApiModel
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class PayOrderResponse {
+public class PayinOrderResponse {
     private String systemOrderId;
     private String merchantOrderId;
     private String status;

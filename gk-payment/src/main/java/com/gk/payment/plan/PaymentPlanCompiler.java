@@ -47,9 +47,11 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * 将可编辑的支付配置编译成 payment_plan_* 运行时方案数据 *
- * <p>预览和发布阶段读merchant_fee_rule、payment_route_rule * payment_route_group、payment_route_channel 以及 PSP 资源表。订单运行时
- * 应该读取这里生成ACTIVE payment_plan_* 快照，而不是每笔订单实时关 * 源配置表/p>
+ * 将可编辑的支付配置编译成 payment_plan_* 运行时方案数据。
+ * <p>
+ * 预览和发布阶段读取 merchant_fee_rule、payment_route_rule、payment_route_group、
+ * payment_route_channel 以及 PSP 资源表。订单运行时应该读取这里生成的
+ * ACTIVE payment_plan_* 快照，而不是每笔订单实时关联源配置表。
  */
 @Component
 @RequiredArgsConstructor
@@ -67,8 +69,9 @@ public class PaymentPlanCompiler {
     private final PspBankMappingDao pspBankMappingDao;
 
     /**
-     * 预览/发布的编译入口     *
-     * <p>这里会先加载完整的源配置，因此即使费率或路由配置缺失，预览接     * 也能返回尽量完整的诊断信息/p>
+     * 预览/发布的编译入口。
+     * <p>
+     * 这里会先加载完整的源配置，因此即使费率或路由配置缺失，预览接口也能返回尽量完整的诊断信息。
      */
     public PaymentPlanCompileResult compile(PaymentPlanCompileRequest request) {
         PaymentPlanCompileResult result = new PaymentPlanCompileResult();
@@ -79,7 +82,8 @@ public class PaymentPlanCompiler {
             return result;
         }
 
-        // 加载本次编译使用到的完整源配置，并放入结果中给预览页面展示        // 匹配商户费用规则
+        // 加载本次编译使用到的完整源配置，并放入结果中给预览页面展示
+        // 匹配商户费用规则
         List<MerchantFeeRuleEntity> merchantRules = merchantRules(request);
         // 匹配商户路由规则
         List<PaymentRouteRuleEntity> paymentRouteRules = paymentRouteRules(request);
@@ -87,10 +91,10 @@ public class PaymentPlanCompiler {
         List<PaymentRouteChannelEntity> paymentRouteChannels = paymentRouteChannels(paymentRouteRules);
         // 获取商户路由对应的路由组
         List<PaymentRouteGroupEntity> paymentRouteGroups = paymentRouteGroups(paymentRouteRules);
-        // 获取PSP 对应的编
-                List<PspMethodEntity> pspMethods = pspMethods(paymentRouteChannels);
-        // 获取命中通道对应PSP 成本规则，优先使用通道固定psp_fee_rule_id
-                List<PspFeeRuleEntity> pspFeeRules = pspFeeRules(request, paymentRouteGroups, paymentRouteChannels, pspMethods);
+        // 获取命中通道对应的 PSP 方法
+        List<PspMethodEntity> pspMethods = pspMethods(paymentRouteChannels);
+        // 获取命中通道对应 PSP 成本规则，优先使用通道固定 psp_fee_rule_id
+        List<PspFeeRuleEntity> pspFeeRules = pspFeeRules(request, paymentRouteGroups, paymentRouteChannels, pspMethods);
 
         PaymentPlanCatalogEntity catalog = catalog(request);
         result.setCatalog(catalog);
@@ -111,7 +115,7 @@ public class PaymentPlanCompiler {
         }
 
         // 按所有源配置的金额边界切分区间，保证每个 bucket 内费率和路由结果稳定
-                List<PaymentPlanAmountRange> ranges = PaymentPlanAmountRangeSplitter.split(
+        List<PaymentPlanAmountRange> ranges = PaymentPlanAmountRangeSplitter.split(
                 request.getMinAmount(),
                 request.getMaxAmount(),
                 sourceRanges(merchantRules, paymentRouteRules, paymentRouteChannels, pspMethods, pspFeeRules)
@@ -137,7 +141,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 将一个金bucket 编译成商户费率快照和 PSP 路由候选     */
+     * 将一个金额 bucket 编译成商户费率快照和 PSP 路由候选。
+     */
     private PaymentPlanCompileResult.CompiledBucket compileBucket(PaymentPlanCompileRequest request,
                                                                  PaymentPlanAmountRange range,
                                                                  int bucketSort,
@@ -145,7 +150,7 @@ public class PaymentPlanCompiler {
                                                                  List<PaymentRouteRuleEntity> paymentRouteRules,
                                                                  PaymentPlanCompileResult result) {
         // 源配置边界已经被切成 bucket 边界，因此用起始金额即可代表整个 bucket
-                BigDecimal sampleAmount = range.startAmount();
+        BigDecimal sampleAmount = range.startAmount();
         MerchantFeeRuleEntity merchantRule = merchantRule(request, merchantRules, sampleAmount);
         if (merchantRule == null) {
             result.addError("MERCHANT_FEE_RULE_MISSING", "Merchant fee rule is not configured for amount " + sampleAmount);
@@ -180,8 +185,9 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 查找某个 bucket 金额对应的商户费率规则     *
-     * <p>如果请求指定merchantFeeRuleId，则只允许使用该规则     * 否则DAO 按匹配精确度和优先级选择最优规则/p>
+     * 查找某个 bucket 金额对应的商户费率规则。
+     * <p>
+     * 如果请求指定 merchantFeeRuleId，则只允许使用该规则；否则 DAO 按匹配精确度和优先级选择最优规则。
      */
     private MerchantFeeRuleEntity merchantRule(PaymentPlanCompileRequest request,
                                                List<MerchantFeeRuleEntity> merchantRules,
@@ -405,8 +411,9 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 查找某个通道bucket 金额对应PSP 成本规则     *
-     * <p>路由通道可以固定 psp_fee_rule_id；如果没有固定，则由 DAO PSP     * 账户、方法和请求维度选择最优成本规则/p>
+     * 查找某个通道 bucket 金额对应的 PSP 成本规则。
+     * <p>
+     * 路由通道可以固定 psp_fee_rule_id；如果没有固定，则由 DAO 按 PSP、账户、方法和请求维度选择最优成本规则。
      */
     private PspFeeRuleEntity pspFeeRule(PaymentPlanCompileRequest request,
                                         PaymentRouteGroupEntity group,
@@ -620,9 +627,10 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载命中路由通道相关PSP 成本规则     *
-     * <p>如果通道固定pspFeeRuleId，则直接读取固定规则；否则按通道对应
-     * PSP、账户、方法以及解析后的国币种/支付方式匹配成本规则/p>
+     * 加载命中路由通道相关 PSP 成本规则。
+     * <p>
+     * 如果通道固定 pspFeeRuleId，则直接读取固定规则；否则按通道对应 PSP、账户、方法以及
+     * 解析后的国家/地区、币种、支付方式匹配成本规则。
      */
     private List<PspFeeRuleEntity> pspFeeRules(PaymentPlanCompileRequest request,
                                                List<PaymentRouteGroupEntity> groups,
@@ -768,7 +776,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 匹配前统一规范化维度编码，保证路由和费率查询不受大小写影响     */
+     * 匹配前统一规范化维度编码，保证路由和费率查询不受大小写影响。
+     */
     private void normalize(PaymentPlanCompileRequest request) {
         if (request == null) {
             return;
@@ -793,7 +802,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 检PSP、PSP 方法PSP 账户是否可用于当前订单方向     */
+     * 检查 PSP、PSP 方法、PSP 账户是否可用于当前订单方向。
+     */
     private boolean resourceAvailable(String direction,
                                       PspProviderEntity provider,
                                       PspMethodEntity method,
@@ -811,7 +821,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 检查某PSP 在当前请求维度下是否配置了银行映射     */
+     * 检查某个 PSP 在当前请求维度下是否配置了银行映射。
+     */
     private boolean hasAnyBankMapping(PaymentPlanCompileRequest request, Long pspId) {
         return pspBankMappingDao.selectCount(new QueryWrapper<PspBankMappingEntity>()
                 .eq("psp_id", pspId)

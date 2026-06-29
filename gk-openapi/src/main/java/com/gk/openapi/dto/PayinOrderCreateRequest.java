@@ -11,7 +11,7 @@ import java.util.Map;
 @Data
 @OpenApiModel
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PayOrderCreateRequest {
+public class PayinOrderCreateRequest {
     @NotBlank(message = "merchant_order_id is required")
     private String merchantOrderId;
     @NotNull(message = "amount is required")

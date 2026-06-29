@@ -9,16 +9,16 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.payment.callback.PspCallbackNotifyCreator;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
-import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
@@ -79,7 +79,7 @@ public class MerchantNotifyExecutor {
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final GkSysParamsConfigService configService;
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
     private final PspCallbackNotifyCreator callbackNotifyCreator;
 
@@ -170,9 +170,9 @@ public class MerchantNotifyExecutor {
         }
     }
 
-    public Result<Void> resendPayOrder(Long orderId) {
+    public Result<Void> resendPayinOrder(Long orderId) {
         AssertUtils.isNull(orderId, "id");
-        return resendByBizOrder(BizTypeEnum.PAY_ORDER.code(), orderId);
+        return resendByBizOrder(BizTypeEnum.PAYIN_ORDER.code(), orderId);
     }
 
     public Result<Void> resendPayoutOrder(Long orderId) {
@@ -241,7 +241,7 @@ public class MerchantNotifyExecutor {
             return Result.success(task);
         }
         Result<Void> created;
-        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType)) {
             created = createPayNotifyTask(orderId);
         } else if (BizTypeEnum.PAYOUT_ORDER.matches(bizType)) {
             created = createPayoutNotifyTask(orderId);
@@ -259,24 +259,24 @@ public class MerchantNotifyExecutor {
     }
 
     private Result<Void> createPayNotifyTask(Long orderId) {
-        PayOrderEntity order = payOrderDao.selectById(orderId);
+        PayinOrderEntity order = payinOrderDao.selectById(orderId);
         if (order == null) {
             return Result.fail("代收订单不存在");
         }
         if (StringUtils.isBlank(order.getNotifyUrl())) {
             return Result.fail("该订单未配置商户通知地址");
         }
-        if (!isTerminalPayOrder(order.getStatus())) {
+        if (!isTerminalPayinOrder(order.getStatus())) {
             return Result.fail("订单未到终态, 暂不能通知商户");
         }
         callbackNotifyCreator.create(
-                BizTypeEnum.PAY_ORDER.code(),
-                manualResult(order.getPspCode(), BizTypeEnum.PAY_ORDER.code(), order.getPayOrderNo(),
+                BizTypeEnum.PAYIN_ORDER.code(),
+                manualResult(order.getPspCode(), BizTypeEnum.PAYIN_ORDER.code(), order.getPayinOrderNo(),
                         order.getMerchantOrderNo(), order.getPspOrderNo(), order.getPspStatus(),
                         order.getStatus(), order.getPaidAmount(), order.getCurrency(), order.getStatusReason()),
                 new PspCallbackOrder(order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                         order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
-                        order.getPspAccountId(), null, order.getPayOrderNo(), order.getMerchantOrderNo(),
+                        order.getPspAccountId(), null, order.getPayinOrderNo(), order.getMerchantOrderNo(),
                         order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
                         order.getSettleAmount(), null, order.getCurrency(), order.getNotifyUrl()),
                 null);
@@ -326,10 +326,10 @@ public class MerchantNotifyExecutor {
         return result;
     }
 
-    private boolean isTerminalPayOrder(String status) {
-        return PayOrderStatusEnum.SUCCESS.matches(status)
-                || PayOrderStatusEnum.FAILED.matches(status)
-                || PayOrderStatusEnum.CLOSED.matches(status)
+    private boolean isTerminalPayinOrder(String status) {
+        return PayinOrderStatusEnum.SUCCESS.matches(status)
+                || PayinOrderStatusEnum.FAILED.matches(status)
+                || PayinOrderStatusEnum.CLOSED.matches(status)
                 || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(PspCallbackUtils.normalizeStatus(status));
     }
 

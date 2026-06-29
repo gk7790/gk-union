@@ -45,7 +45,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     }
 
     @Override
-    public PspPayDispatchResult createPayOrder(PspOrderRequest order, PspRouteResult route) {
+    public PspPayDispatchResult createPayinOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = payParams(order, route);
         String path = "/open-api/create-pay-order";
         PspPayDispatchResult result = basePayResult(order, route, path, params);
@@ -73,7 +73,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     }
 
     @Override
-    public PspOrderQueryResult queryPayOrder(PspOrderRequest order, PspRouteResult route) {
+    public PspOrderQueryResult queryPayinOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-pay-order";
         JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
@@ -327,7 +327,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                                                  String path,
                                                  Map<String, Object> params,
                                                  JSONObject response,
-                                                 boolean payOrder) {
+                                                 boolean payinOrder) {
         PspOrderQueryResult.PspOrderQueryResultBuilder builder = PspOrderQueryResult.builder()
                 .pspCode(route.getPspCode())
                 .systemOrderNo(systemOrderNo)
@@ -356,7 +356,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                 .success(true)
                 .pspOrderNo(StringUtils.defaultIfBlank(data.getString("system_order_id"), pspOrderNo))
                 .pspStatus(pspStatus)
-                .orderStatus(payOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus))
+                .orderStatus(payinOrder ? toPayStatus(pspStatus) : toPayoutStatus(pspStatus))
                 .amount(amount)
                 .responseSign(data.getString("sign"))
                 .build();

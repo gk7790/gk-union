@@ -9,7 +9,7 @@ import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.dto.PayinConfigPrecheckRequest;
 import com.gk.payment.dto.PayinConfigPrecheckResult;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class PayinPlanServiceImpl implements PayinPlanService {
     private final PaymentPlanCacheService paymentPlanCacheService;
 
     @Override
-    public PayinPlan resolve(PayOrderEntity order) {
+    public PayinPlan resolve(PayinOrderEntity order) {
         PaymentPlan paymentPlan = paymentPlanResolver.resolvePayin(order)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
         return toPayinPlan(paymentPlan);
@@ -48,7 +48,7 @@ public class PayinPlanServiceImpl implements PayinPlanService {
             return result;
         }
 
-        PayOrderEntity order = toOrder(request, merchant, app);
+        PayinOrderEntity order = toOrder(request, merchant, app);
         try {
             if (paymentPlanResolver.resolvePayin(order).isEmpty()) {
                 result.addError("PAYMENT_PLAN_NOT_PUBLISHED", "ACTIVE payment plan is not published");
@@ -115,8 +115,8 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         }
     }
 
-    private PayOrderEntity toOrder(PayinConfigPrecheckRequest request, MerchantEntity merchant, MerchantAppEntity app) {
-        PayOrderEntity order = new PayOrderEntity();
+    private PayinOrderEntity toOrder(PayinConfigPrecheckRequest request, MerchantEntity merchant, MerchantAppEntity app) {
+        PayinOrderEntity order = new PayinOrderEntity();
         order.setTenantId(request.getTenantId());
         order.setMerchantId(request.getMerchantId());
         order.setMerchantNo(merchant.getMerchantNo());

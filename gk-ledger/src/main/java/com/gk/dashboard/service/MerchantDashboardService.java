@@ -37,7 +37,7 @@ public class MerchantDashboardService {
         RangeWindow window = resolveRange(range, resolveTimezone(merchant), compare);
 
         TenantDashboardSummaryDTO.OrderMetric payIn = normalizeOrderMetric(
-                merchantDashboardDao.selectPayOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.start(), window.end()),
+                merchantDashboardDao.selectPayinOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.start(), window.end()),
                 true);
         TenantDashboardSummaryDTO.OrderMetric payOut = normalizeOrderMetric(
                 merchantDashboardDao.selectPayoutOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.start(), window.end()),
@@ -49,7 +49,7 @@ public class MerchantDashboardService {
         summary.setPayOut(payOut);
         if (compare) {
             TenantDashboardSummaryDTO.OrderMetric payInPrev = normalizeOrderMetric(
-                    merchantDashboardDao.selectPayOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.compareStart(), window.compareEnd()),
+                    merchantDashboardDao.selectPayinOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.compareStart(), window.compareEnd()),
                     true);
             TenantDashboardSummaryDTO.OrderMetric payOutPrev = normalizeOrderMetric(
                     merchantDashboardDao.selectPayoutOrderStats(merchant.getTenantId(), merchant.getId(), resolvedCurrency, window.compareStart(), window.compareEnd()),
@@ -119,7 +119,7 @@ public class MerchantDashboardService {
         String resolvedCurrency = resolveCurrency(currency, merchant.getDefaultCurrency());
         int resolvedLimit = Math.min(Math.max(limit, 1), RECENT_ORDER_LIMIT_MAX);
         List<TenantDashboardRecentOrderDTO.RecentOrder> items = "PAY".equals(resolvedBizType)
-                ? merchantDashboardDao.selectRecentPayOrders(merchant.getTenantId(), merchant.getId(), resolvedCurrency, resolvedLimit)
+                ? merchantDashboardDao.selectRecentPayinOrders(merchant.getTenantId(), merchant.getId(), resolvedCurrency, resolvedLimit)
                 : merchantDashboardDao.selectRecentPayoutOrders(merchant.getTenantId(), merchant.getId(), resolvedCurrency, resolvedLimit);
         if (items == null) {
             items = List.of();

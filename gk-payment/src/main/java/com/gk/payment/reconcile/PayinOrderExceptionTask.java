@@ -1,6 +1,6 @@
 package com.gk.payment.reconcile;
 
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 /**
  * 代收长时间处理中转人工处理定时任务
  */
-@Component("payOrderExceptionTask")
+@Component("payinOrderExceptionTask")
 @RequiredArgsConstructor
-public class PayOrderExceptionTask implements ITask {
-    private final PayOrderService payOrderService;
+public class PayinOrderExceptionTask implements ITask {
+    private final PayinOrderService payinOrderService;
 
     @Override
     public String run(String params) {
-        int marked = payOrderService.drainLongProcessingOrders();
+        int marked = payinOrderService.drainLongProcessingOrders();
         return "pay-order-exception manualReview=" + marked;
     }
 }

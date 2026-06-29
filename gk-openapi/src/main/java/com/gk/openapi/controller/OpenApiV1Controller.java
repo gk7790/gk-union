@@ -7,7 +7,7 @@ import com.gk.openapi.error.ApiException;
 import com.gk.openapi.log.MerchantRequestLogger;
 import com.gk.openapi.security.OpenApiAuthFilter;
 import com.gk.openapi.service.OpenBalanceService;
-import com.gk.openapi.service.OpenPayOrderService;
+import com.gk.openapi.service.OpenPayinOrderService;
 import com.gk.openapi.service.OpenPaymentMethodService;
 import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.openapi.tools.ApiR;
@@ -30,7 +30,7 @@ import java.util.Set;
 public class OpenApiV1Controller {
     private final OpenBalanceService openBalanceService;
     private final OpenPaymentMethodService openPaymentMethodService;
-    private final OpenPayOrderService openPayOrderService;
+    private final OpenPayinOrderService openPayinOrderService;
     private final OpenPayoutOrderService openPayoutOrderService;
     private final MerchantRequestLogger merchantRequestLogger;
     private final ObjectMapper objectMapper;
@@ -59,13 +59,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping( "pay/create")
-    public ApiR<PayOrderResponse> createPay(HttpServletRequest request) {
+    public ApiR<PayinOrderResponse> createPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
-        PayOrderCreateRequest body = null;
+        PayinOrderCreateRequest body = null;
         try {
-            body = bindSignParams(request, PayOrderCreateRequest.class, true);
-            PayOrderResponse orderResp = openPayOrderService.create(body);
-            ApiR<PayOrderResponse> response = ApiR.success(orderResp);
+            body = bindSignParams(request, PayinOrderCreateRequest.class, true);
+            PayinOrderResponse orderResp = openPayinOrderService.create(body);
+            ApiR<PayinOrderResponse> response = ApiR.success(orderResp);
             merchantRequestLogger.payCreateSuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -78,13 +78,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping( "pay/query")
-    public ApiR<PayOrderResponse> queryPay(HttpServletRequest request) {
+    public ApiR<PayinOrderResponse> queryPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
-        PayOrderQueryRequest body = null;
+        PayinOrderQueryRequest body = null;
         try {
-            body = bindSignParams(request, PayOrderQueryRequest.class, false);
-            PayOrderResponse orderResp = queryPayOrder(body);
-            ApiR<PayOrderResponse> response = ApiR.success(orderResp);
+            body = bindSignParams(request, PayinOrderQueryRequest.class, false);
+            PayinOrderResponse orderResp = queryPayinOrder(body);
+            ApiR<PayinOrderResponse> response = ApiR.success(orderResp);
             merchantRequestLogger.payQuerySuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -135,8 +135,10 @@ public class OpenApiV1Controller {
     }
 
     /**
-     * 查询商户可展示的系统标准支付方式     *
-     * <p>该接口只返回 payment_method 中配置的标准 method_code     * 实际下单可用通道仍以下单时的费率、支付计划和 PSP 路由匹配结果为准/p>
+     * 查询商户可展示的系统标准支付方式。
+     * <p>
+     * 该接口只返回 payment_method 中配置的标准 method_code。
+     * 实际下单可用通道仍以下单时的费率、支付计划和 PSP 路由匹配结果为准。
      */
     @PostMapping("methods")
     public ApiR<List<PaymentMethodResponse>> methods(HttpServletRequest request) {
@@ -166,12 +168,12 @@ public class OpenApiV1Controller {
         return new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
     }
 
-    private PayOrderResponse queryPayOrder(PayOrderQueryRequest body) {
+    private PayinOrderResponse queryPayinOrder(PayinOrderQueryRequest body) {
         if (StringUtils.isNotBlank(body.getSystemOrderId())) {
-            return openPayOrderService.getByPayOrderNo(body.getSystemOrderId());
+            return openPayinOrderService.getByPayinOrderNo(body.getSystemOrderId());
         }
         if (StringUtils.isNotBlank(body.getMerchantOrderId())) {
-            return openPayOrderService.getByMerchantOrderNo(body.getMerchantOrderId());
+            return openPayinOrderService.getByMerchantOrderNo(body.getMerchantOrderId());
         }
         throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
     }

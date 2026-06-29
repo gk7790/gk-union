@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.gk.payment.dao.PayOrderDao">
+<mapper namespace="com.gk.payment.dao.PayinOrderDao">
 
     <sql id="OpenApiColumns">
         id, tenant_id, merchant_id, merchant_no, merchant_app_id, app_id,
-        pay_order_no, merchant_order_no, idempotency_key, request_id, order_source,
+        payin_order_no, merchant_order_no, idempotency_key, request_id, order_source,
         country_code, currency, method_code, amount, paid_amount, merchant_fee_amount,
         merchant_fee_rule_id, psp_fee_amount, psp_fee_rule_id, settle_amount,
         subject, description, client_ip, notify_url, return_url, merchant_notify_status,
@@ -21,24 +21,24 @@
     </sql>
 
     <select id="selectOpenApiByMerchantOrderNo"
-            resultType="com.gk.payment.entity.PayOrderEntity">
+            resultType="com.gk.payment.entity.PayinOrderEntity">
         SELECT
         <include refid="OpenApiColumns"/>
-        FROM pay_order
+        FROM payin_order
         WHERE tenant_id = #{tenantId}
           AND merchant_id = #{merchantId}
           AND merchant_order_no = #{merchantOrderNo}
         LIMIT 1
     </select>
 
-    <select id="selectOpenApiByPayOrderNo"
-            resultType="com.gk.payment.entity.PayOrderEntity">
+    <select id="selectOpenApiByPayinOrderNo"
+            resultType="com.gk.payment.entity.PayinOrderEntity">
         SELECT
         <include refid="OpenApiColumns"/>
-        FROM pay_order
+        FROM payin_order
         WHERE tenant_id = #{tenantId}
           AND merchant_id = #{merchantId}
-          AND pay_order_no = #{payOrderNo}
+          AND payin_order_no = #{payinOrderNo}
         LIMIT 1
     </select>
 

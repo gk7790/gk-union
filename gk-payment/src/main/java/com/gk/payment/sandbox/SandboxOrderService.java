@@ -15,11 +15,11 @@ import com.gk.payment.callback.PspCallbackNotifyCreator;
 import com.gk.payment.callback.PspCallbackOrderProcessor;
 import com.gk.payment.callback.PspCallbackOrderResolver;
 import com.gk.payment.callback.PspOrderResultHandler;
-import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.notify.MerchantNotifyExecutor;
 import com.gk.psp.callback.model.PspCallbackOrder;
@@ -43,7 +43,7 @@ public class SandboxOrderService {
     private static final String OUTCOME_SUCCESS = "SUCCESS";
     private static final String OUTCOME_FAILED = "FAILED";
 
-    private final PayOrderDao payOrderDao;
+    private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
     private final MerchantAppDao merchantAppDao;
     private final PspOrderResultHandler resultHandler;
@@ -59,33 +59,33 @@ public class SandboxOrderService {
     public SandboxOrderResult mockPayCallback(Long orderId, DynMap params) {
         String outcome = normalizeOutcome(params.getStr("outcome"));
         String failReason = normalizeFailReason(params.getStr("failReason"));
-        PayOrderEntity order = requireSandboxPayOrderById(orderId);
+        PayinOrderEntity order = requireSandboxPayinOrderById(orderId);
         assertOrderAccess(order.getTenantId(), order.getMerchantId());
         assertTestApp(order.getMerchantAppId());
 
         SandboxOrderResult orderResult = transactionTemplate.execute(txStatus -> {
-            PayOrderEntity current = requireSandboxPayOrderById(orderId);
-            if (!PayOrderStatusEnum.PROCESSING.code().equals(current.getStatus())) {
+            PayinOrderEntity current = requireSandboxPayinOrderById(orderId);
+            if (!PayinOrderStatusEnum.PROCESSING.code().equals(current.getStatus())) {
                 if (isTerminalPayStatus(current.getStatus())) {
                     return payResult(current, false, "订单已处于终态，仅重发商户通知");
                 }
                 throw new GkException(ErrorCode.BAD_REQUEST, "仅处理中订单可 mock 回调");
             }
             String status = OUTCOME_SUCCESS.equals(outcome)
-                    ? PayOrderStatusEnum.SUCCESS.code()
-                    : PayOrderStatusEnum.FAILED.code();
+                    ? PayinOrderStatusEnum.SUCCESS.code()
+                    : PayinOrderStatusEnum.FAILED.code();
             String errorMessage = OUTCOME_FAILED.equals(outcome)
                     ? StringUtils.defaultIfBlank(failReason, SANDBOX_FAILED_MESSAGE)
                     : null;
             boolean changed = completePay(current, status, errorMessage);
-            PayOrderEntity refreshed = payOrderDao.selectById(orderId);
+            PayinOrderEntity refreshed = payinOrderDao.selectById(orderId);
             String message = changed
                     ? (OUTCOME_SUCCESS.equals(outcome) ? "沙箱代收回调成功" : "沙箱代收回调失败")
                     : "订单状态未变更";
             return payResult(refreshed, changed, message);
         });
 
-        Map<String, Object> notify = merchantNotifyExecutor.sendOnceByBizOrder(BizTypeEnum.PAY_ORDER.code(), orderId);
+        Map<String, Object> notify = merchantNotifyExecutor.sendOnceByBizOrder(BizTypeEnum.PAYIN_ORDER.code(), orderId);
         if (orderResult == null) {
             throw new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "Sandbox mock callback failed");
         }
@@ -128,14 +128,14 @@ public class SandboxOrderService {
         return orderResult.withMock(outcome, OUTCOME_FAILED.equals(outcome) ? failReason : null, notify);
     }
 
-    private boolean completePay(PayOrderEntity order, String status, String errorMessage) {
+    private boolean completePay(PayinOrderEntity order, String status, String errorMessage) {
         PspOrderQueryResult result = PspOrderQueryResult.builder()
                 .success(PspCallbackUtils.STATUS_SUCCESS.equals(status))
                 .pspCode(Constant.SANDBOX)
-                .bizType(BizTypeEnum.PAY_ORDER.code())
-                .systemOrderNo(order.getPayOrderNo())
+                .bizType(BizTypeEnum.PAYIN_ORDER.code())
+                .systemOrderNo(order.getPayinOrderNo())
                 .merchantOrderNo(order.getMerchantOrderNo())
-                .pspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), Constant.SANDBOX + "_" + order.getPayOrderNo()))
+                .pspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), Constant.SANDBOX + "_" + order.getPayinOrderNo()))
                 .pspStatus(PspCallbackUtils.STATUS_SUCCESS.equals(status) ? SANDBOX_PSP_STATUS_SUCCESS : SANDBOX_PSP_STATUS_FAILED)
                 .orderStatus(status)
                 .amount(order.getAmount())
@@ -147,7 +147,7 @@ public class SandboxOrderService {
                 .errorCode(PspCallbackUtils.STATUS_FAILED.equals(status) ? "SANDBOX_FAILED" : null)
                 .errorMessage(errorMessage)
                 .build();
-        return resultHandler.handle(BizTypeEnum.PAY_ORDER.code(), orderResolver.fromPayOrder(order, null), result);
+        return resultHandler.handle(BizTypeEnum.PAYIN_ORDER.code(), orderResolver.fromPayinOrder(order, null), result);
     }
 
     private boolean completeSandboxPayout(PayoutOrderEntity order, String status, String errorMessage) {
@@ -173,8 +173,8 @@ public class SandboxOrderService {
         return changed;
     }
 
-    private PayOrderEntity requireSandboxPayOrderById(Long orderId) {
-        PayOrderEntity order = payOrderDao.selectById(orderId);
+    private PayinOrderEntity requireSandboxPayinOrderById(Long orderId) {
+        PayinOrderEntity order = payinOrderDao.selectById(orderId);
         if (order == null) {
             throw new GkException(ErrorCode.NOT_FOUND, "Sandbox pay order not found");
         }
@@ -238,9 +238,9 @@ public class SandboxOrderService {
     }
 
     private boolean isTerminalPayStatus(String status) {
-        return PayOrderStatusEnum.SUCCESS.matches(status)
-                || PayOrderStatusEnum.FAILED.matches(status)
-                || PayOrderStatusEnum.CLOSED.matches(status);
+        return PayinOrderStatusEnum.SUCCESS.matches(status)
+                || PayinOrderStatusEnum.FAILED.matches(status)
+                || PayinOrderStatusEnum.CLOSED.matches(status);
     }
 
     private boolean isTerminalPayoutStatus(String status) {
@@ -249,10 +249,10 @@ public class SandboxOrderService {
                 || PayoutOrderStatusEnum.CANCELLED.matches(status);
     }
 
-    private SandboxOrderResult payResult(PayOrderEntity order, boolean changed, String message) {
+    private SandboxOrderResult payResult(PayinOrderEntity order, boolean changed, String message) {
         return SandboxOrderResult.basic(
                 "PAYIN",
-                order.getPayOrderNo(),
+                order.getPayinOrderNo(),
                 order.getMerchantOrderNo(),
                 order.getStatus(),
                 changed,

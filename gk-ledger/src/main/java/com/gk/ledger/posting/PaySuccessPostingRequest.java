@@ -13,7 +13,7 @@ public class PaySuccessPostingRequest {
     private String merchantOrderNo;
     private Long pspAccountId;
     private Long bizId;
-    private String payOrderNo;
+    private String payinOrderNo;
     private String currency;
     private BigDecimal amount;
     private BigDecimal merchantFeeAmount;

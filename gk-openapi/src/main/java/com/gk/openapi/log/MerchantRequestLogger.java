@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.openapi.dto.BalanceQueryRequest;
 import com.gk.openapi.dto.BalanceResponse;
-import com.gk.openapi.dto.PayOrderCreateRequest;
-import com.gk.openapi.dto.PayOrderQueryRequest;
-import com.gk.openapi.dto.PayOrderResponse;
+import com.gk.openapi.dto.PayinOrderCreateRequest;
+import com.gk.openapi.dto.PayinOrderQueryRequest;
+import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderQueryRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
@@ -54,11 +54,11 @@ public class MerchantRequestLogger {
         record(request, "查询余额", "BALANCE", null, null, null, throwable, startMs);
     }
 
-    public void payCreateSuccess(HttpServletRequest request, PayOrderCreateRequest body, PayOrderResponse orderResp, ApiR<PayOrderResponse> response, long startMs) {
+    public void payCreateSuccess(HttpServletRequest request, PayinOrderCreateRequest body, PayinOrderResponse orderResp, ApiR<PayinOrderResponse> response, long startMs) {
         record(
                 request,
                 "创建代收订单",
-                "PAY_ORDER",
+                "PAYIN_ORDER",
                 body == null ? null : body.getMerchantOrderId(),
                 orderResp == null ? null : orderResp.getSystemOrderId(),
                 response,
@@ -67,11 +67,11 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payCreateFailed(HttpServletRequest request, PayOrderCreateRequest body, Throwable throwable, long startMs) {
+    public void payCreateFailed(HttpServletRequest request, PayinOrderCreateRequest body, Throwable throwable, long startMs) {
         record(
                 request,
                 "创建代收订单",
-                "PAY_ORDER",
+                "PAYIN_ORDER",
                 body == null ? getSignParam(request, "merchant_order_id") : body.getMerchantOrderId(),
                 null,
                 null,
@@ -80,11 +80,11 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payQuerySuccess(HttpServletRequest request, PayOrderQueryRequest body, PayOrderResponse orderResp, ApiR<PayOrderResponse> response, long startMs) {
+    public void payQuerySuccess(HttpServletRequest request, PayinOrderQueryRequest body, PayinOrderResponse orderResp, ApiR<PayinOrderResponse> response, long startMs) {
         record(
                 request,
                 "查询代收订单",
-                "PAY_ORDER",
+                "PAYIN_ORDER",
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), orderResp == null ? null : orderResp.getMerchantOrderId()),
                 firstNotBlank(orderResp == null ? null : orderResp.getSystemOrderId(), body == null ? null : body.getSystemOrderId()),
                 response,
@@ -93,11 +93,11 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payQueryFailed(HttpServletRequest request, PayOrderQueryRequest body, Throwable throwable, long startMs) {
+    public void payQueryFailed(HttpServletRequest request, PayinOrderQueryRequest body, Throwable throwable, long startMs) {
         record(
                 request,
                 "查询代收订单",
-                "PAY_ORDER",
+                "PAYIN_ORDER",
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), getSignParam(request, "merchant_order_id")),
                 firstNotBlank(body == null ? null : body.getSystemOrderId(), getSignParam(request, "system_order_id")),
                 null,

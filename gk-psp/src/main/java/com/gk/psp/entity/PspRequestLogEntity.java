@@ -17,7 +17,7 @@ public class PspRequestLogEntity extends SimpleEntity {
     private Long pspId;
     /** PSP编码快照 */
     private String pspCode;
-    /** 业务类型: PAY_ORDER/PAYOUT_ORDER/QUERY/REFUND*/
+    /** 业务类型: PAYIN_ORDER/PAYOUT_ORDER/QUERY/REFUND*/
     private String bizType;
     /** 业务ID */
     private Long bizId;

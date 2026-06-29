@@ -14,7 +14,7 @@ import java.util.List;
 @Mapper
 public interface TenantDashboardDao {
 
-    TenantDashboardSummaryDTO.OrderMetric selectPayOrderStats(@Param("tenantId") Long tenantId,
+    TenantDashboardSummaryDTO.OrderMetric selectPayinOrderStats(@Param("tenantId") Long tenantId,
                                                               @Param("currency") String currency,
                                                               @Param("rangeStart") Instant rangeStart,
                                                               @Param("rangeEnd") Instant rangeEnd);
@@ -60,7 +60,7 @@ public interface TenantDashboardDao {
                                                                        @Param("rangeEnd") Instant rangeEnd,
                                                                        @Param("limit") int limit);
 
-    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayOrders(@Param("tenantId") Long tenantId,
+    List<TenantDashboardRecentOrderDTO.RecentOrder> selectRecentPayinOrders(@Param("tenantId") Long tenantId,
                                                                           @Param("currency") String currency,
                                                                           @Param("limit") int limit);
 

@@ -8,7 +8,7 @@ import com.gk.psp.route.PspRouteResult;
 public interface PspPayAdapter {
     boolean supports(String pspCode);
 
-    PspPayDispatchResult createPayOrder(PspOrderRequest order, PspRouteResult route);
+    PspPayDispatchResult createPayinOrder(PspOrderRequest order, PspRouteResult route);
 
-    PspOrderQueryResult queryPayOrder(PspOrderRequest order, PspRouteResult route);
+    PspOrderQueryResult queryPayinOrder(PspOrderRequest order, PspRouteResult route);
 }

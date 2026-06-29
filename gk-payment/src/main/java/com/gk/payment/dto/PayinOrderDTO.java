@@ -6,14 +6,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Data
-public class PayOrderDTO {
+public class PayinOrderDTO {
     private Long id;
     private Long tenantId;
     private Long merchantId;
     private String merchantNo;
     private Long merchantAppId;
     private String appId;
-    private String payOrderNo;
+    private String payinOrderNo;
     private String merchantOrderNo;
     private String idempotencyKey;
     private String requestId;

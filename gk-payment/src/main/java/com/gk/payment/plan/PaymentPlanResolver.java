@@ -10,7 +10,7 @@ import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
-import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
@@ -61,7 +61,7 @@ public class PaymentPlanResolver {
     private final ConcurrentHashMap<Long, CacheEntry<PspMethodEntity>> methodCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, CacheEntry<PspAccountEntity>> accountCache = new ConcurrentHashMap<>();
 
-    public Optional<PaymentPlan> resolvePayin(PayOrderEntity order) {
+    public Optional<PaymentPlan> resolvePayin(PayinOrderEntity order) {
         PaymentPlanKey key = PaymentPlanKey.of(
                 order.getTenantId(),
                 order.getMerchantId(),
@@ -71,7 +71,7 @@ public class PaymentPlanResolver {
                 order.getCurrency(),
                 order.getMethodCode()
         );
-        return resolve(key, order.getAmount(), null, order.getPayOrderNo());
+        return resolve(key, order.getAmount(), null, order.getPayinOrderNo());
     }
 
     public Optional<PaymentPlan> resolvePayout(PayoutOrderEntity order) {

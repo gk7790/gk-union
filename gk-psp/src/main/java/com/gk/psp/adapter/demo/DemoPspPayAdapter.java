@@ -27,7 +27,7 @@ public class DemoPspPayAdapter implements PspPayAdapter {
     }
 
     @Override
-    public PspPayDispatchResult createPayOrder(PspOrderRequest order, PspRouteResult route) {
+    public PspPayDispatchResult createPayinOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_PAY_BASE_URL);
 
         PspPayDispatchResult result = new PspPayDispatchResult();
@@ -50,7 +50,7 @@ public class DemoPspPayAdapter implements PspPayAdapter {
     }
 
     @Override
-    public PspOrderQueryResult queryPayOrder(PspOrderRequest order, PspRouteResult route) {
+    public PspOrderQueryResult queryPayinOrder(PspOrderRequest order, PspRouteResult route) {
         String baseUrl = StringUtils.defaultIfBlank(route.getPspBaseUrl(), DEFAULT_PAY_BASE_URL);
         String pspOrderNo = StringUtils.defaultIfBlank(order.getPspOrderNo(), "PSP" + order.getOrderNo());
         return PspOrderQueryResult.builder()

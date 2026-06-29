@@ -6,7 +6,7 @@ import com.gk.common.annotation.Style;
 @EnumDict("bizType")
 public enum BizTypeEnum implements StringCodeEnum {
     @Style(StyleType.PRIMARY)
-    PAY_ORDER("PAY_ORDER", "代收订单", "enum.bizType.payOrder"),
+    PAYIN_ORDER("PAYIN_ORDER", "代收订单", "enum.bizType.payinOrder"),
 
     @Style(StyleType.WARNING)
     PAYOUT_ORDER("PAYOUT_ORDER", "代付订单", "enum.bizType.payoutOrder"),

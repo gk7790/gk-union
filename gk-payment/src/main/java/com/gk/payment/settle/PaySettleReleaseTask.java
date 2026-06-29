@@ -1,6 +1,6 @@
 package com.gk.payment.settle;
 
-import com.gk.payment.service.PayOrderService;
+import com.gk.payment.service.PayinOrderService;
 import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -13,11 +13,11 @@ import org.springframework.stereotype.Component;
 @Component("paySettleReleaseTask")
 @RequiredArgsConstructor
 public class PaySettleReleaseTask implements ITask {
-    private final PayOrderService payOrderService;
+    private final PayinOrderService payinOrderService;
 
     @Override
     public String run(String params) {
-        int released = payOrderService.drainDueSettlements();
+        int released = payinOrderService.drainDueSettlements();
         return "pay-settle-release released=" + released;
     }
 }

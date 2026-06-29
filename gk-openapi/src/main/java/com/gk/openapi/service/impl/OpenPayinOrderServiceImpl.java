@@ -23,12 +23,10 @@ import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.enums.SettleStatusEnum;
-import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.payment.plan.PayinPlan;
 import com.gk.payment.plan.PayinPlanService;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.psp.PspOrderRequests;
-import com.gk.payment.service.MerchantFeeRuleService;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayDispatchService;
@@ -58,7 +56,6 @@ import java.util.Map;
 @Slf4j
 public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     private final PayinOrderDao payinOrderDao;
-    private final MerchantFeeRuleService merchantFeeRuleService;
     private final PayinPlanService payinPlanService;
     private final PspPayDispatchService pspPayDispatchService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
@@ -143,16 +140,14 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
 
         PayinPlan payinPlan = null;
         if (isTestApp(context.getMerchantApp())) {
-            applyMerchantFee(entity);
-            // 测试 App 不请求真实 PSP，只计算商户侧费率并走沙箱流程
+            // Test app skips payment plan and fee rule matching; sandbox fees default to zero.
+            applySandboxPayinDefaults(entity);
             timer.mark("resolve_payment_plan");
             timer.mark("apply_payment_plan");
         } else {
             payinPlan = payinPlanService.resolve(entity);
-            // 正式 App 先解析完 PayinPlan，确保商户费率、PSP 路由、PSP 成本费率都已准备好
             timer.mark("resolve_payment_plan");
             applyPayinPlan(entity, payinPlan);
-            // 解析结果立即写入订单快照，后续即使配置变化，也不影响这笔订单的审计口径
             timer.mark("apply_payment_plan");
         }
 
@@ -276,6 +271,16 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
 
     private boolean isTestApp(MerchantAppEntity app) {
         return app != null && MerchantAppEnvEnum.TEST.code().equals(app.getAppEnv());
+    }
+
+    private void applySandboxPayinDefaults(PayinOrderEntity entity) {
+        entity.setMerchantFeeAmount(BigDecimal.ZERO);
+        entity.setSettleAmount(entity.getAmount());
+        entity.setMerchantFeeRuleId(null);
+        entity.setMerchantFeeSnapshotJson(null);
+        entity.setPspFeeAmount(BigDecimal.ZERO);
+        entity.setPspFeeRuleId(null);
+        entity.setPspFeeSnapshotJson(null);
     }
 
     /**
@@ -508,20 +513,6 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
                 ApiReqContextHolder.getMerchantId(),
                 merchantOrderNo
         );
-    }
-
-    /**
-     * 计算商户手续费和结算金额     * <p>
-     * 商户手续费影响入账拆分：订单成功后，结算金额进入商户待结算账户，
-     * 手续费进入平台收入或成本相关账户     *
-     * @param entity 订单
-     */
-    private void applyMerchantFee(PayinOrderEntity entity) {
-        MerchantFeeResult feeResult = merchantFeeRuleService.calculatePayin(entity);
-        entity.setMerchantFeeAmount(feeResult.getMerchantFeeAmount());
-        entity.setSettleAmount(feeResult.getSettleAmount());
-        entity.setMerchantFeeRuleId(feeResult.getRule().getId());
-        entity.setMerchantFeeSnapshotJson(feeResult.getSnapshotJson());
     }
 
     /**

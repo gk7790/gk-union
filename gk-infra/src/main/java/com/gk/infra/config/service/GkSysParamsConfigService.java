@@ -27,7 +27,6 @@ public class GkSysParamsConfigService {
 
     public GkOpenApiConfig openApiConfig() {
         GkOpenApiConfig fallback = new GkOpenApiConfig();
-        fallback.setPayoutAsyncSubmit(properties.getOpenapi().getPayout().isAsyncSubmit());
         GkOpenApiConfig config = getObject(Constant.GK_OPENAPI_CONFIG_KEY, GkOpenApiConfig.class, fallback);
         if (!SignTypeEnum.HMAC_SHA256.matches(config.getDefaultSignType())
                 && !SignTypeEnum.MD5.matches(config.getDefaultSignType())) {
@@ -89,7 +88,7 @@ public class GkSysParamsConfigService {
 
     public PayoutSubmitConfig payoutSubmitConfig() {
         PayoutSubmitConfig fallback = new PayoutSubmitConfig();
-        fallback.setAsyncSubmit(openApiConfig().isPayoutAsyncSubmit());
+        fallback.setAsyncSubmit(properties.getOpenapi().getPayout().isAsyncSubmit());
         PayoutSubmitConfig config = getObject(Constant.PAYOUT_SUBMIT_CONFIG_KEY, PayoutSubmitConfig.class, fallback);
         if (config.getDefaultBatchSize() <= 0) {
             config.setDefaultBatchSize(fallback.getDefaultBatchSize());

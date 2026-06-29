@@ -58,7 +58,8 @@ public class PspCallbackOrderResolver {
                 order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                 order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
                 order.getPspAccountId(), apiSecret, order.getPayinOrderNo(), order.getMerchantOrderNo(),
-                order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
+                order.getPspOrderNo(), order.getStatus(), order.getStatusReason(), order.getCountryCode(),
+                order.getMethodCode(), order.getAmount(), order.getMerchantFeeAmount(),
                 order.getSettleAmount(), null, order.getCurrency(), order.getNotifyUrl()
         );
     }
@@ -71,7 +72,8 @@ public class PspCallbackOrderResolver {
                 order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                 order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
                 order.getPspAccountId(), apiSecret, order.getPayoutOrderNo(), order.getMerchantOrderNo(),
-                order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
+                order.getPspOrderNo(), order.getStatus(), order.getStatusReason(), order.getCountryCode(),
+                order.getMethodCode(), order.getAmount(), order.getMerchantFeeAmount(),
                 null, order.getTotalDebitAmount(), order.getCurrency(), order.getNotifyUrl()
         );
     }

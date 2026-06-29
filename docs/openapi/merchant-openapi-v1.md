@@ -222,7 +222,7 @@ POST /api/v1/pay/query
 {
   "app_id": "APP_PH_MANILA_001",
   "timestamp": "1780800000000",
-  "merchant_order_id": "M202606080001"
+  "merchant_order_id": "M202606080001",
   "sign": "7c1a..."
 }
 ```
@@ -324,7 +324,7 @@ POST /api/v1/payout/query
 {
   "app_id": "APP_PH_MANILA_001",
   "timestamp": "1780800000000",
-  "merchant_order_id": "PO202606080001"
+  "merchant_order_id": "PO202606080001",
   "sign": "7c1a..."
 }
 ```
@@ -480,10 +480,12 @@ POST /api/v1/methods
 | `direction` | `PAYIN` 代收 / `PAYOUT` 代付 |
 | `system_order_id` | 平台订单号 |
 | `merchant_order_id` | 商户订单号 |
-| `currency` | 币种 |
+| `status` | 订单状态 |
+| `status_reason` | 状态原因；没有时不返回 |
 | `amount` | 订单金额 |
-| `order_status` | 订单状态 |
-| `reason` | 失败原因；成功通知不返回该字段 |
+| `currency` | 币种 |
+| `country_code` | 国家编码 |
+| `method_code` | 支付/代付方式 |
 | `paid_amount` | 代收实付金额（代收） |
 | `settle_amount` | 结算金额（代收，可选） |
 | `debit_amount` | 扣款金额（代付） |

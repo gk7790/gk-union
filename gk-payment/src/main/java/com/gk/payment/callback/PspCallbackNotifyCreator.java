@@ -91,7 +91,7 @@ public class PspCallbackNotifyCreator {
     Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         boolean payinOrder = BizTypeEnum.PAYIN_ORDER.matches(bizType);
         String direction = payinOrder ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
-        String orderStatus = eventType(bizType, result.getOrderStatus());
+        String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("merchant_id", order.merchantNo());
@@ -99,12 +99,12 @@ public class PspCallbackNotifyCreator {
         payload.put("direction", direction);
         payload.put("system_order_id", order.orderNo());
         payload.put("merchant_order_id", order.merchantOrderNo());
-        payload.put("currency", order.currency());
+        payload.put("status", status);
+        putIfNotBlank(payload, "status_reason", statusReason(result, order, status));
         payload.put("amount", money(order.amount(), order.currency()));
-        payload.put("order_status", orderStatus);
-        if (!orderStatus.endsWith("_SUCCESS")) {
-            payload.put("reason", reason(result));
-        }
+        payload.put("currency", order.currency());
+        putIfNotBlank(payload, "country_code", order.countryCode());
+        putIfNotBlank(payload, "method_code", order.methodCode());
 
         if (payinOrder) {
             // PSP 未回传实际支付金额时，默认使用订单金额
@@ -128,8 +128,15 @@ public class PspCallbackNotifyCreator {
 
     /**
      * 生成商户通知失败原因     */
-    private String reason(PspCallbackResult result) {
-        return StringUtils.defaultIfBlank(result.getErrorMessage(), "Transaction failed");
+    private String statusReason(PspCallbackResult result, PspCallbackOrder order, String status) {
+        if (PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+            return null;
+        }
+        String reason = StringUtils.defaultIfBlank(
+                result == null ? null : result.getErrorMessage(),
+                order == null ? null : order.statusReason()
+        );
+        return StringUtils.defaultIfBlank(reason, "Transaction failed");
     }
 
     /**
@@ -143,6 +150,12 @@ public class PspCallbackNotifyCreator {
      * 判断金额是否大于 0     */
     private boolean positive(BigDecimal value) {
         return value != null && value.signum() > 0;
+    }
+
+    private void putIfNotBlank(Map<String, Object> payload, String key, String value) {
+        if (StringUtils.isNotBlank(value)) {
+            payload.put(key, value);
+        }
     }
 
     /**

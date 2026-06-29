@@ -17,6 +17,7 @@ public class MerchantWalletStatementDTO {
     private String merchantNo;
     private String merchantName;
     private Long merchantAppId;
+    private String merchantAppName;
     private Long journalId;
     private String journalNo;
     private Long entryId;

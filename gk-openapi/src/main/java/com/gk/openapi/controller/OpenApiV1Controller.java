@@ -58,7 +58,7 @@ public class OpenApiV1Controller {
         }
     }
 
-    @PostMapping( "pay/create")
+    @PostMapping( "payin/create")
     public ApiR<PayinOrderResponse> createPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayinOrderCreateRequest body = null;
@@ -77,7 +77,7 @@ public class OpenApiV1Controller {
         }
     }
 
-    @PostMapping( "pay/query")
+    @PostMapping( "payin/query")
     public ApiR<PayinOrderResponse> queryPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayinOrderQueryRequest body = null;

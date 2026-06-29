@@ -15,14 +15,21 @@ import com.gk.ledger.dto.MerchantWalletStatementDTO;
 import com.gk.ledger.entity.MerchantWalletStatementEntity;
 import com.gk.ledger.service.MerchantWalletStatementService;
 import com.gk.ledger.support.SubjectDisplayEnricher;
+import com.gk.merchant.dao.MerchantAppDao;
+import com.gk.merchant.entity.MerchantAppEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<MerchantWalletStatementDao, MerchantWalletStatementEntity, MerchantWalletStatementDTO>
@@ -58,6 +65,8 @@ public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<Merchant
 
     @Autowired(required = false)
     private SubjectDisplayEnricher subjectDisplayEnricher;
+    @Autowired(required = false)
+    private MerchantAppDao merchantAppDao;
 
     @Override
     public PageData<MerchantWalletStatementDTO> page(DynMap params) {
@@ -89,9 +98,50 @@ public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<Merchant
     }
 
     private void enrichStatements(List<MerchantWalletStatementDTO> items) {
+        if (CollectionUtils.isEmpty(items)) {
+            return;
+        }
         if (subjectDisplayEnricher != null) {
             subjectDisplayEnricher.enrichMerchantWalletStatements(items);
         }
+        enrichMerchantAppNames(items);
+        applyDisplayScope(items);
+    }
+
+    private void enrichMerchantAppNames(List<MerchantWalletStatementDTO> items) {
+        if (merchantAppDao == null) {
+            return;
+        }
+        Set<Long> appIds = items.stream()
+                .map(MerchantWalletStatementDTO::getMerchantAppId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (appIds.isEmpty()) {
+            return;
+        }
+        Map<Long, MerchantAppEntity> apps = merchantAppDao.selectBatchIds(appIds).stream()
+                .collect(Collectors.toMap(MerchantAppEntity::getId, Function.identity(), (left, right) -> left));
+        items.forEach(item -> {
+            MerchantAppEntity app = apps.get(item.getMerchantAppId());
+            if (app != null) {
+                item.setMerchantAppName(app.getAppName());
+            }
+        });
+    }
+
+    private void applyDisplayScope(List<MerchantWalletStatementDTO> items) {
+        String subjectType = ReqContextHolder.getSubjectType();
+        boolean platform = SubjectTypeEnum.PLATFORM.matches(subjectType);
+        boolean tenant = SubjectTypeEnum.TENANT.matches(subjectType);
+        items.forEach(item -> {
+            if (!platform) {
+                item.setTenantName(null);
+            }
+            if (!tenant) {
+                item.setMerchantNo(null);
+                item.setMerchantName(null);
+            }
+        });
     }
 
     @Override

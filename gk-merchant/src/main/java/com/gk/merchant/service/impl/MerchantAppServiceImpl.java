@@ -2,6 +2,7 @@ package com.gk.merchant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.enums.StringCodeEnum;
@@ -26,6 +27,7 @@ import com.gk.common.openapi.OpenApiAuthCacheEvictor;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import com.gk.merchant.support.MerchantAppSecrets;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -36,15 +38,14 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+@RequiredArgsConstructor
 public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, MerchantAppEntity, MerchantAppDTO> implements MerchantAppService {
     private static final int DEFAULT_RATE_LIMIT_QPS = 100;
     private static final int DEFAULT_NONCE_TTL_SECONDS = 3000;
     private static final int APP_ID_GENERATE_MAX_ATTEMPTS = 5;
 
-    @Autowired(required = false)
-    private MerchantPaymentPlanCacheEvictor paymentPlanCacheEvictor;
-    @Autowired
-    private OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
+    private final MerchantPaymentPlanCacheEvictor paymentPlanCacheEvictor;
+    private final OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -57,6 +58,10 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             wrapper.eq(merchantId != null, "merchant_id", merchantId);
         } else if (SubjectTypeEnum.TENANT.code().equals(context.getSubjectType())) {
             wrapper.eq("tenant_id", context.getTenantId());
+            if (!params.getBool("isAll", false)) {
+                Long merchantId = params.getLong("merchantId", 0L);
+                wrapper.eq(merchantId > 0, "merchant_id", merchantId);
+            }
         } else {
             wrapper.eq("tenant_id", context.getTenantId());
             wrapper.eq("merchant_id", context.getMerchantId());
@@ -80,9 +85,13 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
     @Override
     public PageData<MerchantAppDTO> page(DynMap params) {
-        PageData<MerchantAppDTO> page = super.page(params);
-        maskSecrets(page.getItems());
-        return page;
+        IPage<MerchantAppEntity> page = baseDao.selectPage(
+                getPage(params, "id", false),
+                getWrapper(params)
+        );
+        PageData<MerchantAppDTO> page1 = getPageData(page, currentDtoClass());;
+        maskSecrets(page1.getItems());
+        return page1;
     }
 
     @Override

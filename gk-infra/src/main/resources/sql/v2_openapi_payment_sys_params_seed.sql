@@ -1,6 +1,6 @@
 INSERT INTO `sys_params`
 (`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
-SELECT 3000000000000000002, 'GK_OPENAPI_CONFIG_KEY', '{"payoutAsyncSubmit":true,"requireNonce":true,"defaultSignType":"HMAC_SHA256"}', 1, 'OpenAPI runtime config', NOW()
+SELECT 3000000000000000002, 'GK_OPENAPI_CONFIG_KEY', '{"payoutAsyncSubmit":true,"requireNonce":true,"defaultSignType":"HMAC_SHA256","sandboxPayUrl":""}', 1, 'OpenAPI runtime config', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'GK_OPENAPI_CONFIG_KEY');
 
 INSERT INTO `sys_params`

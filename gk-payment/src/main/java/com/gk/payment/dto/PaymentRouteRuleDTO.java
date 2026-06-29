@@ -15,8 +15,12 @@ public class PaymentRouteRuleDTO {
     private String ruleName;
     @Schema(title = "商户ID，空表示租户级通用规则")
     private Long merchantId;
+    @Schema(title = "商户名称")
+    private String merchantName;
     @Schema(title = "商户应用ID，空表示不限应用")
     private Long merchantAppId;
+    @Schema(title = "商户应用名称")
+    private String merchantAppName;
     @Schema(title = "交易方向: PAYIN/PAYOUT")
     private String direction;
     @Schema(title = "国家/地区编码")

@@ -18,7 +18,12 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "代收订单")
 @RestController
@@ -32,12 +37,12 @@ public class PayinOrderController {
     @GetMapping("page")
     @Operation(summary = "分页")
     @Parameters({
-            @Parameter(name = Constant.PAGE, description = "当前页码，从1开", in = ParameterIn.QUERY, required = true),
+            @Parameter(name = Constant.PAGE, description = "当前页码，从1开始", in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.LIMIT, description = "每页显示记录", in = ParameterIn.QUERY, required = true),
             @Parameter(name = Constant.ORDER_FIELD, description = "排序字段", in = ParameterIn.QUERY),
-            @Parameter(name = Constant.ORDER, description = "排序方式，可选asc、desc)", in = ParameterIn.QUERY)
+            @Parameter(name = Constant.ORDER, description = "排序方式，可选 asc、desc", in = ParameterIn.QUERY)
     })
-    @PreAuthorize("hasAuthority('payment:pay-order:page')")
+    @PreAuthorize("hasAuthority('payment:payin-order:page')")
     public R<?> page(@RequestMap DynMap params) {
         PageData<PayinOrderDTO> page = payinOrderService.page(params);
         return R.ok(page);
@@ -45,14 +50,14 @@ public class PayinOrderController {
 
     @GetMapping("{id}")
     @Operation(summary = "信息")
-    @PreAuthorize("hasAuthority('payment:pay-order:info')")
+    @PreAuthorize("hasAuthority('payment:payin-order:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(payinOrderService.get(id));
     }
 
     @PostMapping("{id}/release-settle")
-    @Operation(summary = "手动释放待结", description = "将代收成功且 settle_status=PENDING 的订单释放至商户可用余额")
-    @PreAuthorize("hasAuthority('payment:pay-order:release-settle')")
+    @Operation(summary = "手动释放待结算", description = "将代收成功且 settle_status=PENDING 的订单释放至商户可用余额")
+    @PreAuthorize("hasAuthority('payment:payin-order:release-settle')")
     public R<Void> releaseSettle(@PathVariable("id") Long id) {
         AssertUtils.isNull(id, "id");
         payinOrderService.releaseSettle(id);
@@ -60,7 +65,7 @@ public class PayinOrderController {
     }
 
     @PostMapping("{id}/notify")
-    @Operation(summary = "手动通知商户", description = "立即同步重发; 成功提示通知成功, 失败返回 msg, 详情见通知记录")
+    @Operation(summary = "手动通知商户", description = "立即同步重发；成功提示通知成功，失败返回 msg，详情见通知记录")
     @PreAuthorize("hasAuthority('payment:merchant-notify-task:resend')")
     public R<Void> notifyMerchant(@PathVariable("id") Long id) {
         AssertUtils.isNull(id, "id");

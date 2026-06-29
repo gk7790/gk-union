@@ -1,7 +1,7 @@
 package com.gk.payment.reconcile;
 
-import com.gk.payment.service.PayinOrderService;
 import com.gk.common.task.ITask;
+import com.gk.payment.service.PayinOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +16,6 @@ public class PayinOrderExceptionTask implements ITask {
     @Override
     public String run(String params) {
         int marked = payinOrderService.drainLongProcessingOrders();
-        return "pay-order-exception manualReview=" + marked;
+        return "payin-order-exception manualReview=" + marked;
     }
 }

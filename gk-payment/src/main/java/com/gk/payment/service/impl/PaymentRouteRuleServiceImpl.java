@@ -2,10 +2,12 @@ package com.gk.payment.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.common.amount.AmountRangeUtils;
 import com.gk.payment.dao.PaymentRouteGroupDao;
 import com.gk.payment.dao.PaymentRouteRuleDao;
@@ -21,6 +23,7 @@ import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -29,6 +32,21 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
     private final PaymentRouteGroupDao paymentRouteGroupDao;
     private final PayinPlanCache payinPlanCache;
     private final PaymentPlanCacheService paymentPlanCacheService;
+
+    @Override
+    public PageData<PaymentRouteRuleDTO> page(DynMap params) {
+        normalizePageParams(params);
+        long pageNo = Math.max(params.getLong(Constant.PAGE, 1L), 1L);
+        long limit = Math.max(params.getLong(Constant.LIMIT, 10L), 1L);
+        params.put("offset", (pageNo - 1) * limit);
+        params.put("limitValue", limit);
+
+        Long total = baseDao.countPageWithName(params);
+        List<PaymentRouteRuleDTO> list = total == null || total == 0L
+                ? List.of()
+                : baseDao.selectPageWithName(params);
+        return new PageData<>(list, total == null ? 0L : total);
+    }
 
     @Override
     public QueryWrapper<PaymentRouteRuleEntity> getWrapper(DynMap params) {
@@ -55,6 +73,20 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", normalize(currency));
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
         return wrapper;
+    }
+
+    private void normalizePageParams(DynMap params) {
+        normalizeParam(params, "direction");
+        normalizeParam(params, "countryCode");
+        normalizeParam(params, "currency");
+        normalizeParam(params, "methodCode");
+    }
+
+    private void normalizeParam(DynMap params, String key) {
+        String value = params.getStr(key);
+        if (StrUtil.isNotBlank(value)) {
+            params.put(key, normalize(value));
+        }
     }
 
     @Override

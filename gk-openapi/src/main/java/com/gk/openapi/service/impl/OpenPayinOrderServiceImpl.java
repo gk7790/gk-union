@@ -254,13 +254,24 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         order.setPspCode(Constant.SANDBOX);
         order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayinOrderNo());
-        order.setPspPayUrl(null);
+        order.setPspPayUrl(sandboxPayUrl(order));
         order.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setPspRawStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setNextQueryAt(null);
         payinOrderDao.updateById(order);
         recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
+    }
+
+    private String sandboxPayUrl(PayinOrderEntity order) {
+        String template = configService.openApiConfig().getSandboxPayUrl();
+        if (StringUtils.isBlank(template) || order == null) {
+            return null;
+        }
+        return template
+                .replace("{payinOrderNo}", StringUtils.defaultString(order.getPayinOrderNo()))
+                .replace("{pspOrderNo}", StringUtils.defaultString(order.getPspOrderNo()))
+                .replace("{merchantOrderNo}", StringUtils.defaultString(order.getMerchantOrderNo()));
     }
 
     private boolean isTestApp(MerchantAppEntity app) {

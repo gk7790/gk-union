@@ -12,6 +12,6 @@ public class PayinOrderQueryTask implements ITask {
     @Override
     public String run(String params) {
         int handled = executor.drainPayinOrders();
-        return "pay-order-query handled=" + handled;
+        return "payin-order-query handled=" + handled;
     }
 }

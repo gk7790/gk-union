@@ -18,6 +18,8 @@ import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.merchant.dao.MerchantDao;
+import com.gk.merchant.entity.MerchantEntity;
 import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.amount.FeeLimitUtils;
 import com.gk.payment.dao.MerchantFeeRuleDao;
@@ -48,6 +50,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
     private final PaymentMethodDao paymentMethodDao;
+    private final MerchantDao merchantDao;
 
     @Autowired
     private PayinPlanCache payinPlanCache;
@@ -358,6 +362,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     @Override
     public void save(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
+        inheritTenantFromMerchant(dto);
         validateAmountRange(dto);
         validateFeeLimit(dto);
         super.save(dto);
@@ -367,6 +372,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
     @Override
     public void update(MerchantFeeRuleDTO dto) {
         normalizePersistFields(dto);
+        keepExistingTenant(dto);
         validateAmountRange(dto);
         validateFeeLimit(dto);
         super.update(dto);
@@ -579,6 +585,42 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         dto.setFeeBearer(null);
         String direction = StringUtils.defaultIfBlank(dto.getDirection(), currentDirection(dto.getId()));
         dto.setSettleMode(PayDirectionEnum.PAYOUT.matches(direction) ? SETTLE_MODE_ADD : SETTLE_MODE_DEDUCT);
+    }
+
+    private void inheritTenantFromMerchant(MerchantFeeRuleDTO dto) {
+        if (dto == null) {
+            return;
+        }
+        MerchantEntity merchant = requireMerchant(dto.getMerchantId());
+        dto.setTenantId(merchant.getTenantId());
+    }
+
+    private void keepExistingTenant(MerchantFeeRuleDTO dto) {
+        if (dto == null || dto.getId() == null) {
+            return;
+        }
+        MerchantFeeRuleEntity existing = baseDao.selectById(dto.getId());
+        if (existing == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Merchant fee rule not found");
+        }
+        if (dto.getMerchantId() != null) {
+            MerchantEntity merchant = requireMerchant(dto.getMerchantId());
+            if (!Objects.equals(existing.getTenantId(), merchant.getTenantId())) {
+                throw new GkException(ErrorCode.BAD_REQUEST, "Merchant does not belong to the current tenant");
+            }
+        }
+        dto.setTenantId(existing.getTenantId());
+    }
+
+    private MerchantEntity requireMerchant(Long merchantId) {
+        if (merchantId == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Merchant not found");
+        }
+        MerchantEntity merchant = merchantDao.selectById(merchantId);
+        if (merchant == null || merchant.getTenantId() == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "Merchant not found");
+        }
+        return merchant;
     }
 
     private void clearMerchantAppWhenNeeded(MerchantFeeRuleDTO dto) {

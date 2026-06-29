@@ -172,7 +172,7 @@ public class PspRouteSelectorImpl implements PspRouteSelector {
         if (PayDirectionEnum.PAYOUT.code().equals(direction)) {
             return callbackUrlBuilder.payoutCallbackUrl(pspAccountNo);
         }
-        return callbackUrlBuilder.payCallbackUrl(pspAccountNo);
+        return callbackUrlBuilder.payinCallbackUrl(pspAccountNo);
     }
 
     private PspProviderEntity requireProvider(Long pspId, String direction) {

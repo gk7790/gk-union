@@ -2,6 +2,7 @@ package com.gk.payment.callback;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
@@ -89,7 +90,7 @@ public class PspCallbackNotifyCreator {
      */
     Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         boolean payinOrder = BizTypeEnum.PAYIN_ORDER.matches(bizType);
-        String direction = payinOrder ? "PAYIN" : "PAYOUT";
+        String direction = payinOrder ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
         String orderStatus = eventType(bizType, result.getOrderStatus());
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -134,7 +135,7 @@ public class PspCallbackNotifyCreator {
     /**
      * 生成商户通知事件类型     */
     private String eventType(String bizType, String status) {
-        String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+        String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 

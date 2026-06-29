@@ -3,6 +3,7 @@ package com.gk.openapi.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.constant.Constant;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.utils.AsynUtils;
@@ -344,7 +345,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
                                     String reason,
                                     String operatorType) {
         AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
-                    "PAYIN",
+                    PayDirectionEnum.PAYIN.code(),
                     entity.getTenantId(),
                     entity.getMerchantId(),
                     entity.getId(),

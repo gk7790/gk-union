@@ -14,8 +14,8 @@ public class PspCallbackUrlBuilder {
     private final PspCallbackProperties properties;
     private final GkSysParamsConfigService configService;
 
-    public String payCallbackUrl(String pspAccountNo) {
-        return callbackUrl(pspAccountNo, "pay");
+    public String payinCallbackUrl(String pspAccountNo) {
+        return callbackUrl(pspAccountNo, "payin");
     }
 
     public String payoutCallbackUrl(String pspAccountNo) {

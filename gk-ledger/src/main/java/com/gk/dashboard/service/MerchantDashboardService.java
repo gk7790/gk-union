@@ -1,6 +1,7 @@
 package com.gk.dashboard.service;
 
 import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -118,7 +119,7 @@ public class MerchantDashboardService {
         MerchantDTO merchant = loadMerchant();
         String resolvedCurrency = resolveCurrency(currency, merchant.getDefaultCurrency());
         int resolvedLimit = Math.min(Math.max(limit, 1), RECENT_ORDER_LIMIT_MAX);
-        List<TenantDashboardRecentOrderDTO.RecentOrder> items = "PAY".equals(resolvedBizType)
+        List<TenantDashboardRecentOrderDTO.RecentOrder> items = PayDirectionEnum.PAYIN.matches(resolvedBizType)
                 ? merchantDashboardDao.selectRecentPayinOrders(merchant.getTenantId(), merchant.getId(), resolvedCurrency, resolvedLimit)
                 : merchantDashboardDao.selectRecentPayoutOrders(merchant.getTenantId(), merchant.getId(), resolvedCurrency, resolvedLimit);
         if (items == null) {
@@ -192,7 +193,7 @@ public class MerchantDashboardService {
         return switch (type.trim()) {
             case "MANUAL_REVIEW", "manualReview" -> "MANUAL_REVIEW";
             case "NOTIFY_FAILED", "notifyFailed" -> "NOTIFY_FAILED";
-            case "PROCESSING_PAY", "processingPay" -> "PROCESSING_PAY";
+            case "PROCESSING_PAYIN", "processingPayin" -> "PROCESSING_PAYIN";
             case "PROCESSING_PAYOUT", "processingPayout" -> "PROCESSING_PAYOUT";
             default -> null;
         };
@@ -200,17 +201,17 @@ public class MerchantDashboardService {
 
     private void normalizeTodoItem(TenantDashboardTodoDTO.TodoItem item) {
         item.setAmount(money(item.getAmount()));
-        if ("PAY".equalsIgnoreCase(item.getBizType())) {
-            item.setRoutePath("/payment/pay-order/detail?id=" + item.getOrderId());
-        } else if ("PAYOUT".equalsIgnoreCase(item.getBizType())) {
+        if (PayDirectionEnum.PAYIN.matches(item.getBizType())) {
+            item.setRoutePath("/payment/payin-order/detail?id=" + item.getOrderId());
+        } else if (PayDirectionEnum.PAYOUT.matches(item.getBizType())) {
             item.setRoutePath("/payment/payout-order/detail?id=" + item.getOrderId());
         }
     }
 
     private void normalizeRecentOrder(TenantDashboardRecentOrderDTO.RecentOrder item, String bizType) {
         item.setAmount(money(item.getAmount()));
-        if ("PAY".equals(bizType)) {
-            item.setRoutePath("/payment/pay-order/detail?id=" + item.getOrderId());
+        if (PayDirectionEnum.PAYIN.matches(bizType)) {
+            item.setRoutePath("/payment/payin-order/detail?id=" + item.getOrderId());
         } else {
             item.setRoutePath("/payment/payout-order/detail?id=" + item.getOrderId());
         }

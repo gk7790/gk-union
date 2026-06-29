@@ -207,7 +207,7 @@
             <when test="type == 'MANUAL_REVIEW'">
                 SELECT * FROM (
                     SELECT
-                        'PAY' AS bizType,
+                        'PAYIN' AS bizType,
                         o.id AS orderId,
                         o.payin_order_no AS orderNo,
                         o.merchant_id AS merchantId,
@@ -252,7 +252,7 @@
             <when test="type == 'NOTIFY_FAILED'">
                 SELECT * FROM (
                     SELECT
-                        'PAY' AS bizType,
+                        'PAYIN' AS bizType,
                         o.id AS orderId,
                         o.payin_order_no AS orderNo,
                         o.merchant_id AS merchantId,
@@ -296,7 +296,7 @@
             </when>
             <when test="type == 'SETTLE_DUE'">
                 SELECT
-                    'PAY' AS bizType,
+                    'PAYIN' AS bizType,
                     o.id AS orderId,
                     o.payin_order_no AS orderNo,
                     o.merchant_id AS merchantId,
@@ -320,9 +320,9 @@
                 ORDER BY eventAt ASC
                 LIMIT #{limit}
             </when>
-            <when test="type == 'PROCESSING_PAY'">
+            <when test="type == 'PROCESSING_PAYIN'">
                 SELECT
-                    'PAY' AS bizType,
+                    'PAYIN' AS bizType,
                     o.id AS orderId,
                     o.payin_order_no AS orderNo,
                     o.merchant_id AS merchantId,

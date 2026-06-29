@@ -1,5 +1,6 @@
 package com.gk.dashboard.support;
 
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import org.apache.commons.lang3.StringUtils;
@@ -214,8 +215,8 @@ public final class DashboardSupport {
             return null;
         }
         return switch (bizType.trim().toUpperCase(Locale.ROOT)) {
-            case "PAY" -> "PAY";
-            case "PAYOUT" -> "PAYOUT";
+            case "PAYIN" -> PayDirectionEnum.PAYIN.code();
+            case "PAYOUT" -> PayDirectionEnum.PAYOUT.code();
             default -> null;
         };
     }

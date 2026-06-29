@@ -49,7 +49,7 @@ public class MerchantDashboardController {
     @Operation(summary = "待办明细")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardTodoDTO> todos(
-            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/PROCESSING_PAY/PROCESSING_PAYOUT")
+            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/PROCESSING_PAYIN/PROCESSING_PAYOUT")
             @RequestParam String type,
             @RequestParam(required = false) String currency,
             @Parameter(description = "默认10，最0")
@@ -61,7 +61,7 @@ public class MerchantDashboardController {
     @Operation(summary = "最近订")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardRecentOrderDTO> recentOrders(
-            @Parameter(description = "PAY/PAYOUT")
+            @Parameter(description = "PAYIN/PAYOUT")
             @RequestParam String bizType,
             @RequestParam(required = false) String currency,
             @Parameter(description = "默认5，最0")

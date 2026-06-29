@@ -50,7 +50,7 @@ public class TenantDashboardController {
     @Operation(summary = "待办明细")
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardTodoDTO> todos(
-            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/SETTLE_DUE/PROCESSING_PAY/PROCESSING_PAYOUT，也支持 summary.todos camelCase")
+            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/SETTLE_DUE/PROCESSING_PAYIN/PROCESSING_PAYOUT，也支持 camelCase")
             @RequestParam String type,
             @RequestParam(required = false) String currency,
             @Parameter(description = "默认10，最0")
@@ -74,7 +74,7 @@ public class TenantDashboardController {
     @Operation(summary = "最近订")
     @PreAuthorize("hasAuthority('dashboard:tenant:view')")
     public R<TenantDashboardRecentOrderDTO> recentOrders(
-            @Parameter(description = "PAY/PAYOUT")
+            @Parameter(description = "PAYIN/PAYOUT")
             @RequestParam String bizType,
             @RequestParam(required = false) String currency,
             @Parameter(description = "默认5，最0")

@@ -24,7 +24,7 @@ public class TgMessageTaskEntity extends SimpleEntity {
     private Long chatId;
     /** 消息任务编号 */
     private String taskNo;
-    /** 业务类型: PAY_ORDER/PAYOUT_ORDER等 */
+    /** 业务类型: PAYIN_ORDER/PAYOUT_ORDER等 */
     private String bizType;
     /** 业务编号 */
     private String bizNo;

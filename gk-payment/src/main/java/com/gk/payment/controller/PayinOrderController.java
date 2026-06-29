@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "代收订单")
 @RestController
-@RequestMapping("/payment/pay-order")
+@RequestMapping("/payment/payin-order")
 @RequiredArgsConstructor
 public class PayinOrderController {
     private final PayinOrderService payinOrderService;

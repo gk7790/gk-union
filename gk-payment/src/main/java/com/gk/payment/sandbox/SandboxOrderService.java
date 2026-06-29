@@ -3,6 +3,7 @@ package com.gk.payment.sandbox;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -251,7 +252,7 @@ public class SandboxOrderService {
 
     private SandboxOrderResult payResult(PayinOrderEntity order, boolean changed, String message) {
         return SandboxOrderResult.basic(
-                "PAYIN",
+                PayDirectionEnum.PAYIN.code(),
                 order.getPayinOrderNo(),
                 order.getMerchantOrderNo(),
                 order.getStatus(),
@@ -262,7 +263,7 @@ public class SandboxOrderService {
 
     private SandboxOrderResult payoutResult(PayoutOrderEntity order, boolean changed, String message) {
         return SandboxOrderResult.basic(
-                "PAYOUT",
+                PayDirectionEnum.PAYOUT.code(),
                 order.getPayoutOrderNo(),
                 order.getMerchantOrderNo(),
                 order.getStatus(),

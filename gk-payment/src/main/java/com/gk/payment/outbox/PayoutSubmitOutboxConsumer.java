@@ -3,6 +3,7 @@ package com.gk.payment.outbox;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
@@ -280,7 +281,7 @@ public class PayoutSubmitOutboxConsumer {
                                     String eventType,
                                     String reason) {
         AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
-                "PAYOUT",
+                PayDirectionEnum.PAYOUT.code(),
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),

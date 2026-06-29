@@ -1,6 +1,7 @@
 package com.gk.openapi.log;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.openapi.dto.BalanceQueryRequest;
 import com.gk.openapi.dto.BalanceResponse;
@@ -58,7 +59,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "创建代收订单",
-                "PAYIN_ORDER",
+                BizTypeEnum.PAYIN_ORDER.code(),
                 body == null ? null : body.getMerchantOrderId(),
                 orderResp == null ? null : orderResp.getSystemOrderId(),
                 response,
@@ -71,7 +72,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "创建代收订单",
-                "PAYIN_ORDER",
+                BizTypeEnum.PAYIN_ORDER.code(),
                 body == null ? getSignParam(request, "merchant_order_id") : body.getMerchantOrderId(),
                 null,
                 null,
@@ -84,7 +85,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "查询代收订单",
-                "PAYIN_ORDER",
+                BizTypeEnum.PAYIN_ORDER.code(),
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), orderResp == null ? null : orderResp.getMerchantOrderId()),
                 firstNotBlank(orderResp == null ? null : orderResp.getSystemOrderId(), body == null ? null : body.getSystemOrderId()),
                 response,
@@ -97,7 +98,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "查询代收订单",
-                "PAYIN_ORDER",
+                BizTypeEnum.PAYIN_ORDER.code(),
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), getSignParam(request, "merchant_order_id")),
                 firstNotBlank(body == null ? null : body.getSystemOrderId(), getSignParam(request, "system_order_id")),
                 null,
@@ -110,7 +111,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "创建代付订单",
-                "PAYOUT_ORDER",
+                BizTypeEnum.PAYOUT_ORDER.code(),
                 body == null ? null : body.getMerchantOrderId(),
                 orderResp == null ? null : orderResp.getSystemOrderId(),
                 response,
@@ -123,7 +124,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "创建代付订单",
-                "PAYOUT_ORDER",
+                BizTypeEnum.PAYOUT_ORDER.code(),
                 body == null ? getSignParam(request, "merchant_order_id") : body.getMerchantOrderId(),
                 null,
                 null,
@@ -136,7 +137,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "查询代付订单",
-                "PAYOUT_ORDER",
+                BizTypeEnum.PAYOUT_ORDER.code(),
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), orderResp == null ? null : orderResp.getMerchantOrderId()),
                 firstNotBlank(orderResp == null ? null : orderResp.getSystemOrderId(), body == null ? null : body.getSystemOrderId()),
                 response,
@@ -149,7 +150,7 @@ public class MerchantRequestLogger {
         record(
                 request,
                 "查询代付订单",
-                "PAYOUT_ORDER",
+                BizTypeEnum.PAYOUT_ORDER.code(),
                 firstNotBlank(body == null ? null : body.getMerchantOrderId(), getSignParam(request, "merchant_order_id")),
                 firstNotBlank(body == null ? null : body.getSystemOrderId(), getSignParam(request, "system_order_id")),
                 null,

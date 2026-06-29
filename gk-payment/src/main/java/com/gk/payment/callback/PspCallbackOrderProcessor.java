@@ -3,6 +3,7 @@ package com.gk.payment.callback;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.enums.PayinOrderStatusEnum;
@@ -204,13 +205,13 @@ public class PspCallbackOrderProcessor {
     /**
      * 转换订单类型文本     */
     private String direction(String bizType) {
-        return BizTypeEnum.PAYIN_ORDER.matches(bizType) ? "PAYIN" : "PAYOUT";
+        return BizTypeEnum.PAYIN_ORDER.matches(bizType) ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
     }
 
     /**
      * 生成状态变更事件类型     */
     private String statusEventType(String bizType, String status) {
-        String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+        String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 }

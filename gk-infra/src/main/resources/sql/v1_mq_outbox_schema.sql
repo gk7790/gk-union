@@ -8,11 +8,11 @@ CREATE TABLE IF NOT EXISTS mq_outbox (
     id bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     tenant_id bigint NOT NULL COMMENT '租户ID',
     event_id varchar(64) NOT NULL COMMENT '事件ID，全局唯一，建议雪花ID或UUID',
-    event_type varchar(64) NOT NULL COMMENT '事件类型: PAY_SUCCESS/PAYOUT_FAILED/LEDGER_POSTED等',
+    event_type varchar(64) NOT NULL COMMENT '事件类型: PAYIN_SUCCESS/PAYOUT_FAILED/LEDGER_POSTED等',
     event_version int NOT NULL DEFAULT 1 COMMENT '事件版本',
     source_service varchar(64) NOT NULL COMMENT '事件来源模块: gk-ledger/gk-notify/gk-admin等',
 
-    aggregate_type varchar(64) NOT NULL COMMENT '聚合类型: PAY_ORDER/PAYOUT_ORDER/LEDGER_JOURNAL/SETTLE_BATCH等',
+    aggregate_type varchar(64) NOT NULL COMMENT '聚合类型: PAYIN_ORDER/PAYOUT_ORDER/LEDGER_JOURNAL/SETTLE_BATCH等',
     aggregate_id bigint NULL DEFAULT NULL COMMENT '聚合ID',
     aggregate_no varchar(128) NOT NULL COMMENT '聚合编号/业务编号',
     biz_type varchar(64) NOT NULL COMMENT '业务类型',

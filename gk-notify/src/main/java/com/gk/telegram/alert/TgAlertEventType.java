@@ -8,8 +8,8 @@ public enum TgAlertEventType {
     SYSTEM_ERROR,
     /** 系统警告，需要关注但不一定立即失败。 */
     SYSTEM_WARN,
-    /** 支付成功业务通知。 */
-    PAY_SUCCESS,
+    /** 代收成功业务通知。 */
+    PAYIN_SUCCESS,
     /** 代付成功业务通知。 */
     PAYOUT_SUCCESS,
     /** 代付失败业务通知。 */

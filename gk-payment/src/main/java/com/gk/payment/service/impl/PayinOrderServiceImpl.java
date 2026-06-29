@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
@@ -114,7 +115,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
             return;
         }
         orderStatusLogService.recordChange(
-                "PAYIN",
+                PayDirectionEnum.PAYIN.code(),
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
@@ -220,14 +221,14 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
             return false;
         }
         orderStatusLogService.recordChange(
-                "PAYIN",
+                PayDirectionEnum.PAYIN.code(),
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
                 order.getPayinOrderNo(),
                 order.getStatus(),
                 PayinOrderStatusEnum.MANUAL_REVIEW.code(),
-                "PAY_MANUAL_REVIEW",
+                "PAYIN_MANUAL_REVIEW",
                 MANUAL_REVIEW_REASON,
                 "SYSTEM",
                 null,
@@ -254,7 +255,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
             return false;
         }
         orderStatusLogService.recordChange(
-                "PAYIN",
+                PayDirectionEnum.PAYIN.code(),
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),

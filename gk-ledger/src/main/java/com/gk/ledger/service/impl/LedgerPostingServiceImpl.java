@@ -2,6 +2,7 @@ package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.BizTypeEnum;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
@@ -103,7 +104,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     @Transactional(rollbackFor = Exception.class)
     public LedgerPostingResult postPaySuccess(PaySuccessPostingRequest request) {
         validatePaySuccess(request);
-        String eventType = LedgerPostingEventEnum.PAY_SUCCESS.code();
+        String eventType = LedgerPostingEventEnum.PAYIN_SUCCESS.code();
         // 幂等检查：同一代收订单成功回调只能入账一次
                 LedgerJournalEntity existed = findJournal(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType);
         if (existed != null) {
@@ -270,7 +271,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         hold.setBizType(BizTypeEnum.PAYOUT_ORDER.code());
         hold.setBizId(request.getBizId());
         hold.setBizNo(request.getPayoutOrderNo());
-        hold.setHoldReason("PAYOUT");
+        hold.setHoldReason(PayDirectionEnum.PAYOUT.code());
         hold.setHoldScope("ORDER");
         hold.setHoldAmount(totalDebitAmount);
         hold.setReleasedAmount(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));

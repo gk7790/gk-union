@@ -312,7 +312,7 @@ HTTP 状态码：500
   "merchant_order_id": "M202606270001",
   "currency": "PHP",
   "amount": "100.00",
-  "order_status": "PAY_SUCCESS",
+  "order_status": "PAYIN_SUCCESS",
   "paid_amount": "100.00",
   "settle_amount": "98.00",
   "fee_amount": "2.00",

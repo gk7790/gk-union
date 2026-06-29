@@ -8,7 +8,7 @@ import com.gk.ledger.posting.PayoutPostingRequest;
 public interface LedgerPostingService {
 
     /**
-     * PAY_SUCCESS 代收成功入账至待结算账户（非可用）     * 借贷分录     * PSP/CLEARING settleAmount + feeAmount；历沙箱订单没有pspAccountId时回退 INTERNAL/CLEARING
+     * PAYIN_SUCCESS 代收成功入账至待结算账户（非可用）     * 借贷分录     * PSP/CLEARING settleAmount + feeAmount；历沙箱订单没有pspAccountId时回退 INTERNAL/CLEARING
      * MERCHANT/PENDING_SETTLE settleAmount
      * INTERNAL/FEE_INCOME merchantFeeAmount
      */

@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONWriter;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.enums.OrderSourceEnum;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.config.service.GkSysParamsConfigService;
@@ -436,7 +437,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         String merchantOrderNo = entity.getMerchantOrderNo();
         String traceId = traceId();
         AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
-                "PAYOUT",
+                PayDirectionEnum.PAYOUT.code(),
                 tenantId,
                 merchantId,
                 orderId,

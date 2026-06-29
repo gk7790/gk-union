@@ -62,7 +62,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     /** 创建支付成功通知任务。 */
     @Override
     public int paySuccess(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.PAY_SUCCESS, tenantId, merchantId, title, content, traceId);
+        return createAlert(TgAlertEventType.PAYIN_SUCCESS, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建代付成功通知任务。 */
@@ -142,7 +142,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     String resolvePurpose(TgAlertEventType eventType) {
         return switch (eventType) {
             case SYSTEM_ERROR, SYSTEM_WARN, RISK_ALERT -> TgConstants.ChatPurpose.OPS;
-            case PAY_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> TgConstants.ChatPurpose.NOTIFY;
+            case PAYIN_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> TgConstants.ChatPurpose.NOTIFY;
         };
     }
 
@@ -150,7 +150,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     private String resolveBizType(TgAlertEventType eventType) {
         return switch (eventType) {
             case SYSTEM_ERROR, SYSTEM_WARN, RISK_ALERT -> TgConstants.MessageBizType.SYSTEM_ALERT;
-            case PAY_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> TgConstants.MessageBizType.BUSINESS_NOTIFY;
+            case PAYIN_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> TgConstants.MessageBizType.BUSINESS_NOTIFY;
         };
     }
 
@@ -158,7 +158,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     private boolean isSystemAlertEvent(TgAlertEventType eventType) {
         return switch (eventType) {
             case SYSTEM_ERROR, SYSTEM_WARN -> true;
-            case RISK_ALERT, PAY_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> false;
+            case RISK_ALERT, PAYIN_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED -> false;
         };
     }
 

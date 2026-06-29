@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.dto.PayoutOrderDTO;
@@ -105,7 +106,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
             return false;
         }
         orderStatusLogService.recordChange(
-                "PAYOUT",
+                PayDirectionEnum.PAYOUT.code(),
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),

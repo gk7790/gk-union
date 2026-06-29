@@ -21,7 +21,7 @@ public class TenantDashboardTodoDTO {
     @Data
     @Schema(title = "待办")
     public static class TodoItem {
-        @Schema(title = "业务类型 PAY/PAYOUT")
+        @Schema(title = "业务类型 PAYIN/PAYOUT")
         private String bizType;
         @Schema(title = "订单ID")
         private Long orderId;

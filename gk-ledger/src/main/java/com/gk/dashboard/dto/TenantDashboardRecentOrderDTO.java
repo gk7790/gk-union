@@ -11,7 +11,7 @@ import java.util.List;
 @Schema(title = "租户首页最近订")
 public class TenantDashboardRecentOrderDTO {
 
-    @Schema(title = "业务类型 PAY/PAYOUT")
+    @Schema(title = "业务类型 PAYIN/PAYOUT")
     private String bizType;
     @Schema(title = "币种")
     private String currency;

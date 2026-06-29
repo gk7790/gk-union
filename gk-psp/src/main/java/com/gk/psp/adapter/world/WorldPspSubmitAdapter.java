@@ -365,8 +365,8 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAYIN_FAILED", "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
             default -> PspCallbackUtils.STATUS_PROCESSING;
         };
     }
@@ -374,8 +374,8 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAY_FAILED", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
+            case "PAYIN_FAILED", "PAY_FAILED", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
             case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
             default -> PspCallbackUtils.STATUS_PROCESSING;
         };

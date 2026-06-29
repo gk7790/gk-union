@@ -8,7 +8,7 @@ import com.gk.common.enums.StyleType;
 @EnumDict("ledgerPostingEvent")
 public enum LedgerPostingEventEnum implements StringCodeEnum {
     @Style(StyleType.SUCCESS)
-    PAY_SUCCESS("PAY_SUCCESS", "代收成功", "enum.ledgerPostingEvent.paySuccess"),
+    PAYIN_SUCCESS("PAYIN_SUCCESS", "代收成功", "enum.ledgerPostingEvent.payinSuccess"),
 
     @Style(StyleType.SUCCESS)
     SETTLE_RELEASE("SETTLE_RELEASE", "结算释放", "enum.ledgerPostingEvent.settleRelease"),

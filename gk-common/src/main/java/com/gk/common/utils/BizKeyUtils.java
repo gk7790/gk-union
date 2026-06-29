@@ -1,6 +1,7 @@
 package com.gk.common.utils;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.gk.common.enums.PayDirectionEnum;
 
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -26,11 +27,11 @@ public class BizKeyUtils {
     }
 
     public static String genPayinOrderNo() {
-        return "PAYIN" + encodeId(IdWorker.getId());
+        return PayDirectionEnum.PAYIN.code() + encodeId(IdWorker.getId());
     }
 
     public static String genPayoutOrderNo() {
-        return "PAYOUT" + encodeId(IdWorker.getId());
+        return PayDirectionEnum.PAYOUT.code() + encodeId(IdWorker.getId());
     }
 
     public static String genPspRequestNo() {

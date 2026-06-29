@@ -185,7 +185,7 @@ public class PspCallbackOrderProcessor {
     private void recordChange(String bizType, PspCallbackOrder order, String fromStatus, String toStatus,
                               String eventType, PspCallbackResult result) {
         orderStatusLogService.recordChange(
-                orderType(bizType),
+                direction(bizType),
                 order.tenantId(),
                 order.merchantId(),
                 order.id(),
@@ -203,8 +203,8 @@ public class PspCallbackOrderProcessor {
 
     /**
      * 转换订单类型文本     */
-    private String orderType(String bizType) {
-        return BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAY" : "PAYOUT";
+    private String direction(String bizType) {
+        return BizTypeEnum.PAY_ORDER.matches(bizType) ? "PAYIN" : "PAYOUT";
     }
 
     /**

@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class OrderStatusLogServiceImpl extends CrudServiceImpl<OrderStatusLogDao, OrderStatusLogEntity, OrderStatusLogDTO> implements OrderStatusLogService {
 
     @Override
-    public void recordChange(String orderType,
+    public void recordChange(String direction,
                              Long tenantId,
                              Long merchantId,
                              Long orderId,
@@ -39,7 +39,7 @@ public class OrderStatusLogServiceImpl extends CrudServiceImpl<OrderStatusLogDao
         entity.setTenantId(tenantId);
         entity.setMerchantId(merchantId);
         entity.setLogNo(BizKeyUtils.genOrderStatusLogNo());
-        entity.setOrderType(orderType);
+        entity.setDirection(direction);
         entity.setOrderId(orderId);
         entity.setOrderNo(orderNo);
         entity.setFromStatus(fromStatus);
@@ -60,7 +60,7 @@ public class OrderStatusLogServiceImpl extends CrudServiceImpl<OrderStatusLogDao
         Long merchantId = params.getLong("merchantId", null);
         Long orderId = params.getLong("orderId", null);
         String logNo = params.getStr("logNo");
-        String orderType = params.getStr("orderType");
+        String direction = params.getStr("direction");
         String orderNo = params.getStr("orderNo");
         String toStatus = params.getStr("toStatus");
         String eventType = params.getStr("eventType");
@@ -72,7 +72,7 @@ public class OrderStatusLogServiceImpl extends CrudServiceImpl<OrderStatusLogDao
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(orderId != null, "order_id", orderId);
         wrapper.eq(StrUtil.isNotBlank(logNo), "log_no", logNo);
-        wrapper.eq(StrUtil.isNotBlank(orderType), "order_type", orderType);
+        wrapper.eq(StrUtil.isNotBlank(direction), "direction", direction);
         wrapper.eq(StrUtil.isNotBlank(orderNo), "order_no", orderNo);
         wrapper.eq(StrUtil.isNotBlank(toStatus), "to_status", toStatus);
         wrapper.eq(StrUtil.isNotBlank(eventType), "event_type", eventType);

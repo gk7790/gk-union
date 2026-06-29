@@ -251,7 +251,7 @@ public class SandboxOrderService {
 
     private SandboxOrderResult payResult(PayOrderEntity order, boolean changed, String message) {
         return SandboxOrderResult.basic(
-                "PAY",
+                "PAYIN",
                 order.getPayOrderNo(),
                 order.getMerchantOrderNo(),
                 order.getStatus(),

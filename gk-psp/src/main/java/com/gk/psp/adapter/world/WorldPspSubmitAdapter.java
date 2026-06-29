@@ -49,6 +49,10 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payParams(order, route);
         String path = "/open-api/create-pay-order";
         PspPayDispatchResult result = basePayResult(order, route, path, params);
+        if (skipSubmitForInternalTesting(route)) {
+            fillMockPayCreate(result, order);
+            return result;
+        }
         JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         fillPayCreate(result, response, route.getPspAccountApiSecret());
         return result;
@@ -59,6 +63,10 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
+        if (skipSubmitForInternalTesting(route)) {
+            fillMockPayoutCreate(result, order);
+            return result;
+        }
         JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         fillPayoutCreate(result, response, route.getPspAccountApiSecret());
         return result;
@@ -202,6 +210,56 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setRequestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())));
         result.setPspMerchantOrderNo(order.getOrderNo());
         return result;
+    }
+
+    private boolean skipSubmitForInternalTesting(PspRouteResult route) {
+        String enabled = firstText(
+                jsonMap(route.getAccountConfigJson()),
+                jsonMap(route.getProviderConfigJson()),
+                "submit_enabled",
+                "world_submit_enabled",
+                "submitEnabled",
+                "worldSubmitEnabled"
+        );
+        return !Boolean.parseBoolean(StringUtils.defaultString(enabled));
+    }
+
+    private void fillMockPayCreate(PspPayDispatchResult result, PspOrderRequest order) {
+        String pspOrderNo = mockPspOrderNo(order);
+        result.setSuccess(true);
+        result.setHttpMethod("MOCK");
+        result.setResponseStatus(200);
+        result.setPspOrderNo(pspOrderNo);
+        result.setPayUrl("mock://world/pay/" + order.getOrderNo());
+        result.setRawStatus(PspCallbackUtils.STATUS_PROCESSING);
+        result.setResponseCode("MOCK_ACCEPTED");
+        result.setResponseMessage("World PSP submit skipped for internal testing");
+        result.setRawResponseJson(mockCreateResponse(pspOrderNo));
+    }
+
+    private void fillMockPayoutCreate(PspPayoutDispatchResult result, PspOrderRequest order) {
+        String pspOrderNo = mockPspOrderNo(order);
+        result.setSuccess(true);
+        result.setHttpMethod("MOCK");
+        result.setResponseStatus(200);
+        result.setPspOrderNo(pspOrderNo);
+        result.setRawStatus(PspCallbackUtils.STATUS_PROCESSING);
+        result.setResponseCode("MOCK_ACCEPTED");
+        result.setResponseMessage("World PSP submit skipped for internal testing");
+        result.setRawResponseJson(mockCreateResponse(pspOrderNo));
+    }
+
+    private String mockPspOrderNo(PspOrderRequest order) {
+        return "MOCK" + order.getOrderNo();
+    }
+
+    private String mockCreateResponse(String pspOrderNo) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("code", "MOCK_ACCEPTED");
+        response.put("message", "World PSP submit skipped for internal testing");
+        response.put("system_order_id", pspOrderNo);
+        response.put("order_status", PspCallbackUtils.STATUS_PROCESSING);
+        return JSON.toJSONString(response, JSONWriter.Feature.WriteMapNullValue);
     }
 
     private void fillPayCreate(PspPayDispatchResult result, JSONObject response, String secret) {

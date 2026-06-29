@@ -7,12 +7,22 @@ import com.gk.infra.config.model.MerchantNotifyConfig;
 import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
+import com.gk.payment.callback.PspCallbackNotifyCreator;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
+import com.gk.payment.dao.PayOrderDao;
+import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
+import com.gk.payment.entity.PayOrderEntity;
+import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.PayOrderStatusEnum;
+import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.psp.callback.model.PspCallbackOrder;
+import com.gk.psp.callback.model.PspCallbackResult;
+import com.gk.psp.callback.support.PspCallbackUtils;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +32,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
 import java.net.InetAddress;
 import java.net.URI;
 import java.time.Instant;
@@ -68,6 +79,9 @@ public class MerchantNotifyExecutor {
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final GkSysParamsConfigService configService;
+    private final PayOrderDao payOrderDao;
+    private final PayoutOrderDao payoutOrderDao;
+    private final PspCallbackNotifyCreator callbackNotifyCreator;
 
     private String workerId;
 
@@ -206,11 +220,11 @@ public class MerchantNotifyExecutor {
     }
 
     private Result<Void> resendByBizOrder(String bizType, Long orderId) {
-        MerchantNotifyTaskEntity task = findLatestTask(bizType, orderId);
-        if (task == null) {
-            return Result.fail("该订单暂无商户通知任务");
+        Result<MerchantNotifyTaskEntity> prepared = findOrCreateTask(bizType, orderId);
+        if (prepared.isFail()) {
+            return Result.fail(prepared.getMsg());
         }
-        return resend(task.getId());
+        return resend(prepared.getData().getId());
     }
 
     private MerchantNotifyTaskEntity findLatestTask(String bizType, Long orderId) {
@@ -219,6 +233,111 @@ public class MerchantNotifyExecutor {
                 .eq("biz_id", orderId)
                 .orderByDesc("created_at")
                 .last("limit 1"));
+    }
+
+    private Result<MerchantNotifyTaskEntity> findOrCreateTask(String bizType, Long orderId) {
+        MerchantNotifyTaskEntity task = findLatestTask(bizType, orderId);
+        if (task != null) {
+            return Result.success(task);
+        }
+        Result<Void> created;
+        if (BizTypeEnum.PAY_ORDER.matches(bizType)) {
+            created = createPayNotifyTask(orderId);
+        } else if (BizTypeEnum.PAYOUT_ORDER.matches(bizType)) {
+            created = createPayoutNotifyTask(orderId);
+        } else {
+            return Result.fail("不支持的通知业务类型");
+        }
+        if (created.isFail()) {
+            return Result.fail(created.getMsg());
+        }
+        task = findLatestTask(bizType, orderId);
+        if (task == null) {
+            return Result.fail("商户通知任务补建失败");
+        }
+        return Result.success(task);
+    }
+
+    private Result<Void> createPayNotifyTask(Long orderId) {
+        PayOrderEntity order = payOrderDao.selectById(orderId);
+        if (order == null) {
+            return Result.fail("代收订单不存在");
+        }
+        if (StringUtils.isBlank(order.getNotifyUrl())) {
+            return Result.fail("该订单未配置商户通知地址");
+        }
+        if (!isTerminalPayOrder(order.getStatus())) {
+            return Result.fail("订单未到终态, 暂不能通知商户");
+        }
+        callbackNotifyCreator.create(
+                BizTypeEnum.PAY_ORDER.code(),
+                manualResult(order.getPspCode(), BizTypeEnum.PAY_ORDER.code(), order.getPayOrderNo(),
+                        order.getMerchantOrderNo(), order.getPspOrderNo(), order.getPspStatus(),
+                        order.getStatus(), order.getPaidAmount(), order.getCurrency(), order.getStatusReason()),
+                new PspCallbackOrder(order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
+                        order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
+                        order.getPspAccountId(), null, order.getPayOrderNo(), order.getMerchantOrderNo(),
+                        order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
+                        order.getSettleAmount(), null, order.getCurrency(), order.getNotifyUrl()),
+                null);
+        return Result.success(null);
+    }
+
+    private Result<Void> createPayoutNotifyTask(Long orderId) {
+        PayoutOrderEntity order = payoutOrderDao.selectById(orderId);
+        if (order == null) {
+            return Result.fail("代付订单不存在");
+        }
+        if (StringUtils.isBlank(order.getNotifyUrl())) {
+            return Result.fail("该订单未配置商户通知地址");
+        }
+        if (!isTerminalPayoutOrder(order.getStatus())) {
+            return Result.fail("订单未到终态, 暂不能通知商户");
+        }
+        callbackNotifyCreator.create(
+                BizTypeEnum.PAYOUT_ORDER.code(),
+                manualResult(order.getPspCode(), BizTypeEnum.PAYOUT_ORDER.code(), order.getPayoutOrderNo(),
+                        order.getMerchantOrderNo(), order.getPspOrderNo(), order.getPspStatus(),
+                        order.getStatus(), order.getAmount(), order.getCurrency(), order.getFailMsg()),
+                new PspCallbackOrder(order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
+                        order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
+                        order.getPspAccountId(), null, order.getPayoutOrderNo(), order.getMerchantOrderNo(),
+                        order.getPspOrderNo(), order.getStatus(), order.getAmount(), order.getMerchantFeeAmount(),
+                        null, order.getTotalDebitAmount(), order.getCurrency(), order.getNotifyUrl()),
+                null);
+        return Result.success(null);
+    }
+
+    private PspCallbackResult manualResult(String pspCode, String bizType, String orderNo, String merchantOrderNo,
+                                           String pspOrderNo, String pspStatus, String orderStatus,
+                                           BigDecimal amount, String currency, String errorMessage) {
+        PspCallbackResult result = new PspCallbackResult();
+        result.setPspCode(pspCode);
+        result.setBizType(bizType);
+        result.setSystemOrderNo(orderNo);
+        result.setMerchantOrderNo(merchantOrderNo);
+        result.setPspOrderNo(pspOrderNo);
+        result.setPspStatus(pspStatus);
+        result.setOrderStatus(orderStatus);
+        result.setAmount(amount);
+        result.setCurrency(currency);
+        result.setCallbackType("MANUAL_NOTIFY");
+        result.setErrorMessage(errorMessage);
+        return result;
+    }
+
+    private boolean isTerminalPayOrder(String status) {
+        return PayOrderStatusEnum.SUCCESS.matches(status)
+                || PayOrderStatusEnum.FAILED.matches(status)
+                || PayOrderStatusEnum.CLOSED.matches(status)
+                || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(PspCallbackUtils.normalizeStatus(status));
+    }
+
+    private boolean isTerminalPayoutOrder(String status) {
+        return PayoutOrderStatusEnum.SUCCESS.matches(status)
+                || PayoutOrderStatusEnum.FAILED.matches(status)
+                || PayoutOrderStatusEnum.CANCELLED.matches(status)
+                || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(PspCallbackUtils.normalizeStatus(status));
     }
 
     /**

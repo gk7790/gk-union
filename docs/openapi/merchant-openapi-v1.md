@@ -477,13 +477,13 @@ POST /api/v1/methods
 |---|---|
 | `merchant_id` | 商户号 |
 | `app_id` | 应用 ID |
-| `order_type` | `PAY` / `PAYOUT` |
+| `direction` | `PAYIN` 代收 / `PAYOUT` 代付 |
 | `system_order_id` | 平台订单号 |
 | `merchant_order_id` | 商户订单号 |
 | `currency` | 币种 |
 | `amount` | 订单金额 |
 | `order_status` | 订单状态 |
-| `msg` | 状态说明 |
+| `reason` | 失败原因；成功通知不返回该字段 |
 | `paid_amount` | 代收实付金额（代收） |
 | `settle_amount` | 结算金额（代收，可选） |
 | `debit_amount` | 扣款金额（代付） |

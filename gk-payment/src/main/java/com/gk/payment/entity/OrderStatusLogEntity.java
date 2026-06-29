@@ -12,7 +12,7 @@ public class OrderStatusLogEntity extends SimpleEntity {
     private Long tenantId;
     private Long merchantId;
     private String logNo;
-    private String orderType;
+    private String direction;
     private Long orderId;
     private String orderNo;
     private String fromStatus;

@@ -6,6 +6,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
+import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackUtils;
@@ -78,48 +79,47 @@ public class PspCallbackNotifyCreator {
     /**
      * 构建商户通知报文     * <p>
      * 代收包含 paid_amount、settle_amount；代付包debit_amount     * 有手续费时统一输出 fee_amount     */
-    private Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
+    Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         boolean payOrder = BizTypeEnum.PAY_ORDER.matches(bizType);
-        String orderType = payOrder ? "PAY" : "PAYOUT";
+        String direction = payOrder ? "PAYIN" : "PAYOUT";
         String orderStatus = eventType(bizType, result.getOrderStatus());
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("merchant_id", order.merchantNo());
         payload.put("app_id", order.appId());
-        payload.put("order_type", orderType);
+        payload.put("direction", direction);
         payload.put("system_order_id", order.orderNo());
         payload.put("merchant_order_id", order.merchantOrderNo());
         payload.put("currency", order.currency());
-        payload.put("amount", decimal(order.amount()));
+        payload.put("amount", money(order.amount(), order.currency()));
         payload.put("order_status", orderStatus);
-        payload.put("msg", message(orderStatus, result));
+        if (!orderStatus.endsWith("_SUCCESS")) {
+            payload.put("reason", reason(result));
+        }
 
         if (payOrder) {
             // PSP 未回传实际支付金额时，默认使用订单金额
                         BigDecimal paidAmount = PspCallbackUtils.defaultAmount(result.getAmount(), order.amount());
-            payload.put("paid_amount", decimal(paidAmount));
+            payload.put("paid_amount", money(paidAmount, order.currency()));
             if (positive(order.settleAmount())) {
-                payload.put("settle_amount", decimal(order.settleAmount()));
+                payload.put("settle_amount", money(order.settleAmount(), order.currency()));
             }
         } else {
             // 代付优先使用包含手续费的总扣款金额，没有时回退到订单金额
                         BigDecimal debitAmount = order.totalDebitAmount() != null && order.totalDebitAmount().signum() > 0
                     ? order.totalDebitAmount()
                     : order.amount();
-            payload.put("debit_amount", decimal(debitAmount));
+            payload.put("debit_amount", money(debitAmount, order.currency()));
         }
         if (positive(order.merchantFeeAmount())) {
-            payload.put("fee_amount", decimal(order.merchantFeeAmount()));
+            payload.put("fee_amount", money(order.merchantFeeAmount(), order.currency()));
         }
         return payload;
     }
 
     /**
-     * 生成商户通知展示消息     */
-    private String message(String orderStatus, PspCallbackResult result) {
-        if (orderStatus.endsWith("_SUCCESS")) {
-            return "Transaction success";
-        }
+     * 生成商户通知失败原因     */
+    private String reason(PspCallbackResult result) {
         return StringUtils.defaultIfBlank(result.getErrorMessage(), "Transaction failed");
     }
 
@@ -138,7 +138,7 @@ public class PspCallbackNotifyCreator {
 
     /**
      * 转换金额为普通文本     */
-    private String decimal(BigDecimal value) {
-        return PspCallbackUtils.decimalText(value);
+    private String money(BigDecimal value, String currency) {
+        return ApiAmountUtils.formatCurrencyAmount(value, currency);
     }
 }

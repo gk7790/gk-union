@@ -225,7 +225,7 @@ CREATE TABLE `order_status_log`  (
   `tenant_id` bigint NOT NULL COMMENT '租户ID',
   `merchant_id` bigint NULL DEFAULT NULL COMMENT '平台商户ID',
   `log_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '状态日志编号',
-  `order_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单类型: PAY/PAYOUT',
+  `direction` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '交易方向: PAYIN/PAYOUT',
   `order_id` bigint NOT NULL COMMENT '订单ID',
   `order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单号',
   `from_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '变更前状态',
@@ -243,6 +243,6 @@ CREATE TABLE `order_status_log`  (
   `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_order_status_log_no`(`tenant_id` ASC, `log_no` ASC) USING BTREE,
-  INDEX `idx_order_status_order`(`tenant_id` ASC, `order_type` ASC, `order_no` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_order_status_order`(`tenant_id` ASC, `direction` ASC, `order_no` ASC, `created_at` ASC) USING BTREE,
   INDEX `idx_order_status_event`(`tenant_id` ASC, `event_type` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单状态流转日志' ROW_FORMAT = Dynamic;

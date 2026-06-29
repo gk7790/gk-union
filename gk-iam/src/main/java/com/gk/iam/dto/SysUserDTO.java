@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -71,7 +72,7 @@ public class SysUserDTO implements Serializable {
 
 	@Schema(title = "创建时间", accessMode = Schema.AccessMode.READ_ONLY)
 	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
-	private LocalDateTime createdAt;
+	private Instant createdAt;
 
 	@Schema(title = "兼容角色ID列表", description = "当前单主体模型只取第一个角色ID")
 	private List<Long> roleIdList;

@@ -8,8 +8,8 @@ import java.util.Map;
 @Data
 @Schema(name = "SandboxOrderResult", description = "沙箱 mock 回调结果")
 public class SandboxOrderResult {
-    @Schema(title = "订单类型", description = "PAY / PAYOUT")
-    private String orderType;
+    @Schema(title = "交易方向", description = "PAYIN / PAYOUT")
+    private String direction;
     @Schema(title = "系统订单号")
     private String systemOrderNo;
     @Schema(title = "商户订单号")
@@ -27,14 +27,14 @@ public class SandboxOrderResult {
     @Schema(title = "商户通知 HTTP 结果")
     private Map<String, Object> notify;
 
-    public static SandboxOrderResult basic(String orderType,
+    public static SandboxOrderResult basic(String direction,
                                            String systemOrderNo,
                                            String merchantOrderNo,
                                            String status,
                                            boolean changed,
                                            String message) {
         SandboxOrderResult result = new SandboxOrderResult();
-        result.setOrderType(orderType);
+        result.setDirection(direction);
         result.setSystemOrderNo(systemOrderNo);
         result.setMerchantOrderNo(merchantOrderNo);
         result.setStatus(status);

@@ -120,7 +120,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
             return;
         }
         orderStatusLogService.recordChange(
-                "PAY",
+                "PAYIN",
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
@@ -230,7 +230,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
             return false;
         }
         orderStatusLogService.recordChange(
-                "PAY",
+                "PAYIN",
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),
@@ -267,7 +267,7 @@ public class PayOrderServiceImpl extends CrudServiceImpl<PayOrderDao, PayOrderEn
             return false;
         }
         orderStatusLogService.recordChange(
-                "PAY",
+                "PAYIN",
                 order.getTenantId(),
                 order.getMerchantId(),
                 order.getId(),

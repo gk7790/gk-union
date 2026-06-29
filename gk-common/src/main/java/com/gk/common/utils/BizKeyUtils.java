@@ -26,7 +26,7 @@ public class BizKeyUtils {
     }
 
     public static String genPayOrderNo() {
-        return "PAY" + encodeId(IdWorker.getId());
+        return "PAYIN" + encodeId(IdWorker.getId());
     }
 
     public static String genPayoutOrderNo() {

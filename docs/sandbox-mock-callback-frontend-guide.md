@@ -136,7 +136,7 @@ Body：
   "code": 0,
   "msg": "success",
   "data": {
-    "orderType": "PAY",
+    "direction": "PAYIN",
     "systemOrderNo": "P202606270001",
     "merchantOrderNo": "M202606270001",
     "status": "SUCCESS",
@@ -166,7 +166,7 @@ Body：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `orderType` | string | 订单类型：`PAY` 代收，`PAYOUT` 代付 |
+| `direction` | string | 订单方向：`PAYIN` 代收，`PAYOUT` 代付 |
 | `systemOrderNo` | string | 平台订单号 |
 | `merchantOrderNo` | string | 商户订单号 |
 | `status` | string | Mock 后订单状态 |
@@ -238,7 +238,7 @@ data.notify.acknowledged == true
   "code": 0,
   "msg": "success",
   "data": {
-    "orderType": "PAY",
+    "direction": "PAYIN",
     "systemOrderNo": "P202606270001",
     "merchantOrderNo": "M202606270001",
     "status": "SUCCESS",
@@ -301,19 +301,18 @@ HTTP 状态码：500
 
 `data.notify.requestBody` 是最终实际发送给商户的 JSON 字符串，签名字段也会写入 body。
 
-### 11.1 代收 PAY 通知示例
+### 11.1 代收 PAYIN 通知示例
 
 ```json
 {
   "merchant_id": "M10001",
   "app_id": "APP_TEST_001",
-  "order_type": "PAY",
+  "direction": "PAYIN",
   "system_order_id": "P202606270001",
   "merchant_order_id": "M202606270001",
   "currency": "PHP",
   "amount": "100.00",
   "order_status": "PAY_SUCCESS",
-  "msg": "Transaction success",
   "paid_amount": "100.00",
   "settle_amount": "98.00",
   "fee_amount": "2.00",
@@ -327,13 +326,13 @@ HTTP 状态码：500
 {
   "merchant_id": "M10001",
   "app_id": "APP_TEST_001",
-  "order_type": "PAYOUT",
+  "direction": "PAYOUT",
   "system_order_id": "PO202606270001",
   "merchant_order_id": "M202606270001",
   "currency": "PHP",
   "amount": "100.00",
   "order_status": "PAYOUT_FAILED",
-  "msg": "Sandbox payment failed",
+  "reason": "Sandbox payment failed",
   "debit_amount": "102.00",
   "fee_amount": "2.00",
   "sign": "abc123"
@@ -352,7 +351,7 @@ HTTP 状态码：500
 
 | 展示名 | 字段 |
 | --- | --- |
-| 订单类型 | `data.orderType` |
+| 订单方向 | `data.direction` |
 | 平台订单号 | `data.systemOrderNo` |
 | 商户订单号 | `data.merchantOrderNo` |
 | Mock 结果 | `data.outcome` |
@@ -404,7 +403,7 @@ const result = res.data;
 const notify = result?.notify;
 
 showMockResult({
-  orderType: result.orderType,
+  direction: result.direction,
   systemOrderNo: result.systemOrderNo,
   merchantOrderNo: result.merchantOrderNo,
   status: result.status,
@@ -428,4 +427,3 @@ showNotifyResult({
   attemptNo: notify?.attemptNo
 });
 ```
-

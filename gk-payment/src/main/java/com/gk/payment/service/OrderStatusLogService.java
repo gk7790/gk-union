@@ -8,9 +8,9 @@ public interface OrderStatusLogService extends CrudService<OrderStatusLogEntity,
 
     /**
      * 记录订单状态变更；from/to 相同则跳过     *
-     * @param orderType PAY / PAYOUT
+     * @param direction PAYIN / PAYOUT
      */
-    void recordChange(String orderType,
+    void recordChange(String direction,
                       Long tenantId,
                       Long merchantId,
                       Long orderId,

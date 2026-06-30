@@ -10,6 +10,7 @@ import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
+import com.gk.psp.enums.PspPayoutSubmitResultStatus;
 
 import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.request.PspOrderRequest;
@@ -301,6 +302,9 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setRawResponseJson(response.toJSONString());
         if (response.getIntValue("code") != 200) {
             result.setSuccess(false);
+            result.setSubmitResultStatus(isUnknownPayoutCreateResponse(response)
+                    ? PspPayoutSubmitResultStatus.UNKNOWN
+                    : PspPayoutSubmitResultStatus.REJECTED);
             result.setErrorCode(result.getResponseCode());
             result.setErrorMessage(result.getResponseMessage());
             return;
@@ -308,14 +312,21 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         JSONObject data = response.getJSONObject("data");
         if (data == null || WorldPspSignUtils.notVerify(data, secret, data.getString("sign"))) {
             result.setSuccess(false);
+            result.setSubmitResultStatus(PspPayoutSubmitResultStatus.UNKNOWN);
             result.setErrorCode("INVALID_SIGN");
             result.setErrorMessage("World PSP response signature invalid");
             return;
         }
         result.setSuccess(true);
+        result.setSubmitResultStatus(PspPayoutSubmitResultStatus.ACCEPTED);
         result.setPspOrderNo(data.getString("system_order_id"));
         result.setResponseSign(data.getString("sign"));
         result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));
+    }
+
+    private boolean isUnknownPayoutCreateResponse(JSONObject response) {
+        String code = response.getString("code");
+        return StringUtils.isBlank(code) || "0".equals(code);
     }
 
     private PspOrderQueryResult buildQueryResult(String systemOrderNo,

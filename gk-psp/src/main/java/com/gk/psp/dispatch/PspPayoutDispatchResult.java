@@ -1,5 +1,6 @@
 package com.gk.psp.dispatch;
 
+import com.gk.psp.enums.PspPayoutSubmitResultStatus;
 import lombok.Data;
 
 @Data
@@ -20,4 +21,17 @@ public class PspPayoutDispatchResult {
     private String rawResponseJson;
     private String errorCode;
     private String errorMessage;
+    private PspPayoutSubmitResultStatus submitResultStatus;
+
+    public boolean isAccepted() {
+        return PspPayoutSubmitResultStatus.ACCEPTED.equals(submitResultStatus);
+    }
+
+    public boolean isRejected() {
+        return PspPayoutSubmitResultStatus.REJECTED.equals(submitResultStatus);
+    }
+
+    public boolean isUnknown() {
+        return submitResultStatus == null || PspPayoutSubmitResultStatus.UNKNOWN.equals(submitResultStatus);
+    }
 }

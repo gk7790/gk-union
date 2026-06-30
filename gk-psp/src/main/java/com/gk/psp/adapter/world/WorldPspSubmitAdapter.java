@@ -371,7 +371,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
             case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
             default -> PspCallbackUtils.STATUS_PROCESSING;
         };
     }
@@ -380,7 +380,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
             case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
             case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
             default -> PspCallbackUtils.STATUS_PROCESSING;
         };

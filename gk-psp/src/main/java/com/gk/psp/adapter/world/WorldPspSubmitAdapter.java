@@ -31,6 +31,7 @@ import java.util.Map;
 @Component
 public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
+    private static final boolean MOCK_SUBMIT = true;
     // 下单需要同步拿 pay_url，超时要短而明确，避免PSP 长时间占用商户请求线程
     private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
     private static final int READ_TIMEOUT_MILLIS = 8_000;
@@ -50,11 +51,11 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payParams(order, route);
         String path = "/open-api/create-pay-order";
         PspPayDispatchResult result = basePayResult(order, route, path, params);
-        if (skipSubmitForInternalTesting(route)) {
+        if (MOCK_SUBMIT) {
             fillMockPayCreate(result, order);
             return result;
         }
-        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         fillPayCreate(result, response, route.getPspAccountApiSecret());
         return result;
     }
@@ -64,11 +65,11 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
-        if (skipSubmitForInternalTesting(route)) {
+        if (MOCK_SUBMIT) {
             fillMockPayoutCreate(result, order);
             return result;
         }
-        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         fillPayoutCreate(result, response, route.getPspAccountApiSecret());
         return result;
     }
@@ -77,7 +78,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     public PspOrderQueryResult queryPayinOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-pay-order";
-        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, true);
     }
@@ -86,7 +87,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     public PspOrderQueryResult queryPayoutOrder(PspOrderRequest order, PspRouteResult route) {
         Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-payout-order";
-        JSONObject response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
+        WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, false);
     }
@@ -146,7 +147,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         return params;
     }
 
-    private JSONObject post(String baseUrl, String path, Map<String, Object> params, String secret) {
+    private WorldPspHttpResponse post(String baseUrl, String path, Map<String, Object> params, String secret) {
         Map<String, Object> signed = WorldPspSignUtils.withSign(params, secret);
         String url = baseUrl(baseUrl) + path;
         try {
@@ -156,9 +157,9 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                     .body(WorldPspSignUtils.formBody(signed))
                     .retrieve()
                     .body(String.class);
-            return parseBody(body);
+            return new WorldPspHttpResponse(200, parseBody(body));
         } catch (RestClientResponseException ex) {
-            return parseBody(ex.getResponseBodyAsString());
+            return new WorldPspHttpResponse(ex.getStatusCode().value(), parseBody(ex.getResponseBodyAsString()));
         }
     }
 
@@ -213,18 +214,6 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         return result;
     }
 
-    private boolean skipSubmitForInternalTesting(PspRouteResult route) {
-        String enabled = firstText(
-                jsonMap(route.getAccountConfigJson()),
-                jsonMap(route.getProviderConfigJson()),
-                "submit_enabled",
-                "world_submit_enabled",
-                "submitEnabled",
-                "worldSubmitEnabled"
-        );
-        return !Boolean.parseBoolean(StringUtils.defaultString(enabled));
-    }
-
     private void fillMockPayCreate(PspPayDispatchResult result, PspOrderRequest order) {
         String pspOrderNo = mockPspOrderNo(order);
         result.setSuccess(true);
@@ -263,18 +252,19 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         return JSON.toJSONString(response, JSONWriter.Feature.WriteMapNullValue);
     }
 
-    private void fillPayCreate(PspPayDispatchResult result, JSONObject response, String secret) {
-        result.setResponseStatus(200);
-        result.setResponseCode(response.getString("code"));
-        result.setResponseMessage(response.getString("message"));
-        result.setRawResponseJson(response.toJSONString());
-        if (response.getIntValue("code") != 200) {
+    private void fillPayCreate(PspPayDispatchResult result, WorldPspHttpResponse response, String secret) {
+        JSONObject body = response.body();
+        result.setResponseStatus(response.statusCode());
+        result.setResponseCode(body.getString("code"));
+        result.setResponseMessage(body.getString("message"));
+        result.setRawResponseJson(body.toJSONString());
+        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
-            result.setErrorCode(result.getResponseCode());
-            result.setErrorMessage(result.getResponseMessage());
+            result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
+            result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
             return;
         }
-        JSONObject data = response.getJSONObject("data");
+        JSONObject data = body.getJSONObject("data");
         if (data == null || WorldPspSignUtils.notVerify(data, secret, data.getString("sign"))) {
             result.setSuccess(false);
             result.setErrorCode("INVALID_SIGN");
@@ -295,21 +285,22 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         }
     }
 
-    private void fillPayoutCreate(PspPayoutDispatchResult result, JSONObject response, String secret) {
-        result.setResponseStatus(200);
-        result.setResponseCode(response.getString("code"));
-        result.setResponseMessage(response.getString("message"));
-        result.setRawResponseJson(response.toJSONString());
-        if (response.getIntValue("code") != 200) {
+    private void fillPayoutCreate(PspPayoutDispatchResult result, WorldPspHttpResponse response, String secret) {
+        JSONObject body = response.body();
+        result.setResponseStatus(response.statusCode());
+        result.setResponseCode(body.getString("code"));
+        result.setResponseMessage(body.getString("message"));
+        result.setRawResponseJson(body.toJSONString());
+        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
-            result.setSubmitResultStatus(isUnknownPayoutCreateResponse(response)
+            result.setSubmitResultStatus(!response.httpSuccess() || isUnknownPayoutCreateResponse(body)
                     ? PspPayoutSubmitResultStatus.UNKNOWN
                     : PspPayoutSubmitResultStatus.REJECTED);
-            result.setErrorCode(result.getResponseCode());
-            result.setErrorMessage(result.getResponseMessage());
+            result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
+            result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
             return;
         }
-        JSONObject data = response.getJSONObject("data");
+        JSONObject data = body.getJSONObject("data");
         if (data == null || WorldPspSignUtils.notVerify(data, secret, data.getString("sign"))) {
             result.setSuccess(false);
             result.setSubmitResultStatus(PspPayoutSubmitResultStatus.UNKNOWN);
@@ -337,8 +328,9 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                                                  PspRouteResult route,
                                                  String path,
                                                  Map<String, Object> params,
-                                                 JSONObject response,
+                                                 WorldPspHttpResponse response,
                                                  boolean payinOrder) {
+        JSONObject body = response.body();
         PspOrderQueryResult.PspOrderQueryResultBuilder builder = PspOrderQueryResult.builder()
                 .pspCode(route.getPspCode())
                 .systemOrderNo(systemOrderNo)
@@ -349,15 +341,17 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                 .httpMethod("POST")
                 .requestHeadersJson(HEADERS_JSON)
                 .requestBody(WorldPspSignUtils.formBody(WorldPspSignUtils.withSign(params, route.getPspAccountApiSecret())))
-                .responseStatus(200)
-                .responseCode(response.getString("code"))
-                .responseMessage(response.getString("message"))
-                .rawResponseJson(response.toJSONString());
+                .responseStatus(response.statusCode())
+                .responseCode(body.getString("code"))
+                .responseMessage(body.getString("message"))
+                .rawResponseJson(body.toJSONString());
 
-        if (response.getIntValue("code") != 200) {
-            return builder.success(false).errorCode(response.getString("code")).errorMessage(response.getString("message")).build();
+        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
+            String errorCode = StringUtils.defaultIfBlank(body.getString("code"), "HTTP_" + response.statusCode());
+            String errorMessage = StringUtils.defaultIfBlank(body.getString("message"), "World PSP HTTP status " + response.statusCode());
+            return builder.success(false).errorCode(errorCode).errorMessage(errorMessage).build();
         }
-        JSONObject data = response.getJSONObject("data");
+        JSONObject data = body.getJSONObject("data");
         if (data == null || WorldPspSignUtils.notVerify(data, route.getPspAccountApiSecret(), data.getString("sign"))) {
             return builder.success(false).errorCode("INVALID_SIGN").errorMessage("World PSP response signature invalid").build();
         }
@@ -469,5 +463,11 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     private BigDecimal decimal(String value, BigDecimal fallback) {
         return StringUtils.isBlank(value) ? fallback : new BigDecimal(value);
+    }
+
+    private record WorldPspHttpResponse(int statusCode, JSONObject body) {
+        private boolean httpSuccess() {
+            return statusCode >= 200 && statusCode < 300;
+        }
     }
 }

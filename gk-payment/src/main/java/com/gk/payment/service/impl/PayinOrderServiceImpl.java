@@ -22,6 +22,7 @@ import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.payment.service.PayinOrderService;
+import com.gk.payment.state.PayinOrderStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
     private final MerchantDao merchantDao;
     private final LedgerPostingService ledgerPostingService;
     private final OrderStatusLogService orderStatusLogService;
+    private final PayinOrderStateService payinOrderStateService;
 
     @Override
     public PageData<PayinOrderDTO> page(DynMap params) {
@@ -231,65 +233,14 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
     }
 
     private boolean markManualReview(PayinOrderEntity order) {
-        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
-        wrapper.eq("id", order.getId())
-                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
-                .set("status", PayinOrderStatusEnum.MANUAL_REVIEW.code())
-                .set("status_reason", MANUAL_REVIEW_REASON)
-                .set("next_query_at", null);
-        if (baseDao.update(null, wrapper) == 0) {
-            return false;
-        }
-        orderStatusLogService.recordChange(
-                PayDirectionEnum.PAYIN.code(),
-                order.getTenantId(),
-                order.getMerchantId(),
-                order.getId(),
-                order.getPayinOrderNo(),
-                order.getStatus(),
-                PayinOrderStatusEnum.MANUAL_REVIEW.code(),
-                "PAYIN_MANUAL_REVIEW",
-                MANUAL_REVIEW_REASON,
-                "SYSTEM",
-                null,
-                order.getMerchantOrderNo(),
-                null
-        );
-        return true;
+        return payinOrderStateService.markManualReview(order, MANUAL_REVIEW_REASON);
     }
 
     /**
      * 关闭单笔超时代收订单。
      */
     private boolean closeExpiredPayinOrder(PayinOrderEntity order, Instant now) {
-        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
-        wrapper.eq("id", order.getId())
-                .in("status", PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code())
-                .isNull("paid_at")
-                .and(item -> item.isNull("paid_amount").or().eq("paid_amount", BigDecimal.ZERO))
-                .set("status", PayinOrderStatusEnum.CLOSED.code())
-                .set("status_reason", PAYIN_ORDER_EXPIRED_REASON)
-                .set("closed_at", now)
-                .set("next_query_at", null);
-        if (baseDao.update(null, wrapper) == 0) {
-            return false;
-        }
-        orderStatusLogService.recordChange(
-                PayDirectionEnum.PAYIN.code(),
-                order.getTenantId(),
-                order.getMerchantId(),
-                order.getId(),
-                order.getPayinOrderNo(),
-                order.getStatus(),
-                PayinOrderStatusEnum.CLOSED.code(),
-                "ORDER_EXPIRED",
-                PAYIN_ORDER_EXPIRED_REASON,
-                "SYSTEM",
-                null,
-                order.getMerchantOrderNo(),
-                null
-        );
-        return true;
+        return payinOrderStateService.closeExpired(order, now, PAYIN_ORDER_EXPIRED_REASON);
     }
 
     /**

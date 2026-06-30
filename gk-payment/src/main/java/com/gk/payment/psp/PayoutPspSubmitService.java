@@ -1,9 +1,7 @@
 package com.gk.payment.psp;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.enums.PayDirectionEnum;
 import com.gk.infra.config.service.GkSysParamsConfigService;
-import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
@@ -13,7 +11,8 @@ import com.gk.openapi.error.ApiException;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
-import com.gk.payment.service.OrderStatusLogService;
+import com.gk.payment.state.OrderStateChangeContext;
+import com.gk.payment.state.PayoutOrderStateService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.route.PspRouteResult;
@@ -41,9 +40,9 @@ public class PayoutPspSubmitService {
     private final PayoutOrderDao payoutOrderDao;
     private final LedgerPostingService ledgerPostingService;
     private final PspPayoutDispatchService pspPayoutDispatchService;
-    private final OrderStatusLogService orderStatusLogService;
     private final GkSysParamsConfigService configService;
     private final TransactionTemplate transactionTemplate;
+    private final PayoutOrderStateService payoutOrderStateService;
 
     /**
      * 冻结商户资金并提交代付订单到 PSP。
@@ -139,11 +138,9 @@ public class PayoutPspSubmitService {
             if (isTerminalStatus(order)) {
                 return;
             }
-            String fromStatus = order.getStatus();
             applySubmitUnknown(order,
                     ex instanceof ApiException apiException ? apiException.getErrorCode().name() : ex.getClass().getSimpleName(),
                     ex.getMessage(),
-                    fromStatus,
                     context);
         });
     }
@@ -167,13 +164,7 @@ public class PayoutPspSubmitService {
             try {
                 // 冻结资金和保存 holdNo 在同一事务内完成，避免出现账务已冻结但订单未记录的情况。
                 LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(current));
-                String fromStatus = current.getStatus();
-                current.setHoldNo(result.getHoldNo());
-                current.setFreezeJournalNo(result.getJournalNo());
-                current.setStatus(PayoutOrderStatusEnum.FROZEN.code());
-                current.setStatusReason(null);
-                payoutOrderDao.updateById(current);
-                recordStatusChange(current, fromStatus, current.getStatus(), "PAYOUT_FROZEN", null, safeContext);
+                payoutOrderStateService.markFrozen(current, result, stateContext("PAYOUT_FROZEN", null, safeContext));
                 return current;
             } catch (InsufficientLedgerBalanceException ex) {
                 markFreezeFailed(current, ApiErrorCode.INSUFFICIENT_BALANCE.getMessage(),
@@ -196,16 +187,8 @@ public class PayoutPspSubmitService {
      * 当前主要用于余额不足；可重试的账务或系统异常不能走该路径。
      */
     private void markFreezeFailed(PayoutOrderEntity order, String reason, String failCode, SubmitContext context) {
-        String fromStatus = order.getStatus();
         String message = StringUtils.defaultIfBlank(reason, "Payout freeze failed");
-        order.setStatus(PayoutOrderStatusEnum.FAILED.code());
-        order.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
-        order.setStatusReason(message);
-        order.setFailCode(failCode);
-        order.setFailMsg(StringUtils.left(message, 512));
-        order.setFailedAt(Instant.now());
-        payoutOrderDao.updateById(order);
-        recordStatusChange(order, fromStatus, order.getStatus(), "PAYOUT_FREEZE_FAILED", message, context);
+        payoutOrderStateService.markFreezeFailed(order, message, failCode, stateContext("PAYOUT_FREEZE_FAILED", message, context));
     }
 
     /**
@@ -218,7 +201,6 @@ public class PayoutPspSubmitService {
         applySubmitUnknown(order,
                 StringUtils.defaultIfBlank(result.getErrorCode(), result.getResponseCode()),
                 StringUtils.defaultIfBlank(result.getErrorMessage(), result.getResponseMessage()),
-                fromStatus,
                 context);
     }
 
@@ -228,19 +210,15 @@ public class PayoutPspSubmitService {
     private void applySubmitUnknown(PayoutOrderEntity order,
                                     String failCode,
                                     String failMessage,
-                                    String fromStatus,
                                     SubmitContext context) {
-        order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
-        order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
-        order.setStatusReason(PSP_SUBMIT_UNKNOWN_REASON);
-        order.setFailCode(failCode);
-        order.setFailMsg(StringUtils.left(failMessage, 512));
-        if (order.getSubmittedAt() == null) {
-            order.setSubmittedAt(Instant.now());
-        }
-        order.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
-        payoutOrderDao.updateById(order);
-        recordStatusChange(order, fromStatus, order.getStatus(), "PSP_SUBMIT_UNKNOWN", order.getStatusReason(), context);
+        payoutOrderStateService.markSubmitUnknown(
+                order,
+                failCode,
+                failMessage,
+                PSP_SUBMIT_UNKNOWN_REASON,
+                Instant.now().plusSeconds(firstQueryDelaySeconds()),
+                stateContext("PSP_SUBMIT_UNKNOWN", PSP_SUBMIT_UNKNOWN_REASON, context)
+        );
     }
 
     /**
@@ -330,22 +308,19 @@ public class PayoutPspSubmitService {
                                     String eventType,
                                     String reason,
                                     SubmitContext context) {
-        SubmitContext safeContext = context == null ? SubmitContext.system(order.getAppId(), null) : context;
-        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
-                PayDirectionEnum.PAYOUT.code(),
-                order.getTenantId(),
-                order.getMerchantId(),
-                order.getId(),
-                order.getPayoutOrderNo(),
-                fromStatus,
-                toStatus,
+        payoutOrderStateService.recordChange(order, fromStatus, toStatus, stateContext(eventType, reason, context));
+    }
+
+    private OrderStateChangeContext stateContext(String eventType, String reason, SubmitContext context) {
+        SubmitContext safeContext = context == null ? SubmitContext.system(null, null) : context;
+        return new OrderStateChangeContext(
                 eventType,
                 reason,
                 safeContext.operatorType(),
-                StringUtils.defaultIfBlank(safeContext.appId(), order.getAppId()),
-                order.getMerchantOrderNo(),
+                safeContext.appId(),
+                null,
                 safeContext.traceId()
-        ));
+        );
     }
 
     /**

@@ -19,6 +19,12 @@ import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.support.SubjectDisplayEnricher;
+import com.gk.merchant.dao.MerchantDao;
+import com.gk.merchant.entity.MerchantEntity;
+import com.gk.psp.dao.PspAccountDao;
+import com.gk.psp.entity.PspAccountEntity;
+import com.gk.tenant.dao.TenantDao;
+import com.gk.tenant.entity.TenantEntity;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +44,9 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
     private static final int MONEY_SCALE = 8;
 
     private final LedgerBalanceDao ledgerBalanceDao;
+    private final TenantDao tenantDao;
+    private final MerchantDao merchantDao;
+    private final PspAccountDao pspAccountDao;
     @Autowired(required = false)
     private SubjectDisplayEnricher subjectDisplayEnricher;
 
@@ -139,7 +148,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setOwnerId(merchantId);
         account.setAccountType(accountType);
         account.setCurrency(normalizedCurrency);
-        account.setAccountNo(buildMerchantAccountNo(tenantId, merchantId, accountType, normalizedCurrency));
+        account.setAccountNo(buildMerchantAccountNo(requireMerchantNo(merchantId), accountType, normalizedCurrency));
         account.setNormalSide(LedgerDirectionEnum.CREDIT.code());
         account.setAllowNegative(0);
         account.setStatus(StatusEnum.NORMAL.code());
@@ -177,7 +186,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setOwnerId(pspAccountId);
         account.setAccountType(accountType);
         account.setCurrency(normalizedCurrency);
-        account.setAccountNo(buildPspAccountNo(tenantId, pspAccountId, accountType, normalizedCurrency));
+        account.setAccountNo(buildPspAccountNo(requirePspAccountNo(pspAccountId), accountType, normalizedCurrency));
         account.setNormalSide(LedgerDirectionEnum.DEBIT.code());
         account.setAllowNegative(1);
         account.setStatus(StatusEnum.NORMAL.code());
@@ -226,7 +235,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
                 0L,
                 accountType,
                 currency,
-                buildInternalAccountNo(tenantId, accountType, currency),
+                buildPlatformAccountNo(tenantId, accountType, currency),
                 LedgerDirectionEnum.CREDIT.code(),
                 0
         );
@@ -312,16 +321,77 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         }
     }
 
-    static String buildMerchantAccountNo(Long tenantId, Long merchantId, String accountType, String currency) {
-        return "T" + tenantId + "-M" + merchantId + "-" + accountTypeToken(accountType) + "-" + currency;
+    private String buildMerchantAccountNo(String merchantNo, String accountType, String currency) {
+        return String.join("-",
+                "M",
+                normalizeCodeToken(merchantNo),
+                accountTypeToken(accountType),
+                normalizeCurrency(currency));
     }
 
-    static String buildPspAccountNo(Long tenantId, Long pspAccountId, String accountType, String currency) {
-        return "T" + tenantId + "-PSP" + pspAccountId + "-" + accountTypeToken(accountType) + "-" + currency;
+    private String buildPspAccountNo(String pspAccountNo, String accountType, String currency) {
+        return String.join("-",
+                "PSP",
+                normalizeCodeToken(pspAccountNo),
+                accountTypeToken(accountType),
+                normalizeCurrency(currency));
     }
 
-    static String buildInternalAccountNo(Long tenantId, String accountType, String currency) {
-        return "T" + tenantId + "-INT-" + accountTypeToken(accountType) + "-" + normalizeCurrency(currency);
+    private String buildInternalAccountNo(Long tenantId, String accountType, String currency) {
+        return String.join("-",
+                "INT",
+                tenantCodeToken(tenantId),
+                accountTypeToken(accountType),
+                normalizeCurrency(currency));
+    }
+
+    private String buildPlatformAccountNo(Long tenantId, String accountType, String currency) {
+        return String.join("-",
+                "PLT",
+                tenantCodeToken(tenantId),
+                accountTypeToken(accountType),
+                normalizeCurrency(currency));
+    }
+
+    private String tenantCodeToken(Long tenantId) {
+        if (tenantId == null) {
+            throw new IllegalArgumentException("tenantId is required for ledger account no");
+        }
+        TenantEntity tenant = tenantDao.selectById(tenantId);
+        if (tenant == null || StringUtils.isBlank(tenant.getCode())) {
+            throw new IllegalStateException("Tenant code is required for ledger account no: " + tenantId);
+        }
+        return normalizeCodeToken(tenant.getCode());
+    }
+
+    private String requireMerchantNo(Long merchantId) {
+        if (merchantId == null) {
+            throw new IllegalArgumentException("merchantId is required for ledger account no");
+        }
+        MerchantEntity merchant = merchantDao.selectById(merchantId);
+        if (merchant == null || StringUtils.isBlank(merchant.getMerchantNo())) {
+            throw new IllegalStateException("Merchant no is required for ledger account no: " + merchantId);
+        }
+        return merchant.getMerchantNo();
+    }
+
+    private String requirePspAccountNo(Long pspAccountId) {
+        if (pspAccountId == null) {
+            throw new IllegalArgumentException("pspAccountId is required for ledger account no");
+        }
+        PspAccountEntity pspAccount = pspAccountDao.selectById(pspAccountId);
+        if (pspAccount == null || StringUtils.isBlank(pspAccount.getPspAccountNo())) {
+            throw new IllegalStateException("PSP account no is required for ledger account no: " + pspAccountId);
+        }
+        return pspAccount.getPspAccountNo();
+    }
+
+    private static String normalizeCodeToken(String value) {
+        String normalized = StringUtils.defaultString(value)
+                .trim()
+                .toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "");
+        return StringUtils.defaultIfBlank(normalized, "UNKNOWN");
     }
 
     private static String accountTypeToken(String accountType) {

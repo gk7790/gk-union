@@ -11,10 +11,6 @@ import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
-import com.gk.ledger.exception.InsufficientLedgerBalanceException;
-import com.gk.ledger.posting.LedgerPostingResult;
-import com.gk.ledger.posting.PayoutPostingRequest;
-import com.gk.ledger.service.LedgerPostingService;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
@@ -34,10 +30,8 @@ import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.outbox.PayoutSubmitOutboxProducer;
 import com.gk.payment.plan.PayoutPlan;
 import com.gk.payment.plan.PayoutPlanService;
-import com.gk.payment.psp.PspOrderRequests;
+import com.gk.payment.psp.PayoutPspSubmitService;
 import com.gk.payment.service.OrderStatusLogService;
-import com.gk.psp.dispatch.PspPayoutDispatchResult;
-import com.gk.psp.dispatch.PspPayoutDispatchService;
 import com.gk.psp.route.PspRouteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,11 +59,10 @@ import java.util.Map;
 public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutOrderDao payoutOrderDao;
     private final PayoutPlanService payoutPlanService;
-    private final PspPayoutDispatchService pspPayoutDispatchService;
-    private final LedgerPostingService ledgerPostingService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
     private final PayoutSubmitOutboxProducer payoutSubmitOutboxProducer;
+    private final PayoutPspSubmitService payoutPspSubmitService;
     private final LedgerBalanceDao ledgerBalanceDao;
     private final TransactionTemplate transactionTemplate;
     private final GkSysParamsConfigService configService;
@@ -191,33 +184,15 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             return response;
         }
         try {
-            // Freeze merchant balance before PSP submit to avoid accepted payouts without funds.
-            freezePayout(entity);
+            PayoutOrderEntity submitted = payoutPspSubmitService.freezeAndSubmit(
+                    entity, payoutPlan.getRoute(),
+                    PayoutPspSubmitService.SubmitContext.system(ApiReqContextHolder.getAppId(), traceId())
+                            .withFreezeFailureException()
+            );
+            if (submitted != null) {
+                entity = submitted;
+            }
             timer.mark("freeze_payout");
-        } catch (ApiException ex) {
-            timer.mark("freeze_payout_failed");
-            timer.log("FAILED:" + ex.getErrorCode().name(), entity);
-            markFailed(entity, ex.getMessage(), ex.getErrorCode().name());
-            throw ex;
-        } catch (InsufficientLedgerBalanceException ex) {
-            timer.mark("freeze_payout_failed");
-            timer.log("FAILED:" + ApiErrorCode.INSUFFICIENT_BALANCE.name(), entity);
-            markFailed(entity, ApiErrorCode.INSUFFICIENT_BALANCE.getMessage(), ApiErrorCode.INSUFFICIENT_BALANCE.name());
-            throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE, ex);
-        } catch (Exception ex) {
-            timer.mark("freeze_payout_failed");
-            log.error("OpenAPI payout freeze failed, payoutOrderNo={}, merchantOrderNo={}",
-                    entity.getPayoutOrderNo(),
-                    entity.getMerchantOrderNo(),
-                    ex);
-            timer.log("FAILED:" + ApiErrorCode.SYSTEM_ERROR.name(), entity);
-            markFailed(entity, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
-        }
-
-        // Submit to PSP only after freeze succeeds; failures try to release the freeze.
-        try {
-            submitToPsp(entity, payoutPlan);
             timer.mark("submit_psp");
         } catch (ApiException ex) {
             timer.mark("submit_psp_failed");
@@ -299,41 +274,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新
      * 任何提交阶段异常都会先尝试释放冻结资金，再把订单标记为失败
      */
-    private void submitToPsp(PayoutOrderEntity order, PayoutPlan payoutPlan) {
-        try {
-            if (payoutPlan == null || payoutPlan.getRoute() == null) {
-                throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published");
-            }
-            PspRouteResult route = payoutPlan.getRoute();
-            // Use the route from the resolved payment plan to keep order snapshots consistent.
-
-            // Dispatch details are handled by the PSP adapter.
-            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(order), route);
-            applyDispatchResult(order, dispatchResult);
-            if (!dispatchResult.isSuccess()) {
-                // Release the frozen balance if PSP explicitly rejects the payout submit.
-                releasePayout(order);
-            }
-            payoutOrderDao.updateById(order);
-        } catch (ApiException ex) {
-            if (order != null) {
-                releasePayout(order);
-                markFailed(order, ex.getMessage(), ex.getErrorCode().name());
-            }
-            throw ex;
-        } catch (Exception ex) {
-            log.error("OpenAPI payout submit failed, payoutOrderNo={}, merchantOrderNo={}",
-                    order == null ? null : order.getPayoutOrderNo(),
-                    order == null ? null : order.getMerchantOrderNo(),
-                    ex);
-            if (order != null) {
-                releasePayout(order);
-                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage(), ApiErrorCode.SYSTEM_ERROR.name());
-            }
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
-        }
-    }
-
     private void submitToSandbox(PayoutOrderEntity order) {
         String fromStatus = order.getStatus();
         order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
@@ -378,53 +318,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setPspAccountNo(route.getPspAccountNo());
     }
 
-    /**
-     * 应用 PSP 代付提交结果
-     * <p>
-     * PSP 受理成功后订单进入 PROCESSING，等待 PSP 回调或主动查单推进终态；
-     * PSP 明确拒绝时订单直接进入 FAILED。
-     */
-    private void applyDispatchResult(PayoutOrderEntity entity, PspPayoutDispatchResult result) {
-        String fromStatus = entity.getStatus();
-        entity.setPspRequestNo(result.getPspRequestNo());
-        entity.setPspOrderNo(result.getPspOrderNo());
-        entity.setPspRawStatus(result.getRawStatus());
-        if (result.isSuccess()) {
-            entity.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
-            entity.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
-            entity.setSubmittedAt(Instant.now());
-            // Schedule active query as a fallback for missing or delayed PSP callbacks.
-            entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
-            recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
-            return;
-        }
-        entity.setStatus(PayoutOrderStatusEnum.FAILED.code());
-        entity.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
-        entity.setFailCode(result.getErrorCode());
-        entity.setFailMsg(StringUtils.left(result.getErrorMessage(), 512));
-        String reason = StringUtils.defaultIfBlank(
-                result.getErrorMessage(),
-                StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP payout submit failed")
-        );
-        entity.setStatusReason(reason);
-        entity.setFailedAt(Instant.now());
-        recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT_FAILED", reason, "SYSTEM");
-    }
-
-    /**
-     * 将代付订单标记为失败并记录状态日志
-     */
-    private void markFailed(PayoutOrderEntity entity, String reason, String failCode) {
-        String fromStatus = entity.getStatus();
-        entity.setStatus(PayoutOrderStatusEnum.FAILED.code());
-        String message = StringUtils.defaultIfBlank(reason, "Payout order failed");
-        entity.setStatusReason(message);
-        entity.setFailCode(failCode);
-        entity.setFailMsg(StringUtils.left(reason, 512));
-        entity.setFailedAt(Instant.now());
-        payoutOrderDao.updateById(entity);
-        recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
-    }
 
     /**
      * 记录代付订单状态变更
@@ -463,8 +356,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 获取当前 OpenAPI 请求 traceId
      */
     private String traceId() {
-        ApiReqContext context = ApiReqContextHolder.get();
-        return context == null ? null : context.getTraceId();
+        return ApiReqContextHolder.get().getTraceId();
     }
 
     /**
@@ -550,16 +442,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * <p>
      * 冻结成功后保holdNo 和冻结账务流水号，后PSP 成功会扣冻结
      * PSP 失败或提交异常会holdNo 释放冻结
-     *
-     * @param order 订单信息
      */
-    private void freezePayout(PayoutOrderEntity order) {
-        LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(order));
-        order.setHoldNo(result.getHoldNo());
-        order.setFreezeJournalNo(result.getJournalNo());
-        payoutOrderDao.updateById(order);
-    }
-
     private void precheckAvailableBalance(Long tenantId, Long merchantId, String currency, BigDecimal totalDebitAmount) {
         BigDecimal available = defaultZero(ledgerBalanceDao.selectMerchantAvailableBalance(
                 tenantId,
@@ -571,46 +454,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         if (available.compareTo(totalDebitAmount) < 0) {
             throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE);
         }
-    }
-
-    /**
-     * 释放代付冻结资金
-     * <p>
-     * 仅在 PSP 提交失败或明确拒绝时调用；如果释放失败，保留原始 PSP 错误
-     * 后续可由运营或补偿任务根holdNo 处理
-     *
-     * @param order 订单信息
-     */
-    private void releasePayout(PayoutOrderEntity order) {
-        if (StringUtils.isBlank(order.getHoldNo())) {
-            return;
-        }
-        try {
-            LedgerPostingResult result = ledgerPostingService.releasePayout(payoutPostingRequest(order));
-            order.setReleaseJournalNo(result.getJournalNo());
-        } catch (Exception ignored) {
-            // Keep the original PSP error visible; ledger release can be retried by operations.
-        }
-    }
-
-    /**
-     * 构建账务代付请求对象
-     */
-    private PayoutPostingRequest payoutPostingRequest(PayoutOrderEntity entity) {
-        PayoutPostingRequest request = new PayoutPostingRequest();
-        request.setTenantId(entity.getTenantId());
-        request.setMerchantId(entity.getMerchantId());
-        request.setMerchantNo(entity.getMerchantNo());
-        request.setMerchantAppId(entity.getMerchantAppId());
-        request.setMerchantOrderNo(entity.getMerchantOrderNo());
-        request.setPspAccountId(entity.getPspAccountId());
-        request.setBizId(entity.getId());
-        request.setPayoutOrderNo(entity.getPayoutOrderNo());
-        request.setCurrency(entity.getCurrency());
-        request.setAmount(entity.getAmount());
-        request.setMerchantFeeAmount(entity.getMerchantFeeAmount());
-        request.setTotalDebitAmount(entity.getTotalDebitAmount());
-        return request;
     }
 
     /**
@@ -835,11 +678,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      */
     private BigDecimal defaultZero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    private long firstQueryDelaySeconds() {
-        long seconds = configService.payoutSubmitConfig().getFirstQueryDelaySeconds();
-        return seconds <= 0 ? 60L : seconds;
     }
 
     private boolean differsIgnoreCase(String left, String right) {

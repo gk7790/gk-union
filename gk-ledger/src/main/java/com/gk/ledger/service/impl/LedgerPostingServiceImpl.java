@@ -258,7 +258,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "post_entries");
 
         // 冻结分录成功后记ledger_hold，后续成功消费或失败释放都以它为准
-                LedgerHoldEntity hold = new LedgerHoldEntity();
+        LedgerHoldEntity hold = new LedgerHoldEntity();
         hold.setTenantId(request.getTenantId());
         hold.setHoldNo(BizKeyUtils.genLedgerHoldNo());
         hold.setOwnerType(SubjectTypeEnum.MERCHANT.code());

@@ -1,19 +1,25 @@
 package com.gk.openapi.error;
 
 import com.gk.infra.telegram.TgAlertService;
+import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.tools.ApiR;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -24,13 +30,11 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ApiR<?> handleOpenApiException(ApiException ex) {
-        if (ex.getErrorCode() == ApiErrorCode.SYSTEM_ERROR) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        if (descriptor.code() == ApiErrorCode.SYSTEM_ERROR) {
             log.error("OpenAPI system error: {}", ex.getMessage(), ex);
         }
-        return ApiR.error(
-                ex.getErrorCode().name(),
-                ex.getMessage()
-        );
+        return error(descriptor);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -39,17 +43,69 @@ public class ApiExceptionHandler {
                 .findFirst()
                 .map(error -> StringUtils.defaultIfBlank(error.getDefaultMessage(), "Invalid request"))
                 .orElse("Invalid request");
-        return ApiR.error(
-                ApiErrorCode.INVALID_REQUEST.name(),
-                message
-        );
+        return error(ApiErrorCode.INVALID_REQUEST, message);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ApiR<?> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        log.warn("OpenAPI invalid argument: {}", descriptor.publicMessage());
+        return error(descriptor);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ApiR<?> handleIllegalStateException(IllegalStateException ex) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        log.warn("OpenAPI service not ready: {}", descriptor.publicMessage());
+        return error(descriptor);
+    }
+
+    @ExceptionHandler({
+            ConstraintViolationException.class,
+            HttpMessageNotReadableException.class,
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ApiR<?> handleInvalidRequestException(Exception ex) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        log.warn("OpenAPI invalid request: {}", descriptor.publicMessage());
+        return error(descriptor);
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ApiR<?> handleDuplicateKeyException(DuplicateKeyException ex) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        log.warn("OpenAPI duplicate request: {}", ex.getMessage());
+        return error(descriptor);
+    }
+
+    @ExceptionHandler(InsufficientLedgerBalanceException.class)
+    public ApiR<?> handleInsufficientBalanceException(InsufficientLedgerBalanceException ex) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
+        log.warn("OpenAPI insufficient balance: {}", ex.getMessage());
+        return error(descriptor);
     }
 
     @ExceptionHandler(Exception.class)
     public ApiR<?> handleException(Exception ex, HttpServletRequest request) {
+        ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(ex);
         log.error("OpenAPI request failed: {}", ex.getMessage(), ex);
         sendSystemErrorAlert(ex, request);
-        return ApiR.error(ApiErrorCode.SYSTEM_ERROR);
+        return error(descriptor);
+    }
+
+    private ApiR<?> error(ApiErrorCode errorCode, String message) {
+        return ApiR.error(
+                errorCode.name(),
+                StringUtils.defaultIfBlank(message, errorCode.getMessage())
+        );
+    }
+
+    private ApiR<?> error(ApiErrorDescriptor descriptor) {
+        return ApiR.error(
+                descriptor.code().name(),
+                StringUtils.defaultIfBlank(descriptor.publicMessage(), descriptor.code().getMessage())
+        );
     }
 
     /**

@@ -165,6 +165,7 @@ public class PspCallbackOrderProcessor {
         wrapper.eq("id", id)
                 .in("status",
                         PayinOrderStatusEnum.CREATED.code(),
+                        PayoutOrderStatusEnum.FROZEN.code(),
                         PayinOrderStatusEnum.PROCESSING.code(),
                         PayinOrderStatusEnum.MANUAL_REVIEW.code(),
                         PayoutOrderStatusEnum.MANUAL_REVIEW.code());

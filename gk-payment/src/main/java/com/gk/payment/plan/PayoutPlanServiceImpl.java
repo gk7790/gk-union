@@ -2,6 +2,7 @@ package com.gk.payment.plan;
 
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.openapi.error.ApiExceptionMapper;
 import com.gk.payment.entity.PayoutOrderEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,13 @@ public class PayoutPlanServiceImpl implements PayoutPlanService {
 
     @Override
     public PayoutPlan resolve(PayoutOrderEntity order) {
-        PaymentPlan paymentPlan = paymentPlanResolver.resolvePayout(order)
-                .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
-        return toPayoutPlan(order, paymentPlan);
+        try {
+            PaymentPlan paymentPlan = paymentPlanResolver.resolvePayout(order)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
+            return toPayoutPlan(order, paymentPlan);
+        } catch (IllegalArgumentException ex) {
+            throw ApiExceptionMapper.toApiException(ex);
+        }
     }
 
     private PayoutPlan toPayoutPlan(PayoutOrderEntity order, PaymentPlan paymentPlan) {

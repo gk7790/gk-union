@@ -11,8 +11,8 @@ import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderQueryRequest;
 import com.gk.openapi.dto.PayoutOrderResponse;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.openapi.error.ApiErrorDescriptor;
+import com.gk.openapi.error.ApiExceptionMapper;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.security.OpenApiAuthFilter;
@@ -219,15 +219,11 @@ public class MerchantRequestLogger {
             entity.setResponseBodyJson(toJson(responseBody));
         } else {
             entity.setStatus("FAILED");
-            if (throwable instanceof ApiException apiException) {
-                entity.setResponseCode(apiException.getErrorCode().name());
-                entity.setErrorCode(apiException.getErrorCode().name());
-            } else {
-                entity.setResponseCode(ApiErrorCode.SYSTEM_ERROR.name());
-                entity.setErrorCode(ApiErrorCode.SYSTEM_ERROR.name());
-            }
-            entity.setResponseMessage(StringUtils.left(throwable.getMessage(), 512));
-            entity.setErrorMessage(StringUtils.left(throwable.getMessage(), 512));
+            ApiErrorDescriptor descriptor = ApiExceptionMapper.resolve(throwable);
+            entity.setResponseCode(descriptor.code().name());
+            entity.setErrorCode(descriptor.code().name());
+            entity.setResponseMessage(StringUtils.left(descriptor.publicMessage(), 512));
+            entity.setErrorMessage(StringUtils.left(descriptor.publicMessage(), 512));
             entity.setResponseBodyJson(toJson(ApiR.error(entity.getResponseCode(), entity.getResponseMessage())));
         }
         submit(entity);

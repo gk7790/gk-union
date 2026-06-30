@@ -7,6 +7,7 @@ import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
+import com.gk.openapi.error.ApiExceptionMapper;
 import com.gk.payment.dto.PayinConfigPrecheckRequest;
 import com.gk.payment.dto.PayinConfigPrecheckResult;
 import com.gk.payment.entity.PayinOrderEntity;
@@ -26,9 +27,13 @@ public class PayinPlanServiceImpl implements PayinPlanService {
 
     @Override
     public PayinPlan resolve(PayinOrderEntity order) {
-        PaymentPlan paymentPlan = paymentPlanResolver.resolvePayin(order)
-                .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
-        return toPayinPlan(paymentPlan);
+        try {
+            PaymentPlan paymentPlan = paymentPlanResolver.resolvePayin(order)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
+            return toPayinPlan(paymentPlan);
+        } catch (IllegalArgumentException ex) {
+            throw ApiExceptionMapper.toApiException(ex);
+        }
     }
 
     @Override

@@ -31,7 +31,7 @@ import java.util.Map;
 @Component
 public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
-    private static final boolean MOCK_SUBMIT = true;
+    private static final boolean MOCK_SUBMIT = false;
     // 下单需要同步拿 pay_url，超时要短而明确，避免PSP 长时间占用商户请求线程
     private static final int CONNECT_TIMEOUT_MILLIS = 3_000;
     private static final int READ_TIMEOUT_MILLIS = 8_000;
@@ -48,6 +48,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     @Override
     public PspPayDispatchResult createPayinOrder(PspOrderRequest order, PspRouteResult route) {
+        requireRouteCredentials(route, "create payin order");
         Map<String, Object> params = payParams(order, route);
         String path = "/open-api/create-pay-order";
         PspPayDispatchResult result = basePayResult(order, route, path, params);
@@ -62,6 +63,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     @Override
     public PspPayoutDispatchResult createPayoutOrder(PspOrderRequest order, PspRouteResult route) {
+        requireRouteCredentials(route, "create payout order");
         Map<String, Object> params = payoutParams(order, route);
         String path = "/open-api/create-payout-order";
         PspPayoutDispatchResult result = basePayoutResult(order, route, path, params);
@@ -76,6 +78,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     @Override
     public PspOrderQueryResult queryPayinOrder(PspOrderRequest order, PspRouteResult route) {
+        requireRouteCredentials(route, "query payin order");
         Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-pay-order";
         WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
@@ -85,11 +88,26 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     @Override
     public PspOrderQueryResult queryPayoutOrder(PspOrderRequest order, PspRouteResult route) {
+        requireRouteCredentials(route, "query payout order");
         Map<String, Object> params = queryParams(order.getPspOrderNo(), order.getOrderNo(), route);
         String path = "/open-api/query-payout-order";
         WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, false);
+    }
+
+    private void requireRouteCredentials(PspRouteResult route, String operation) {
+        if (route == null) {
+            throw new IllegalStateException("World PSP route is required for " + operation);
+        }
+        if (StringUtils.isBlank(route.getPspAccountApiKey())) {
+            throw new IllegalStateException("World PSP account api key is missing for " + operation
+                    + ", pspAccountId=" + route.getPspAccountId());
+        }
+        if (StringUtils.isBlank(route.getPspAccountApiSecret())) {
+            throw new IllegalStateException("World PSP account api secret is missing for " + operation
+                    + ", pspAccountId=" + route.getPspAccountId());
+        }
     }
 
     private Map<String, Object> payParams(PspOrderRequest order, PspRouteResult route) {

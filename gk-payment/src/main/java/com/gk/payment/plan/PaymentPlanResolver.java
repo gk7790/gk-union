@@ -216,7 +216,8 @@ public class PaymentPlanResolver {
         result.setMethodConfigJson(method.getConfigJson());
         result.setPspAccountId(account.getId());
         result.setPspAccountNo(account.getPspAccountNo());
-        // PSP 密钥只从账户表读取，不进payment_plan_bucket Redis        result.setPspAccountApiKey(account.getApiKey());
+        // PSP 密钥只从账户表读取，不进 payment_plan_bucket Redis。
+        result.setPspAccountApiKey(account.getApiKey());
         result.setPspAccountApiSecret(account.getApiSecret());
         result.setAccountConfigJson(account.getConfigJson());
         result.setPspBankCode(bankMapping == null ? null : bankMapping.getPspBankCode());

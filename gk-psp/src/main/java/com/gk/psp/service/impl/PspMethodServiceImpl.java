@@ -53,7 +53,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
     public QueryWrapper<PspMethodEntity> getWrapper(DynMap params) {
         QueryWrapper<PspMethodEntity> wrapper = new QueryWrapper<>();
         Long pspId = params.getLong("pspId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String pspCode = params.getStr("pspCode");
         String methodCode = params.getStr("methodCode");
         String pspMethodCode = params.getStr("pspMethodCode");
@@ -62,7 +62,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
         String direction = params.getStr("direction");
 
         wrapper.eq(pspId != null, "psp_id", pspId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(pspCode), "psp_code", pspCode);
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", methodCode);
         wrapper.eq(StrUtil.isNotBlank(pspMethodCode), "psp_method_code", pspMethodCode);
@@ -177,14 +177,18 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PspMethodEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
         evictPayinPlanCache();
         evictMethodDictCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PspMethodEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
         evictMethodDictCache();
     }

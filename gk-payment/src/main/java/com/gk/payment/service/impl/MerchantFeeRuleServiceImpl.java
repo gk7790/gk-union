@@ -412,13 +412,17 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<MerchantFeeRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
         evictPayinPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<MerchantFeeRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
     }
 
@@ -431,7 +435,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         Long tenantId = params.getLong("tenantId", null);
         Long merchantId = params.getLong("merchantId", null);
         Long merchantAppId = params.getLong("merchantAppId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String ruleName = params.getStr("ruleName");
         String direction = params.getStr("direction");
         String countryCode = params.getStr("countryCode");
@@ -443,7 +447,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));

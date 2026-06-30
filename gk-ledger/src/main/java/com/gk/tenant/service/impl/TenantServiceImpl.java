@@ -1,6 +1,7 @@
 package com.gk.tenant.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
@@ -36,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -57,6 +59,8 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     @Override
     public QueryWrapper<TenantEntity> getWrapper(DynMap params) {
         QueryWrapper<TenantEntity> wrapper = new QueryWrapper<>();
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
+        wrapper.in("status", statusList);
         if (!ReqContextHolder.isSuperAdmin()) {
             wrapper.ge("id", Constant.MIN_SYS_ID);
         }
@@ -109,13 +113,17 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<TenantEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictTenantDictCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<TenantEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictTenantDictCache();
     }
 
@@ -229,18 +237,23 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
             if (cached == null) {
                 return null;
             }
-            if (cached instanceof String text) {
-                return JSON.parseArray(text, LabelDTO.class);
-            }
-            if (cached instanceof List<?> list) {
-                List<LabelDTO> result = new ArrayList<>(list.size());
-                for (Object item : list) {
-                    LabelDTO dto = ConvertUtils.sourceToTarget(item, LabelDTO.class);
-                    if (dto != null) {
-                        result.add(dto);
-                    }
+            switch (cached) {
+                case String text -> {
+                    return JSON.parseArray(text, LabelDTO.class);
                 }
-                return result;
+                case List<?> list -> {
+                    List<LabelDTO> result = new ArrayList<>(list.size());
+                    for (Object item : list) {
+                        LabelDTO dto = ConvertUtils.sourceToTarget(item, LabelDTO.class);
+                        if (dto != null) {
+                            result.add(dto);
+                        }
+                    }
+                    return result;
+                }
+                default -> {
+                    return null;
+                }
             }
         } catch (Exception e) {
             log.warn("Get tenant dict cache failed: {}", e.getMessage());

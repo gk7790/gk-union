@@ -2,6 +2,7 @@ package com.gk.psp.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.gk.common.context.ReqContextHolder;
@@ -41,14 +42,14 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
     public QueryWrapper<PspBankMappingEntity> getWrapper(DynMap params) {
         QueryWrapper<PspBankMappingEntity> wrapper = new QueryWrapper<>();
         Long pspId = params.getLong("pspId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
         String bankCode = params.getStr("bankCode");
         String pspBankCode = params.getStr("pspBankCode");
 
         wrapper.eq(pspId != null, "psp_id", pspId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.eq(StrUtil.isNotBlank(bankCode), "bank_code", bankCode);
@@ -136,6 +137,20 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         PspBankMappingEntity entity = toEntity(dto);
         upsert(entity);
         dto.setMappingId(entity.getId());
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        baseDao.update(null, new UpdateWrapper<PspBankMappingEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
+    }
+
+    @Override
+    public void delete(Long id) {
+        baseDao.update(null, new UpdateWrapper<PspBankMappingEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
     }
 
     private void upsert(PspBankMappingEntity entity) {

@@ -2,6 +2,7 @@ package com.gk.merchant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
@@ -28,7 +29,6 @@ import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import com.gk.merchant.support.MerchantAppSecrets;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -66,14 +66,14 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             wrapper.eq("tenant_id", context.getTenantId());
             wrapper.eq("merchant_id", context.getMerchantId());
         }
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String appId = params.getStr("appId");
         String appName = params.getStr("appName");
         String appType = params.getStr("appType");
         String appEnv = params.getStr("appEnv");
         String signType = params.getStr("signType");
 
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(appId), "app_id", appId);
         wrapper.like(StrUtil.isNotBlank(appName), "app_name", appName);
         wrapper.eq(StrUtil.isNotBlank(appType), "app_type", appType);
@@ -89,7 +89,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
                 getPage(params, "id", false),
                 getWrapper(params)
         );
-        PageData<MerchantAppDTO> page1 = getPageData(page, currentDtoClass());;
+        PageData<MerchantAppDTO> page1 = getPageData(page, currentDtoClass());
         maskSecrets(page1.getItems());
         return page1;
     }
@@ -188,7 +188,9 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Override
     public void delete(Long[] ids) {
         List<String> appIds = selectAppIds(ids);
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<MerchantAppEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictPayinPlanCache();
         evictMerchantAppCache(appIds);
     }
@@ -196,7 +198,9 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     @Override
     public void delete(Long id) {
         MerchantAppEntity existed = id == null ? null : baseDao.selectById(id);
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<MerchantAppEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
         evictMerchantAppCache(existed == null ? null : existed.getAppId());
     }

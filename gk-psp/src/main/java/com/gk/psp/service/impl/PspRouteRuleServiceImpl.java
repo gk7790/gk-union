@@ -2,11 +2,13 @@ package com.gk.psp.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspMethodDao;
 import com.gk.psp.dao.PspRouteRuleDao;
@@ -40,7 +42,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         Long pspId = params.getLong("pspId", null);
         Long pspMethodId = params.getLong("pspMethodId", null);
         Long pspAccountId = params.getLong("pspAccountId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        java.util.List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String routeName = params.getStr("routeName");
         String routeMode = params.getStr("routeMode");
         String countryCode = params.getStr("countryCode");
@@ -54,7 +56,7 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
         wrapper.eq(pspAccountId != null, "psp_account_id", pspAccountId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.like(StrUtil.isNotBlank(routeName), "route_name", routeName);
         wrapper.eq(StrUtil.isNotBlank(routeMode), "route_mode", routeMode);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
@@ -84,13 +86,17 @@ public class PspRouteRuleServiceImpl extends CrudServiceImpl<PspRouteRuleDao, Ps
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PspRouteRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
         evictPayinPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PspRouteRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
     }
 

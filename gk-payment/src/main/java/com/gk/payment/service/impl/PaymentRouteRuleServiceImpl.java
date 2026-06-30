@@ -2,6 +2,7 @@ package com.gk.payment.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
@@ -9,6 +10,7 @@ import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.amount.AmountRangeUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.payment.dao.PaymentRouteGroupDao;
 import com.gk.payment.dao.PaymentRouteRuleDao;
 import com.gk.payment.dto.PaymentRouteRuleDTO;
@@ -23,6 +25,7 @@ import org.apache.commons.lang3.Strings;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -55,7 +58,7 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         Long merchantId = params.getLong("merchantId", null);
         Long merchantAppId = params.getLong("merchantAppId", null);
         Long groupId = params.getLong("groupId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String ruleName = params.getStr("ruleName");
         String direction = params.getStr("direction");
         String countryCode = params.getStr("countryCode");
@@ -66,7 +69,7 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(merchantAppId != null, "merchant_app_id", merchantAppId);
         wrapper.eq(groupId != null, "group_id", groupId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", normalize(countryCode));
@@ -107,13 +110,17 @@ public class PaymentRouteRuleServiceImpl extends CrudServiceImpl<PaymentRouteRul
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPlanCache();
     }
 

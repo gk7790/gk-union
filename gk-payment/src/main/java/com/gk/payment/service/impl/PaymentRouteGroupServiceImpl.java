@@ -2,6 +2,7 @@ package com.gk.payment.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +51,7 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
     public QueryWrapper<PaymentRouteGroupEntity> getWrapper(DynMap params) {
         QueryWrapper<PaymentRouteGroupEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String groupCode = params.getStr("groupCode");
         String groupName = params.getStr("groupName");
         String direction = params.getStr("direction");
@@ -59,7 +61,7 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
         String strategy = params.getStr("strategy");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.like(StrUtil.isNotBlank(groupCode), "group_code", groupCode);
         wrapper.like(StrUtil.isNotBlank(groupName), "group_name", groupName);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
@@ -116,13 +118,17 @@ public class PaymentRouteGroupServiceImpl extends CrudServiceImpl<PaymentRouteGr
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteGroupEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteGroupEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPlanCache();
     }
 

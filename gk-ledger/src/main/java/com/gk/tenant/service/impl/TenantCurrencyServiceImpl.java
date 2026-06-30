@@ -2,6 +2,7 @@ package com.gk.tenant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
@@ -24,8 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,11 +43,11 @@ public class TenantCurrencyServiceImpl extends CrudServiceImpl<TenantCurrencyDao
     public QueryWrapper<TenantCurrencyEntity> getWrapper(DynMap params) {
         QueryWrapper<TenantCurrencyEntity> wrapper = new QueryWrapper<>();
         Long tenantId = resolveTenantIdForQuery(params);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String currency = params.getStr("currency");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(currency), "currency", currency);
         wrapper.orderByAsc("sort").orderByAsc("currency");
         return wrapper;
@@ -84,7 +87,7 @@ public class TenantCurrencyServiceImpl extends CrudServiceImpl<TenantCurrencyDao
 
         return currencies.stream()
                 .map(currencyMap::get)
-                .filter(item -> item != null)
+                .filter(Objects::nonNull)
                 .map(item -> {
                     SysCurrencyDTO dto = ConvertUtils.sourceToTarget(item, SysCurrencyDTO.class);
                     dto.setSort(sortMap.getOrDefault(item.getCurrency(), item.getSort()));
@@ -121,6 +124,20 @@ public class TenantCurrencyServiceImpl extends CrudServiceImpl<TenantCurrencyDao
         applyTenantScope(dto);
         validateCurrency(dto.getCurrency());
         super.update(dto);
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        baseDao.update(null, new UpdateWrapper<TenantCurrencyEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
+    }
+
+    @Override
+    public void delete(Long id) {
+        baseDao.update(null, new UpdateWrapper<TenantCurrencyEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
     }
 
     private void validateCurrency(String currency) {

@@ -48,14 +48,14 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         QueryWrapper<PspAccountEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
         Long pspId = params.getLong("pspId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String pspAccountNo = params.getStr("pspAccountNo");
         String pspAccountName = params.getStr("pspAccountName");
         String secretType = params.getStr("secretType");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(pspId != null, "psp_id", pspId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(pspAccountNo), "psp_account_no", pspAccountNo);
         wrapper.like(StrUtil.isNotBlank(pspAccountName), "psp_account_name", pspAccountName);
         wrapper.eq(StrUtil.isNotBlank(secretType), "secret_type", secretType);
@@ -148,7 +148,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         if (accountIds.isEmpty()) {
             return;
         }
-        List<PspAccountEntity> accounts = baseDao.selectBatchIds(accountIds);
+        List<PspAccountEntity> accounts = baseDao.selectByIds(accountIds);
         if (accounts.size() != accountIds.size()) {
             throw new GkException(ErrorCode.NOT_FOUND, "PSP account not found");
         }

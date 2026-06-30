@@ -1,6 +1,7 @@
 package com.gk.payment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
@@ -33,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -58,14 +60,14 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
         Long pspId = params.getLong("pspId", null);
         Long pspMethodId = params.getLong("pspMethodId", null);
         Long pspAccountId = params.getLong("pspAccountId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(groupId != null, "group_id", groupId);
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
         wrapper.eq(pspAccountId != null, "psp_account_id", pspAccountId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         return wrapper;
     }
 
@@ -342,13 +344,17 @@ public class PaymentRouteChannelServiceImpl extends CrudServiceImpl<PaymentRoute
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteChannelEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PaymentRouteChannelEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPlanCache();
     }
 

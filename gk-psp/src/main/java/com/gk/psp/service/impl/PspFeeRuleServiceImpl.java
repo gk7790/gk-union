@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.amount.AmountRangeUtils;
 import com.gk.common.amount.FeeLimitUtils;
@@ -51,7 +52,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         Long pspId = params.getLong("pspId", null);
         Long pspAccountId = params.getLong("pspAccountId", null);
         Long pspMethodId = params.getLong("pspMethodId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        java.util.List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String ruleName = params.getStr("ruleName");
         String pspMethodCode = params.getStr("pspMethodCode");
         String direction = params.getStr("direction");
@@ -64,7 +65,7 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
         wrapper.eq(pspId != null, "psp_id", pspId);
         wrapper.eq(pspAccountId != null, "psp_account_id", pspAccountId);
         wrapper.eq(pspMethodId != null, "psp_method_id", pspMethodId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.like(StrUtil.isNotBlank(ruleName), "rule_name", ruleName);
         wrapper.eq(StrUtil.isNotBlank(pspMethodCode), "psp_method_code", pspMethodCode);
         wrapper.eq(StrUtil.isNotBlank(direction), "direction", normalize(direction));
@@ -130,13 +131,17 @@ public class PspFeeRuleServiceImpl extends CrudServiceImpl<PspFeeRuleDao, PspFee
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PspFeeRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
         evictPayinPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PspFeeRuleEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
     }
 

@@ -6,6 +6,7 @@ import com.gk.common.enums.SimpleEnum;
 import com.gk.common.enums.StyleType;
 
 import java.util.List;
+import java.util.Objects;
 
 @EnumDict("status")
 public enum StatusEnum implements SimpleEnum<Integer> {
@@ -45,5 +46,16 @@ public enum StatusEnum implements SimpleEnum<Integer> {
 
     public static List<Integer> defaultStatus() {
         return List.of(NORMAL.code, PAUSE.code);
+    }
+
+    public static List<Integer> normalizeQueryStatus(List<Integer> statusList) {
+        if (statusList == null || statusList.isEmpty()) {
+            return defaultStatus();
+        }
+        List<Integer> normalized = statusList.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return normalized.isEmpty() ? defaultStatus() : normalized;
     }
 }

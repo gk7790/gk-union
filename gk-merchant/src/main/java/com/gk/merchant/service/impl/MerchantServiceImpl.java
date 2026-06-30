@@ -2,6 +2,7 @@ package com.gk.merchant.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.context.ReqContext;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
@@ -35,6 +36,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -56,7 +58,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         QueryWrapper<MerchantEntity> wrapper = new QueryWrapper<>();
 
         Long tenantId = params.getLong("tenantId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String merchantNo = params.getStr("merchantNo");
         String merchantName = params.getStr("merchantName");
         String countryCode = params.getStr("countryCode");
@@ -64,7 +66,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         String riskStatus = params.getStr("riskStatus");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(merchantNo), "merchant_no", merchantNo);
         wrapper.like(StrUtil.isNotBlank(merchantName), "merchant_name", merchantName);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
@@ -129,6 +131,20 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         MerchantEntity merchant = baseDao.selectById(entity.getId());
         provisionMerchantAccounts(merchant.getTenantId(), merchant.getId(), entity.getDefaultCurrency());
         evictOpenApiAuthCache(merchant.getTenantId(), merchant.getId());
+    }
+
+    @Override
+    public void delete(Long[] ids) {
+        baseDao.update(null, new UpdateWrapper<MerchantEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
+    }
+
+    @Override
+    public void delete(Long id) {
+        baseDao.update(null, new UpdateWrapper<MerchantEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
     }
 
     private void provisionMerchantAccounts(Long tenantId, Long merchantId, String currency) {

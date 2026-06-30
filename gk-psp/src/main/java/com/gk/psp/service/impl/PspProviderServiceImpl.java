@@ -4,11 +4,13 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONException;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.dto.PspProviderDTO;
 import com.gk.psp.entity.PspProviderEntity;
@@ -24,13 +26,13 @@ public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspP
     public QueryWrapper<PspProviderEntity> getWrapper(DynMap params) {
         QueryWrapper<PspProviderEntity> wrapper = new QueryWrapper<>();
         Long tenantId = params.getLong("tenantId", null);
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        java.util.List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String pspCode = params.getStr("pspCode");
         String pspName = params.getStr("pspName");
         String countryCode = params.getStr("countryCode");
 
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(pspCode), "psp_code", pspCode);
         wrapper.like(StrUtil.isNotBlank(pspName), "psp_name", pspName);
         wrapper.eq(StrUtil.isNotBlank(countryCode), "country_code", countryCode);
@@ -55,13 +57,17 @@ public class PspProviderServiceImpl extends CrudServiceImpl<PspProviderDao, PspP
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PspProviderEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", java.util.Arrays.asList(ids)));
         evictPayinPlanCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PspProviderEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictPayinPlanCache();
     }
 

@@ -3,6 +3,7 @@ package com.gk.payment.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,7 +45,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
     @Override
     public QueryWrapper<PaymentMethodEntity> getWrapper(DynMap params) {
         QueryWrapper<PaymentMethodEntity> wrapper = new QueryWrapper<>();
-        Integer status = params.containsKey("status") ? params.getInt("status") : null;
+        List<Integer> statusList = StatusEnum.normalizeQueryStatus(params.getList("status", Integer.class, StatusEnum.defaultStatus()));
         String methodCode = params.getStr("methodCode");
         String methodName = params.getStr("methodName");
         String methodType = params.getStr("methodType");
@@ -51,7 +53,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         String countryCode = params.getStr("countryCode");
         String currency = params.getStr("currency");
 
-        wrapper.eq(status != null, "status", status);
+        wrapper.in("status", statusList);
         wrapper.eq(StrUtil.isNotBlank(methodCode), "method_code", normalize(methodCode));
         wrapper.like(StrUtil.isNotBlank(methodName), "method_name", methodName);
         wrapper.eq(StrUtil.isNotBlank(methodType), "method_type", normalize(methodType));
@@ -128,13 +130,17 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
 
     @Override
     public void delete(Long[] ids) {
-        super.delete(ids);
+        baseDao.update(null, new UpdateWrapper<PaymentMethodEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .in("id", Arrays.asList(ids)));
         evictDictCache();
     }
 
     @Override
     public void delete(Long id) {
-        super.delete(id);
+        baseDao.update(null, new UpdateWrapper<PaymentMethodEntity>()
+                .set("status", StatusEnum.STOP.code())
+                .eq("id", id));
         evictDictCache();
     }
 
@@ -248,7 +254,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
             return 0;
         }
         String normalizedValue = normalize(value);
-        if (StringUtils.equals(normalizedValue, requestValue)) {
+        if (Objects.equals(normalizedValue, requestValue)) {
             return 0;
         }
         if ("BOTH".equals(normalizedValue)) {
@@ -262,7 +268,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
             return 0;
         }
         String normalizedValue = normalize(value);
-        if (StringUtils.equals(normalizedValue, requestValue)) {
+        if (Objects.equals(normalizedValue, requestValue)) {
             return 0;
         }
         return StringUtils.isBlank(normalizedValue) ? 10 : 100;

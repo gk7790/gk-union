@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PspCallbackController {
     private final PspCallbackService pspCallbackService;
 
-    @PostMapping("/{pspAccountNo}/pay")
+    @PostMapping("/{pspAccountNo}/payin")
     public ResponseEntity<String> payCallback(
             @PathVariable String pspAccountNo,
             HttpServletRequest request,

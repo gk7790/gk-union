@@ -19,12 +19,21 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.function.Consumer;
 
+/**
+ * 统一收口 payin_order 的状态变更和状态日志。
+ *
+ * <p>调用方仍然负责业务编排、PSP 调用和账务入账；本服务只负责代收订单状态如何流转、
+ * 哪些字段要一起更新，以及状态变更日志如何记录。</p>
+ */
 @Service
 @RequiredArgsConstructor
 public class PayinOrderStateService {
     private final PayinOrderDao payinOrderDao;
     private final OrderStatusLogService orderStatusLogService;
 
+    /**
+     * 应用 PSP 非终态结果，订单保持处理中，后续继续等待回调或主动查单推进。
+     */
     public boolean applyProcessingResult(PspCallbackOrder order, PspCallbackResult result, OrderStateChangeContext context) {
         String toStatus = PayinOrderStatusEnum.PROCESSING.code();
         boolean updated = updateActive(order.id(), wrapper -> applyCommon(wrapper, toStatus, result, order));
@@ -34,6 +43,12 @@ public class PayinOrderStateService {
         return updated;
     }
 
+    /**
+     * 应用 PSP 回调或主动查单得到的终态结果。
+     *
+     * <p>SUCCESS 表示代收成功，资金进入商户待结算账户，写入 {@code ledger_journal_no}；
+     * FAILED 表示代收失败，结算状态取消。账务动作由调用方先执行，再把 {@code postingResult} 传进来。</p>
+     */
     public boolean applyTerminalResult(PspCallbackOrder order,
                                        PspCallbackResult result,
                                        String targetStatus,
@@ -46,11 +61,13 @@ public class PayinOrderStateService {
             String journalNo = postingResult == null ? null : postingResult.getJournalNo();
             Instant now = Instant.now();
             if (PayinOrderStatusEnum.SUCCESS.code().equals(targetStatus)) {
+                // 代收成功后先进入待结算，后续由结算释放流程转入可用余额。
                 wrapper.set("paid_amount", PspCallbackUtils.defaultAmount(result.getAmount(), order.amount()))
                         .set("paid_at", now)
                         .set("settle_status", SettleStatusEnum.PENDING.code())
                         .set(journalNo != null, "ledger_journal_no", journalNo);
             } else {
+                // 代收失败没有待结算资金，结算状态需要取消。
                 wrapper.set("failed_at", now)
                         .set("settle_status", SettleStatusEnum.CANCELLED.code());
             }
@@ -61,6 +78,9 @@ public class PayinOrderStateService {
         return updated;
     }
 
+    /**
+     * 在订单状态已经更新成功后，补写代收成功入账流水号。
+     */
     public boolean attachLedgerJournal(Long orderId, LedgerPostingResult postingResult) {
         String journalNo = postingResult == null ? null : postingResult.getJournalNo();
         if (StringUtils.isBlank(journalNo)) {
@@ -71,6 +91,9 @@ public class PayinOrderStateService {
         return payinOrderDao.update(null, wrapper) > 0;
     }
 
+    /**
+     * 停止自动 PSP 查单，把订单留给人工处理。
+     */
     public boolean markManualReview(PayinOrderEntity order, String reason) {
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
@@ -86,6 +109,9 @@ public class PayinOrderStateService {
         return true;
     }
 
+    /**
+     * 关闭超时未支付订单。只有未支付且支付金额为空或为 0 的订单才允许关闭。
+     */
     public boolean closeExpired(PayinOrderEntity order, Instant now, String reason) {
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
@@ -104,6 +130,9 @@ public class PayinOrderStateService {
         return true;
     }
 
+    /**
+     * 只更新非终态订单，防止重复回调或延迟查单覆盖已终态订单。
+     */
     private boolean updateActive(Long orderId, Consumer<UpdateWrapper<PayinOrderEntity>> setter) {
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
@@ -115,6 +144,9 @@ public class PayinOrderStateService {
         return payinOrderDao.update(null, wrapper) > 0;
     }
 
+    /**
+     * 应用回调和主动查单都会写入的 PSP 通用字段。
+     */
     private void applyCommon(UpdateWrapper<PayinOrderEntity> wrapper, String status, PspCallbackResult result, PspCallbackOrder order) {
         String pspOrderNo = StringUtils.defaultIfBlank(result.getPspOrderNo(), order.pspOrderNo());
         wrapper.set("status", status)
@@ -123,16 +155,25 @@ public class PayinOrderStateService {
                 .set(pspOrderNo != null, "psp_order_no", pspOrderNo);
     }
 
+    /**
+     * 异步记录来自回调/查单订单快照的状态变更。
+     */
     private void recordChange(PspCallbackOrder order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         recordChange(order.tenantId(), order.merchantId(), order.id(), order.orderNo(), order.merchantOrderNo(),
                 fromStatus, toStatus, context);
     }
 
+    /**
+     * 异步记录来自订单实体的状态变更。
+     */
     private void recordChange(PayinOrderEntity order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         recordChange(order.getTenantId(), order.getMerchantId(), order.getId(), order.getPayinOrderNo(),
                 order.getMerchantOrderNo(), fromStatus, toStatus, context);
     }
 
+    /**
+     * 异步记录状态变更日志，避免订单主状态更新等待日志落库。
+     */
     private void recordChange(Long tenantId,
                               Long merchantId,
                               Long orderId,

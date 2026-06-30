@@ -19,10 +19,10 @@ import java.time.Instant;
 import java.util.function.Consumer;
 
 /**
- * Centralizes payout_order state mutations and status-log writing.
+ * 统一收口 payout_order 的状态变更和状态日志。
  *
- * <p>Callers still own business orchestration, PSP calls, and ledger posting. This service owns how a payout order is
- * moved between states, which columns are updated together, and how status changes are logged.</p>
+ * <p>调用方仍然负责业务编排、PSP 调用和账务入账；本服务只负责订单状态如何流转、哪些字段要一起更新、
+ * 以及状态变更日志如何记录。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -31,7 +31,7 @@ public class PayoutOrderStateService {
     private final OrderStatusLogService orderStatusLogService;
 
     /**
-     * Applies a non-terminal PSP result. This keeps the order queryable and eligible for later callback/query progress.
+     * 应用 PSP 非终态结果，订单保持处理中，后续继续等待回调或主动查单推进。
      */
     public boolean applyProcessingResult(PspCallbackOrder order, PspCallbackResult result, OrderStateChangeContext context) {
         String toStatus = PayoutOrderStatusEnum.PROCESSING.code();
@@ -43,10 +43,11 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Applies a terminal PSP result from callback or active query.
+     * 应用 PSP 回调或主动查单得到的终态结果。
      *
-     * <p>SUCCESS consumes frozen funds and writes {@code success_journal_no}; FAILED releases frozen funds and writes
-     * {@code release_journal_no}. The ledger operation is executed by the caller before passing {@code postingResult}.</p>
+     * <p>SUCCESS 表示冻结资金被正式扣减，写入 {@code success_journal_no}；
+     * FAILED 表示冻结资金被释放，写入 {@code release_journal_no}。
+     * 账务动作由调用方先执行，再把 {@code postingResult} 传进来。</p>
      */
     public boolean applyTerminalResult(PspCallbackOrder order,
                                        PspCallbackResult result,
@@ -60,12 +61,12 @@ public class PayoutOrderStateService {
             String journalNo = postingResult == null ? null : postingResult.getJournalNo();
             Instant now = Instant.now();
             if (PayoutOrderStatusEnum.SUCCESS.code().equals(targetStatus)) {
-                // Payout success means the previously frozen funds have been consumed.
+                // 代付成功表示之前冻结的资金已经被正式扣减。
                 wrapper.set("completed_at", now)
                         .set(journalNo != null, "success_journal_no", journalNo);
             } else {
                 String failMsg = StringUtils.left(result.getErrorMessage(), 512);
-                // Payout failure means the previously frozen funds should be released, not settled.
+                // 代付失败表示之前冻结的资金需要释放，不是结算释放。
                 wrapper.set("failed_at", now)
                         .set(result.getErrorCode() != null, "fail_code", result.getErrorCode())
                         .set(failMsg != null, "fail_msg", failMsg)
@@ -79,7 +80,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Back-fills the ledger journal after the status update has already succeeded.
+     * 在订单状态已经更新成功后，补写账务流水号。
      */
     public boolean attachLedgerJournal(Long orderId, String targetStatus, LedgerPostingResult postingResult) {
         String journalNo = postingResult == null ? null : postingResult.getJournalNo();
@@ -92,14 +93,14 @@ public class PayoutOrderStateService {
         if (PayoutOrderStatusEnum.SUCCESS.code().equals(normalizedStatus)) {
             wrapper.set("success_journal_no", journalNo);
         } else if (PayoutOrderStatusEnum.FAILED.code().equals(normalizedStatus)) {
-            // This is the unfreeze journal for failed payout, not a settlement journal.
+            // 这里是代付失败后的解冻流水，不是结算流水。
             wrapper.set("release_journal_no", journalNo);
         }
         return payoutOrderDao.update(null, wrapper) > 0;
     }
 
     /**
-     * Stops automatic PSP querying/submission and leaves the order for manual handling.
+     * 停止自动 PSP 查单/提交，把订单留给人工处理。
      */
     public boolean markManualReview(PayoutOrderEntity order, String reason) {
         UpdateWrapper<PayoutOrderEntity> wrapper = new UpdateWrapper<>();
@@ -117,11 +118,11 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Marks that merchant funds were frozen successfully before submitting the payout to PSP.
+     * 标记代付提交 PSP 前，商户资金已经冻结成功。
      */
     public boolean markFrozen(PayoutOrderEntity order, LedgerPostingResult result, OrderStateChangeContext context) {
         String fromStatus = order.getStatus();
-        // holdNo is the idempotency anchor for later consume/release operations.
+        // holdNo 是后续扣冻结或释放冻结的幂等锚点。
         order.setHoldNo(result.getHoldNo());
         order.setFreezeJournalNo(result.getJournalNo());
         order.setStatus(PayoutOrderStatusEnum.FROZEN.code());
@@ -132,7 +133,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Marks that PSP accepted the payout submission. This is not final success.
+     * 标记 PSP 已受理代付提交。注意：这不是最终成功。
      */
     public void markPspAccepted(PayoutOrderEntity order,
                                 String pspRequestNo,
@@ -146,7 +147,7 @@ public class PayoutOrderStateService {
         order.setPspRawStatus(pspRawStatus);
         order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
-        // submittedAt starts the SLA/query window for this payout.
+        // submittedAt 用来启动这笔代付的 SLA 和查单窗口。
         order.setSubmittedAt(Instant.now());
         order.setNextQueryAt(nextQueryAt);
         payoutOrderDao.updateById(order);
@@ -154,7 +155,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Marks a clear PSP rejection during submit. Frozen funds should already be released by the caller.
+     * 标记 PSP 在提交阶段明确拒绝。调用方应先释放冻结资金，再调用本方法落订单失败状态。
      */
     public void markSubmitRejected(PayoutOrderEntity order,
                                    String pspRequestNo,
@@ -178,7 +179,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Marks a business failure before PSP submission, usually insufficient balance during freeze.
+     * 标记 PSP 提交前的明确业务失败，常见场景是冻结余额不足。
      */
     public void markFreezeFailed(PayoutOrderEntity order, String message, String failCode, OrderStateChangeContext context) {
         String fromStatus = order.getStatus();
@@ -193,7 +194,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Marks an unknown PSP submit result. Funds stay frozen until callback/query proves success or failure.
+     * 标记 PSP 提交结果未知。资金继续保持冻结，直到回调或查单确认成功/失败。
      */
     public void markSubmitUnknown(PayoutOrderEntity order,
                                   String failCode,
@@ -208,7 +209,7 @@ public class PayoutOrderStateService {
         order.setFailCode(failCode);
         order.setFailMsg(StringUtils.left(failMessage, 512));
         if (order.getSubmittedAt() == null) {
-            // UNKNOWN may happen before an accepted response is parsed, so initialize the query window here.
+            // UNKNOWN 可能发生在受理响应解析前，因此这里也要初始化查单窗口。
             order.setSubmittedAt(Instant.now());
         }
         order.setNextQueryAt(nextQueryAt);
@@ -217,7 +218,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Records status changes asynchronously so order state mutations do not wait on log insert latency.
+     * 异步记录状态变更日志，避免订单主状态更新等待日志落库。
      */
     public void recordChange(PayoutOrderEntity order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         OrderStateChangeContext safeContext = context == null ? OrderStateChangeContext.system(toStatus, null) : context;
@@ -239,7 +240,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Updates only non-final states to protect terminal orders from duplicate callbacks or delayed queries.
+     * 只更新非终态订单，防止重复回调或延迟查单覆盖已终态订单。
      */
     private boolean updateActive(Long orderId, Consumer<UpdateWrapper<PayoutOrderEntity>> setter) {
         UpdateWrapper<PayoutOrderEntity> wrapper = new UpdateWrapper<>();
@@ -254,7 +255,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Applies PSP-facing fields common to callback and active-query results.
+     * 应用回调和主动查单都会写入的 PSP 通用字段。
      */
     private void applyCommon(UpdateWrapper<PayoutOrderEntity> wrapper, String status, PspCallbackResult result, PspCallbackOrder order) {
         String pspOrderNo = StringUtils.defaultIfBlank(result.getPspOrderNo(), order.pspOrderNo());
@@ -265,7 +266,7 @@ public class PayoutOrderStateService {
     }
 
     /**
-     * Records status changes for callback/query snapshots asynchronously.
+     * 异步记录来自回调/查单订单快照的状态变更。
      */
     private void recordChange(PspCallbackOrder order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         OrderStateChangeContext safeContext = context == null ? OrderStateChangeContext.system(toStatus, null) : context;

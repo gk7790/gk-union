@@ -137,7 +137,7 @@ public class MerchantWalletStatementServiceImpl extends CrudServiceImpl<Merchant
             if (!platform) {
                 item.setTenantName(null);
             }
-            if (!tenant) {
+            if (!platform && !tenant) {
                 item.setMerchantNo(null);
                 item.setMerchantName(null);
             }

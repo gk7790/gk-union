@@ -3,7 +3,10 @@ package com.gk.payment.callback;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.enums.PayDirectionEnum;
+import com.gk.common.enums.SignTypeEnum;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.config.model.MerchantNotifyConfig;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
@@ -34,6 +37,7 @@ import java.util.Map;
 public class PspCallbackNotifyCreator {
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
+    private final GkSysParamsConfigService configService;
 
     /**
      * 创建商户异步通知任务。
@@ -64,13 +68,14 @@ public class PspCallbackNotifyCreator {
         task.setHttpMethod("POST");
         task.setContentType("application/json");
         task.setCharset("UTF-8");
-        task.setSignType("MD5");
+        task.setSignType(SignTypeEnum.HMAC_SHA256.code());
         task.setPayloadHash(PspCallbackUtils.sha256Hex(payloadJson));
         task.setPayloadJson(payloadJson);
-        task.setTimeoutMs(5000);
+        MerchantNotifyConfig config = configService.merchantNotifyConfig();
+        task.setTimeoutMs(config.getReadTimeoutMs());
         task.setStatus("INIT");
         task.setRetryCount(0);
-        task.setMaxRetryCount(16);
+        task.setMaxRetryCount(config.getMaxRetryCount());
         task.setNextRetryAt(Instant.now());
         task.setTraceId(logEntity == null ? null : logEntity.getTraceId());
         try {

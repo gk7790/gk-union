@@ -237,6 +237,9 @@ public class SubjectDisplayEnricher {
     }
 
     private String tenantName(SubjectDisplay display) {
-        return display.getSubjectNo();
+        if (display.getSubjectName() != null) {
+            return display.getSubjectName();
+        }
+        return display.getDisplayName();
     }
 }

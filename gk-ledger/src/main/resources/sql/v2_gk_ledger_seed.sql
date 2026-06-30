@@ -152,3 +152,8 @@ INSERT INTO `schedule_job`
 (`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
 SELECT 2064290000000000008, 'payment', 'payinOrderExceptionTask', NULL, '0 0/5 * * * ?', 1, '代收长时间处理中转人工处理', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000008);
+
+INSERT INTO `schedule_job`
+(`id`, `schedule_group`, `bean_name`, `params`, `cron_expression`, `status`, `remark`, `created_at`)
+SELECT 2064290000000000009, 'payment', 'payoutSubmitOutboxTask', NULL, '0/10 * * * * ?', 1, '代付提交 PSP outbox 消费', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `schedule_job` WHERE `id` = 2064290000000000009);

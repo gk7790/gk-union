@@ -10,6 +10,7 @@ public interface TgBotService {
      *
      * @return 创建的 Telegram 消息任务数量
      */
+    int sysError(String title, String content, String traceId);
     int sysError(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
@@ -17,6 +18,7 @@ public interface TgBotService {
      *
      * @return 创建的 Telegram 消息任务数量
      */
+    int sysWarn(String title, String content, String traceId);
     int sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**

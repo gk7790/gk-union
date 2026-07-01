@@ -41,6 +41,17 @@ public class TgBotServiceImpl implements TgBotService {
     private final TgChatDao tgChatDao;
     private final TgMessageTaskDao tgMessageTaskDao;
 
+
+    @Override
+    public int sysError(String title, String content, String traceId) {
+        return sysError(0L, 0L , title, content, traceId);
+    }
+
+    @Override
+    public int sysWarn(String title, String content, String traceId) {
+        return sysWarn(0L, 0L , title, content, traceId);
+    }
+
     /** 创建系统错误告警任务。 */
     @Override
     public int sysError(Long tenantId, Long merchantId, String title, String content, String traceId) {

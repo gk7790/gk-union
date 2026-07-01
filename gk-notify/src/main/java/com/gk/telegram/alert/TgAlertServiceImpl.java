@@ -4,14 +4,13 @@ import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.telegram.TgAlertService;
 import com.gk.infra.utils.AsynUtils;
-import com.gk.infra.telegram.TgBotService;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.entity.TgMessageTaskEntity;
 import com.gk.telegram.support.TgConstants;
-import com.gk.telegram.support.TgHtml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -19,9 +18,6 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,17 +29,12 @@ import java.util.Map;
  * <p>
  * 消息展示按 SaaS 层级控制：平台群展示租户和商户，租户群只展示商户，商户群不展示租户和商户。
  */
-@Service
+@Service("tgAlertBotService")
 @Slf4j
 @RequiredArgsConstructor
-public class TgBotServiceImpl implements TgBotService {
-    /** 消息中展示的本地时间格式。 */
-    private static final DateTimeFormatter TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
-
+public class TgAlertServiceImpl implements TgAlertService {
     private final TgChatDao tgChatDao;
     private final TgMessageTaskDao tgMessageTaskDao;
-
 
     @Override
     public void sysError(String title, String content, String traceId) {
@@ -114,7 +105,7 @@ public class TgBotServiceImpl implements TgBotService {
             if (!subscribes(target, eventType)) {
                 continue;
             }
-            String text = renderText(eventType, target, tenantId, merchantId, title, content, traceId);
+            String text = renderText(eventType, title, content);
             TgMessageTaskEntity task = buildTask(target, eventType, text, title, traceId);
             try {
                 tgMessageTaskDao.insert(task);
@@ -124,6 +115,10 @@ public class TgBotServiceImpl implements TgBotService {
             }
         }
         return created;
+    }
+
+    private String renderText(TgAlertEventType eventType, String title, String content) {
+        return "<code>" + StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType)) + "</code>" + content;
     }
 
     /**
@@ -137,27 +132,57 @@ public class TgBotServiceImpl implements TgBotService {
         wrapper.eq("status", 1)
                 .eq("purpose", resolvePurpose(eventType))
                 .orderByAsc("id");
-        if (tenantId == null) {
-            wrapper.isNull("tenant_id").isNull("merchant_id");
-        } else if (isSystemAlertEvent(eventType)) {
-            wrapper.isNull("tenant_id").isNull("merchant_id");
-        } else if (isRiskAlertEvent(eventType)) {
-            wrapper.and(w -> {
-                w.nested(s -> s.isNull("tenant_id").isNull("merchant_id"))
-                        .or(s -> s.eq("tenant_id", tenantId).isNull("merchant_id"));
-                if (merchantId != null) {
-                    w.or(s -> s.eq("tenant_id", tenantId).eq("merchant_id", merchantId));
+
+        if (isSystemAlertEvent(eventType)) {
+            appendPlatformTarget(wrapper);
+            wrapper.eq("event_types", eventType);
+            return tgChatDao.selectList(wrapper);
+        }
+
+        if (isRiskAlertEvent(eventType)) {
+            wrapper.and(scope -> {
+                appendPlatformTarget(scope);
+                if (!isEmptyId(tenantId)) {
+                    scope.or(tenantScope -> appendTenantTarget(tenantScope, tenantId));
+                    if (!isEmptyId(merchantId)) {
+                        scope.or(merchantScope -> appendMerchantTarget(merchantScope, tenantId, merchantId));
+                    }
                 }
             });
-        } else {
-            wrapper.eq("tenant_id", tenantId);
-            if (merchantId == null) {
-                wrapper.isNull("merchant_id");
-            } else {
-                wrapper.and(w -> w.isNull("merchant_id").or().eq("merchant_id", merchantId));
-            }
+            return tgChatDao.selectList(wrapper);
         }
+
+        if (isEmptyId(tenantId)) {
+            return List.of();
+        }
+
+        wrapper.and(scope -> {
+            appendTenantTarget(scope, tenantId);
+            if (!isEmptyId(merchantId)) {
+                scope.or(merchantScope -> appendMerchantTarget(merchantScope, tenantId, merchantId));
+            }
+        });
+
         return tgChatDao.selectList(wrapper);
+    }
+
+    private void appendPlatformTarget(QueryWrapper<TgChatEntity> wrapper) {
+        wrapper.and(scope -> scope.isNull("tenant_id").or().eq("tenant_id", 0L))
+                .and(scope -> scope.isNull("merchant_id").or().eq("merchant_id", 0L));
+    }
+
+    private void appendTenantTarget(QueryWrapper<TgChatEntity> wrapper, Long tenantId) {
+        wrapper.eq("tenant_id", tenantId)
+                .and(scope -> scope.isNull("merchant_id").or().eq("merchant_id", 0L));
+    }
+
+    private void appendMerchantTarget(QueryWrapper<TgChatEntity> wrapper, Long tenantId, Long merchantId) {
+        wrapper.eq("tenant_id", tenantId)
+                .eq("merchant_id", merchantId);
+    }
+
+    private boolean isEmptyId(Long id) {
+        return id == null || id == 0L;
     }
 
     /** 根据事件类型决定匹配 tg_chat.purpose 的用途。 */
@@ -238,53 +263,14 @@ public class TgBotServiceImpl implements TgBotService {
         return SecureUtil.sha256(seed).substring(0, 32);
     }
 
-    /** 渲染 Telegram HTML 消息内容。 */
-    private String renderText(TgAlertEventType eventType, TgChatEntity target, Long tenantId, Long merchantId,
-                              String title, String content, String traceId) {
-        Map<String, String> lines = new LinkedHashMap<>();
-        appendVisibleSubjectLines(lines, target, tenantId, merchantId);
-        if (StringUtils.isNotBlank(traceId)) {
-            lines.put("TraceId", traceId);
-        }
-        lines.put("时间", TIME_FORMATTER.format(Instant.now()));
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(TgHtml.bold("[" + eventType.code() + "] "
-                + StringUtils.defaultIfBlank(title, eventType.code())));
-        for (Map.Entry<String, String> entry : lines.entrySet()) {
-            sb.append("\n").append(entry.getKey()).append(": ").append(TgHtml.code(entry.getValue()));
-        }
-        if (StringUtils.isNotBlank(content)) {
-            sb.append("\n详情: ").append(TgHtml.escape(StringUtils.abbreviate(content, 1500)));
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 按接收群层级追加可见主体信息。
-     * <p>平台群展示租户和商户；租户群只展示商户；商户群不展示租户和商户。</p>
-     */
-    private void appendVisibleSubjectLines(Map<String, String> lines, TgChatEntity target,
-                                           Long tenantId, Long merchantId) {
-        if (isPlatformTarget(target)) {
-            lines.put("租户", tenantId == null ? "平台" : String.valueOf(tenantId));
-            if (merchantId != null) {
-                lines.put("商户", String.valueOf(merchantId));
-            }
-            return;
-        }
-        if (isTenantTarget(target) && merchantId != null) {
-            lines.put("商户", String.valueOf(merchantId));
-        }
-    }
-
-    /** 是否为平台群：tenant_id 和 merchant_id 都为空。 */
-    private boolean isPlatformTarget(TgChatEntity target) {
-        return target.getTenantId() == null && target.getMerchantId() == null;
-    }
-
-    /** 是否为租户群：tenant_id 有值，merchant_id 为空。 */
-    private boolean isTenantTarget(TgChatEntity target) {
-        return target.getTenantId() != null && target.getMerchantId() == null;
+    private String resolveDefaultTitle(TgAlertEventType eventType) {
+        return switch (eventType) {
+            case SYSTEM_ERROR -> "系统异常提醒";
+            case SYSTEM_WARN -> "系统警告提醒";
+            case RISK_ALERT -> "风控提醒";
+            case PAYIN_SUCCESS -> "代收成功通知";
+            case PAYOUT_SUCCESS -> "代付成功通知";
+            case PAYOUT_FAILED -> "代付失败通知";
+        };
     }
 }

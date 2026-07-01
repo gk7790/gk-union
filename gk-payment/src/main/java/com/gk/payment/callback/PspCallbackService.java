@@ -13,7 +13,7 @@ import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.service.PayinOrderService;
 import com.gk.psp.callback.PspCallbackBizException;
 import com.gk.psp.callback.PspCallbackException;
-import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackAccount;
 import com.gk.psp.callback.model.PspCallbackContext;
 import com.gk.psp.callback.model.PspCallbackHandleResult;

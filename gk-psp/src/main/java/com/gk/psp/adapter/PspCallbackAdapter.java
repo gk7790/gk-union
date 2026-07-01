@@ -1,4 +1,4 @@
-package com.gk.psp.callback.adapter;
+package com.gk.psp.adapter;
 
 import com.gk.common.model.Result;
 import com.gk.psp.callback.model.PspCallbackRequest;

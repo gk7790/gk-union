@@ -1,7 +1,7 @@
 package com.gk.psp.adapter.world;
 
 import com.gk.common.model.Result;
-import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackAckMapper;

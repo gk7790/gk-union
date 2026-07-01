@@ -1,7 +1,7 @@
 package com.gk.psp.callback.support;
 
 import com.gk.psp.callback.PspCallbackBizException;
-import com.gk.psp.callback.adapter.PspCallbackAdapter;
+import com.gk.psp.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.enums.PspCallbackCurrencyPolicy;

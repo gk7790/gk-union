@@ -4,7 +4,7 @@ import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.utils.BizKeyUtils;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.telegram.TgBotService;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.entity.TgChatEntity;
@@ -33,7 +33,7 @@ import java.util.Map;
  */
 @Service
 @RequiredArgsConstructor
-public class TgAlertServiceImpl implements TgAlertService {
+public class TgBotServiceImpl implements TgBotService {
     /** 消息中展示的本地时间格式。 */
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.systemDefault());
@@ -43,13 +43,13 @@ public class TgAlertServiceImpl implements TgAlertService {
 
     /** 创建系统错误告警任务。 */
     @Override
-    public int systemError(Long tenantId, Long merchantId, String title, String content, String traceId) {
+    public int sysError(Long tenantId, Long merchantId, String title, String content, String traceId) {
         return createAlert(TgAlertEventType.SYSTEM_ERROR, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建系统预警任务。 */
     @Override
-    public int systemWarn(Long tenantId, Long merchantId, String title, String content, String traceId) {
+    public int sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId) {
         return createAlert(TgAlertEventType.SYSTEM_WARN, tenantId, merchantId, title, content, traceId);
     }
 

@@ -10,7 +10,7 @@ import com.gk.common.exception.GkExceptionCoreHandler;
 import com.gk.common.model.R;
 import com.gk.infra.log.entity.LogErrorEntity;
 import com.gk.infra.log.service.LogErrorService;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.telegram.TgBotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RequiredArgsConstructor
 public class GkExceptionHandler extends GkExceptionCoreHandler {
     private final LogErrorService logErrorService;
-    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
+    private final ObjectProvider<TgBotService> tgAlertServiceProvider;
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public R<?> handleException(AuthorizationDeniedException ex) {
@@ -83,14 +83,14 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
         if (isBrokenPipe(ex)) {
             return;
         }
-        TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
-        if (tgAlertService == null) {
+        TgBotService tgBotService = tgAlertServiceProvider.getIfAvailable();
+        if (tgBotService == null) {
             return;
         }
 
         ReqContext context = ReqContextHolder.get();
         try {
-            tgAlertService.systemError(context.getTenantId(), context.getMerchantId(),
+            tgBotService.sysError(context.getTenantId(), context.getMerchantId(),
                     "系统异常", buildAlertContent(context, ex), context.getTraceId());
         } catch (Exception alertEx) {
             log.warn("send Telegram system error alert failed: {}", alertEx.getMessage());

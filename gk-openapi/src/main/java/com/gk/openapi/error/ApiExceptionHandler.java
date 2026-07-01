@@ -1,6 +1,6 @@
 package com.gk.openapi.error;
 
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.telegram.TgBotService;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
@@ -26,7 +26,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = "com.gk.openapi")
 public class ApiExceptionHandler {
-    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
+    private final ObjectProvider<TgBotService> tgAlertServiceProvider;
 
     @ExceptionHandler(ApiException.class)
     public ApiR<?> handleOpenApiException(ApiException ex) {
@@ -111,14 +111,14 @@ public class ApiExceptionHandler {
     /**
      * OpenAPI 兜底异常代表系统异常，推送到 Telegram 平台告警群     */
     private void sendSystemErrorAlert(Exception ex, HttpServletRequest request) {
-        TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
-        if (tgAlertService == null) {
+        TgBotService tgBotService = tgAlertServiceProvider.getIfAvailable();
+        if (tgBotService == null) {
             return;
         }
 
         ApiReqContext context = ApiReqContextHolder.get();
         try {
-            tgAlertService.systemError(getTenantId(context), getMerchantId(context),
+            tgBotService.sysError(getTenantId(context), getMerchantId(context),
                     "OpenAPI系统异常", buildAlertContent(context, ex, request), getTraceId(context));
         } catch (Exception alertEx) {
             log.warn("send OpenAPI Telegram system error alert failed: {}", alertEx.getMessage());

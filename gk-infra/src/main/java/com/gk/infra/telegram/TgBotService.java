@@ -4,20 +4,20 @@ package com.gk.infra.telegram;
  * Telegram 系统预警服务接口。
  * <p>接口放在 infra，业务模块可直接依赖；具体发送实现由 notify 模块提供。</p>
  */
-public interface TgAlertService {
+public interface TgBotService {
     /**
      * 创建系统错误预警消息任务。
      *
      * @return 创建的 Telegram 消息任务数量
      */
-    int systemError(Long tenantId, Long merchantId, String title, String content, String traceId);
+    int sysError(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建系统警告预警消息任务。
      *
      * @return 创建的 Telegram 消息任务数量
      */
-    int systemWarn(Long tenantId, Long merchantId, String title, String content, String traceId);
+    int sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建风控预警消息任务。

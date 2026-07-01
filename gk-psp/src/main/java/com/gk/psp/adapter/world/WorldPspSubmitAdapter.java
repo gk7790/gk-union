@@ -12,7 +12,7 @@ import com.gk.psp.balance.PspBalanceSnap;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
-import com.gk.psp.enums.PspPayoutSubmitResultStatus;
+import com.gk.psp.enums.PspPayoutSubmitStatus;
 
 import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.request.PspBalanceRequest;
@@ -350,8 +350,8 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         if (response.httpSuccess() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
             result.setSubmitResultStatus(response.httpSuccess() || isUnknownPayoutCreateResponse(body)
-                    ? PspPayoutSubmitResultStatus.UNKNOWN
-                    : PspPayoutSubmitResultStatus.REJECTED);
+                    ? PspPayoutSubmitStatus.UNKNOWN
+                    : PspPayoutSubmitStatus.REJECTED);
             result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
             result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
             return;
@@ -359,13 +359,13 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         JSONObject data = body.getJSONObject("data");
         if (data == null || WorldPspSignUtils.notVerify(data, secret, data.getString("sign"))) {
             result.setSuccess(false);
-            result.setSubmitResultStatus(PspPayoutSubmitResultStatus.UNKNOWN);
+            result.setSubmitResultStatus(PspPayoutSubmitStatus.UNKNOWN);
             result.setErrorCode("INVALID_SIGN");
             result.setErrorMessage("World PSP response signature invalid");
             return;
         }
         result.setSuccess(true);
-        result.setSubmitResultStatus(PspPayoutSubmitResultStatus.ACCEPTED);
+        result.setSubmitResultStatus(PspPayoutSubmitStatus.ACCEPTED);
         result.setPspOrderNo(data.getString("system_order_id"));
         result.setResponseSign(data.getString("sign"));
         result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));

@@ -180,7 +180,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
             }
 
             // 同一商户应用维度只允许一ACTIVE 决策表，先退旧版，再激活当前发布版本
-                        PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
+            PaymentPlanCatalogEntity retired = new PaymentPlanCatalogEntity();
             retired.setStatus(PaymentPlanStatus.RETIRED);
             paymentPlanCatalogDao.update(retired, sameCatalogWrapper(catalog)
                     .eq("status", PaymentPlanStatus.ACTIVE)
@@ -655,7 +655,7 @@ public class PaymentPlanAdminServiceImpl implements PaymentPlanAdminService {
     }
 
     private PaymentPlanPreviewResponse.Route toRouteResponse(PaymentRouteRuleEntity paymentRule,
-                                                            PaymentPlanRouteOptionEntity option) {
+                                                             PaymentPlanRouteOptionEntity option) {
         if (paymentRule == null && option == null) {
             return null;
         }

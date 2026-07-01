@@ -4,7 +4,7 @@ import com.gk.common.utils.BizKeyUtils;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
-import com.gk.psp.enums.PspPayoutSubmitResultStatus;
+import com.gk.psp.enums.PspPayoutSubmitStatus;
 
 import com.gk.psp.query.PspOrderQueryResult;
 import com.gk.psp.request.PspOrderRequest;
@@ -33,7 +33,7 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
 
         PspPayoutDispatchResult result = new PspPayoutDispatchResult();
         result.setSuccess(true);
-        result.setSubmitResultStatus(PspPayoutSubmitResultStatus.ACCEPTED);
+        result.setSubmitResultStatus(PspPayoutSubmitStatus.ACCEPTED);
         result.setPspRequestNo(BizKeyUtils.genPspRequestNo());
         result.setRequestUrl(baseUrl + "/open-api/create-payout-order");
         result.setHttpMethod("POST");

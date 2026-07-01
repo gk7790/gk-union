@@ -19,6 +19,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * PSP 余额快照服务实现。
+ * <p>
+ * 余额来源于 PSP API 查询结果，落 Redis 短缓存；路由只弱参考该快照，不做资金账务职责。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -44,6 +49,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
 
     @Override
     public PspBalanceSnap refresh(Long pspAccountId) {
+        // 一次 join 查出账号和通道上下文，避免先查 account 再查 provider。
         PspBalanceAccount account = pspAccountDao.selectBalanceAccount(pspAccountId);
         if (account == null) {
             throw new IllegalArgumentException("PSP account not found or disabled");
@@ -56,6 +62,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
 
     @Override
     public int refreshAll() {
+        // 定时任务只刷新启用中的账号和通道；单个账号失败不会中断整批刷新。
         List<PspBalanceAccount> accounts = pspAccountDao.selectBalanceAccounts();
         int refreshed = 0;
         for (PspBalanceAccount account : accounts) {
@@ -75,15 +82,19 @@ public class PspBalanceServiceImpl implements PspBalanceService {
     @Override
     public boolean isPayoutBalanceAvailable(Long tenantId, Long pspAccountId, String currency, BigDecimal amount) {
         PspBalanceSnap snap = getCached(tenantId, pspAccountId);
+        // 弱过滤：无快照、快照过期或余额未知时放行，避免缓存问题直接阻断代付。
         if (snap == null || isExpired(snap) || PspBalanceSnap.STATUS_UNKNOWN.equals(snap.getStatus())) {
             return true;
         }
+        // 明确低余额时才过滤该 PSP 账号。
         if (PspBalanceSnap.STATUS_LOW.equals(snap.getStatus())) {
             return false;
         }
+        // 信息不足时不拦截，由后续 PSP 提交结果兜底。
         if (snap.getAvailableBalance() == null || amount == null || amount.signum() <= 0) {
             return true;
         }
+        // 币种不一致时不使用余额快照做判断，避免跨币种误过滤。
         if (StringUtils.isNotBlank(snap.getCurrency())
                 && StringUtils.isNotBlank(currency)
                 && !snap.getCurrency().equalsIgnoreCase(currency)) {
@@ -104,6 +115,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
         if (snap == null) {
             return unsupportedSnap(account, cacheSeconds);
         }
+        // adapter 只负责三方协议解析，公共账号信息和缓存过期时间在服务层统一补齐。
         fillCommon(snap, account);
         if (StringUtils.isBlank(snap.getStatus())) {
             snap.setStatus(PspBalanceSnap.STATUS_NORMAL);
@@ -173,6 +185,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
             return;
         }
         try {
+            // Redis TTL 与 snap.expireAt 对齐，后台展示过期时间和缓存失效时间保持一致。
             redisUtils.set(RedisKeys.getPaymentPspBalanceKey(snap.getTenantId(), snap.getPspAccountId()),
                     snap, cacheTtlSeconds(snap));
         } catch (Exception ex) {

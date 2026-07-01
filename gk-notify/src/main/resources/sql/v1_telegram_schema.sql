@@ -54,8 +54,8 @@ CREATE TABLE `tg_bot`  (
 DROP TABLE IF EXISTS `tg_chat`;
 CREATE TABLE `tg_chat`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID',
-  `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID(可选, 精细到商户)',
+  `tenant_id` bigint NOT NULL DEFAULT 0 COMMENT '租户ID; 0=平台',
+  `merchant_id` bigint NOT NULL DEFAULT 0 COMMENT '商户ID; 0=租户级/平台级',
   `bot_id` bigint NOT NULL COMMENT '所属机器人ID, 关联tg_bot.id',
   `chat_id` bigint NOT NULL COMMENT 'Telegram ChatId(群为负数)',
   `chat_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '类型: PRIVATE/GROUP/SUPERGROUP/CHANNEL',
@@ -81,8 +81,8 @@ CREATE TABLE `tg_chat`  (
 DROP TABLE IF EXISTS `tg_message_task`;
 CREATE TABLE `tg_message_task`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID; 平台级消息为空',
-  `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID',
+  `tenant_id` bigint NOT NULL DEFAULT 0 COMMENT '租户ID; 平台级消息为0',
+  `merchant_id` bigint NOT NULL DEFAULT 0 COMMENT '商户ID; 0=非商户级消息',
   `bot_id` bigint NOT NULL COMMENT '机器人ID, 关联tg_bot.id',
   `chat_id` bigint NOT NULL COMMENT '目标ChatId',
   `task_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '消息任务编号',

@@ -10,7 +10,7 @@ import com.gk.common.exception.GkExceptionCoreHandler;
 import com.gk.common.model.R;
 import com.gk.infra.log.entity.LogErrorEntity;
 import com.gk.infra.log.service.LogErrorService;
-import com.gk.infra.telegram.TgBotService;
+import com.gk.infra.telegram.TgAlertService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RequiredArgsConstructor
 public class GkExceptionHandler extends GkExceptionCoreHandler {
     private final LogErrorService logErrorService;
-    private final ObjectProvider<TgBotService> tgAlertServiceProvider;
+    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public R<?> handleException(AuthorizationDeniedException ex) {
@@ -83,7 +83,7 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
         if (isBrokenPipe(ex)) {
             return;
         }
-        TgBotService tgBotService = tgAlertServiceProvider.getIfAvailable();
+        TgAlertService tgBotService = tgAlertServiceProvider.getIfAvailable();
         if (tgBotService == null) {
             return;
         }

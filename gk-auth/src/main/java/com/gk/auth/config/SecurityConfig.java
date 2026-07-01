@@ -9,7 +9,10 @@ import com.gk.auth.oauth.JsonUsernamePasswordAuthenticationFilter;
 import com.gk.auth.oauth.JwtAuthenticationFilter;
 import com.gk.auth.service.JpaUserDetailsService;
 import com.gk.auth.utils.JwtUtils;
+import com.gk.common.tools.StringFormat;
+import com.gk.common.utils.IpUtils;
 import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
+import com.gk.infra.telegram.TgAlertService;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,10 +50,12 @@ import java.util.Map;
 public class SecurityConfig {
     private final JpaUserDetailsService userDetailsService;
     private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
+    private final TgAlertService tgAlertService;
 
-    public SecurityConfig(JpaUserDetailsService userDetailsService, SysLoginIpWhitelistService sysLoginIpWhitelistService) {
+    public SecurityConfig(JpaUserDetailsService userDetailsService, SysLoginIpWhitelistService sysLoginIpWhitelistService, TgAlertService tgAlertService) {
         this.userDetailsService = userDetailsService;
         this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
+        this.tgAlertService = tgAlertService;
     }
 
     /**
@@ -216,6 +221,20 @@ public class SecurityConfig {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
             response.getWriter().write(JSONObject.toJSONString(R.error(getError(exception))));
+
+            String content = StringFormat.format("""
+                            入口: {} {}
+                            账号: {}
+                            IP: {}
+                            原因: {}
+                            """,
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    request.getAttribute(JsonUsernamePasswordAuthenticationFilter.LOGIN_USERNAME_ATTR),
+                    IpUtils.getClientIp(request),
+                    getError(exception)
+            );
+            tgAlertService.sysWarn("⚠登录失败风险提醒⚠", content, "");
         };
     }
 

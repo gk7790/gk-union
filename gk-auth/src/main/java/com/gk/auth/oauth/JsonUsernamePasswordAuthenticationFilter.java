@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+    public static final String LOGIN_USERNAME_ATTR = JsonUsernamePasswordAuthenticationFilter.class.getName() + ".USERNAME";
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
 
@@ -34,6 +36,7 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
                 DynMap dynMap = objectMapper.readValue(is, DynMap.class);
                 String username = dynMap.getStr("username");
                 String password = dynMap.getStr("password");
+                request.setAttribute(LOGIN_USERNAME_ATTR, username);
                 UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
                 setDetails(request, token);
                 Authentication authentication = this.getAuthenticationManager().authenticate(token);
@@ -43,6 +46,7 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
                 throw new AuthenticationServiceException("Invalid JSON login request");
             }
         }
+        request.setAttribute(LOGIN_USERNAME_ATTR, request.getParameter(getUsernameParameter()));
         Authentication authentication = super.attemptAuthentication(request, response);
         validateLoginIp(request, authentication);
         return authentication;

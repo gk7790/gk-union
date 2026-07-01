@@ -27,3 +27,8 @@ INSERT INTO `sys_params`
 (`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
 SELECT 3000000000000000007, 'PAYOUT_SUBMIT_CONFIG_KEY', '{"asyncSubmit":true,"defaultBatchSize":20,"firstQueryDelaySeconds":60}', 1, 'Payout submit config', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'PAYOUT_SUBMIT_CONFIG_KEY');
+
+INSERT INTO `sys_params`
+(`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
+SELECT 3000000000000000008, 'PSP_BALANCE_CONFIG_KEY', '{"cacheSeconds":300}', 1, 'PSP balance config', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'PSP_BALANCE_CONFIG_KEY');

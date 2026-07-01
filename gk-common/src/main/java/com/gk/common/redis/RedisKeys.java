@@ -259,6 +259,16 @@ public class RedisKeys {
                 + nullToAll(pspAccountId);
     }
 
+    public static String getPaymentPspBalanceKey(Long tenantId, Long pspAccountId) {
+        return "payment:psp-account:balance:"
+                + nullToAll(tenantId) + ":"
+                + nullToAll(pspAccountId);
+    }
+
+    public static String getPaymentPspBalancePattern() {
+        return "payment:psp-account:balance:*";
+    }
+
     private static String nullToAll(Object value) {
         return value == null ? "*" : String.valueOf(value);
     }

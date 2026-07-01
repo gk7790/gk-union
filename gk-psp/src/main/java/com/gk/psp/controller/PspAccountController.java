@@ -6,6 +6,7 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
 import com.gk.common.validator.AssertUtils;
+import com.gk.psp.balance.PspBalanceSnap;
 import com.gk.psp.dto.PspAccountDTO;
 import com.gk.psp.service.PspAccountService;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,18 @@ public class PspAccountController {
     @PreAuthorize("hasAuthority('psp:account:info')")
     public R<?> get(@PathVariable("id") Long id) {
         return R.ok(pspAccountService.get(id));
+    }
+
+    @GetMapping("{id}/balance")
+    @PreAuthorize("hasAuthority('psp:account:info')")
+    public R<PspBalanceSnap> balance(@PathVariable("id") Long id) {
+        return R.ok(pspAccountService.getBalance(id));
+    }
+
+    @PostMapping("{id}/balance/refresh")
+    @PreAuthorize("hasAuthority('psp:account:update')")
+    public R<PspBalanceSnap> refreshBalance(@PathVariable("id") Long id) {
+        return R.ok(pspAccountService.refreshBalance(id));
     }
 
     @PostMapping

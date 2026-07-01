@@ -187,6 +187,11 @@ public interface Constant {
     String PAYOUT_SUBMIT_CONFIG_KEY = "PAYOUT_SUBMIT_CONFIG_KEY";
 
     /**
+     * PSP balance config
+     */
+    String PSP_BALANCE_CONFIG_KEY = "PSP_BALANCE_CONFIG_KEY";
+
+    /**
      * 邮件配置KEY
      */
     String MAIL_CONFIG_KEY = "MAIL_CONFIG_KEY";

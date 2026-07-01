@@ -8,6 +8,7 @@ import com.gk.infra.config.model.GkRunProperties;
 import com.gk.infra.config.model.MerchantDefaultConfig;
 import com.gk.infra.config.model.MerchantNotifyConfig;
 import com.gk.infra.config.model.PayoutSubmitConfig;
+import com.gk.infra.config.model.PspBalanceConfig;
 import com.gk.infra.config.model.PspCallbackConfig;
 import com.gk.infra.config.model.PspQueryConfig;
 import lombok.RequiredArgsConstructor;
@@ -95,6 +96,15 @@ public class GkSysParamsConfigService {
         }
         if (config.getFirstQueryDelaySeconds() <= 0) {
             config.setFirstQueryDelaySeconds(fallback.getFirstQueryDelaySeconds());
+        }
+        return config;
+    }
+
+    public PspBalanceConfig pspBalanceConfig() {
+        PspBalanceConfig fallback = new PspBalanceConfig();
+        PspBalanceConfig config = getObject(Constant.PSP_BALANCE_CONFIG_KEY, PspBalanceConfig.class, fallback);
+        if (config.getCacheSeconds() <= 0) {
+            config.setCacheSeconds(fallback.getCacheSeconds());
         }
         return config;
     }

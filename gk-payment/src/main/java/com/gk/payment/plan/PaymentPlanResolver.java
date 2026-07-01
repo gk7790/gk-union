@@ -28,6 +28,7 @@ import com.gk.psp.entity.PspBankMappingEntity;
 import com.gk.psp.entity.PspFeeRuleEntity;
 import com.gk.psp.entity.PspMethodEntity;
 import com.gk.psp.entity.PspProviderEntity;
+import com.gk.psp.balance.PspBalanceService;
 import com.gk.psp.fee.PspFeeCalculator;
 import com.gk.psp.fee.PspFeeResult;
 import com.gk.psp.route.PspRouteResult;
@@ -57,6 +58,7 @@ public class PaymentPlanResolver {
     private final PspAccountDao pspAccountDao;
     private final PspBankMappingDao pspBankMappingDao;
     private final PspCallbackUrlBuilder callbackUrlBuilder;
+    private final PspBalanceService pspBalanceService;
     private final ConcurrentHashMap<Long, CacheEntry<PspProviderEntity>> providerCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, CacheEntry<PspMethodEntity>> methodCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, CacheEntry<PspAccountEntity>> accountCache = new ConcurrentHashMap<>();
@@ -99,7 +101,7 @@ public class PaymentPlanResolver {
                                   String bankCode,
                                   String seed) {
         PaymentPlanBucketEntity bucketEntity = bucket.getBucket();
-        PaymentPlanRouteOptionEntity option = selectRouteOption(key, bucket, bankCode, seed);
+        PaymentPlanRouteOptionEntity option = selectRouteOption(key, bucket, amount, bankCode, seed);
         PspBankMappingEntity bankMapping = bankMapping(key, option, bankCode).orElse(null);
         MerchantFeeResult merchantFee = merchantFee(bucketEntity, amount);
         PspRouteResult route = route(catalog.getDirection(), option, bankMapping);
@@ -121,6 +123,7 @@ public class PaymentPlanResolver {
 
     private PaymentPlanRouteOptionEntity selectRouteOption(PaymentPlanKey key,
                                                            PaymentPlanBucket bucket,
+                                                           BigDecimal amount,
                                                            String bankCode,
                                                            String seed) {
         return PaymentPlanRouteOptionSelector.select(
@@ -128,7 +131,7 @@ public class PaymentPlanResolver {
                 seed,
                 Collections.emptySet(),
                 Collections.emptySet(),
-                option -> optionRuntimeAvailable(key, option, bankCode)
+                option -> optionRuntimeAvailable(key, option, amount, bankCode)
         );
     }
 
@@ -224,14 +227,29 @@ public class PaymentPlanResolver {
         return result;
     }
 
-    private boolean optionRuntimeAvailable(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, String bankCode) {
+    private boolean optionRuntimeAvailable(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, BigDecimal amount, String bankCode) {
         if (redisUnavailable(key, option)) {
             return false;
         }
         if (!resourceAvailable(key.direction(), option)) {
             return false;
         }
+        if (!balanceAvailable(key, option, amount)) {
+            return false;
+        }
         return bankSupported(key, option, bankCode);
+    }
+
+    private boolean balanceAvailable(PaymentPlanKey key, PaymentPlanRouteOptionEntity option, BigDecimal amount) {
+        if (!PayDirectionEnum.PAYOUT.code().equals(key.direction())) {
+            return true;
+        }
+        return pspBalanceService.isPayoutBalanceAvailable(
+                key.tenantId(),
+                option.getPspAccountId(),
+                key.currency(),
+                amount
+        );
     }
 
     private boolean resourceAvailable(String direction, PaymentPlanRouteOptionEntity option) {

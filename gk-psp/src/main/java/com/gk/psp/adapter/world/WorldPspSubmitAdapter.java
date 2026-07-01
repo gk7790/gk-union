@@ -5,14 +5,17 @@ import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.psp.adapter.PspBalanceAdapter;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;
+import com.gk.psp.balance.PspBalanceSnap;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.enums.PspPayoutSubmitResultStatus;
 
 import com.gk.psp.query.PspOrderQueryResult;
+import com.gk.psp.request.PspBalanceRequest;
 import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
@@ -24,12 +27,13 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
 @Component
-public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
+public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, PspBalanceAdapter {
     private static final String HEADERS_JSON = "{\"Content-Type\":\"application/x-www-form-urlencoded\"}";
     private static final boolean MOCK_SUBMIT = false;
     // 下单需要同步拿 pay_url，超时要短而明确，避免PSP 长时间占用商户请求线程
@@ -94,6 +98,24 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         WorldPspHttpResponse response = post(route.getPspBaseUrl(), path, params, route.getPspAccountApiSecret());
         return buildQueryResult(order.getOrderNo(), order.getMerchantOrderNo(), order.getAmount(),
                 order.getCurrency(), order.getPspOrderNo(), route, path, params, response, false);
+    }
+
+    @Override
+    public PspBalanceSnap queryBalance(PspBalanceRequest request) {
+        if (request == null) {
+            throw new IllegalStateException("World PSP balance query request is required");
+        }
+        if (StringUtils.isBlank(request.getApiKey())) {
+            throw new IllegalStateException("World PSP account api key is missing for balance query, pspAccountId=" + request.getPspAccountId());
+        }
+        if (StringUtils.isBlank(request.getApiSecret())) {
+            throw new IllegalStateException("World PSP account api secret is missing for balance query, pspAccountId=" + request.getPspAccountId());
+        }
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("app_id", request.getApiKey());
+        String path = "/open-api/balance";
+        WorldPspHttpResponse response = postJson(request.getPspBaseUrl(), path, params, request.getApiSecret());
+        return buildBalanceSnap(request, response);
     }
 
     private void requireRouteCredentials(PspRouteResult route, String operation) {
@@ -173,6 +195,22 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                     .uri(url)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(WorldPspSignUtils.formBody(signed))
+                    .retrieve()
+                    .body(String.class);
+            return new WorldPspHttpResponse(200, parseBody(body));
+        } catch (RestClientResponseException ex) {
+            return new WorldPspHttpResponse(ex.getStatusCode().value(), parseBody(ex.getResponseBodyAsString()));
+        }
+    }
+
+    private WorldPspHttpResponse postJson(String baseUrl, String path, Map<String, Object> params, String secret) {
+        Map<String, Object> signed = WorldPspSignUtils.withSign(params, secret);
+        String url = baseUrl(baseUrl) + path;
+        try {
+            String body = restClient().post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(JSON.toJSONString(signed, JSONWriter.Feature.WriteMapNullValue))
                     .retrieve()
                     .body(String.class);
             return new WorldPspHttpResponse(200, parseBody(body));
@@ -276,7 +314,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setResponseCode(body.getString("code"));
         result.setResponseMessage(body.getString("message"));
         result.setRawResponseJson(body.toJSONString());
-        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpSuccess() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
             result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
             result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
@@ -309,9 +347,9 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
         result.setResponseCode(body.getString("code"));
         result.setResponseMessage(body.getString("message"));
         result.setRawResponseJson(body.toJSONString());
-        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpSuccess() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
-            result.setSubmitResultStatus(!response.httpSuccess() || isUnknownPayoutCreateResponse(body)
+            result.setSubmitResultStatus(response.httpSuccess() || isUnknownPayoutCreateResponse(body)
                     ? PspPayoutSubmitResultStatus.UNKNOWN
                     : PspPayoutSubmitResultStatus.REJECTED);
             result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
@@ -364,7 +402,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                 .responseMessage(body.getString("message"))
                 .rawResponseJson(body.toJSONString());
 
-        if (!response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpSuccess() || body.getIntValue("code") != 200) {
             String errorCode = StringUtils.defaultIfBlank(body.getString("code"), "HTTP_" + response.statusCode());
             String errorMessage = StringUtils.defaultIfBlank(body.getString("message"), "World PSP HTTP status " + response.statusCode());
             return builder.success(false).errorCode(errorCode).errorMessage(errorMessage).build();
@@ -383,6 +421,46 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
                 .amount(amount)
                 .responseSign(data.getString("sign"))
                 .build();
+    }
+
+    private PspBalanceSnap buildBalanceSnap(PspBalanceRequest request, WorldPspHttpResponse response) {
+        JSONObject body = response.body();
+        PspBalanceSnap snap = new PspBalanceSnap();
+        snap.setTenantId(request.getTenantId());
+        snap.setPspId(request.getPspId());
+        snap.setPspCode(request.getPspCode());
+        snap.setPspAccountId(request.getPspAccountId());
+        snap.setPspAccountNo(request.getPspAccountNo());
+        snap.setUpdatedAt(Instant.now());
+        snap.setRawResponseJson(body.toJSONString());
+        if (response.httpSuccess() || body.getIntValue("code") != 200) {
+            snap.setStatus(PspBalanceSnap.STATUS_UNKNOWN);
+            snap.setErrorCode(StringUtils.defaultIfBlank(body.getString("code"), "HTTP_" + response.statusCode()));
+            snap.setErrorMessage(StringUtils.defaultIfBlank(body.getString("message"), "World PSP HTTP status " + response.statusCode()));
+            return snap;
+        }
+        JSONObject data = body.getJSONObject("data");
+        if (data == null || WorldPspSignUtils.notVerify(data, request.getApiSecret(), data.getString("sign"))) {
+            snap.setStatus(PspBalanceSnap.STATUS_UNKNOWN);
+            snap.setErrorCode("INVALID_SIGN");
+            snap.setErrorMessage("World PSP balance response signature invalid");
+            return snap;
+        }
+        BigDecimal payoutBalance = decimal(data.getString("payout_balance"), null);
+        BigDecimal balance = decimal(data.getString("balance"), null);
+        if (payoutBalance == null) {
+            snap.setStatus(PspBalanceSnap.STATUS_UNKNOWN);
+            snap.setErrorCode("MISSING_PAYOUT_BALANCE");
+            snap.setErrorMessage("World PSP balance response missing payout_balance");
+            return snap;
+        }
+        snap.setAvailableBalance(payoutBalance);
+        snap.setTotalBalance(balance);
+        if (balance != null) {
+            snap.setFrozenBalance(balance.subtract(payoutBalance));
+        }
+        snap.setStatus(PspBalanceSnap.STATUS_NORMAL);
+        return snap;
     }
 
     private String toPayStatus(String status) {
@@ -485,7 +563,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter {
 
     private record WorldPspHttpResponse(int statusCode, JSONObject body) {
         private boolean httpSuccess() {
-            return statusCode >= 200 && statusCode < 300;
+            return statusCode < 200 || statusCode >= 300;
         }
     }
 }

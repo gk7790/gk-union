@@ -1,5 +1,6 @@
 package com.gk.psp.dto;
 
+import com.gk.psp.balance.PspBalanceSnap;
 import lombok.Data;
 
 import java.time.Instant;
@@ -17,6 +18,7 @@ public class PspAccountDTO {
     private String apiSecret;
     private String callbackSecret;
     private String configJson;
+    private PspBalanceSnap balanceSnap;
     private String remark;
     private Long createdBy;
     private Instant createdAt;

@@ -9,11 +9,14 @@ import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
+import com.gk.psp.balance.PspBalanceSnap;
+import com.gk.psp.balance.PspBalanceService;
 import com.gk.psp.dao.PspAccountDao;
 import com.gk.psp.dao.PspProviderDao;
 import com.gk.psp.dto.PspAccountDTO;
@@ -42,6 +45,8 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
     private RedisUtils redisUtils;
     @Autowired
     private PspProviderDao pspProviderDao;
+    @Autowired
+    private PspBalanceService pspBalanceService;
 
     @Override
     public QueryWrapper<PspAccountEntity> getWrapper(DynMap params) {
@@ -160,6 +165,36 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         }
     }
 
+    @Override
+    public PageData<PspAccountDTO> page(DynMap params) {
+        PageData<PspAccountDTO> page = super.page(params);
+        if (page.getItems() != null) {
+            page.getItems().forEach(this::attachBalanceSnap);
+        }
+        return page;
+    }
+
+    @Override
+    public PspAccountDTO get(Long id) {
+        PspAccountDTO dto = super.get(id);
+        attachBalanceSnap(dto);
+        return dto;
+    }
+
+    @Override
+    public PspBalanceSnap getBalance(Long id) {
+        PspAccountEntity account = baseDao.selectById(id);
+        if (account == null) {
+            throw new GkException(ErrorCode.NOT_FOUND, "PSP account not found");
+        }
+        return pspBalanceService.getCached(account.getTenantId(), account.getId());
+    }
+
+    @Override
+    public PspBalanceSnap refreshBalance(Long id) {
+        return pspBalanceService.refresh(id);
+    }
+
     private String genUniquePspAccountNo() {
         for (int i = 0; i < PSP_ACCOUNT_NO_MAX_RETRY; i++) {
             String pspAccountNo = BizKeyUtils.genPspAccountNo();
@@ -267,5 +302,12 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
         } catch (Exception e) {
             log.warn("Evict PSP callback account cache failed: {}", e.getMessage());
         }
+    }
+
+    private void attachBalanceSnap(PspAccountDTO dto) {
+        if (dto == null || dto.getTenantId() == null || dto.getId() == null) {
+            return;
+        }
+        dto.setBalanceSnap(pspBalanceService.getCached(dto.getTenantId(), dto.getId()));
     }
 }

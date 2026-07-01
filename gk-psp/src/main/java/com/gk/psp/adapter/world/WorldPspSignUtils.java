@@ -89,4 +89,9 @@ public final class WorldPspSignUtils {
     private static String encode(String value) {
         return URLEncoder.encode(StringUtils.defaultString(value), StandardCharsets.UTF_8);
     }
+
+    public static void main(String[] args) {
+        String sign = sign(Map.of("app_id","bc1cce3335a84a21a9556b92ec64b47b"), "31Lskdca7sflDiBncR1Ljgzo8Tij11o8XlI301");
+        System.out.println(sign);
+    }
 }

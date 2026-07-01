@@ -7,45 +7,33 @@ package com.gk.infra.telegram;
 public interface TgBotService {
     /**
      * 创建系统错误预警消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int sysError(String title, String content, String traceId);
-    int sysError(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void sysError(String title, String content, String traceId);
+    void sysError(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建系统警告预警消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int sysWarn(String title, String content, String traceId);
-    int sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void sysWarn(String title, String content, String traceId);
+    void sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建风控预警消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int riskAlert(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void riskAlert(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建支付成功通知消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int paySuccess(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void paySuccess(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建代付成功通知消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int payoutSuccess(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void payoutSuccess(Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
      * 创建代付失败通知消息任务。
-     *
-     * @return 创建的 Telegram 消息任务数量
      */
-    int payoutFailed(Long tenantId, Long merchantId, String title, String content, String traceId);
+    void payoutFailed(Long tenantId, Long merchantId, String title, String content, String traceId);
 }

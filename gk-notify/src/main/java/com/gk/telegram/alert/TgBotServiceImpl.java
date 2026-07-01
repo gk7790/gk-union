@@ -4,6 +4,7 @@ import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.utils.AsynUtils;
 import com.gk.infra.telegram.TgBotService;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dao.TgMessageTaskDao;
@@ -12,6 +13,7 @@ import com.gk.telegram.entity.TgMessageTaskEntity;
 import com.gk.telegram.support.TgConstants;
 import com.gk.telegram.support.TgHtml;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ import java.util.Map;
  * 消息展示按 SaaS 层级控制：平台群展示租户和商户，租户群只展示商户，商户群不展示租户和商户。
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class TgBotServiceImpl implements TgBotService {
     /** 消息中展示的本地时间格式。 */
@@ -43,49 +46,57 @@ public class TgBotServiceImpl implements TgBotService {
 
 
     @Override
-    public int sysError(String title, String content, String traceId) {
-        return sysError(0L, 0L , title, content, traceId);
+    public void sysError(String title, String content, String traceId) {
+        sysError(0L, 0L, title, content, traceId);
     }
 
     @Override
-    public int sysWarn(String title, String content, String traceId) {
-        return sysWarn(0L, 0L , title, content, traceId);
+    public void sysWarn(String title, String content, String traceId) {
+        sysWarn(0L, 0L, title, content, traceId);
     }
 
     /** 创建系统错误告警任务。 */
     @Override
-    public int sysError(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.SYSTEM_ERROR, tenantId, merchantId, title, content, traceId);
+    public void sysError(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.SYSTEM_ERROR, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建系统预警任务。 */
     @Override
-    public int sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.SYSTEM_WARN, tenantId, merchantId, title, content, traceId);
+    public void sysWarn(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.SYSTEM_WARN, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建风控预警任务。 */
     @Override
-    public int riskAlert(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.RISK_ALERT, tenantId, merchantId, title, content, traceId);
+    public void riskAlert(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.RISK_ALERT, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建支付成功通知任务。 */
     @Override
-    public int paySuccess(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.PAYIN_SUCCESS, tenantId, merchantId, title, content, traceId);
+    public void paySuccess(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.PAYIN_SUCCESS, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建代付成功通知任务。 */
     @Override
-    public int payoutSuccess(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.PAYOUT_SUCCESS, tenantId, merchantId, title, content, traceId);
+    public void payoutSuccess(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.PAYOUT_SUCCESS, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建代付失败通知任务。 */
     @Override
-    public int payoutFailed(Long tenantId, Long merchantId, String title, String content, String traceId) {
-        return createAlert(TgAlertEventType.PAYOUT_FAILED, tenantId, merchantId, title, content, traceId);
+    public void payoutFailed(Long tenantId, Long merchantId, String title, String content, String traceId) {
+        createAlertAsync(TgAlertEventType.PAYOUT_FAILED, tenantId, merchantId, title, content, traceId);
+    }
+
+    private void createAlertAsync(TgAlertEventType eventType, Long tenantId, Long merchantId,
+                                 String title, String content, String traceId) {
+        AsynUtils.execute("Telegram alert task create", () -> {
+            int created = createAlert(eventType, tenantId, merchantId, title, content, traceId);
+            log.debug("Telegram alert task created, eventType={}, title={}, created={}", eventType.code(), title, created);
+        });
     }
 
     /**

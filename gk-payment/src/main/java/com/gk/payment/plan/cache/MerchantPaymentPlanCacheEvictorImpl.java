@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.cache;
 
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import lombok.RequiredArgsConstructor;

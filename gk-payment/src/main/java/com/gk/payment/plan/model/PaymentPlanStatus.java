@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.model;
 
 /**
  * 支付决策表发布状态 */

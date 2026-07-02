@@ -1,5 +1,6 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.cache;
 
+import com.gk.payment.plan.model.PayinPlan;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;

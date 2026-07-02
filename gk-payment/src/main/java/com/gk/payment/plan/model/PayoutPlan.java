@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.model;
 
 import com.gk.payment.fee.MerchantFeeResult;
 import com.gk.psp.fee.PspFeeResult;
@@ -8,7 +8,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-public class PayinPlan {
+public class PayoutPlan {
     private Long catalogId;
     private Long catalogVersion;
     private Long bucketId;
@@ -17,6 +17,6 @@ public class PayinPlan {
     private PspRouteResult route;
     private PspFeeResult pspFee;
     private BigDecimal merchantFeeAmount;
-    private BigDecimal settleAmount;
+    private BigDecimal totalDebitAmount;
     private BigDecimal pspFeeAmount;
 }

@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.cache;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.redis.RedisKeys;
@@ -9,6 +9,10 @@ import com.gk.payment.dao.PaymentPlanRouteOptionDao;
 import com.gk.payment.entity.PaymentPlanBucketEntity;
 import com.gk.payment.entity.PaymentPlanCatalogEntity;
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
+import com.gk.payment.plan.model.PaymentPlanBucket;
+import com.gk.payment.plan.model.PaymentPlanCatalog;
+import com.gk.payment.plan.model.PaymentPlanKey;
+import com.gk.payment.plan.model.PaymentPlanStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

@@ -1,4 +1,6 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.compile;
+
+import com.gk.payment.plan.model.PaymentPlanAmountRange;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

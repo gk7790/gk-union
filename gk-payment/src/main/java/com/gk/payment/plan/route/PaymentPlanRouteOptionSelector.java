@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.route;
 
 import com.gk.payment.entity.PaymentPlanRouteOptionEntity;
 

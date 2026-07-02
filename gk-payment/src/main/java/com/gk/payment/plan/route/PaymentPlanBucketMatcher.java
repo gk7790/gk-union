@@ -1,6 +1,7 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.route;
 
 import com.gk.payment.entity.PaymentPlanBucketEntity;
+import com.gk.payment.plan.model.PaymentPlanBucket;
 
 import java.math.BigDecimal;
 import java.util.Comparator;

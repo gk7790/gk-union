@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.compile;
 
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PaymentPlanBucketEntity;

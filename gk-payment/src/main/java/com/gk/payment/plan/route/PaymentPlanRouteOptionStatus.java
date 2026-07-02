@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.route;
 
 /**
  * Payment plan PSP route option status constants.

@@ -1,4 +1,4 @@
-package com.gk.payment.plan;
+package com.gk.payment.plan.model;
 
 import com.gk.common.amount.AmountRangeUtils;
 

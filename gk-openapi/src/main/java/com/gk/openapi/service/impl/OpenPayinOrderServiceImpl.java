@@ -23,7 +23,7 @@ import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.enums.SettleStatusEnum;
-import com.gk.payment.plan.PayinPlan;
+import com.gk.payment.plan.model.PayinPlan;
 import com.gk.payment.plan.PayinPlanService;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.psp.PspOrderRequests;

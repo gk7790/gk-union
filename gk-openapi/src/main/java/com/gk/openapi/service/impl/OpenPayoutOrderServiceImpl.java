@@ -28,7 +28,7 @@ import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.outbox.PayoutSubmitOutboxProducer;
-import com.gk.payment.plan.PayoutPlan;
+import com.gk.payment.plan.model.PayoutPlan;
 import com.gk.payment.plan.PayoutPlanService;
 import com.gk.payment.psp.PayoutPspSubmitService;
 import com.gk.payment.service.OrderStatusLogService;

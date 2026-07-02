@@ -58,8 +58,8 @@ public class MerchantOrderViewAssembler {
                 order.orderNo(),
                 order.merchantOrderNo(),
                 status,
-                order.merchantStatusCode(),
-                order.merchantStatusReason(),
+                notifyMerchantStatusCode(order, result),
+                notifyMerchantStatusReason(order, result),
                 order.amount(),
                 order.currency(),
                 order.countryCode(),
@@ -78,8 +78,8 @@ public class MerchantOrderViewAssembler {
                 order.orderNo(),
                 order.merchantOrderNo(),
                 status,
-                order.merchantStatusCode(),
-                order.merchantStatusReason(),
+                notifyMerchantStatusCode(order, result),
+                notifyMerchantStatusReason(order, result),
                 order.amount(),
                 order.currency(),
                 order.countryCode(),
@@ -109,6 +109,18 @@ public class MerchantOrderViewAssembler {
         view.setCountryCode(countryCode);
         view.setMethodCode(methodCode);
         view.setFeeAmount(moneyIfPositive(feeAmount, currency));
+    }
+
+    private String notifyMerchantStatusCode(PspCallbackOrder order, PspCallbackResult result) {
+        return manualNotify(result) ? order.merchantStatusCode() : null;
+    }
+
+    private String notifyMerchantStatusReason(PspCallbackOrder order, PspCallbackResult result) {
+        return manualNotify(result) ? order.merchantStatusReason() : null;
+    }
+
+    private boolean manualNotify(PspCallbackResult result) {
+        return result != null && "MANUAL_NOTIFY".equals(result.getCallbackType());
     }
 
     private BigDecimal defaultDebitAmount(BigDecimal totalDebitAmount, BigDecimal amount) {

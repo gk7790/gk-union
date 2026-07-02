@@ -6,6 +6,7 @@ import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.service.OrderStatusLogService;
 import com.gk.psp.callback.model.PspCallbackOrder;
@@ -35,7 +36,10 @@ public class PayoutOrderStateService {
      */
     public boolean applyProcessingResult(PspCallbackOrder order, PspCallbackResult result, OrderStateChangeContext context) {
         String toStatus = PayoutOrderStatusEnum.PROCESSING.code();
-        boolean updated = updateActive(order.id(), wrapper -> applyCommon(wrapper, toStatus, result, order));
+        boolean updated = updateActive(order.id(), wrapper -> {
+            applyCommon(wrapper, toStatus, result, order);
+            applyMerchantStatus(wrapper, toStatus);
+        });
         if (updated) {
             recordChange(order, order.status(), toStatus, context);
         }
@@ -58,6 +62,7 @@ public class PayoutOrderStateService {
             applyCommon(wrapper, targetStatus, result, order);
             String statusReason = result.getErrorMessage();
             wrapper.set(statusReason != null, "status_reason", statusReason);
+            applyMerchantStatus(wrapper, targetStatus);
             String journalNo = postingResult == null ? null : postingResult.getJournalNo();
             Instant now = Instant.now();
             if (PayoutOrderStatusEnum.SUCCESS.code().equals(targetStatus)) {
@@ -108,6 +113,8 @@ public class PayoutOrderStateService {
                 .eq("status", PayoutOrderStatusEnum.PROCESSING.code())
                 .set("status", PayoutOrderStatusEnum.MANUAL_REVIEW.code())
                 .set("status_reason", reason)
+                .set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
+                .set("merchant_status_reason", MerchantOrderStatusEnum.PROCESSING.statusReason())
                 .set("next_query_at", null);
         if (payoutOrderDao.update(null, wrapper) == 0) {
             return false;
@@ -127,6 +134,8 @@ public class PayoutOrderStateService {
         order.setFreezeJournalNo(result.getJournalNo());
         order.setStatus(PayoutOrderStatusEnum.FROZEN.code());
         order.setStatusReason(null);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         payoutOrderDao.updateById(order);
         recordChange(order, fromStatus, order.getStatus(), context);
         return true;
@@ -147,6 +156,9 @@ public class PayoutOrderStateService {
         order.setPspRawStatus(pspRawStatus);
         order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
+        order.setStatusReason(null);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         // submittedAt 用来启动这笔代付的 SLA 和查单窗口。
         order.setSubmittedAt(Instant.now());
         order.setNextQueryAt(nextQueryAt);
@@ -173,6 +185,8 @@ public class PayoutOrderStateService {
         order.setFailCode(failCode);
         order.setFailMsg(StringUtils.left(reason, 512));
         order.setStatusReason(reason);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
         order.setFailedAt(Instant.now());
         payoutOrderDao.updateById(order);
         recordChange(order, fromStatus, order.getStatus(), context);
@@ -186,6 +200,8 @@ public class PayoutOrderStateService {
         order.setStatus(PayoutOrderStatusEnum.FAILED.code());
         order.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
         order.setStatusReason(message);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.insufficientBalanceReason());
         order.setFailCode(failCode);
         order.setFailMsg(StringUtils.left(message, 512));
         order.setFailedAt(Instant.now());
@@ -206,6 +222,8 @@ public class PayoutOrderStateService {
         order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setStatusReason(statusReason);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         order.setFailCode(failCode);
         order.setFailMsg(StringUtils.left(failMessage, 512));
         if (order.getSubmittedAt() == null) {
@@ -263,6 +281,15 @@ public class PayoutOrderStateService {
                 .set("psp_status", status)
                 .set(result.getPspStatus() != null, "psp_raw_status", result.getPspStatus())
                 .set(pspOrderNo != null, "psp_order_no", pspOrderNo);
+    }
+
+    private void applyMerchantStatus(UpdateWrapper<PayoutOrderEntity> wrapper, String targetStatus) {
+        MerchantOrderStatusEnum merchantStatus = MerchantOrderStatusEnum.defaultByOrderStatus(targetStatus);
+        if (merchantStatus == null) {
+            return;
+        }
+        wrapper.set("merchant_status_code", merchantStatus.code())
+                .set("merchant_status_reason", merchantStatus.statusReason());
     }
 
     /**

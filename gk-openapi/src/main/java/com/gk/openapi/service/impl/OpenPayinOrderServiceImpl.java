@@ -134,6 +134,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         entity.setReturnUrl(request.getReturnUrl());
         entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
         entity.setStatus(PayinOrderStatusEnum.CREATED.code());
+        entity.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        entity.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         entity.setSettleStatus(SettleStatusEnum.PENDING.code());
         entity.setQueryCount(0);
         entity.setExtraJson(toJson(request.getExtra()));
@@ -255,6 +257,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         order.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setPspRawStatus(PayinOrderStatusEnum.PROCESSING.code());
         order.setStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         order.setNextQueryAt(null);
         payinOrderDao.updateById(order);
         recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
@@ -325,6 +329,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         if (result.isSuccess()) {
             entity.setStatus(PayinOrderStatusEnum.PROCESSING.code());
             entity.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
+            entity.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+            entity.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
             entity.setSubmittedAt(Instant.now());
             entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");

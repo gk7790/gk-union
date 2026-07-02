@@ -28,9 +28,16 @@ public enum MerchantOrderStatusEnum implements StringCodeEnum {
     }
 
     public static MerchantOrderStatusEnum defaultByOrderStatus(String status) {
+        if (StringUtils.isBlank(status)) {
+            return PROCESSING;
+        }
         if (PayinOrderStatusEnum.SUCCESS.code().equals(status)
                 || PayoutOrderStatusEnum.SUCCESS.code().equals(status)) {
             return SUCCESS;
+        }
+        if (PayinOrderStatusEnum.FAILED.code().equals(status)
+                || PayoutOrderStatusEnum.FAILED.code().equals(status)) {
+            return FAILED;
         }
         if (PayinOrderStatusEnum.MANUAL_REVIEW.code().equals(status)
                 || PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(status)) {
@@ -49,7 +56,7 @@ public enum MerchantOrderStatusEnum implements StringCodeEnum {
                 || PayoutOrderStatusEnum.FROZEN.code().equals(status)) {
             return PROCESSING;
         }
-        return FAILED;
+        return PROCESSING;
     }
 
     public static String defaultCodeByOrderStatus(String status) {

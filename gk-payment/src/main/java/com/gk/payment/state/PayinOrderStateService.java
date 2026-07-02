@@ -6,6 +6,7 @@ import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
 import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.service.OrderStatusLogService;
@@ -36,7 +37,10 @@ public class PayinOrderStateService {
      */
     public boolean applyProcessingResult(PspCallbackOrder order, PspCallbackResult result, OrderStateChangeContext context) {
         String toStatus = PayinOrderStatusEnum.PROCESSING.code();
-        boolean updated = updateActive(order.id(), wrapper -> applyCommon(wrapper, toStatus, result, order));
+        boolean updated = updateActive(order.id(), wrapper -> {
+            applyCommon(wrapper, toStatus, result, order);
+            applyMerchantStatus(wrapper, toStatus);
+        });
         if (updated) {
             recordChange(order, order.status(), toStatus, context);
         }
@@ -58,6 +62,7 @@ public class PayinOrderStateService {
             applyCommon(wrapper, targetStatus, result, order);
             String statusReason = result.getErrorMessage();
             wrapper.set(statusReason != null, "status_reason", statusReason);
+            applyMerchantStatus(wrapper, targetStatus);
             String journalNo = postingResult == null ? null : postingResult.getJournalNo();
             Instant now = Instant.now();
             if (PayinOrderStatusEnum.SUCCESS.code().equals(targetStatus)) {
@@ -100,6 +105,8 @@ public class PayinOrderStateService {
                 .eq("status", PayinOrderStatusEnum.PROCESSING.code())
                 .set("status", PayinOrderStatusEnum.MANUAL_REVIEW.code())
                 .set("status_reason", reason)
+                .set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
+                .set("merchant_status_reason", MerchantOrderStatusEnum.PROCESSING.statusReason())
                 .set("next_query_at", null);
         if (payinOrderDao.update(null, wrapper) == 0) {
             return false;
@@ -120,6 +127,8 @@ public class PayinOrderStateService {
                 .and(item -> item.isNull("paid_amount").or().eq("paid_amount", java.math.BigDecimal.ZERO))
                 .set("status", PayinOrderStatusEnum.CLOSED.code())
                 .set("status_reason", reason)
+                .set("merchant_status_code", MerchantOrderStatusEnum.CLOSED.code())
+                .set("merchant_status_reason", MerchantOrderStatusEnum.CLOSED.statusReason())
                 .set("closed_at", now)
                 .set("next_query_at", null);
         if (payinOrderDao.update(null, wrapper) == 0) {
@@ -153,6 +162,15 @@ public class PayinOrderStateService {
                 .set("psp_status", status)
                 .set(result.getPspStatus() != null, "psp_raw_status", result.getPspStatus())
                 .set(pspOrderNo != null, "psp_order_no", pspOrderNo);
+    }
+
+    private void applyMerchantStatus(UpdateWrapper<PayinOrderEntity> wrapper, String targetStatus) {
+        MerchantOrderStatusEnum merchantStatus = MerchantOrderStatusEnum.defaultByOrderStatus(targetStatus);
+        if (merchantStatus == null) {
+            return;
+        }
+        wrapper.set("merchant_status_code", merchantStatus.code())
+                .set("merchant_status_reason", merchantStatus.statusReason());
     }
 
     /**

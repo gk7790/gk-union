@@ -12,6 +12,7 @@ import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.plan.model.PayoutPlan;
 import com.gk.payment.plan.PayoutPlanService;
@@ -168,6 +169,8 @@ public class PayoutPspSubmitService {
         if (result.isAccepted()) {
             order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
             order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
+            order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+            order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
             order.setSubmittedAt(Instant.now());
             order.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             payoutOrderDao.updateById(order);
@@ -187,6 +190,8 @@ public class PayoutPspSubmitService {
                     StringUtils.defaultIfBlank(result.getResponseMessage(), ROUTE_SWITCH_REASON)
             );
             order.setStatusReason(StringUtils.left(reason, 512));
+            order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+            order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
             payoutOrderDao.updateById(order);
             return SubmitDecision.routeUnavailable(order.getPspAccountId(), order.getPaymentPlanRouteOptionId());
         }
@@ -200,6 +205,8 @@ public class PayoutPspSubmitService {
         order.setFailCode(result.getErrorCode());
         order.setFailMsg(StringUtils.left(reason, 512));
         order.setStatusReason(StringUtils.left(reason, 512));
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
         order.setFailedAt(Instant.now());
         // 明确提交失败且不再切路由时释放冻结资金；UNKNOWN 不释放，等待查单确认。
         releasePayout(order);
@@ -380,6 +387,8 @@ public class PayoutPspSubmitService {
         String fromStatus = order.getStatus();
         applyPayoutRoutePlan(order, plan);
         order.setStatusReason(ROUTE_SWITCH_REASON);
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         payoutOrderDao.updateById(order);
         recordStatusChange(order, fromStatus, order.getStatus(), "PAYOUT_ROUTE_SWITCH", ROUTE_SWITCH_REASON, context);
         return plan.getRoute();
@@ -473,6 +482,8 @@ public class PayoutPspSubmitService {
             ));
             order.setFailMsg(StringUtils.left(reason, 512));
             order.setStatusReason(StringUtils.left(reason, 512));
+            order.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+            order.setMerchantStatusReason(MerchantOrderStatusEnum.routeUnavailableReason());
             order.setFailedAt(Instant.now());
             // 已无可用路由，代付不会继续提交 PSP，此时可以释放商户冻结资金。
             releasePayout(order);

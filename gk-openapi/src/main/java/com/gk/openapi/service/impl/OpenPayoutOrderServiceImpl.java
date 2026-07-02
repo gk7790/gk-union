@@ -23,6 +23,7 @@ import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.payment.merchantview.MerchantOrderViewAssembler;
 import com.gk.payment.merchantview.PayoutOrderView;
@@ -135,6 +136,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         entity.setNotifyUrl(StringUtils.trimToNull(request.getNotifyUrl()));
         entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
         entity.setStatus(PayoutOrderStatusEnum.CREATED.code());
+        entity.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        entity.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         entity.setQueryCount(0);
         entity.setExtraJson(toJson(request.getExtra()));
         entity.setVersion(0);
@@ -283,6 +286,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setPspRawStatus(PayoutOrderStatusEnum.PROCESSING.code());
         order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         order.setSubmittedAt(Instant.now());
         order.setNextQueryAt(null);
         payoutOrderDao.updateById(order);

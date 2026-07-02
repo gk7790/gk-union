@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.payment.dao.PayoutRouteAttemptDao">
+    <select id="selectMaxAttemptNo" resultType="java.lang.Integer">
+        SELECT MAX(attempt_no)
+        FROM payout_route_attempt
+        WHERE tenant_id = #{tenantId}
+          AND payout_order_id = #{payoutOrderId}
+    </select>
+</mapper>

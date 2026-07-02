@@ -97,6 +97,9 @@ public class GkSysParamsConfigService {
         if (config.getFirstQueryDelaySeconds() <= 0) {
             config.setFirstQueryDelaySeconds(fallback.getFirstQueryDelaySeconds());
         }
+        if (config.getMaxRouteAttempts() <= 0) {
+            config.setMaxRouteAttempts(fallback.getMaxRouteAttempts());
+        }
         return config;
     }
 

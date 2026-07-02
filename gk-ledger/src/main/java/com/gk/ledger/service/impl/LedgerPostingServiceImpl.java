@@ -33,6 +33,7 @@ import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.service.LedgerPostingService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
@@ -59,6 +60,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class LedgerPostingServiceImpl implements LedgerPostingService {
     private static final int MONEY_SCALE = 8;
     private static final long SLOW_LEDGER_PROFILE_MILLIS = 1000L;
@@ -72,20 +74,6 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private final LedgerHoldDao ledgerHoldDao;
     private final LedgerAccountService ledgerAccountService;
     private final Map<MerchantAccountCacheKey, CachedLedgerAccount> merchantAccountCache = new ConcurrentHashMap<>();
-
-    public LedgerPostingServiceImpl(LedgerAccountDao ledgerAccountDao,
-                                    LedgerBalanceDao ledgerBalanceDao,
-                                    LedgerJournalDao ledgerJournalDao,
-                                    LedgerEntryDao ledgerEntryDao,
-                                    LedgerHoldDao ledgerHoldDao,
-                                    LedgerAccountService ledgerAccountService) {
-        this.ledgerAccountDao = ledgerAccountDao;
-        this.ledgerBalanceDao = ledgerBalanceDao;
-        this.ledgerJournalDao = ledgerJournalDao;
-        this.ledgerEntryDao = ledgerEntryDao;
-        this.ledgerHoldDao = ledgerHoldDao;
-        this.ledgerAccountService = ledgerAccountService;
-    }
 
     /**
      * 代收成功入账     *

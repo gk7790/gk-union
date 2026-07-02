@@ -19,6 +19,7 @@ import com.gk.psp.request.PspBalanceRequest;
 import com.gk.psp.request.PspOrderRequest;
 import com.gk.psp.route.PspRouteResult;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -314,7 +315,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setResponseCode(body.getString("code"));
         result.setResponseMessage(body.getString("message"));
         result.setRawResponseJson(body.toJSONString());
-        if (response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpFailed() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
             result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
             result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
@@ -347,17 +348,23 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setResponseCode(body.getString("code"));
         result.setResponseMessage(body.getString("message"));
         result.setRawResponseJson(body.toJSONString());
-        if (response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpFailed() || body.getIntValue("code") != 200) {
             result.setSuccess(false);
-            result.setSubmitResultStatus(response.httpSuccess() || isUnknownPayoutCreateResponse(body)
-                    ? PspPayoutSubmitStatus.UNKNOWN
-                    : PspPayoutSubmitStatus.REJECTED);
+            result.setSubmitResultStatus(toPayoutSubmitStatus(response, body));
             result.setErrorCode(StringUtils.defaultIfBlank(result.getResponseCode(), "HTTP_" + response.statusCode()));
             result.setErrorMessage(StringUtils.defaultIfBlank(result.getResponseMessage(), "World PSP HTTP status " + response.statusCode()));
             return;
         }
         JSONObject data = body.getJSONObject("data");
-        if (data == null || WorldPspSignUtils.notVerify(data, secret, data.getString("sign"))) {
+        if (data == null) {
+            result.setSuccess(false);
+            result.setSubmitResultStatus(PspPayoutSubmitStatus.UNKNOWN);
+            result.setErrorCode("INVALID_DATA");
+            result.setErrorMessage("World PSP response data missing");
+            return;
+        }
+        String responseSign = data.getString("sign");
+        if (StringUtils.isNotBlank(responseSign) && WorldPspSignUtils.notVerify(data, secret, responseSign)) {
             result.setSuccess(false);
             result.setSubmitResultStatus(PspPayoutSubmitStatus.UNKNOWN);
             result.setErrorCode("INVALID_SIGN");
@@ -367,7 +374,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setSuccess(true);
         result.setSubmitResultStatus(PspPayoutSubmitStatus.ACCEPTED);
         result.setPspOrderNo(data.getString("system_order_id"));
-        result.setResponseSign(data.getString("sign"));
+        result.setResponseSign(responseSign);
         result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));
     }
 
@@ -375,6 +382,23 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         String code = response.getString("code");
         return StringUtils.isBlank(code) || "0".equals(code);
     }
+
+    private PspPayoutSubmitStatus toPayoutSubmitStatus(WorldPspHttpResponse response, JSONObject body) {
+        if (response.httpFailed() || isUnknownPayoutCreateResponse(body)) {
+            return PspPayoutSubmitStatus.UNKNOWN;
+        }
+        if (isRouteUnavailablePayoutCreateResponse(body)) {
+            return PspPayoutSubmitStatus.ROUTE_UNAVAILABLE;
+        }
+        return PspPayoutSubmitStatus.REJECTED;
+    }
+
+    private boolean isRouteUnavailablePayoutCreateResponse(JSONObject response) {
+        String text = (StringUtils.defaultString(response.getString("code")) + " "
+                + StringUtils.defaultString(response.getString("message"))).toUpperCase(Locale.ROOT);
+        return Strings.CI.containsAny(text, "Insufficient balance");
+    }
+
 
     private PspOrderQueryResult buildQueryResult(String systemOrderNo,
                                                  String merchantOrderNo,
@@ -402,7 +426,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
                 .responseMessage(body.getString("message"))
                 .rawResponseJson(body.toJSONString());
 
-        if (response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpFailed() || body.getIntValue("code") != 200) {
             String errorCode = StringUtils.defaultIfBlank(body.getString("code"), "HTTP_" + response.statusCode());
             String errorMessage = StringUtils.defaultIfBlank(body.getString("message"), "World PSP HTTP status " + response.statusCode());
             return builder.success(false).errorCode(errorCode).errorMessage(errorMessage).build();
@@ -433,7 +457,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         snap.setPspAccountNo(request.getPspAccountNo());
         snap.setUpdatedAt(Instant.now());
         snap.setRawResponseJson(body.toJSONString());
-        if (response.httpSuccess() || body.getIntValue("code") != 200) {
+        if (response.httpFailed() || body.getIntValue("code") != 200) {
             snap.setStatus(PspBalanceSnap.STATUS_UNKNOWN);
             snap.setErrorCode(StringUtils.defaultIfBlank(body.getString("code"), "HTTP_" + response.statusCode()));
             snap.setErrorMessage(StringUtils.defaultIfBlank(body.getString("message"), "World PSP HTTP status " + response.statusCode()));
@@ -562,7 +586,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
     }
 
     private record WorldPspHttpResponse(int statusCode, JSONObject body) {
-        private boolean httpSuccess() {
+        private boolean httpFailed() {
             return statusCode < 200 || statusCode >= 300;
         }
     }

@@ -217,6 +217,51 @@ CREATE TABLE `payout_order`  (
 
 
 -- ----------------------------
+-- Table structure for payout_route_attempt
+-- ----------------------------
+
+DROP TABLE IF EXISTS `payout_route_attempt`;
+CREATE TABLE `payout_route_attempt`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `tenant_id` bigint NOT NULL COMMENT '租户ID',
+  `payout_order_id` bigint NOT NULL COMMENT '平台代付订单ID',
+  `payout_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '平台代付订单号',
+  `attempt_no` int NOT NULL COMMENT '路由提交尝试次数，从1开始',
+  `route_option_id` bigint NULL DEFAULT NULL COMMENT '命中的支付方案路由候选ID',
+  `route_rule_id` bigint NULL DEFAULT NULL COMMENT '命中的支付路由规则ID',
+  `route_group_id` bigint NULL DEFAULT NULL COMMENT '命中的支付路由组ID',
+  `route_channel_id` bigint NULL DEFAULT NULL COMMENT '命中的支付路由通道ID',
+  `psp_id` bigint NULL DEFAULT NULL COMMENT '支付服务商ID',
+  `psp_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '支付服务商编码快照',
+  `psp_method_id` bigint NULL DEFAULT NULL COMMENT '支付服务商方法ID',
+  `psp_method_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '支付服务商方法编码快照',
+  `psp_account_id` bigint NULL DEFAULT NULL COMMENT '支付服务商账号ID',
+  `psp_account_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '支付服务商账号号快照',
+  `psp_bank_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '提交给PSP的银行编码',
+  `submit_result_status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP提交归一结果: ACCEPTED/REJECTED/UNKNOWN/ROUTE_UNAVAILABLE',
+  `error_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '归一错误码',
+  `error_message` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '归一错误信息',
+  `psp_request_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '平台请求PSP编号',
+  `psp_order_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP订单号',
+  `raw_status` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP原始状态',
+  `response_status` int NULL DEFAULT NULL COMMENT 'PSP HTTP响应状态码',
+  `response_code` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP响应业务码',
+  `response_message` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'PSP响应业务信息',
+  `raw_response_json` json NULL COMMENT 'PSP原始响应JSON',
+  `remark` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
+  `created_by` bigint NULL DEFAULT NULL COMMENT '创建人ID',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+  `updated_by` bigint NULL DEFAULT NULL COMMENT '更新人ID',
+  `updated_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_payout_route_attempt_no`(`tenant_id` ASC, `payout_order_id` ASC, `attempt_no` ASC) USING BTREE,
+  INDEX `idx_payout_route_attempt_order`(`tenant_id` ASC, `payout_order_no` ASC, `attempt_no` ASC) USING BTREE,
+  INDEX `idx_payout_route_attempt_psp`(`tenant_id` ASC, `psp_id` ASC, `psp_account_id` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_route_attempt_bank`(`tenant_id` ASC, `psp_bank_code` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_route_attempt_result`(`tenant_id` ASC, `submit_result_status` ASC, `created_at` ASC) USING BTREE,
+  INDEX `idx_payout_route_attempt_request`(`tenant_id` ASC, `psp_request_no` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '代付路由提交尝试记录' ROW_FORMAT = Dynamic;
+-- ----------------------------
 -- Table structure for order_status_log
 -- ----------------------------
 DROP TABLE IF EXISTS `order_status_log`;

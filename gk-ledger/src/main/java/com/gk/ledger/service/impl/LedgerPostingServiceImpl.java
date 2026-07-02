@@ -8,7 +8,6 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.enums.LedgerDirectionEnum;
 import com.gk.ledger.enums.LedgerHoldStatusEnum;
@@ -22,13 +21,11 @@ import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.dao.LedgerEntryDao;
 import com.gk.ledger.dao.LedgerHoldDao;
 import com.gk.ledger.dao.LedgerJournalDao;
-import com.gk.ledger.dao.MerchantWalletStatementDao;
 import com.gk.ledger.entity.LedgerAccountEntity;
 import com.gk.ledger.entity.LedgerBalanceEntity;
 import com.gk.ledger.entity.LedgerEntryEntity;
 import com.gk.ledger.entity.LedgerHoldEntity;
 import com.gk.ledger.entity.LedgerJournalEntity;
-import com.gk.ledger.entity.MerchantWalletStatementEntity;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.MerchantBalanceAdjustPostingRequest;
@@ -36,15 +33,12 @@ import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerAccountService;
 import com.gk.ledger.service.LedgerPostingService;
-import com.gk.ledger.enums.MerchantWalletStatementEffectEnum;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -77,7 +71,6 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     private final LedgerEntryDao ledgerEntryDao;
     private final LedgerHoldDao ledgerHoldDao;
     private final LedgerAccountService ledgerAccountService;
-    private final MerchantWalletStatementDao merchantWalletStatementDao;
     private final Map<MerchantAccountCacheKey, CachedLedgerAccount> merchantAccountCache = new ConcurrentHashMap<>();
 
     public LedgerPostingServiceImpl(LedgerAccountDao ledgerAccountDao,
@@ -85,15 +78,13 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                                     LedgerJournalDao ledgerJournalDao,
                                     LedgerEntryDao ledgerEntryDao,
                                     LedgerHoldDao ledgerHoldDao,
-                                    LedgerAccountService ledgerAccountService,
-                                    MerchantWalletStatementDao merchantWalletStatementDao) {
+                                    LedgerAccountService ledgerAccountService) {
         this.ledgerAccountDao = ledgerAccountDao;
         this.ledgerBalanceDao = ledgerBalanceDao;
         this.ledgerJournalDao = ledgerJournalDao;
         this.ledgerEntryDao = ledgerEntryDao;
         this.ledgerHoldDao = ledgerHoldDao;
         this.ledgerAccountService = ledgerAccountService;
-        this.merchantWalletStatementDao = merchantWalletStatementDao;
     }
 
     /**
@@ -150,7 +141,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                         return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType, false);
         }
         // 真正写入 ledger_entry 并更新 ledger_balance
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, feeAmount));
+        postEntriesOptimized(journal, lines);
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -198,7 +189,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYIN_ORDER.code(), request.getPayinOrderNo(), eventType, false);
         }
         // 发布分录并原子更新两个账户余额
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.pay(request, settleAmount, defaultZero(request.getMerchantFeeAmount())));
+        postEntriesOptimized(journal, lines);
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -254,7 +245,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
             logLedgerProfileIfSlow(request, profileStartNanos, profileSteps, "EXISTED");
             return result;
         }
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
+        postEntriesOptimized(journal, lines);
         profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "post_entries");
 
         // 冻结分录成功后记ledger_hold，后续成功消费或失败释放都以它为准
@@ -326,7 +317,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, totalDebitAmount));
+        postEntriesOptimized(journal, lines);
 
         // 分录落账后把冻结记录标记为已消费，防止后续再次释放
         hold.setConsumedAmount(scale(defaultZero(hold.getConsumedAmount()).add(totalDebitAmount)));
@@ -368,7 +359,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.PAYOUT_ORDER.code(), request.getPayoutOrderNo(), eventType, true);
         }
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.payout(request, amount));
+        postEntriesOptimized(journal, lines);
 
         // 释放完成后清 remainingAmount，并记录最后一次释放凭证号
         hold.setReleasedAmount(scale(defaultZero(hold.getReleasedAmount()).add(amount)));
@@ -430,7 +421,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         if (journal == null) {
             return existingPostingResult(request.getTenantId(), BizTypeEnum.BALANCE_ADJUST.code(), request.getAdjustOrderNo(), eventType, false);
         }
-        postEntriesOptimized(journal, lines, MerchantStatementSnapshot.adjust(request, amount));
+        postEntriesOptimized(journal, lines);
         return LedgerPostingResult.posted(journal.getJournalNo());
     }
 
@@ -491,7 +482,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         return LedgerPostingResult.existed(existed.getJournalNo(), hold == null ? null : hold.getHoldNo());
     }
 
-    private void postEntriesOptimized(LedgerJournalEntity journal, List<PostingLine> lines, MerchantStatementSnapshot statementSnapshot) {
+    private void postEntriesOptimized(LedgerJournalEntity journal, List<PostingLine> lines) {
         long profileStartNanos = System.nanoTime();
         long profileLastNanos = profileStartNanos;
         StringBuilder profileSteps = new StringBuilder();
@@ -544,17 +535,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 throw new InsufficientLedgerBalanceException(line.account().getAccountNo());
             }
         }
-        profileLastNanos = markLedgerStep(profileSteps, profileLastNanos, "apply_balances");
-
-        List<MerchantWalletStatementEntity> walletStatements = new ArrayList<>();
-        for (PostingEntry postingEntry : postingEntries) {
-            MerchantWalletStatementEntity walletStatement = merchantWalletStatement(journal, postingEntry.entry(), statementSnapshot);
-            if (walletStatement != null) {
-                walletStatements.add(walletStatement);
-            }
-        }
-        createMerchantWalletStatements(journal, walletStatements);
-        markLedgerStep(profileSteps, profileLastNanos, "wallet_statement");
+        markLedgerStep(profileSteps, profileLastNanos, "apply_balances");
         logLedgerPostEntriesProfileIfSlow(journal, profileStartNanos, profileSteps);
     }
 
@@ -617,94 +598,6 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
                 entry.setId(insertedEntry.getId());
             }
         }
-    }
-
-    private MerchantWalletStatementEntity merchantWalletStatement(LedgerJournalEntity journal, LedgerEntryEntity entry, MerchantStatementSnapshot snapshot) {
-        if (snapshot == null || entry == null || !isMerchantVisibleEntry(entry)) {
-            return null;
-        }
-        MerchantWalletStatementEntity statement = new MerchantWalletStatementEntity();
-        statement.setTenantId(entry.getTenantId());
-        statement.setStatementNo(BizKeyUtils.genMerchantWalletStatementNo());
-        statement.setMerchantId(entry.getOwnerId());
-        statement.setMerchantNo(snapshot.merchantNo());
-        statement.setMerchantAppId(snapshot.merchantAppId());
-        statement.setJournalId(journal.getId());
-        statement.setJournalNo(journal.getJournalNo());
-        statement.setEntryId(entry.getId());
-        statement.setBizType(entry.getBizType());
-        statement.setBizId(entry.getBizId());
-        statement.setBizNo(entry.getBizNo());
-        statement.setMerchantOrderNo(snapshot.merchantOrderNo());
-        statement.setEventType(entry.getEventType());
-        statement.setAccountId(entry.getAccountId());
-        statement.setAccountNo(entry.getAccountNo());
-        statement.setAccountType(entry.getAccountType());
-        statement.setCurrency(entry.getCurrency());
-        statement.setEffectType(effectType(entry));
-        statement.setBizAmount(scale(snapshot.bizAmount()));
-        statement.setFeeAmount(scale(snapshot.feeAmount()));
-        statement.setNetAmount(scale(snapshot.netAmount()));
-        statement.setBalanceChange(scale(entry.getBalanceChange()));
-        statement.setBalanceBefore(scale(entry.getBalanceBefore()));
-        statement.setBalanceAfter(scale(entry.getBalanceAfter()));
-        statement.setSourceType(journal.getSourceType());
-        statement.setStatus(journal.getStatus());
-        statement.setPostedAt(journal.getPostedAt());
-        statement.setTraceId(journal.getTraceId());
-        statement.setSummary(entry.getSummary());
-        statement.setRemark(journal.getRemark());
-        return statement;
-    }
-
-    private void createMerchantWalletStatements(LedgerJournalEntity journal, List<MerchantWalletStatementEntity> statements) {
-        if (statements.isEmpty()) {
-            return;
-        }
-        List<MerchantWalletStatementEntity> copy = List.copyOf(statements);
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    createMerchantWalletStatementsAsync(journal.getJournalNo(), copy);
-                }
-            });
-            return;
-        }
-        createMerchantWalletStatementsAsync(journal.getJournalNo(), copy);
-    }
-
-    private void createMerchantWalletStatementsAsync(String journalNo, List<MerchantWalletStatementEntity> statements) {
-        AsynUtils.execute("Create merchant wallet statements", () -> insertMerchantWalletStatements(journalNo, statements));
-    }
-
-    private void insertMerchantWalletStatements(String journalNo, List<MerchantWalletStatementEntity> statements) {
-        try {
-            merchantWalletStatementDao.insert(statements);
-        } catch (Exception ex) {
-            log.warn("Create merchant wallet statements failed, journalNo={}, count={}, err={}",
-                    journalNo, statements.size(), ex.getMessage());
-        }
-    }
-
-    private boolean isMerchantVisibleEntry(LedgerEntryEntity entry) {
-        return LedgerOwnerTypeEnum.MERCHANT.code().equals(entry.getOwnerType())
-                && LedgerAccountTypeEnum.merchantVisibleTypes().contains(entry.getAccountType());
-    }
-
-    private String effectType(LedgerEntryEntity entry) {
-        if (LedgerPostingEventEnum.PAYOUT_FREEZE.code().equals(entry.getEventType())) {
-            return MerchantWalletStatementEffectEnum.FREEZE.code();
-        }
-        if (LedgerPostingEventEnum.PAYOUT_FAILED.code().equals(entry.getEventType())) {
-            return MerchantWalletStatementEffectEnum.UNFREEZE.code();
-        }
-        if (entry.getEventType() != null && entry.getEventType().startsWith("MANUAL_")) {
-            return MerchantWalletStatementEffectEnum.ADJUST.code();
-        }
-        return scale(entry.getBalanceChange()).compareTo(BigDecimal.ZERO) >= 0
-                ? MerchantWalletStatementEffectEnum.IN.code()
-                : MerchantWalletStatementEffectEnum.OUT.code();
     }
 
     /**
@@ -1100,45 +993,5 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
     }
 
     private record CachedLedgerAccount(LedgerAccountEntity account, long expireAtMillis) {
-    }
-
-    private record MerchantStatementSnapshot(String merchantNo,
-                                             Long merchantAppId,
-                                             String merchantOrderNo,
-                                             BigDecimal bizAmount,
-                                             BigDecimal feeAmount,
-                                             BigDecimal netAmount) {
-        static MerchantStatementSnapshot pay(PaySuccessPostingRequest request, BigDecimal netAmount, BigDecimal feeAmount) {
-            return new MerchantStatementSnapshot(
-                    request.getMerchantNo(),
-                    request.getMerchantAppId(),
-                    request.getMerchantOrderNo(),
-                    request.getAmount(),
-                    feeAmount,
-                    netAmount
-            );
-        }
-
-        static MerchantStatementSnapshot payout(PayoutPostingRequest request, BigDecimal netAmount) {
-            return new MerchantStatementSnapshot(
-                    request.getMerchantNo(),
-                    request.getMerchantAppId(),
-                    request.getMerchantOrderNo(),
-                    request.getAmount(),
-                    request.getMerchantFeeAmount(),
-                    netAmount
-            );
-        }
-
-        static MerchantStatementSnapshot adjust(MerchantBalanceAdjustPostingRequest request, BigDecimal netAmount) {
-            return new MerchantStatementSnapshot(
-                    request.getMerchantNo(),
-                    request.getMerchantAppId(),
-                    request.getMerchantOrderNo(),
-                    request.getAmount(),
-                    BigDecimal.ZERO,
-                    netAmount
-            );
-        }
     }
 }

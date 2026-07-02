@@ -66,10 +66,6 @@ public class BizKeyUtils {
         return "LH" + encodeId(IdWorker.getId());
     }
 
-    public static String genMerchantWalletStatementNo() {
-        return "MWS" + encodeId(IdWorker.getId());
-    }
-
     public static String genMerchantBalanceAdjustOrderNo() {
         return "MBA" + encodeId(IdWorker.getId());
     }

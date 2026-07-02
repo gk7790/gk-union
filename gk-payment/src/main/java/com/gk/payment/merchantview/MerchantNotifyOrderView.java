@@ -10,11 +10,19 @@ import lombok.EqualsAndHashCode;
 @OpenApiModel
 @EqualsAndHashCode(callSuper = true)
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class PayinOrderView extends MerchantOrderView {
+public class MerchantNotifyOrderView extends MerchantOrderView {
+    @JSONField(name = "merchant_id")
+    private String merchantId;
+    @JSONField(name = "app_id")
+    private String appId;
+    @JSONField(name = "direction")
+    private String direction;
     @JSONField(name = "pay_url")
     private String payUrl;
     @JSONField(name = "paid_amount")
     private String paidAmount;
     @JSONField(name = "settle_amount")
     private String settleAmount;
+    @JSONField(name = "debit_amount")
+    private String debitAmount;
 }

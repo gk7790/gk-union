@@ -2,6 +2,7 @@ package com.gk.payment.enums;
 
 import com.gk.common.annotation.EnumDict;
 import com.gk.common.enums.StringCodeEnum;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Merchant-facing order status and reason mapping.
@@ -52,13 +53,13 @@ public enum MerchantOrderStatusEnum implements StringCodeEnum {
     }
 
     public static String defaultCodeByOrderStatus(String status) {
-        MerchantOrderStatusEnum reason = defaultByOrderStatus(status);
-        return reason == null ? null : reason.code();
+        MerchantOrderStatusEnum merchantStatus = defaultByOrderStatus(status);
+        return merchantStatus == null ? null : merchantStatus.code();
     }
 
     public static String defaultReasonByOrderStatus(String status) {
-        MerchantOrderStatusEnum reason = defaultByOrderStatus(status);
-        return reason == null ? null : reason.statusReason();
+        MerchantOrderStatusEnum merchantStatus = defaultByOrderStatus(status);
+        return merchantStatus == null ? null : merchantStatus.statusReason();
     }
 
     public static String merchantCode(String code, String status) {
@@ -66,10 +67,13 @@ public enum MerchantOrderStatusEnum implements StringCodeEnum {
     }
 
     public static String merchantReason(String reason, String status) {
-        return reason == null ? defaultReasonByOrderStatus(status) : reason;
+        return StringUtils.isBlank(reason) ? defaultReasonByOrderStatus(status) : reason;
     }
 
     private static boolean isMerchantStatusCode(String code) {
+        if (StringUtils.isBlank(code)) {
+            return false;
+        }
         for (MerchantOrderStatusEnum value : values()) {
             if (value.code().equals(code)) {
                 return true;

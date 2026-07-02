@@ -45,6 +45,8 @@ public class PayinOrderEntity extends SimpleEntity {
     private Long merchantNotifyTaskId;
     private String status;
     private String statusReason;
+    private String merchantStatusCode;
+    private String merchantStatusReason;
     private Instant expireAt;
     private Instant paidAt;
     private Instant closedAt;

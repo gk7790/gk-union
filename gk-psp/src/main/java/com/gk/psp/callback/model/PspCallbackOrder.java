@@ -19,6 +19,8 @@ public record PspCallbackOrder(
         String pspOrderNo,
         String status,
         String statusReason,
+        String merchantStatusCode,
+        String merchantStatusReason,
         String countryCode,
         String methodCode,
         BigDecimal amount,

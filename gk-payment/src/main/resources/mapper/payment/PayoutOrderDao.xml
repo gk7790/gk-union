@@ -132,6 +132,7 @@
         payee_name, payee_account_no, payee_bank_code, payee_wallet_type,
         payee_phone, payee_email, notify_url, merchant_notify_status,
         merchant_notify_at, merchant_notify_task_id, status, status_reason,
+        merchant_status_code, merchant_status_reason,
         submitted_at, completed_at, failed_at, cancelled_at, fail_code, fail_msg,
         hold_no, freeze_journal_no, success_journal_no, release_journal_no,
         payment_plan_catalog_id, payment_plan_version, payment_plan_bucket_id,

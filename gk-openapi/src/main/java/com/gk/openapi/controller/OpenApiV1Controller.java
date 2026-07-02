@@ -11,6 +11,8 @@ import com.gk.openapi.service.OpenPayinOrderService;
 import com.gk.openapi.service.OpenPaymentMethodService;
 import com.gk.openapi.service.OpenPayoutOrderService;
 import com.gk.openapi.tools.ApiR;
+import com.gk.payment.merchantview.PayinOrderView;
+import com.gk.payment.merchantview.PayoutOrderView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -59,13 +61,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping( "payin/create")
-    public ApiR<PayinOrderResponse> createPay(HttpServletRequest request) {
+    public ApiR<PayinOrderView> createPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayinOrderCreateRequest body = null;
         try {
             body = bindSignParams(request, PayinOrderCreateRequest.class, true);
-            PayinOrderResponse orderResp = openPayinOrderService.create(body);
-            ApiR<PayinOrderResponse> response = ApiR.success(orderResp);
+            PayinOrderView orderResp = openPayinOrderService.create(body);
+            ApiR<PayinOrderView> response = ApiR.success(orderResp);
             merchantRequestLogger.payCreateSuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -78,13 +80,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping( "payin/query")
-    public ApiR<PayinOrderResponse> queryPay(HttpServletRequest request) {
+    public ApiR<PayinOrderView> queryPay(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayinOrderQueryRequest body = null;
         try {
             body = bindSignParams(request, PayinOrderQueryRequest.class, false);
-            PayinOrderResponse orderResp = queryPayinOrder(body);
-            ApiR<PayinOrderResponse> response = ApiR.success(orderResp);
+            PayinOrderView orderResp = queryPayinOrder(body);
+            ApiR<PayinOrderView> response = ApiR.success(orderResp);
             merchantRequestLogger.payQuerySuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -97,13 +99,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping( "payout/create")
-    public ApiR<PayoutOrderResponse> createPayout(HttpServletRequest request) {
+    public ApiR<PayoutOrderView> createPayout(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayoutOrderCreateRequest body = null;
         try {
             body = bindSignParams(request, PayoutOrderCreateRequest.class, true);
-            PayoutOrderResponse orderResp = openPayoutOrderService.create(body);
-            ApiR<PayoutOrderResponse> response = ApiR.success(orderResp);
+            PayoutOrderView orderResp = openPayoutOrderService.create(body);
+            ApiR<PayoutOrderView> response = ApiR.success(orderResp);
             merchantRequestLogger.payoutCreateSuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -116,13 +118,13 @@ public class OpenApiV1Controller {
     }
 
     @PostMapping("payout/query")
-    public ApiR<PayoutOrderResponse> queryPayout(HttpServletRequest request) {
+    public ApiR<PayoutOrderView> queryPayout(HttpServletRequest request) {
         long startMs = System.currentTimeMillis();
         PayoutOrderQueryRequest body = null;
         try {
             body = bindSignParams(request, PayoutOrderQueryRequest.class, false);
-            PayoutOrderResponse orderResp = queryPayoutOrder(body);
-            ApiR<PayoutOrderResponse> response = ApiR.success(orderResp);
+            PayoutOrderView orderResp = queryPayoutOrder(body);
+            ApiR<PayoutOrderView> response = ApiR.success(orderResp);
             merchantRequestLogger.payoutQuerySuccess(request, body, orderResp, response, startMs);
             return response;
         } catch (ApiException ex) {
@@ -168,7 +170,7 @@ public class OpenApiV1Controller {
         return new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
     }
 
-    private PayinOrderResponse queryPayinOrder(PayinOrderQueryRequest body) {
+    private PayinOrderView queryPayinOrder(PayinOrderQueryRequest body) {
         if (StringUtils.isNotBlank(body.getSystemOrderId())) {
             return openPayinOrderService.getByPayinOrderNo(body.getSystemOrderId());
         }
@@ -178,7 +180,7 @@ public class OpenApiV1Controller {
         throw new ApiException(ApiErrorCode.INVALID_REQUEST, "system_order_id or merchant_order_id is required");
     }
 
-    private PayoutOrderResponse queryPayoutOrder(PayoutOrderQueryRequest body) {
+    private PayoutOrderView queryPayoutOrder(PayoutOrderQueryRequest body) {
         if (StringUtils.isNotBlank(body.getSystemOrderId())) {
             return openPayoutOrderService.getByPayoutOrderNo(body.getSystemOrderId());
         }

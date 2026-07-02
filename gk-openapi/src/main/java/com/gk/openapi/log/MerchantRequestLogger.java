@@ -7,10 +7,8 @@ import com.gk.openapi.dto.BalanceQueryRequest;
 import com.gk.openapi.dto.BalanceResponse;
 import com.gk.openapi.dto.PayinOrderCreateRequest;
 import com.gk.openapi.dto.PayinOrderQueryRequest;
-import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
 import com.gk.openapi.dto.PayoutOrderQueryRequest;
-import com.gk.openapi.dto.PayoutOrderResponse;
 import com.gk.openapi.error.ApiErrorDescriptor;
 import com.gk.openapi.error.ApiExceptionMapper;
 import com.gk.openapi.security.ApiReqContext;
@@ -18,6 +16,8 @@ import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.security.OpenApiAuthFilter;
 import com.gk.openapi.tools.ApiR;
 import com.gk.payment.entity.MerchantRequestLogEntity;
+import com.gk.payment.merchantview.PayinOrderView;
+import com.gk.payment.merchantview.PayoutOrderView;
 import com.gk.payment.service.MerchantRequestLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +55,7 @@ public class MerchantRequestLogger {
         record(request, "查询余额", "BALANCE", null, null, null, throwable, startMs);
     }
 
-    public void payCreateSuccess(HttpServletRequest request, PayinOrderCreateRequest body, PayinOrderResponse orderResp, ApiR<PayinOrderResponse> response, long startMs) {
+    public void payCreateSuccess(HttpServletRequest request, PayinOrderCreateRequest body, PayinOrderView orderResp, ApiR<PayinOrderView> response, long startMs) {
         record(
                 request,
                 "创建代收订单",
@@ -81,7 +81,7 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payQuerySuccess(HttpServletRequest request, PayinOrderQueryRequest body, PayinOrderResponse orderResp, ApiR<PayinOrderResponse> response, long startMs) {
+    public void payQuerySuccess(HttpServletRequest request, PayinOrderQueryRequest body, PayinOrderView orderResp, ApiR<PayinOrderView> response, long startMs) {
         record(
                 request,
                 "查询代收订单",
@@ -107,7 +107,7 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payoutCreateSuccess(HttpServletRequest request, PayoutOrderCreateRequest body, PayoutOrderResponse orderResp, ApiR<PayoutOrderResponse> response, long startMs) {
+    public void payoutCreateSuccess(HttpServletRequest request, PayoutOrderCreateRequest body, PayoutOrderView orderResp, ApiR<PayoutOrderView> response, long startMs) {
         record(
                 request,
                 "创建代付订单",
@@ -133,7 +133,7 @@ public class MerchantRequestLogger {
         );
     }
 
-    public void payoutQuerySuccess(HttpServletRequest request, PayoutOrderQueryRequest body, PayoutOrderResponse orderResp, ApiR<PayoutOrderResponse> response, long startMs) {
+    public void payoutQuerySuccess(HttpServletRequest request, PayoutOrderQueryRequest body, PayoutOrderView orderResp, ApiR<PayoutOrderView> response, long startMs) {
         record(
                 request,
                 "查询代付订单",

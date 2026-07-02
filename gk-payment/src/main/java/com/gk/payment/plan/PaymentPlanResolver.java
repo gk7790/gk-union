@@ -40,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -77,6 +78,13 @@ public class PaymentPlanResolver {
     }
 
     public Optional<PaymentPlan> resolvePayout(PayoutOrderEntity order) {
+        return resolvePayout(order, Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
+    }
+
+    public Optional<PaymentPlan> resolvePayout(PayoutOrderEntity order,
+                                               Set<Long> disabledPspIds,
+                                               Set<Long> disabledAccountIds,
+                                               Set<Long> disabledRouteOptionIds) {
         PaymentPlanKey key = PaymentPlanKey.of(
                 order.getTenantId(),
                 order.getMerchantId(),
@@ -86,12 +94,24 @@ public class PaymentPlanResolver {
                 order.getCurrency(),
                 order.getMethodCode()
         );
-        return resolve(key, order.getAmount(), order.getPayeeBankCode(), order.getPayoutOrderNo());
+        return resolve(key, order.getAmount(), order.getPayeeBankCode(), order.getPayoutOrderNo(),
+                disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
     }
 
     private Optional<PaymentPlan> resolve(PaymentPlanKey key, BigDecimal amount, String bankCode, String seed) {
+        return resolve(key, amount, bankCode, seed, Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
+    }
+
+    private Optional<PaymentPlan> resolve(PaymentPlanKey key,
+                                          BigDecimal amount,
+                                          String bankCode,
+                                          String seed,
+                                          Set<Long> disabledPspIds,
+                                          Set<Long> disabledAccountIds,
+                                          Set<Long> disabledRouteOptionIds) {
         return paymentPlanCacheService.findActive(key)
-                .map(catalog -> buildPlan(key, catalog.getCatalog(), PaymentPlanBucketMatcher.matchPlanBucket(catalog.getBuckets(), amount), amount, bankCode, seed));
+                .map(catalog -> buildPlan(key, catalog.getCatalog(), PaymentPlanBucketMatcher.matchPlanBucket(catalog.getBuckets(), amount),
+                        amount, bankCode, seed, disabledPspIds, disabledAccountIds, disabledRouteOptionIds));
     }
 
     private PaymentPlan buildPlan(PaymentPlanKey key,
@@ -99,9 +119,13 @@ public class PaymentPlanResolver {
                                   PaymentPlanBucket bucket,
                                   BigDecimal amount,
                                   String bankCode,
-                                  String seed) {
+                                  String seed,
+                                  Set<Long> disabledPspIds,
+                                  Set<Long> disabledAccountIds,
+                                  Set<Long> disabledRouteOptionIds) {
         PaymentPlanBucketEntity bucketEntity = bucket.getBucket();
-        PaymentPlanRouteOptionEntity option = selectRouteOption(key, bucket, amount, bankCode, seed);
+        PaymentPlanRouteOptionEntity option = selectRouteOption(key, bucket, amount, bankCode, seed,
+                disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
         PspBankMappingEntity bankMapping = bankMapping(key, option, bankCode).orElse(null);
         MerchantFeeResult merchantFee = merchantFee(bucketEntity, amount);
         PspRouteResult route = route(catalog.getDirection(), option, bankMapping);
@@ -125,12 +149,16 @@ public class PaymentPlanResolver {
                                                            PaymentPlanBucket bucket,
                                                            BigDecimal amount,
                                                            String bankCode,
-                                                           String seed) {
+                                                           String seed,
+                                                           Set<Long> disabledPspIds,
+                                                           Set<Long> disabledAccountIds,
+                                                           Set<Long> disabledRouteOptionIds) {
         return PaymentPlanRouteOptionSelector.select(
                 bucket.getRouteOptions(),
                 seed,
-                Collections.emptySet(),
-                Collections.emptySet(),
+                disabledPspIds,
+                disabledAccountIds,
+                disabledRouteOptionIds,
                 option -> optionRuntimeAvailable(key, option, amount, bankCode)
         );
     }

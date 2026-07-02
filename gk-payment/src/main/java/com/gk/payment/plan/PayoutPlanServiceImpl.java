@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -16,8 +17,16 @@ public class PayoutPlanServiceImpl implements PayoutPlanService {
 
     @Override
     public PayoutPlan resolve(PayoutOrderEntity order) {
+        return resolve(order, Set.of(), Set.of(), Set.of());
+    }
+
+    @Override
+    public PayoutPlan resolve(PayoutOrderEntity order,
+                              Set<Long> disabledPspIds,
+                              Set<Long> disabledAccountIds,
+                              Set<Long> disabledRouteOptionIds) {
         try {
-            PaymentPlan paymentPlan = paymentPlanResolver.resolvePayout(order)
+            PaymentPlan paymentPlan = paymentPlanResolver.resolvePayout(order, disabledPspIds, disabledAccountIds, disabledRouteOptionIds)
                     .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
             return toPayoutPlan(order, paymentPlan);
         } catch (IllegalArgumentException ex) {

@@ -38,13 +38,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * 将可编辑的支付配置编译成 payment_plan_* 运行时方案数据。
@@ -144,11 +138,11 @@ public class PaymentPlanCompiler {
      * 将一个金额 bucket 编译成商户费率快照和 PSP 路由候选。
      */
     private PaymentPlanCompileResult.CompiledBucket compileBucket(PaymentPlanCompileRequest request,
-                                                                 PaymentPlanAmountRange range,
-                                                                 int bucketSort,
-                                                                 List<MerchantFeeRuleEntity> merchantRules,
-                                                                 List<PaymentRouteRuleEntity> paymentRouteRules,
-                                                                 PaymentPlanCompileResult result) {
+                                                                  PaymentPlanAmountRange range,
+                                                                  int bucketSort,
+                                                                  List<MerchantFeeRuleEntity> merchantRules,
+                                                                  List<PaymentRouteRuleEntity> paymentRouteRules,
+                                                                  PaymentPlanCompileResult result) {
         // 源配置边界已经被切成 bucket 边界，因此用起始金额即可代表整个 bucket
         BigDecimal sampleAmount = range.startAmount();
         MerchantFeeRuleEntity merchantRule = merchantRule(request, merchantRules, sampleAmount);
@@ -215,13 +209,14 @@ public class PaymentPlanCompiler {
 
     /**
      * payment_route_rule -> payment_route_group -> payment_route_channel
-     * 解析成某bucket 金额下可用的 PSP 运行时路由候选     */
+     * 解析成某bucket 金额下可用的 PSP 运行时路由候选
+     */
     private List<PaymentPlanCompileResult.CompiledRouteOption> paymentRouteOptions(PaymentPlanCompileRequest request,
-                                                                                  List<PaymentRouteRuleEntity> routeRules,
-                                                                                  BigDecimal sampleAmount,
-                                                                                  PaymentPlanCompileResult result) {
+                                                                                   List<PaymentRouteRuleEntity> routeRules,
+                                                                                   BigDecimal sampleAmount,
+                                                                                   PaymentPlanCompileResult result) {
         // 路由规则列表已经排好序，命中金额的第一条规则生效
-                PaymentRouteRuleEntity routeRule = matchingPaymentRouteRules(routeRules, sampleAmount).stream()
+        PaymentRouteRuleEntity routeRule = matchingPaymentRouteRules(routeRules, sampleAmount).stream()
                 .findFirst()
                 .orElse(null);
         if (routeRule == null) {
@@ -236,12 +231,12 @@ public class PaymentPlanCompiler {
         }
 
         QueryWrapper<PaymentRouteChannelEntity> channelWrapper = new QueryWrapper<PaymentRouteChannelEntity>()
-                        .eq("tenant_id", routeRule.getTenantId())
-                        .eq("group_id", routeRule.getGroupId())
-                        .eq("status", StatusEnum.NORMAL.code())
-                        .orderByAsc("priority")
-                        .orderByAsc("fallback_order")
-                        .orderByAsc("id");
+                .eq("tenant_id", routeRule.getTenantId())
+                .eq("group_id", routeRule.getGroupId())
+                .eq("status", StatusEnum.NORMAL.code())
+                .orderByAsc("priority")
+                .orderByAsc("fallback_order")
+                .orderByAsc("id");
         AmountRangeUtils.appendMatchesAmount(channelWrapper, sampleAmount);
         List<PaymentRouteChannelEntity> channels = paymentRouteChannelDao.selectList(channelWrapper)
                 .stream()
@@ -259,7 +254,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 根据路由通道PSP 资源构建一payment_plan_route_option     */
+     * 根据路由通道PSP 资源构建一payment_plan_route_option
+     */
     private PaymentPlanCompileResult.CompiledRouteOption routeOption(PaymentPlanCompileRequest request,
                                                                      PaymentRouteRuleEntity routeRule,
                                                                      PaymentRouteGroupEntity group,
@@ -267,7 +263,7 @@ public class PaymentPlanCompiler {
                                                                      BigDecimal sampleAmount,
                                                                      PaymentPlanCompileResult result) {
         // 路由通道只存资源 id；发布后的候选会保留快照，方便审计和回滚排查
-                PspProviderEntity provider = pspProviderDao.selectById(channel.getPspId());
+        PspProviderEntity provider = pspProviderDao.selectById(channel.getPspId());
         PspMethodEntity method = pspMethodDao.selectById(channel.getPspMethodId());
         PspAccountEntity account = pspAccountDao.selectById(channel.getPspAccountId());
         if (!resourceAvailable(request.getDirection(), provider, method, account)) {
@@ -288,7 +284,7 @@ public class PaymentPlanCompiler {
         }
 
         // 银行卡代付不在这里按 bank_code 做路由，只通过银行映射判断 PSP 是否支持
-                if (requiresBankMapping(request) && !hasAnyBankMapping(request, channel.getPspId())) {
+        if (requiresBankMapping(request) && !hasAnyBankMapping(request, channel.getPspId())) {
             result.addWarning("PSP_BANK_MAPPING_MISSING", "PSP bank mapping is not configured for PSP " + channel.getPspId());
             return null;
         }
@@ -297,7 +293,7 @@ public class PaymentPlanCompiler {
         if (feeRule == null) {
             result.addWarning("PSP_FEE_RULE_MISSING", "PSP fee rule is not configured for payment route channel " + channel.getId());
             // PSP 成本费率默认只是成本侧告警，只有请求明确要求时才阻断编译
-                        if (Boolean.TRUE.equals(request.getPspFeeRequired())) {
+            if (Boolean.TRUE.equals(request.getPspFeeRequired())) {
                 return null;
             }
         }
@@ -340,7 +336,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 使用编译出的内存方案执行预览测试用例     */
+     * 使用编译出的内存方案执行预览测试用例
+     */
     private void runTestCases(PaymentPlanCompileRequest request, PaymentPlanCompileResult result) {
         if (request.getTestCases() == null || request.getTestCases().isEmpty() || result.getBuckets().isEmpty()) {
             return;
@@ -359,10 +356,11 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 模拟一笔商户订单完bucket 匹配、路由选择和费率计算     */
+     * 模拟一笔商户订单完bucket 匹配、路由选择和费率计算
+     */
     private PaymentPlanCompileResult.TestResult testCase(PaymentPlanCompileRequest request,
-                                                        List<PaymentPlanBucket> planBuckets,
-                                                        PaymentPlanCompileRequest.TestCase testCase) {
+                                                         List<PaymentPlanBucket> planBuckets,
+                                                         PaymentPlanCompileRequest.TestCase testCase) {
         PaymentPlanCompileResult.TestResult testResult = new PaymentPlanCompileResult.TestResult();
         testResult.setMerchantOrderId(testCase.getMerchantOrderId());
         testResult.setAmount(testCase.getAmount());
@@ -370,11 +368,12 @@ public class PaymentPlanCompiler {
         try {
             PaymentPlanBucket bucket = PaymentPlanBucketMatcher.matchPlanBucket(planBuckets, testCase.getAmount());
             // 使用与运行时一致的选择输入：订单号用于稳定权重路由，银行映射用于过滤可用通道
-                        PaymentPlanRouteOptionEntity option = PaymentPlanRouteOptionSelector.select(
+            PaymentPlanRouteOptionEntity option = PaymentPlanRouteOptionSelector.select(
                     bucket.getRouteOptions(),
                     StringUtils.defaultString(testCase.getMerchantOrderId()),
-                    java.util.Set.of(),
-                    java.util.Set.of(),
+                    Set.of(), // 不排除 PSP
+                    Set.of(), // 不排除 PSP account
+                    Set.of(), // 不排除 route option
                     item -> testBankSupported(request, item, testCase.getBankCode())
             );
             MerchantFeeRuleEntity merchantRule = merchantRule(bucket.getBucket());
@@ -405,7 +404,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 重新加载 PSP 成本规则，用于预览测试里的成本计算     */
+     * 重新加载 PSP 成本规则，用于预览测试里的成本计算
+     */
     private PspFeeRuleEntity pspFeeRule(PaymentPlanRouteOptionEntity option) {
         return pspFeeRuleDao.selectById(option.getPspFeeRuleId());
     }
@@ -445,7 +445,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 校验固定PSP 成本规则是否可以写入方案快照     */
+     * 校验固定PSP 成本规则是否可以写入方案快照
+     */
     private boolean pspFeeRuleMatches(PaymentPlanCompileRequest request,
                                       PaymentRouteGroupEntity group,
                                       PspMethodEntity method,
@@ -493,7 +494,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 预览测试用例使用的银行卡过滤逻辑     */
+     * 预览测试用例使用的银行卡过滤逻辑
+     */
     private boolean testBankSupported(PaymentPlanCompileRequest request, PaymentPlanRouteOptionEntity option, String bankCode) {
         if (!requiresBankMapping(request) || StringUtils.isBlank(bankCode)) {
             return !requiresBankMapping(request);
@@ -502,7 +504,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 查找银行卡代付测试用例对应的 PSP 银行编码映射     */
+     * 查找银行卡代付测试用例对应的 PSP 银行编码映射
+     */
     private java.util.Optional<PspBankMappingEntity> bankMapping(PaymentPlanCompileRequest request,
                                                                  PaymentPlanRouteOptionEntity option,
                                                                  String bankCode) {
@@ -520,7 +523,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载与本次发布金额范围有交集的商户费率规则     */
+     * 加载与本次发布金额范围有交集的商户费率规则
+     */
     private List<MerchantFeeRuleEntity> merchantRules(PaymentPlanCompileRequest request) {
         QueryWrapper<MerchantFeeRuleEntity> wrapper = new QueryWrapper<MerchantFeeRuleEntity>()
                 .eq("tenant_id", request.getTenantId())
@@ -543,7 +547,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载与本次发布金额范围有交集的支付路由规则     */
+     * 加载与本次发布金额范围有交集的支付路由规则
+     */
     private List<PaymentRouteRuleEntity> paymentRouteRules(PaymentPlanCompileRequest request) {
         QueryWrapper<PaymentRouteRuleEntity> wrapper = new QueryWrapper<PaymentRouteRuleEntity>()
                 .eq("tenant_id", request.getTenantId())
@@ -567,7 +572,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载所有命中路由组下的可用路由通道     */
+     * 加载所有命中路由组下的可用路由通道
+     */
     private List<PaymentRouteChannelEntity> paymentRouteChannels(List<PaymentRouteRuleEntity> routeRules) {
         List<Long> groupIds = routeRules.stream()
                 .map(PaymentRouteRuleEntity::getGroupId)
@@ -585,7 +591,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载可用路由组，用于预览展示和路由一致性校验     */
+     * 加载可用路由组，用于预览展示和路由一致性校验
+     */
     private List<PaymentRouteGroupEntity> paymentRouteGroups(List<PaymentRouteRuleEntity> routeRules) {
         List<Long> groupIds = routeRules.stream()
                 .map(PaymentRouteRuleEntity::getGroupId)
@@ -603,7 +610,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 加载路由通道引用到的 PSP 方法     */
+     * 加载路由通道引用到的 PSP 方法
+     */
     private List<PspMethodEntity> pspMethods(List<PaymentRouteChannelEntity> channels) {
         List<Long> methodIds = channels.stream()
                 .map(PaymentRouteChannelEntity::getPspMethodId)
@@ -619,7 +627,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 使用具体 bucket 金额过滤已加载的路由规则     */
+     * 使用具体 bucket 金额过滤已加载的路由规则
+     */
     private List<PaymentRouteRuleEntity> matchingPaymentRouteRules(List<PaymentRouteRuleEntity> routeRules, BigDecimal amount) {
         return routeRules.stream()
                 .filter(rule -> AmountRangeUtils.contains(rule.getMinAmount(), rule.getMaxAmount(), amount))
@@ -714,7 +723,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 收集所有可能改变编译结果的源配置金额边界     */
+     * 收集所有可能改变编译结果的源配置金额边界
+     */
     private List<PaymentPlanAmountRange> sourceRanges(List<MerchantFeeRuleEntity> merchantRules,
                                                       List<PaymentRouteRuleEntity> paymentRouteRules,
                                                       List<PaymentRouteChannelEntity> paymentRouteChannels,
@@ -730,7 +740,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 创建本次编译对应的未发布 catalog 元数据     */
+     * 创建本次编译对应的未发布 catalog 元数据
+     */
     private PaymentPlanCatalogEntity catalog(PaymentPlanCompileRequest request) {
         PaymentPlanCatalogEntity catalog = new PaymentPlanCatalogEntity();
         catalog.setTenantId(request.getTenantId());
@@ -832,14 +843,16 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 只有银行卡代付需要银行映射     */
+     * 只有银行卡代付需要银行映射
+     */
     private boolean requiresBankMapping(PaymentPlanCompileRequest request) {
         return PayDirectionEnum.PAYOUT.code().equals(request.getDirection())
                 && PaymentMethodCodes.isBankCard(request.getMethodCode());
     }
 
     /**
-     * 路由规则先按匹配精确度排序，再按业务优先级排序     */
+     * 路由规则先按匹配精确度排序，再按业务优先级排序
+     */
     private Comparator<PaymentRouteRuleEntity> paymentRouteOrder(PaymentPlanCompileRequest request) {
         return Comparator
                 .comparingInt((PaymentRouteRuleEntity rule) -> paymentRouteSpecificity(rule, request))
@@ -848,7 +861,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 分数越小，表示路由规则越精确     */
+     * 分数越小，表示路由规则越精确
+     */
     private int paymentRouteSpecificity(PaymentRouteRuleEntity rule, PaymentPlanCompileRequest request) {
         int methodOffset = Strings.CI.equals(StringUtils.trim(rule.getMethodCode()), request.getMethodCode()) ? 0 : 1;
         int countryOffset = Strings.CI.equals(StringUtils.trim(rule.getCountryCode()), request.getCountryCode()) ? 0 : 2;
@@ -866,7 +880,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 校验 PSP 方法是否支持当前请求的支付维度     */
+     * 校验 PSP 方法是否支持当前请求的支付维度
+     */
     private boolean routeMethodMatches(PaymentPlanCompileRequest request, PspMethodEntity method) {
         if (method == null) {
             return false;
@@ -885,7 +900,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 校验路由规则指向的路由组是否具有相同的支付维度     */
+     * 校验路由规则指向的路由组是否具有相同的支付维度
+     */
     private boolean routeGroupMatches(PaymentRouteRuleEntity rule, PaymentRouteGroupEntity group) {
         if (rule == null || group == null) {
             return false;
@@ -899,7 +915,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 校验路由通道中的 PSP 资源是否与所属路由组一致     */
+     * 校验路由通道中的 PSP 资源是否与所属路由组一致
+     */
     private boolean routeChannelMatches(PaymentRouteGroupEntity group,
                                         PaymentRouteChannelEntity channel,
                                         PspMethodEntity method,
@@ -919,7 +936,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照运行bucket 使用的商户费率数据     */
+     * 快照运行bucket 使用的商户费率数据
+     */
     private String merchantSnapshotJson(MerchantFeeRuleEntity rule) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ruleId", rule.getId());
@@ -939,7 +957,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照运行时路由候选使用的 PSP 成本费率数据     */
+     * 快照运行时路由候选使用的 PSP 成本费率数据
+     */
     private String pspFeeSnapshotJson(PspFeeRuleEntity rule) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ruleId", rule.getId());
@@ -961,7 +980,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照命中路由组的路由规则     */
+     * 快照命中路由组的路由规则
+     */
     private String paymentRouteRuleSnapshotJson(PaymentRouteRuleEntity rule) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("ruleId", rule.getId());
@@ -984,7 +1004,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照路由通道池元数据     */
+     * 快照路由通道池元数据
+     */
     private String routeGroupSnapshotJson(PaymentRouteGroupEntity group) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("groupId", group.getId());
@@ -1001,7 +1022,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照路由候选使用的路由通道     */
+     * 快照路由候选使用的路由通道
+     */
     private String routeChannelSnapshotJson(PaymentRouteChannelEntity channel) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("routeChannelId", channel.getId());
@@ -1021,7 +1043,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照路由候选使用的 PSP 数据     */
+     * 快照路由候选使用的 PSP 数据
+     */
     private String pspProviderSnapshotJson(PspProviderEntity provider) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("pspId", provider.getId());
@@ -1039,7 +1062,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照路由候选使用的 PSP 方法数据     */
+     * 快照路由候选使用的 PSP 方法数据
+     */
     private String pspMethodSnapshotJson(PspMethodEntity method) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("pspMethodId", method.getId());
@@ -1061,7 +1085,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 快照路由候选使用的 PSP 账户数据     */
+     * 快照路由候选使用的 PSP 账户数据
+     */
     private String pspAccountSnapshotJson(PspAccountEntity account) {
         Map<String, Object> snapshot = new LinkedHashMap<>();
         snapshot.put("pspAccountId", account.getId());
@@ -1077,7 +1102,8 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 生成轻量级源配置指纹，用于比较编译后的方案内容是否变化     */
+     * 生成轻量级源配置指纹，用于比较编译后的方案内容是否变化
+     */
     private String configHash(PaymentPlanCompileResult result) {
         List<Object> source = new ArrayList<>();
         for (PaymentPlanCompileResult.CompiledBucket bucket : result.getBuckets()) {
@@ -1104,19 +1130,22 @@ public class PaymentPlanCompiler {
     }
 
     /**
-     * 给写入运行时候选的优先级类字段补默认值     */
+     * 给写入运行时候选的优先级类字段补默认值
+     */
     private int defaultPriority(Integer value) {
         return value == null ? DEFAULT_PRIORITY : value;
     }
 
     /**
-     * BigDecimal 写入快照时避免科学计数法     */
+     * BigDecimal 写入快照时避免科学计数法
+     */
     private String decimalText(BigDecimal value) {
         return value == null ? null : value.toPlainString();
     }
 
     /**
-     * 规范化支付维度编码，用于大小写不敏感匹配     */
+     * 规范化支付维度编码，用于大小写不敏感匹配
+     */
     private String normalize(String value) {
         return StringUtils.defaultString(value).trim().toUpperCase(Locale.ROOT);
     }

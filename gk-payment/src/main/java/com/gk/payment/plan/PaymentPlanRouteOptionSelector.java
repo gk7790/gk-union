@@ -18,8 +18,9 @@ public final class PaymentPlanRouteOptionSelector {
                                                       String seed,
                                                       Set<Long> disabledPspIds,
                                                       Set<Long> disabledAccountIds,
+                                                      Set<Long> disabledRouteOptionIds,
                                                       Predicate<PaymentPlanRouteOptionEntity> availablePredicate) {
-        List<PaymentPlanRouteOptionEntity> availableOptions = available(options, disabledPspIds, disabledAccountIds, availablePredicate);
+        List<PaymentPlanRouteOptionEntity> availableOptions = available(options, disabledPspIds, disabledAccountIds, disabledRouteOptionIds, availablePredicate);
         if (availableOptions.isEmpty()) {
             throw new IllegalArgumentException("Payment plan route option is not available");
         }
@@ -38,12 +39,14 @@ public final class PaymentPlanRouteOptionSelector {
     private static List<PaymentPlanRouteOptionEntity> available(List<PaymentPlanRouteOptionEntity> options,
                                                                 Set<Long> disabledPspIds,
                                                                 Set<Long> disabledAccountIds,
+                                                                Set<Long> disabledRouteOptionIds,
                                                                 Predicate<PaymentPlanRouteOptionEntity> availablePredicate) {
         if (options == null || options.isEmpty()) {
             return List.of();
         }
         return options.stream()
                 .filter(option -> option != null && PaymentPlanRouteOptionStatus.ACTIVE.equals(option.getStatus()))
+                .filter(option -> disabledRouteOptionIds == null || !disabledRouteOptionIds.contains(option.getId()))
                 .filter(option -> disabledPspIds == null || !disabledPspIds.contains(option.getPspId()))
                 .filter(option -> disabledAccountIds == null || !disabledAccountIds.contains(option.getPspAccountId()))
                 .filter(option -> availablePredicate == null || availablePredicate.test(option))

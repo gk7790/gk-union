@@ -1,5 +1,7 @@
 package com.gk.payment.psp;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
@@ -11,10 +13,14 @@ import com.gk.openapi.error.ApiException;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.plan.model.PayoutPlan;
+import com.gk.payment.plan.PayoutPlanService;
+import com.gk.payment.service.PayoutRouteAttemptService;
 import com.gk.payment.state.OrderStateChangeContext;
 import com.gk.payment.state.PayoutOrderStateService;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchService;
+import com.gk.psp.enums.PspPayoutSubmitStatus;
 import com.gk.psp.route.PspRouteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,32 +28,47 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * 代付提交 PSP 编排服务。
+ * 代付提交 PSP 服务。
  * <p>
- * 本服务是同步 OpenAPI 提交和异步 outbox 提交的统一入口：先冻结商户资金，再在数据库事务外调用 PSP，
- * 最后根据 adapter 归一化后的提交结果更新订单。只有 PSP 明确拒绝时才释放冻结资金；提交结果未知时
- * 保留冻结资金，并等待主动查单或回调确认。
+ * 核心职责：
+ * <ul>
+ *     <li>提交前冻结商户资金，避免 PSP 已受理但商户余额未锁定。</li>
+ *     <li>将每一次 PSP 提交结果写入 payout_route_attempt，保留完整路由尝试链路。</li>
+ *     <li>当 PSP 返回余额不足、账号停用等可换路由结果时，切换到下一个可用通道继续提交。</li>
+ *     <li>只有最终提交失败且不再切换路由时，才释放已冻结资金。</li>
+ * </ul>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PayoutPspSubmitService {
     private static final String PSP_SUBMIT_UNKNOWN_REASON = "PSP payout submit result unknown, waiting for query";
+    private static final String ROUTE_SWITCH_REASON = "PSP route unavailable, switch payout route";
+    private static final String ROUTE_UNAVAILABLE_FAILED_REASON = "No available payout route after PSP route unavailable";
+    private static final int DEFAULT_MAX_ROUTE_ATTEMPTS = 3;
+    private static final int MAX_ROUTE_ATTEMPTS_LIMIT = 10;
 
     private final PayoutOrderDao payoutOrderDao;
     private final LedgerPostingService ledgerPostingService;
     private final PspPayoutDispatchService pspPayoutDispatchService;
+    private final PayoutPlanService payoutPlanService;
+    private final PayoutRouteAttemptService payoutRouteAttemptService;
     private final GkSysParamsConfigService configService;
     private final TransactionTemplate transactionTemplate;
     private final PayoutOrderStateService payoutOrderStateService;
 
     /**
-     * 冻结商户资金并提交代付订单到 PSP。
+     * 冻结商户资金后提交 PSP。
      * <p>
-     * OpenAPI 和 outbox 都应优先调用该方法，保证冻结、提交、释放冻结和 UNKNOWN 处理逻辑集中在一处。
+     * 这是代付出款的推荐入口：冻结失败不会继续请求 PSP，冻结成功后才进入提交和路由切换流程。
      */
     public PayoutOrderEntity freezeAndSubmit(PayoutOrderEntity order, PspRouteResult route, SubmitContext context) {
         PayoutOrderEntity frozen = freezeIfNeeded(order, context);
@@ -58,60 +79,118 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 提交已经冻结资金的代付订单到 PSP，并处理归一化后的提交结果。
+     * 按当前路由提交 PSP，并在 PSP 明确返回“路由不可用”时尝试切换下一条路由。
      * <p>
-     * PSP 网络调用刻意放在数据库事务外执行；adapter 返回结果后，再开启短事务锁定订单并落库。
+     * 这里不负责首次冻结资金，调用方需要确保订单已经冻结或使用 {@link #freezeAndSubmit(PayoutOrderEntity, PspRouteResult, SubmitContext)}。
      */
     public PayoutOrderEntity submit(PayoutOrderEntity order, PspRouteResult route, SubmitContext context) {
         if (order == null || order.getId() == null) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payout order is required");
         }
         if (route == null) {
-            // 路由缺失不能证明商户订单失败，保留为可查单/可重试状态。
             markSubmitUnknown(order.getId(), new ApiException(ApiErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
             return payoutOrderDao.selectById(order.getId());
         }
+
+        Set<Long> disabledPspIds = new HashSet<>();
+        Set<Long> disabledAccountIds = new HashSet<>();
+        Set<Long> disabledRouteOptionIds = new HashSet<>();
+        PspRouteResult currentRoute = route;
+        int maxAttempts = maxRouteAttempts();
         try {
-            // adapter 负责 PSP 协议细节，并输出 ACCEPTED/REJECTED/UNKNOWN 三态。
-            PspPayoutDispatchResult dispatchResult = pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(order), route);
-            transactionTemplate.executeWithoutResult(status -> applyDispatchResult(order.getId(), dispatchResult, context));
+            for (int attemptIndex = 1; attemptIndex <= maxAttempts; attemptIndex++) {
+                PayoutOrderEntity currentOrder = payoutOrderDao.selectById(order.getId());
+                if (currentOrder == null || shouldSkipPspSubmit(currentOrder)) {
+                    return currentOrder;
+                }
+
+                // PSP 提交在事务外执行，避免外部 HTTP 调用长时间占用数据库行锁。
+                PspRouteResult submitRoute = currentRoute;
+                PspPayoutDispatchResult dispatchResult =
+                        pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(currentOrder), submitRoute);
+                SubmitDecision decision = transactionTemplate.execute(
+                        status -> applyDispatchResult(order.getId(), submitRoute, dispatchResult, context)
+                );
+                if (decision == null || !decision.routeUnavailable()) {
+                    return payoutOrderDao.selectById(order.getId());
+                }
+
+                // 当前 route/account 已经确认不可用，本轮后续解析路由时需要排除，避免反复选中同一条通道。
+                addIfNotNull(disabledAccountIds, decision.pspAccountId());
+                addIfNotNull(disabledRouteOptionIds, decision.routeOptionId());
+                if (attemptIndex >= maxAttempts) {
+                    markRouteUnavailableFailed(order.getId(), dispatchResult, context);
+                    return payoutOrderDao.selectById(order.getId());
+                }
+
+                PayoutPlan nextPlan = resolveNextPlan(currentOrder, disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
+                if (nextPlan == null) {
+                    markRouteUnavailableFailed(order.getId(), dispatchResult, context);
+                    return payoutOrderDao.selectById(order.getId());
+                }
+                // 切换路由也放在事务内完成，保证订单上的 PSP 路由快照和下一次提交使用的 route 一致。
+                currentRoute = transactionTemplate.execute(status -> switchRoute(order.getId(), nextPlan, context));
+                if (currentRoute == null) {
+                    return payoutOrderDao.selectById(order.getId());
+                }
+            }
         } catch (ApiException ex) {
-            markSubmitUnknown(order.getId(), ex, context);
+            markSubmitUnknown(order.getId(), currentRoute, ex, context);
         } catch (Exception ex) {
-            log.warn("Payout PSP submit result unknown, payoutOrderNo={}, err={}", order.getPayoutOrderNo(), ex.getMessage(), ex);
-            markSubmitUnknown(order.getId(), ex, context);
+            log.warn("Payout PSP submit result unknown, payoutOrderNo={}, err={}",
+                    order.getPayoutOrderNo(), ex.getMessage(), ex);
+            markSubmitUnknown(order.getId(), currentRoute, ex, context);
         }
         return payoutOrderDao.selectById(order.getId());
     }
 
     /**
-     * 根据 PSP 提交三态结果更新代付订单。
+     * 将 PSP 提交结果落库到订单。
      * <p>
-     * ACCEPTED 和 UNKNOWN 都保持非终态；只有 REJECTED 才允许订单失败并释放冻结资金。
+     * 注意：成功、失败、未知、可换路由都会先写 payout_route_attempt，这张表用于还原完整提交链路。
      */
-    private void applyDispatchResult(Long orderId, PspPayoutDispatchResult result, SubmitContext context) {
+    private SubmitDecision applyDispatchResult(Long orderId,
+                                               PspRouteResult route,
+                                               PspPayoutDispatchResult result,
+                                               SubmitContext context) {
         PayoutOrderEntity order = lockOrder(orderId);
+        if (isTerminalStatus(order)) {
+            return SubmitDecision.done();
+        }
+
         String fromStatus = order.getStatus();
+        // 每一次实际提交 PSP 的结果都记录 attempt，成功也记录，不只是失败才记录。
+        payoutRouteAttemptService.recordAttempt(order, route, result);
         order.setPspRequestNo(result.getPspRequestNo());
         order.setPspOrderNo(result.getPspOrderNo());
         order.setPspRawStatus(result.getRawStatus());
+
         if (result.isAccepted()) {
-            // ACCEPTED 只代表 PSP 已受理提交，不代表代付已经终态成功。
             order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
             order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
             order.setSubmittedAt(Instant.now());
             order.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
             payoutOrderDao.updateById(order);
             recordStatusChange(order, fromStatus, order.getStatus(), "PSP_SUBMIT", null, context);
-            return;
-        }
-        if (result.isUnknown()) {
-            // UNKNOWN 可能已经到达 PSP；查单或回调证明失败前，绝不能释放冻结资金。
-            applySubmitUnknown(order, result, fromStatus, context);
-            return;
+            return SubmitDecision.done();
         }
 
-        // REJECTED 是 PSP 明确拒绝，此时订单可以失败，并允许释放冻结资金。
+        if (result.isUnknown()) {
+            applySubmitUnknown(order, result, context);
+            return SubmitDecision.done();
+        }
+
+        if (result.isRouteUnavailable()) {
+            // PSP 余额不足、账号停用等可换路由场景：这里只标记原因并返回切换决策，不释放冻结资金。
+            String reason = StringUtils.defaultIfBlank(
+                    result.getErrorMessage(),
+                    StringUtils.defaultIfBlank(result.getResponseMessage(), ROUTE_SWITCH_REASON)
+            );
+            order.setStatusReason(StringUtils.left(reason, 512));
+            payoutOrderDao.updateById(order);
+            return SubmitDecision.routeUnavailable(order.getPspAccountId(), order.getPaymentPlanRouteOptionId());
+        }
+
         String reason = StringUtils.defaultIfBlank(
                 result.getErrorMessage(),
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP payout submit failed")
@@ -120,24 +199,29 @@ public class PayoutPspSubmitService {
         order.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
         order.setFailCode(result.getErrorCode());
         order.setFailMsg(StringUtils.left(reason, 512));
-        order.setStatusReason(reason);
+        order.setStatusReason(StringUtils.left(reason, 512));
         order.setFailedAt(Instant.now());
+        // 明确提交失败且不再切路由时释放冻结资金；UNKNOWN 不释放，等待查单确认。
         releasePayout(order);
         payoutOrderDao.updateById(order);
         recordStatusChange(order, fromStatus, order.getStatus(), "PSP_SUBMIT_FAILED", order.getStatusReason(), context);
+        return SubmitDecision.done();
+    }
+
+    private void markSubmitUnknown(Long orderId, Exception ex, SubmitContext context) {
+        markSubmitUnknown(orderId, null, ex, context);
     }
 
     /**
-     * 将提交异常按 UNKNOWN 处理。
-     * <p>
-     * 超时、解析失败、响应不可信或 adapter 异常，都不能证明 PSP 没有受理该订单。
+     * PSP 调用异常或系统异常时，订单进入 UNKNOWN，后续依赖查单确认最终结果。
      */
-    private void markSubmitUnknown(Long orderId, Exception ex, SubmitContext context) {
+    private void markSubmitUnknown(Long orderId, PspRouteResult route, Exception ex, SubmitContext context) {
         transactionTemplate.executeWithoutResult(status -> {
             PayoutOrderEntity order = lockOrder(orderId);
             if (isTerminalStatus(order)) {
                 return;
             }
+            payoutRouteAttemptService.recordAttempt(order, route, unknownResult(ex));
             applySubmitUnknown(order,
                     ex instanceof ApiException apiException ? apiException.getErrorCode().name() : ex.getClass().getSimpleName(),
                     ex.getMessage(),
@@ -146,10 +230,9 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 在订单尚未冻结时冻结商户资金。
+     * 提交 PSP 前冻结商户代付资金。
      * <p>
-     * 通过订单行锁保证重试幂等，不会重复冻结。只有余额不足属于明确业务失败；系统异常直接抛出，
-     * 交给调用方或 outbox 重试，不能误把订单标记为失败。
+     * 如果订单已经冻结或已经进入无需提交的状态，会直接返回当前订单，保证重复触发时尽量幂等。
      */
     private PayoutOrderEntity freezeIfNeeded(PayoutOrderEntity order, SubmitContext context) {
         if (order == null || order.getId() == null) {
@@ -162,7 +245,6 @@ public class PayoutPspSubmitService {
                 return current;
             }
             try {
-                // 冻结资金和保存 holdNo 在同一事务内完成，避免出现账务已冻结但订单未记录的情况。
                 LedgerPostingResult result = ledgerPostingService.freezePayout(payoutPostingRequest(current));
                 payoutOrderStateService.markFrozen(current, result, stateContext("PAYOUT_FROZEN", null, safeContext));
                 return current;
@@ -182,21 +264,16 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 标记冻结阶段的明确业务失败。
-     * <p>
-     * 当前主要用于余额不足；可重试的账务或系统异常不能走该路径。
+     * 冻结失败时将订单打到失败状态，并记录状态变更。
      */
     private void markFreezeFailed(PayoutOrderEntity order, String reason, String failCode, SubmitContext context) {
         String message = StringUtils.defaultIfBlank(reason, "Payout freeze failed");
-        payoutOrderStateService.markFreezeFailed(order, message, failCode, stateContext("PAYOUT_FREEZE_FAILED", message, context));
+        payoutOrderStateService.markFreezeFailed(order, message, failCode,
+                stateContext("PAYOUT_FREEZE_FAILED", message, context));
     }
 
-    /**
-     * 将 adapter 返回的 UNKNOWN 提交结果写入订单。
-     */
     private void applySubmitUnknown(PayoutOrderEntity order,
                                     PspPayoutDispatchResult result,
-                                    String fromStatus,
                                     SubmitContext context) {
         applySubmitUnknown(order,
                 StringUtils.defaultIfBlank(result.getErrorCode(), result.getResponseCode()),
@@ -205,7 +282,9 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 将异常型 UNKNOWN 提交结果写入订单，并安排首次主动查单时间。
+     * 标记 PSP 提交结果未知。
+     * <p>
+     * UNKNOWN 不释放冻结资金，避免 PSP 实际已受理但系统提前退款给商户。
      */
     private void applySubmitUnknown(PayoutOrderEntity order,
                                     String failCode,
@@ -222,7 +301,7 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 按订单主键加行锁，保护冻结和 PSP 提交结果回写的并发安全。
+     * 使用 for update 锁定订单，保证提交结果、路由切换、资金释放等状态变更串行执行。
      */
     private PayoutOrderEntity lockOrder(Long orderId) {
         PayoutOrderEntity order = payoutOrderDao.selectOne(new QueryWrapper<PayoutOrderEntity>()
@@ -234,6 +313,9 @@ public class PayoutPspSubmitService {
         return order;
     }
 
+    /**
+     * 订单是否已经进入不可再变更的终态。
+     */
     private boolean isTerminalStatus(PayoutOrderEntity order) {
         return PayoutOrderStatusEnum.SUCCESS.code().equals(order.getStatus())
                 || PayoutOrderStatusEnum.FAILED.code().equals(order.getStatus())
@@ -241,10 +323,7 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 判断当前订单是否应跳过 PSP 自动提交。
-     * <p>
-     * FROZEN 不在这里拦截，因为冻结完成后仍需要继续提交 PSP；PROCESSING 表示已提交或提交结果未知；
-     * MANUAL_REVIEW 和终态订单都不应被自动提交。
+     * 判断是否应该跳过 PSP 提交，避免重复提交已经处理中、人工审核或终态订单。
      */
     private boolean shouldSkipPspSubmit(PayoutOrderEntity order) {
         return PayoutOrderStatusEnum.PROCESSING.code().equals(order.getStatus())
@@ -253,10 +332,9 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * PSP 明确拒绝后释放冻结资金。
+     * 释放代付冻结资金。
      * <p>
-     * 解冻失败只记录告警，不能把 PSP 明确拒绝反向改成 UNKNOWN；后续可由运营或补偿任务根据
-     * holdNo/releaseJournalNo 继续处理。
+     * 只在明确失败场景调用；释放失败只记录日志，不覆盖订单原始失败原因。
      */
     private void releasePayout(PayoutOrderEntity order) {
         if (StringUtils.isBlank(order.getHoldNo()) || StringUtils.isNotBlank(order.getReleaseJournalNo())) {
@@ -272,7 +350,154 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 根据订单落库快照构建账务冻结/解冻请求。
+     * 基于当前订单和禁用集合重新解析下一条可用代付路由。
+     */
+    private PayoutPlan resolveNextPlan(PayoutOrderEntity order,
+                                       Set<Long> disabledPspIds,
+                                       Set<Long> disabledAccountIds,
+                                       Set<Long> disabledRouteOptionIds) {
+        try {
+            return payoutPlanService.resolve(order, disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
+        } catch (ApiException ex) {
+            if (ApiErrorCode.UNSUPPORTED_METHOD.equals(ex.getErrorCode())) {
+                return null;
+            }
+            throw ex;
+        }
+    }
+
+    /**
+     * 将订单切换到新的 PSP 路由，并清理上一轮 PSP 提交结果字段。
+     */
+    private PspRouteResult switchRoute(Long orderId, PayoutPlan plan, SubmitContext context) {
+        if (plan == null || plan.getRoute() == null) {
+            return null;
+        }
+        PayoutOrderEntity order = lockOrder(orderId);
+        if (shouldSkipPspSubmit(order)) {
+            return null;
+        }
+        String fromStatus = order.getStatus();
+        applyPayoutRoutePlan(order, plan);
+        order.setStatusReason(ROUTE_SWITCH_REASON);
+        payoutOrderDao.updateById(order);
+        recordStatusChange(order, fromStatus, order.getStatus(), "PAYOUT_ROUTE_SWITCH", ROUTE_SWITCH_REASON, context);
+        return plan.getRoute();
+    }
+
+    /**
+     * 将新的 payment plan 路由快照写回代付订单。
+     */
+    private void applyPayoutRoutePlan(PayoutOrderEntity order, PayoutPlan plan) {
+        PspRouteResult route = plan.getRoute();
+        order.setPaymentPlanCatalogId(plan.getCatalogId());
+        order.setPaymentPlanVersion(plan.getCatalogVersion());
+        order.setPaymentPlanBucketId(plan.getBucketId());
+        order.setPaymentPlanRouteOptionId(plan.getRouteOptionId());
+        applyRoute(order, route);
+        order.setPspFeeAmount(defaultZero(plan.getPspFeeAmount()));
+        if (plan.getPspFee() != null && plan.getPspFee().getRule() != null) {
+            order.setPspFeeRuleId(plan.getPspFee().getRule().getId());
+            order.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
+        } else {
+            order.setPspFeeRuleId(null);
+            order.setPspFeeSnapshotJson(null);
+        }
+        order.setPspRequestNo(null);
+        order.setPspOrderNo(null);
+        order.setPspStatus(null);
+        order.setPspRawStatus(null);
+        order.setNextQueryAt(null);
+    }
+
+    /**
+     * 写入订单当前使用的 PSP 路由字段。
+     */
+    private void applyRoute(PayoutOrderEntity order, PspRouteResult route) {
+        order.setRouteRuleId(route.getRouteRuleId());
+        order.setRouteGroupId(route.getRouteGroupId());
+        order.setRouteChannelId(route.getRouteChannelId());
+        order.setPspId(route.getPspId());
+        order.setPspCode(route.getPspCode());
+        order.setPspMethodId(route.getPspMethodId());
+        order.setPspMethodCode(route.getPspMethodCode());
+        order.setPspAccountId(route.getPspAccountId());
+        order.setPspAccountNo(route.getPspAccountNo());
+        order.setRouteSnapshotJson(routeSnapshotJson(order, route));
+    }
+
+    /**
+     * 保存订单路由快照，方便后续排查当时选择的 plan、route、PSP 账号等信息。
+     */
+    private String routeSnapshotJson(PayoutOrderEntity order, PspRouteResult route) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("catalogId", order.getPaymentPlanCatalogId());
+        snapshot.put("catalogVersion", order.getPaymentPlanVersion());
+        snapshot.put("bucketId", order.getPaymentPlanBucketId());
+        snapshot.put("routeOptionId", order.getPaymentPlanRouteOptionId());
+        snapshot.put("routeRuleId", route.getRouteRuleId());
+        snapshot.put("routeGroupId", route.getRouteGroupId());
+        snapshot.put("routeChannelId", route.getRouteChannelId());
+        snapshot.put("pspId", route.getPspId());
+        snapshot.put("pspCode", route.getPspCode());
+        snapshot.put("pspMethodId", route.getPspMethodId());
+        snapshot.put("pspMethodCode", route.getPspMethodCode());
+        snapshot.put("pspAccountId", route.getPspAccountId());
+        snapshot.put("pspAccountNo", route.getPspAccountNo());
+        snapshot.put("pspBankCode", route.getPspBankCode());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    /**
+     * 多次切换后仍没有可用路由时，将订单最终置为失败并释放冻结资金。
+     */
+    private void markRouteUnavailableFailed(Long orderId, PspPayoutDispatchResult result, SubmitContext context) {
+        transactionTemplate.executeWithoutResult(status -> {
+            PayoutOrderEntity order = lockOrder(orderId);
+            if (isTerminalStatus(order)) {
+                return;
+            }
+            String fromStatus = order.getStatus();
+            String reason = StringUtils.defaultIfBlank(
+                    result == null ? null : result.getErrorMessage(),
+                    StringUtils.defaultIfBlank(result == null ? null : result.getResponseMessage(), ROUTE_UNAVAILABLE_FAILED_REASON)
+            );
+            order.setPspRequestNo(result == null ? order.getPspRequestNo() : result.getPspRequestNo());
+            order.setPspOrderNo(result == null ? order.getPspOrderNo() : result.getPspOrderNo());
+            order.setPspRawStatus(result == null ? order.getPspRawStatus() : result.getRawStatus());
+            order.setStatus(PayoutOrderStatusEnum.FAILED.code());
+            order.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
+            order.setFailCode(StringUtils.defaultIfBlank(
+                    result == null ? null : result.getErrorCode(),
+                    "PAYOUT_ROUTE_UNAVAILABLE"
+            ));
+            order.setFailMsg(StringUtils.left(reason, 512));
+            order.setStatusReason(StringUtils.left(reason, 512));
+            order.setFailedAt(Instant.now());
+            // 已无可用路由，代付不会继续提交 PSP，此时可以释放商户冻结资金。
+            releasePayout(order);
+            payoutOrderDao.updateById(order);
+            recordStatusChange(order, fromStatus, order.getStatus(),
+                    "PAYOUT_ROUTE_UNAVAILABLE", order.getStatusReason(), context);
+        });
+    }
+
+    /**
+     * 将异常包装成 UNKNOWN 提交结果，用于统一记录 attempt 和订单状态。
+     */
+    private PspPayoutDispatchResult unknownResult(Exception ex) {
+        PspPayoutDispatchResult result = new PspPayoutDispatchResult();
+        result.setSuccess(false);
+        result.setSubmitResultStatus(PspPayoutSubmitStatus.UNKNOWN);
+        result.setErrorCode(ex instanceof ApiException apiException
+                ? apiException.getErrorCode().name()
+                : ex.getClass().getSimpleName());
+        result.setErrorMessage(ex.getMessage());
+        return result;
+    }
+
+    /**
+     * 构建冻结或释放代付资金所需的账务请求。
      */
     private PayoutPostingRequest payoutPostingRequest(PayoutOrderEntity order) {
         PayoutPostingRequest request = new PayoutPostingRequest();
@@ -292,7 +517,7 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 获取 PSP 提交后的首次查单延迟，配置异常时使用 60 秒兜底。
+     * PSP 受理或 UNKNOWN 后首次查单延迟。
      */
     private long firstQueryDelaySeconds() {
         long seconds = configService.payoutSubmitConfig().getFirstQueryDelaySeconds();
@@ -300,7 +525,34 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 异步记录订单状态变更，避免状态日志写入阻塞主支付链路。
+     * 可换路由场景下最多尝试的提交次数，增加上限保护避免配置错误造成长循环。
+     */
+    private int maxRouteAttempts() {
+        int attempts = configService.payoutSubmitConfig().getMaxRouteAttempts();
+        if (attempts <= 0) {
+            attempts = DEFAULT_MAX_ROUTE_ATTEMPTS;
+        }
+        return Math.min(attempts, MAX_ROUTE_ATTEMPTS_LIMIT);
+    }
+
+    /**
+     * 将非空 ID 加入禁用集合。
+     */
+    private void addIfNotNull(Set<Long> values, Long value) {
+        if (value != null) {
+            values.add(value);
+        }
+    }
+
+    /**
+     * 金额空值按 0 处理，避免写入订单时出现 NPE。
+     */
+    private BigDecimal defaultZero(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
+    }
+
+    /**
+     * 统一记录代付订单状态变更。
      */
     private void recordStatusChange(PayoutOrderEntity order,
                                     String fromStatus,
@@ -311,6 +563,9 @@ public class PayoutPspSubmitService {
         payoutOrderStateService.recordChange(order, fromStatus, toStatus, stateContext(eventType, reason, context));
     }
 
+    /**
+     * 构建订单状态变更上下文。
+     */
     private OrderStateChangeContext stateContext(String eventType, String reason, SubmitContext context) {
         SubmitContext safeContext = context == null ? SubmitContext.system(null, null) : context;
         return new OrderStateChangeContext(
@@ -324,10 +579,24 @@ public class PayoutPspSubmitService {
     }
 
     /**
-     * 同步 OpenAPI 和异步 outbox 共享的提交上下文。
+     * PSP 提交处理后的内部决策。
      * <p>
-     * throwOnFreezeFailure 用于区分调用场景：OpenAPI 需要把冻结失败明确返回给商户；outbox 对明确业务失败
-     * 可以标记订单后结束任务。
+     * routeUnavailable=true 表示当前 PSP 路由可跳过并继续尝试下一条路由。
+     */
+    private record SubmitDecision(boolean routeUnavailable, Long pspAccountId, Long routeOptionId) {
+        private static SubmitDecision done() {
+            return new SubmitDecision(false, null, null);
+        }
+
+        private static SubmitDecision routeUnavailable(Long pspAccountId, Long routeOptionId) {
+            return new SubmitDecision(true, pspAccountId, routeOptionId);
+        }
+    }
+
+    /**
+     * 代付提交上下文。
+     * <p>
+     * operatorType/appId/traceId 用于状态日志；throwOnFreezeFailure 控制冻结失败时是否向上抛异常。
      */
     public record SubmitContext(String operatorType, String appId, String traceId, boolean throwOnFreezeFailure) {
         public static SubmitContext system(String appId, String traceId) {

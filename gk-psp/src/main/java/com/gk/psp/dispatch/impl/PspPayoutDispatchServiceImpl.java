@@ -26,7 +26,7 @@ public class PspPayoutDispatchServiceImpl implements PspPayoutDispatchService {
             PspPayoutAdapter adapter = adapters.stream()
                     .filter(item -> item.supports(route.getPspCode()))
                     .findFirst()
-                    .orElseThrow(() -> new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "PSP payout adapter is not configured"));
+                    .orElseThrow(() -> new GkException(ErrorCode.INTERNAL_SERVER_ERROR, "Payout adapter is not configured"));
 
             PspPayoutDispatchResult result = adapter.createPayoutOrder(order, route);
             pspRequestLogger.payoutSubmitSuccess(order, route, result, System.currentTimeMillis() - startMs);

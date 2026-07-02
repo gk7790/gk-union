@@ -10,7 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 @EnumDict("merchantOrderStatus")
 public enum MerchantOrderStatusEnum implements StringCodeEnum {
     PROCESSING("PROCESSING", "Processing", "enum.merchantOrderStatus.processing", "Order is processing"),
-    SUCCESS("SUCCESS", "Success", "enum.merchantOrderStatus.success", null),
+    SUCCESS("SUCCESS", "Success", "enum.merchantOrderStatus.success", "Transaction successful"),
     FAILED("FAILED", "Failed", "enum.merchantOrderStatus.failed", "Transaction failed"),
     CLOSED("CLOSED", "Closed", "enum.merchantOrderStatus.closed", "Order closed"),
     CANCELLED("CANCELLED", "Cancelled", "enum.merchantOrderStatus.cancelled", "Order cancelled");

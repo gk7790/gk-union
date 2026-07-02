@@ -277,7 +277,8 @@ public class MerchantNotifyExecutor {
                 new PspCallbackOrder(order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                         order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
                         order.getPspAccountId(), null, order.getPayinOrderNo(), order.getMerchantOrderNo(),
-                        order.getPspOrderNo(), order.getStatus(), order.getStatusReason(), order.getCountryCode(),
+                        order.getPspOrderNo(), order.getStatus(), order.getStatusReason(),
+                        order.getMerchantStatusCode(), order.getMerchantStatusReason(), order.getCountryCode(),
                         order.getMethodCode(), order.getAmount(), order.getMerchantFeeAmount(),
                         order.getSettleAmount(), null, order.getCurrency(), order.getNotifyUrl()),
                 null);
@@ -303,7 +304,8 @@ public class MerchantNotifyExecutor {
                 new PspCallbackOrder(order.getId(), order.getTenantId(), order.getMerchantId(), order.getMerchantNo(),
                         order.getMerchantAppId(), order.getAppId(), order.getPspId(), order.getPspCode(),
                         order.getPspAccountId(), null, order.getPayoutOrderNo(), order.getMerchantOrderNo(),
-                        order.getPspOrderNo(), order.getStatus(), order.getStatusReason(), order.getCountryCode(),
+                        order.getPspOrderNo(), order.getStatus(), order.getStatusReason(),
+                        order.getMerchantStatusCode(), order.getMerchantStatusReason(), order.getCountryCode(),
                         order.getMethodCode(), order.getAmount(), order.getMerchantFeeAmount(),
                         null, order.getTotalDebitAmount(), order.getCurrency(), order.getNotifyUrl()),
                 null);

@@ -9,8 +9,12 @@ import com.gk.infra.config.model.MerchantNotifyConfig;
 import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
+import com.gk.payment.merchantview.MerchantOrderView;
+import com.gk.payment.merchantview.MerchantOrderViewAssembler;
+import com.gk.payment.merchantview.MerchantNotifyOrderView;
+import com.gk.payment.merchantview.PayinOrderView;
+import com.gk.payment.merchantview.PayoutOrderView;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
-import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackUtils;
@@ -20,17 +24,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
- * PSP 终态回调后的商户通知任务创建器。
- * <p>
- * PSP 回调把平台订单推进到终态后，本类负责创建商户异步通知任务。
- * 通知报文字段与商户 OpenAPI 保持一致，使用 snake_case。
- * system_order_id 和 merchant_order_id 表示业务单号，不是数据库主键。
+ * Creates merchant notify tasks after a PSP callback moves an order forward.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,21 +35,14 @@ public class PspCallbackNotifyCreator {
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final GkSysParamsConfigService configService;
+    private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
-    /**
-     * 创建商户异步通知任务。
-     *
-     * @param bizType 业务类型，代收或代付
-     * @param result PSP 标准回调结果
-     * @param order 平台订单快照
-     * @param logEntity PSP 回调日志，用于关联来源事件和 traceId
-     */
     public void create(String bizType, PspCallbackResult result, PspCallbackOrder order, PspCallbackLogEntity logEntity) {
         if (StringUtils.isBlank(order.notifyUrl())) {
-            // 商户未配notifyUrl 时，不创建通知任务
             return;
         }
-        String payloadJson = JSON.toJSONString(payload(bizType, result, order));
+        MerchantNotifyOrderView payload = payload(bizType, result, order);
+        String payloadJson = JSON.toJSONString(payload);
         MerchantNotifyTaskEntity task = new MerchantNotifyTaskEntity();
         task.setTenantId(order.tenantId());
         task.setMerchantId(order.merchantId());
@@ -79,93 +69,51 @@ public class PspCallbackNotifyCreator {
         task.setNextRetryAt(Instant.now());
         task.setTraceId(logEntity == null ? null : logEntity.getTraceId());
         try {
-            // 通知任务入库后，同步更新订单通知状态，便于商户侧查询通知进度
             merchantNotifyTaskDao.insert(task);
             merchantOrderNotifyStatusService.onTaskCreated(bizType, order.id(), task.getId());
         } catch (DuplicateKeyException ignored) {
-            // 重复终态回调可能尝试创建同一笔通知任务，唯一键冲突时直接忽略
+            // Duplicate terminal callbacks can race to create the same notify task.
         }
     }
 
-    /**
-     * 构建商户通知报文。
-     * <p>
-     * 代收包含 paid_amount、settle_amount；代付包含 debit_amount。
-     * 有手续费时统一输出 fee_amount。
-     */
-    Map<String, Object> payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
+    MerchantNotifyOrderView payload(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         boolean payinOrder = BizTypeEnum.PAYIN_ORDER.matches(bizType);
         String direction = payinOrder ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
-        String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
+        MerchantOrderView view = payinOrder
+                ? merchantOrderViewAssembler.fromPayinCallback(order, result)
+                : merchantOrderViewAssembler.fromPayoutCallback(order, result);
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("merchant_id", order.merchantNo());
-        payload.put("app_id", order.appId());
-        payload.put("direction", direction);
-        payload.put("system_order_id", order.orderNo());
-        payload.put("merchant_order_id", order.merchantOrderNo());
-        payload.put("status", status);
-        putIfNotBlank(payload, "status_reason", statusReason(result, order, status));
-        payload.put("amount", money(order.amount(), order.currency()));
-        payload.put("currency", order.currency());
-        putIfNotBlank(payload, "country_code", order.countryCode());
-        putIfNotBlank(payload, "method_code", order.methodCode());
-
-        if (payinOrder) {
-            // PSP 未回传实际支付金额时，默认使用订单金额
-            BigDecimal paidAmount = PspCallbackUtils.defaultAmount(result.getAmount(), order.amount());
-            payload.put("paid_amount", money(paidAmount, order.currency()));
-            if (positive(order.settleAmount())) {
-                payload.put("settle_amount", money(order.settleAmount(), order.currency()));
-            }
-        } else {
-            // 代付优先使用包含手续费的总扣款金额，没有时回退到订单金额
-            BigDecimal debitAmount = order.totalDebitAmount() != null && order.totalDebitAmount().signum() > 0
-                    ? order.totalDebitAmount()
-                    : order.amount();
-            payload.put("debit_amount", money(debitAmount, order.currency()));
-        }
-        if (positive(order.merchantFeeAmount())) {
-            payload.put("fee_amount", money(order.merchantFeeAmount(), order.currency()));
-        }
+        MerchantNotifyOrderView payload = new MerchantNotifyOrderView();
+        payload.setMerchantId(StringUtils.trimToNull(order.merchantNo()));
+        payload.setAppId(StringUtils.trimToNull(order.appId()));
+        payload.setDirection(direction);
+        copyOrderView(payload, view);
         return payload;
     }
 
-    /**
-     * 生成商户通知失败原因     */
-    private String statusReason(PspCallbackResult result, PspCallbackOrder order, String status) {
-        if (PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
-            return null;
+    private void copyOrderView(MerchantNotifyOrderView payload, MerchantOrderView view) {
+        payload.setSystemOrderId(StringUtils.trimToNull(view.getSystemOrderId()));
+        payload.setMerchantOrderId(StringUtils.trimToNull(view.getMerchantOrderId()));
+        payload.setStatus(StringUtils.trimToNull(view.getStatus()));
+        payload.setStatusReason(StringUtils.trimToNull(view.getStatusReason()));
+        payload.setAmount(StringUtils.trimToNull(view.getAmount()));
+        payload.setCurrency(StringUtils.trimToNull(view.getCurrency()));
+        payload.setCountryCode(StringUtils.trimToNull(view.getCountryCode()));
+        payload.setMethodCode(StringUtils.trimToNull(view.getMethodCode()));
+        payload.setFeeAmount(StringUtils.trimToNull(view.getFeeAmount()));
+        if (view instanceof PayinOrderView payinView) {
+            payload.setPayUrl(StringUtils.trimToNull(payinView.getPayUrl()));
+            payload.setPaidAmount(StringUtils.trimToNull(payinView.getPaidAmount()));
+            payload.setSettleAmount(StringUtils.trimToNull(payinView.getSettleAmount()));
         }
-        String reason = StringUtils.defaultIfBlank(
-                result == null ? null : result.getErrorMessage(),
-                order == null ? null : order.statusReason()
-        );
-        return StringUtils.defaultIfBlank(reason, "Transaction failed");
+        if (view instanceof PayoutOrderView payoutView) {
+            payload.setDebitAmount(StringUtils.trimToNull(payoutView.getDebitAmount()));
+        }
     }
 
-    /**
-     * 生成商户通知事件类型     */
     private String eventType(String bizType, String status) {
         String prefix = BizTypeEnum.PAYIN_ORDER.matches(bizType) ? PayDirectionEnum.PAYIN.code() : PayDirectionEnum.PAYOUT.code();
         return prefix + "_" + PspCallbackUtils.normalizeStatus(status);
     }
 
-    /**
-     * 判断金额是否大于 0     */
-    private boolean positive(BigDecimal value) {
-        return value != null && value.signum() > 0;
-    }
-
-    private void putIfNotBlank(Map<String, Object> payload, String key, String value) {
-        if (StringUtils.isNotBlank(value)) {
-            payload.put(key, value);
-        }
-    }
-
-    /**
-     * 转换金额为普通文本     */
-    private String money(BigDecimal value, String currency) {
-        return ApiAmountUtils.formatCurrencyAmount(value, currency);
-    }
 }

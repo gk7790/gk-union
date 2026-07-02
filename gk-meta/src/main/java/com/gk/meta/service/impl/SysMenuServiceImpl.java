@@ -8,6 +8,7 @@ import com.gk.common.exception.GkException;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.TreeUtils;
 import com.gk.common.validator.AssertUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.meta.dao.SysMenuDao;
 import com.gk.meta.dto.SysMenuDTO;
 import com.gk.meta.entity.SysMenuEntity;
@@ -18,7 +19,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -60,6 +65,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	@Override
 	public List<SysMenuDTO> getNavMenuList(List<Integer> typeList) {
         List<SysMenuEntity> menuList = loadNavMenus(typeList);
+        menuList = filterEnabledNavMenus(menuList);
         stripInternalFields(menuList);
 		return TreeUtils.build(ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class));
 	}
@@ -108,8 +114,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
     private List<SysMenuEntity> loadNavMenus(List<Integer> typeList) {
         if (ReqContextHolder.isSuperAdmin()) {
-            // 超管：全量菜单目录（不过滤 subjectType / role_menu）
-            return baseDao.getCatalogMenuList(typeList, null);
+            return baseDao.getNavCatalogMenuList(typeList, null, StatusEnum.NORMAL.code());
         }
         return loadAuthorizedMenus(ReqContextHolder.getSubjectType(), typeList);
     }
@@ -119,7 +124,47 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
         if (userSubjectId == null) {
             throw new GkException(ErrorCode.UNAUTHORIZED);
         }
-        return baseDao.getNavMenuList(userSubjectId, subjectType, typeList);
+        return baseDao.getNavMenuList(userSubjectId, subjectType, typeList, StatusEnum.NORMAL.code());
+    }
+
+    private List<SysMenuEntity> filterEnabledNavMenus(List<SysMenuEntity> menuList) {
+        if (CollectionUtils.isEmpty(menuList)) {
+            return menuList;
+        }
+        Set<Long> visibleIds = menuList.stream()
+                .map(SysMenuEntity::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> hiddenIds = new HashSet<>();
+        for (SysMenuEntity menu : menuList) {
+            if (menu.getId() == null) {
+                continue;
+            }
+            if (!StatusEnum.NORMAL.code().equals(menu.getStatus()) || parentHidden(menu, visibleIds)) {
+                hiddenIds.add(menu.getId());
+            }
+        }
+        if (hiddenIds.isEmpty()) {
+            return menuList;
+        }
+        boolean changed;
+        do {
+            changed = false;
+            for (SysMenuEntity menu : menuList) {
+                if (menu.getId() != null && !hiddenIds.contains(menu.getId()) && hiddenIds.contains(menu.getPid())) {
+                    hiddenIds.add(menu.getId());
+                    changed = true;
+                }
+            }
+        } while (changed);
+        return menuList.stream()
+                .filter(menu -> menu.getId() == null || !hiddenIds.contains(menu.getId()))
+                .toList();
+    }
+
+    private boolean parentHidden(SysMenuEntity menu, Set<Long> visibleIds) {
+        Long pid = menu.getPid();
+        return pid != null && pid != 0 && !visibleIds.contains(pid);
     }
 
     private void stripInternalFields(List<SysMenuEntity> menuList) {

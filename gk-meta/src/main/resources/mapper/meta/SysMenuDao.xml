@@ -50,11 +50,24 @@
 		order by t1.sort asc
 	</select>
 
+	<select id="getNavCatalogMenuList" resultMap="SysMenuResultMap">
+		select t1.* from sys_menu t1
+		<where>
+            and t1.status = #{normalStatus}
+            <include refid="typeListFilter"/>
+            <include refid="subjectTypeFilter"/>
+		</where>
+		order by t1.sort asc
+	</select>
+
 	<select id="getNavMenuList" resultMap="SysMenuResultMap">
 		select distinct t3.* from sys_role_user t1
 		inner join sys_role_menu t2 on t1.role_id = t2.role_id
+		inner join sys_role t4 on t1.role_id = t4.id
 		inner join sys_menu t3 on t2.menu_id = t3.id
 		where t1.user_subject_id = #{userSubjectId}
+        and t4.status = #{normalStatus}
+        and t3.status = #{normalStatus}
         <if test="typeList != null">
             and t3.type in
             <foreach item="type" collection="typeList" open="(" separator="," close=")">

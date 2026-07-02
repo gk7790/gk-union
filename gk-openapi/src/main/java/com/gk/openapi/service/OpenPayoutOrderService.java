@@ -1,12 +1,12 @@
 package com.gk.openapi.service;
 
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
-import com.gk.openapi.dto.PayoutOrderResponse;
+import com.gk.payment.merchantview.PayoutOrderView;
 
 public interface OpenPayoutOrderService {
-    PayoutOrderResponse create(PayoutOrderCreateRequest request);
+    PayoutOrderView create(PayoutOrderCreateRequest request);
 
-    PayoutOrderResponse getByPayoutOrderNo(String payoutOrderNo);
+    PayoutOrderView getByPayoutOrderNo(String payoutOrderNo);
 
-    PayoutOrderResponse getByMerchantOrderNo(String merchantOrderNo);
+    PayoutOrderView getByMerchantOrderNo(String merchantOrderNo);
 }

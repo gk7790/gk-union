@@ -15,17 +15,17 @@ import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.openapi.dto.PayoutOrderCreateRequest;
-import com.gk.openapi.dto.PayoutOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayoutOrderService;
-import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
+import com.gk.payment.merchantview.MerchantOrderViewAssembler;
+import com.gk.payment.merchantview.PayoutOrderView;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
 import com.gk.payment.outbox.PayoutSubmitOutboxProducer;
 import com.gk.payment.plan.model.PayoutPlan;
@@ -66,15 +66,16 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final LedgerBalanceDao ledgerBalanceDao;
     private final TransactionTemplate transactionTemplate;
     private final GkSysParamsConfigService configService;
+    private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
     /**
      * 创建代付订单
      * <p>
-     * 主流程：检查幂-> 校验金额和商户应用权-> 组装订单和收款人信息 ->
-     * 计算商户手续-> 落库 -> 冻结余额 -> 提交 PSP -> 返回订单状态
+     * 主流程：检查幂等 -> 校验金额和商户应用权限 -> 组装订单和收款人信息 ->
+     * 计算商户手续费 -> 落库 -> 冻结余额 -> 提交 PSP -> 返回商户侧订单视图
      */
     @Override
-    public PayoutOrderResponse create(PayoutOrderCreateRequest request) {
+    public PayoutOrderView create(PayoutOrderCreateRequest request) {
         if (request == null) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST);
         }
@@ -107,7 +108,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             // The idempotent request must keep all business-sensitive fields unchanged.
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
             timer.mark("return_idempotent_order");
-            PayoutOrderResponse response = toResponse(existed);
+            PayoutOrderView response = toResponse(existed);
             timer.log("SUCCESS", existed);
             return response;
         }
@@ -166,20 +167,20 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
                 : insertOrder(entity);
         timer.mark("insert_order");
         if (!created) {
-            PayoutOrderResponse response = toResponse(entity);
+            PayoutOrderView response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
         if (isTestApp(context.getMerchantApp())) {
             submitToSandbox(entity);
             timer.mark("submit_sandbox");
-            PayoutOrderResponse response = toResponse(entity);
+            PayoutOrderView response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
         if (asyncSubmitEnabled) {
             timer.mark("create_outbox");
-            PayoutOrderResponse response = toResponse(entity);
+            PayoutOrderView response = toResponse(entity);
             timer.log("ACCEPTED", entity);
             return response;
         }
@@ -204,7 +205,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             throw ex;
         }
 
-        PayoutOrderResponse response = toResponse(entity);
+        PayoutOrderView response = toResponse(entity);
         timer.log("SUCCESS", entity);
         return response;
     }
@@ -213,7 +214,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 按平台代付订单号查询订单
      */
     @Override
-    public PayoutOrderResponse getByPayoutOrderNo(String payoutOrderNo) {
+    public PayoutOrderView getByPayoutOrderNo(String payoutOrderNo) {
         PayoutOrderEntity entity = payoutOrderDao.selectOpenApiByPayoutOrderNo(
                 ApiReqContextHolder.getTenantId(),
                 ApiReqContextHolder.getMerchantId(),
@@ -226,7 +227,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
      * 按商户订单号查询订单
      */
     @Override
-    public PayoutOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
+    public PayoutOrderView getByMerchantOrderNo(String merchantOrderNo) {
         PayoutOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
         return toResponse(entity);
     }
@@ -608,6 +609,8 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         target.setMerchantOrderNo(source.getMerchantOrderNo());
         target.setStatus(source.getStatus());
         target.setStatusReason(source.getStatusReason());
+        target.setMerchantStatusCode(source.getMerchantStatusCode());
+        target.setMerchantStatusReason(source.getMerchantStatusReason());
         target.setAmount(source.getAmount());
         target.setMerchantFeeAmount(source.getMerchantFeeAmount());
         target.setMerchantFeeRuleId(source.getMerchantFeeRuleId());
@@ -631,26 +634,17 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     }
 
     /**
-     * 转换代付订单OpenAPI 响应
+     * 转换代付订单 OpenAPI 响应。
      */
-    private PayoutOrderResponse toResponse(PayoutOrderEntity entity) {
+    private PayoutOrderView toResponse(PayoutOrderEntity entity) {
         if (entity == null) {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
-        PayoutOrderResponse response = new PayoutOrderResponse();
-        response.setSystemOrderId(entity.getPayoutOrderNo());
-        response.setMerchantOrderId(entity.getMerchantOrderNo());
-        response.setStatus(entity.getStatus());
-        response.setStatusReason(entity.getStatusReason());
-        response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));
-        response.setCurrency(entity.getCurrency());
-        response.setCountryCode(entity.getCountryCode());
-        response.setMethodCode(entity.getMethodCode());
-        return response;
+        return merchantOrderViewAssembler.fromPayoutOrder(entity);
     }
 
     /**
-     * 将对象转JSON
+     * 将对象转 JSON。
      */
     private String toJson(Object value) {
         if (value == null) {
@@ -664,13 +658,6 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
         } catch (Exception ex) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON field");
         }
-    }
-
-    /**
-     * 按币种格式化金额输出
-     */
-    private String formatMoney(BigDecimal value, String currency) {
-        return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
     }
 
     /**

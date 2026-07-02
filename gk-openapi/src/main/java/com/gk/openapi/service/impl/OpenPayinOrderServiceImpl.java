@@ -11,18 +11,19 @@ import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.openapi.dto.PayinOrderCreateRequest;
-import com.gk.openapi.dto.PayinOrderResponse;
 import com.gk.openapi.error.ApiErrorCode;
 import com.gk.openapi.error.ApiException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayinOrderService;
-import com.gk.openapi.util.ApiAmountUtils;
 import com.gk.common.enums.OrderSourceEnum;
 import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
 import com.gk.payment.enums.SettleStatusEnum;
+import com.gk.payment.merchantview.MerchantOrderViewAssembler;
+import com.gk.payment.merchantview.PayinOrderView;
 import com.gk.payment.plan.model.PayinPlan;
 import com.gk.payment.plan.PayinPlanService;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
@@ -61,6 +62,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
     private final GkSysParamsConfigService configService;
+    private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
     /**
      * 创建代收订单。
@@ -69,7 +71,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
      * 落库 -> 提交 PSP -> 返回支付链接和订单状态。
      */
     @Override
-    public PayinOrderResponse create(PayinOrderCreateRequest request) {
+    public PayinOrderView create(PayinOrderCreateRequest request) {
         if (request == null) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST);
         }
@@ -102,7 +104,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
             // 同一商户订单号再次请求时，核心请求参数必须一致，否则按重复请求冲突处理
             validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
             timer.mark("return_idempotent_order");
-            PayinOrderResponse response = toResponse(existed);
+            PayinOrderView response = toResponse(existed);
             timer.log("SUCCESS", existed);
             return response;
         }
@@ -155,14 +157,14 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         boolean created = insertOrder(entity);
         timer.mark("insert_order");
         if (!created) {
-            PayinOrderResponse response = toResponse(entity);
+            PayinOrderView response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
         if (isTestApp(context.getMerchantApp())) {
             submitToSandbox(entity);
             timer.mark("submit_sandbox");
-            PayinOrderResponse response = toResponse(entity);
+            PayinOrderView response = toResponse(entity);
             timer.log("SUCCESS", entity);
             return response;
         }
@@ -179,7 +181,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
             timer.log("FAILED:" + ex.getClass().getSimpleName(), entity);
             throw ex;
         }
-        PayinOrderResponse response = toResponse(entity);
+        PayinOrderView response = toResponse(entity);
         timer.log("SUCCESS", entity);
         return response;
     }
@@ -335,6 +337,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
                 StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
         );
         entity.setStatusReason(reason);
+        entity.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+        entity.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
         recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT_FAILED", reason, "SYSTEM");
     }
 
@@ -348,6 +352,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         entity.setStatus(PayinOrderStatusEnum.FAILED.code());
         String message = StringUtils.defaultIfBlank(reason, "Pay order failed");
         entity.setStatusReason(message);
+        entity.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
+        entity.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
         payinOrderDao.updateById(entity);
         recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
     }
@@ -460,6 +466,8 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         target.setMerchantOrderNo(source.getMerchantOrderNo());
         target.setStatus(source.getStatus());
         target.setStatusReason(source.getStatusReason());
+        target.setMerchantStatusCode(source.getMerchantStatusCode());
+        target.setMerchantStatusReason(source.getMerchantStatusReason());
         target.setAmount(source.getAmount());
         target.setPaidAmount(source.getPaidAmount());
         target.setMerchantFeeAmount(source.getMerchantFeeAmount());
@@ -487,7 +495,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     /**
      * 按平台代收订单号查询订单     */
     @Override
-    public PayinOrderResponse getByPayinOrderNo(String payinOrderNo) {
+    public PayinOrderView getByPayinOrderNo(String payinOrderNo) {
         PayinOrderEntity entity = payinOrderDao.selectOpenApiByPayinOrderNo(
                 ApiReqContextHolder.getTenantId(),
                 ApiReqContextHolder.getMerchantId(),
@@ -499,7 +507,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     /**
      * 按商户订单号查询订单     */
     @Override
-    public PayinOrderResponse getByMerchantOrderNo(String merchantOrderNo) {
+    public PayinOrderView getByMerchantOrderNo(String merchantOrderNo) {
         PayinOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
         return toResponse(entity);
     }
@@ -614,26 +622,10 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     /**
      * 转换代收订单 OpenAPI 响应。
      */
-    private PayinOrderResponse toResponse(PayinOrderEntity entity) {
+    private PayinOrderView toResponse(PayinOrderEntity entity) {
         if (entity == null) {
             throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
         }
-        PayinOrderResponse response = new PayinOrderResponse();
-        response.setSystemOrderId(entity.getPayinOrderNo());
-        response.setMerchantOrderId(entity.getMerchantOrderNo());
-        response.setStatus(entity.getStatus());
-        response.setStatusReason(entity.getStatusReason());
-        response.setAmount(formatMoney(entity.getAmount(), entity.getCurrency()));
-        response.setCurrency(entity.getCurrency());
-        response.setCountryCode(entity.getCountryCode());
-        response.setMethodCode(entity.getMethodCode());
-        response.setPayUrl(entity.getPspPayUrl());
-        return response;
-    }
-
-    /**
-     * 按币种格式化金额输出     */
-    private String formatMoney(BigDecimal value, String currency) {
-        return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
+        return merchantOrderViewAssembler.fromPayinOrder(entity);
     }
 }

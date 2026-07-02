@@ -86,7 +86,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         if (tenantIds.isEmpty()) {
             return;
         }
-        Map<Long, TenantEntity> tenants = tenantDao.selectBatchIds(tenantIds).stream()
+        Map<Long, TenantEntity> tenants = tenantDao.selectByIds(tenantIds).stream()
                 .collect(Collectors.toMap(TenantEntity::getId, Function.identity(), (left, right) -> left));
         refs.stream()
                 .filter(ref -> SubjectTypeEnum.TENANT.matches(ref.subjectType()))
@@ -106,7 +106,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         if (pspAccountIds.isEmpty()) {
             return;
         }
-        Map<Long, PspAccountEntity> accounts = pspAccountDao.selectBatchIds(pspAccountIds).stream()
+        Map<Long, PspAccountEntity> accounts = pspAccountDao.selectByIds(pspAccountIds).stream()
                 .collect(Collectors.toMap(PspAccountEntity::getId, Function.identity(), (left, right) -> left));
         Set<Long> pspProviderIds = accounts.values().stream()
                 .map(PspAccountEntity::getPspId)
@@ -114,7 +114,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
                 .collect(Collectors.toSet());
         Map<Long, PspProviderEntity> providers = pspProviderIds.isEmpty()
                 ? Map.of()
-                : pspProviderDao.selectBatchIds(pspProviderIds).stream()
+                : pspProviderDao.selectByIds(pspProviderIds).stream()
                 .collect(Collectors.toMap(PspProviderEntity::getId, Function.identity(), (left, right) -> left));
 
         refs.stream()
@@ -159,7 +159,7 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
         if (merchantIds.isEmpty()) {
             return;
         }
-        Map<Long, MerchantEntity> merchants = merchantDao.selectBatchIds(merchantIds).stream()
+        Map<Long, MerchantEntity> merchants = merchantDao.selectByIds(merchantIds).stream()
                 .collect(Collectors.toMap(MerchantEntity::getId, Function.identity(), (left, right) -> left));
         refs.stream()
                 .filter(ref -> SubjectTypeEnum.MERCHANT.matches(ref.subjectType()))

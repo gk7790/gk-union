@@ -3,8 +3,8 @@ package com.gk.api.config;
 import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 import org.springframework.core.type.filter.TypeFilter;
+import org.springframework.lang.NonNull;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
@@ -22,7 +22,7 @@ public class ApiComponentExcludeFilter implements TypeFilter {
     );
 
     @Override
-    public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) throws IOException {
+    public boolean match(@NonNull MetadataReader metadataReader, @NonNull MetadataReaderFactory metadataReaderFactory) {
         String className = metadataReader.getClassMetadata().getClassName();
         if (isAllowedPublicController(className)) {
             return false;

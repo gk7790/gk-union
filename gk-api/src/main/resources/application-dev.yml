@@ -35,6 +35,8 @@ spring:
           min-idle: ${REDIS_POOL_MIN_IDLE:1}
 
 gk:
+  lifecycle-alert:
+    enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:
     open: true
   time-zone: ${APP_TIME_ZONE:UTC}

@@ -62,6 +62,8 @@ knife4j:
     enabled: false
 
 gk:
+  lifecycle-alert:
+    enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:
     open: true
   time-zone: ${APP_TIME_ZONE:UTC}

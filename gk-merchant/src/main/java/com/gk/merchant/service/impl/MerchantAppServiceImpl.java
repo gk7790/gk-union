@@ -29,6 +29,7 @@ import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import com.gk.merchant.support.MerchantAppSecrets;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +46,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     private static final int APP_ID_GENERATE_MAX_ATTEMPTS = 5;
 
     private final MerchantPaymentPlanCacheEvictor paymentPlanCacheEvictor;
-    private final OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
+    private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -369,18 +370,20 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
     }
 
     private void evictMerchantAppCache(String appId) {
-        if (openApiAuthCacheEvictor != null) {
-            openApiAuthCacheEvictor.evictByAppId(appId);
+        OpenApiAuthCacheEvictor evictor = openApiAuthCacheEvictorProvider.getIfAvailable();
+        if (evictor != null) {
+            evictor.evictByAppId(appId);
         }
     }
 
     private void evictMerchantAppCache(List<String> appIds) {
-        if (openApiAuthCacheEvictor == null || appIds == null) {
+        OpenApiAuthCacheEvictor evictor = openApiAuthCacheEvictorProvider.getIfAvailable();
+        if (evictor == null || appIds == null) {
             return;
         }
         appIds.stream()
                 .filter(Objects::nonNull)
                 .distinct()
-                .forEach(openApiAuthCacheEvictor::evictByAppId);
+                .forEach(evictor::evictByAppId);
     }
 }

@@ -30,7 +30,6 @@ import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantLedgerAccountProvisioner;
 import com.gk.merchant.service.MerchantService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -49,9 +48,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     private final MerchantAppService merchantAppService;
     private final ObjectProvider<MerchantLedgerAccountProvisioner> ledgerAccountProvisioner;
     private final GkSysParamsConfigService configService;
-
-    @Autowired
-    private OpenApiAuthCacheEvictor openApiAuthCacheEvictor;
+    private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
 
     @Override
     public QueryWrapper<MerchantEntity> getWrapper(DynMap params) {
@@ -155,8 +152,9 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     }
 
     private void evictOpenApiAuthCache(Long tenantId, Long merchantId) {
-        if (openApiAuthCacheEvictor != null) {
-            openApiAuthCacheEvictor.evictByMerchant(tenantId, merchantId);
+        OpenApiAuthCacheEvictor evictor = openApiAuthCacheEvictorProvider.getIfAvailable();
+        if (evictor != null) {
+            evictor.evictByMerchant(tenantId, merchantId);
         }
     }
 

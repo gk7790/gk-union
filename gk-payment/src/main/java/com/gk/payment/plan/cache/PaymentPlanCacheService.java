@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PaymentPlanCacheService {
-    private static final long LOCAL_CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
+    private static final long LOCAL_CACHE_TTL_MILLIS = Duration.ofSeconds(30).toMillis();
     private static final long REDIS_CACHE_TTL_SECONDS = Duration.ofMinutes(30).toSeconds();
 
     private final RedisUtils redisUtils;

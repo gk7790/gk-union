@@ -45,7 +45,12 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-openapi</artifactId>
+            <artifactId>gk-merchant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-payment</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

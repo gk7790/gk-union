@@ -45,12 +45,14 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         String ownerScope = params.getStr("ownerScope");
         Long tenantId = params.getLong("tenantId", null);
         String botNo = params.getStr("botNo");
+        String name = params.getStr("name");
         String username = params.getStr("username");
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
 
         wrapper.eq(StrUtil.isNotBlank(ownerScope), "owner_scope", ownerScope);
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(StrUtil.isNotBlank(botNo), "bot_no", botNo);
+        wrapper.like(StrUtil.isNotBlank(name), "name", name);
         wrapper.like(StrUtil.isNotBlank(username), "username", username);
         wrapper.eq(status != null, "status", status);
         return wrapper;
@@ -99,6 +101,9 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         }
         if (StrUtil.isBlank(entity.getUsername())) {
             throw new GkException("Unable to get Bot username: " + getMeResult.getMsg());
+        }
+        if (StrUtil.isBlank(entity.getName())) {
+            entity.setName(StrUtil.isNotBlank(entity.getUsername()) ? entity.getUsername() : entity.getBotNo());
         }
 
         insert(entity);

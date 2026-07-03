@@ -27,6 +27,7 @@ CREATE TABLE `tg_bot`  (
   `owner_scope` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PLATFORM' COMMENT '归属: PLATFORM/TENANT',
   `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID; TENANT必填, PLATFORM为空',
   `bot_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '内部机器人编号',
+  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '机器人显示名称',
   `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Bot @username',
   `bot_user_id` bigint NULL DEFAULT NULL COMMENT 'Telegram BotUserId(getMe)',
   `token_cipher` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'BotToken密文(对称加密, 禁止明文)',

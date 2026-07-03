@@ -20,6 +20,8 @@ public class TgBotDTO {
     private Long tenantId;
     @Schema(title = "内部机器人编号", description = "新增时自动生成", accessMode = Schema.AccessMode.READ_ONLY)
     private String botNo;
+    @Schema(title = "机器人名称", description = "后台展示名称")
+    private String name;
     @Schema(title = "Bot @username", description = "新增可留空, 测试连通(getMe)后回填")
     private String username;
     @Schema(title = "Telegram BotUserId", accessMode = Schema.AccessMode.READ_ONLY)

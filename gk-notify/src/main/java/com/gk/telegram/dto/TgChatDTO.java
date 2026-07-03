@@ -6,8 +6,9 @@ import lombok.Data;
 import java.time.Instant;
 
 /**
- * Telegram 群/会话绑定前后端传输对象。
- * <p>用于后台查看群绑定关系、通知用途和订阅事件范围。</p>
+ * Telegram 会话/群组绑定前后端传输对象。
+ * <p>
+ * 用于后台查看群绑定关系、通知用途和订阅事件范围。
  */
 @Data
 @Schema(description = "Telegram会话/群组")
@@ -20,6 +21,8 @@ public class TgChatDTO {
     private Long merchantId;
     @Schema(title = "所属机器人ID")
     private Long botId;
+    @Schema(title = "机器人名称", description = "优先返回用户名，没有用户名时返回机器人编号")
+    private String botName;
     @Schema(title = "Telegram ChatId", description = "群为负数")
     private Long chatId;
     @Schema(title = "类型", description = "PRIVATE/GROUP/SUPERGROUP/CHANNEL")

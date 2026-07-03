@@ -18,6 +18,8 @@ public class TgBotEntity extends SimpleEntity {
     private Long tenantId;
     /** 内部机器人编号 */
     private String botNo;
+    /** 机器人显示名称 */
+    private String name;
     /** Bot @username */
     private String username;
     /** Telegram BotUserId(getMe) */

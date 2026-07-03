@@ -6,10 +6,13 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
+import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
+import com.gk.telegram.entity.TgBotEntity;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.support.TgConstants;
@@ -17,7 +20,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Telegram 群/会话绑定服务实现。
@@ -26,6 +34,18 @@ import java.util.Locale;
  */
 @Service
 public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, TgChatDTO> implements TgChatService {
+    private final TgBotDao tgBotDao;
+
+    public TgChatServiceImpl(TgBotDao tgBotDao) {
+        this.tgBotDao = tgBotDao;
+    }
+
+    @Override
+    public PageData<TgChatDTO> page(DynMap params) {
+        PageData<TgChatDTO> page = super.page(params);
+        fillBotInfo(page.getItems());
+        return page;
+    }
 
     /**
      * 构造后台 Telegram 会话/群绑定列表查询条件。
@@ -64,6 +84,33 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
                 .eq("chat_id", chatId)
                 .eq("status", 1)
                 .last("limit 1"));
+    }
+
+    /**
+     * 批量填充机器人展示信息，避免分页列表逐行查询机器人表。
+     */
+    private void fillBotInfo(List<TgChatDTO> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        List<Long> botIds = items.stream()
+                .map(TgChatDTO::getBotId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (botIds.isEmpty()) {
+            return;
+        }
+        Map<Long, TgBotEntity> botMap = tgBotDao.selectByIds(botIds).stream()
+                .collect(Collectors.toMap(TgBotEntity::getId, Function.identity(), (left, right) -> left));
+        for (TgChatDTO item : items) {
+            TgBotEntity bot = botMap.get(item.getBotId());
+            if (bot == null) {
+                continue;
+            }
+            item.setBotName(StringUtils.defaultIfBlank(bot.getName(),
+                    StringUtils.defaultIfBlank(bot.getUsername(), bot.getBotNo())));
+        }
     }
 
     /**

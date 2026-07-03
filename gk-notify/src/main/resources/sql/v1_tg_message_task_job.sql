@@ -1,8 +1,8 @@
 -- ----------------------------
 -- Telegram message send Quartz jobs
 -- Same beanName = tgMessageTask, split by params/biz_type.
--- SYSTEM_ALERT handles: SYSTEM_ERROR, SYSTEM_WARN, RISK_ALERT.
--- BUSINESS_NOTIFY handles: PAYIN_SUCCESS, PAYOUT_SUCCESS, PAYOUT_FAILED.
+-- SYSTEM_ALERT handles: SYSTEM_ERROR, SYSTEM_WARN, RISK_WARN.
+-- BUSINESS_NOTIFY handles: PAYIN_NOTICE, PAYOUT_NOTICE, CHANNEL_NOTICE, MERCHANT_NOTICE, ORDER_NOTICE, PSP_NOTICE.
 -- ----------------------------
 
 INSERT INTO `schedule_job`

@@ -28,7 +28,7 @@ public class TgChatDTO {
     private String title;
     @Schema(title = "用途", description = "NOTIFY/OPS/CUSTOMER")
     private String purpose;
-    @Schema(title = "订阅事件", description = "逗号分隔, 空=全部")
+    @Schema(title = "订阅事件", description = "英文逗号分隔，空=不接收任何通知")
     private String eventTypes;
     @Schema(title = "消息语言")
     private String lang;

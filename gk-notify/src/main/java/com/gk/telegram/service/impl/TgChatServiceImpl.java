@@ -4,8 +4,10 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.iam.entity.SysUserSubjectEntity;
+import com.gk.infra.telegram.TgAlertEventType;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;
@@ -19,7 +21,8 @@ import java.util.Locale;
 
 /**
  * Telegram 群/会话绑定服务实现。
- * <p>封装 tg_chat 的后台查询、群绑定新增/恢复和解绑状态变更逻辑。</p>
+ * <p>
+ * 封装 tg_chat 的后台查询、群绑定新增/恢复、默认订阅分配和解绑状态变更。
  */
 @Service
 public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, TgChatDTO> implements TgChatService {
@@ -65,7 +68,9 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
 
     /**
      * 新增或恢复 Telegram 群绑定。
-     * <p>表上存在 bot_id + chat_id 唯一键，所以这里按唯一键做 upsert 语义。</p>
+     * <p>
+     * 表上存在 bot_id + chat_id 唯一键，所以这里按唯一键做 upsert 语义。
+     * 首次绑定会根据主体类型写入默认订阅事件；重新绑定时如果已有自定义 event_types，则不覆盖。
      */
     @Override
     public TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
@@ -80,16 +85,17 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
                 .eq("bot_id", botId)
                 .eq("chat_id", chatId)
                 .last("limit 1"));
+
         if (existed == null) {
-            // 首次群绑定时登记推送目标，并默认作为通知用途。
             TgChatEntity entity = new TgChatEntity();
-            entity.setTenantId(subject.getTenantId());
-            entity.setMerchantId(subject.getMerchantId());
+            entity.setTenantId(defaultId(subject.getTenantId()));
+            entity.setMerchantId(defaultId(subject.getMerchantId()));
             entity.setBotId(botId);
             entity.setChatId(chatId);
             entity.setChatType(normalizedType);
             entity.setTitle(title);
-            entity.setPurpose(TgConstants.ChatPurpose.NOTIFY);
+            entity.setPurpose(defaultPurpose(subject));
+            entity.setEventTypes(defaultEventTypes(subject));
             entity.setLang(lang);
             entity.setStatus(1);
             entity.setCreatedAt(now);
@@ -98,26 +104,71 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
             return entity;
         }
 
-        // 群重新绑定时刷新租户、商户、标题和语言，并恢复为启用状态。
         TgChatEntity update = new TgChatEntity();
         update.setId(existed.getId());
-        update.setTenantId(subject.getTenantId());
-        update.setMerchantId(subject.getMerchantId());
+        update.setTenantId(defaultId(subject.getTenantId()));
+        update.setMerchantId(defaultId(subject.getMerchantId()));
         update.setChatType(normalizedType);
         update.setTitle(title);
         update.setLang(lang);
+        if (StringUtils.isBlank(existed.getPurpose())) {
+            update.setPurpose(defaultPurpose(subject));
+        }
+        if (StringUtils.isBlank(existed.getEventTypes())) {
+            update.setEventTypes(defaultEventTypes(subject));
+        }
         update.setStatus(1);
         update.setUpdatedAt(now);
         baseDao.updateById(update);
 
-        existed.setTenantId(subject.getTenantId());
-        existed.setMerchantId(subject.getMerchantId());
+        existed.setTenantId(defaultId(subject.getTenantId()));
+        existed.setMerchantId(defaultId(subject.getMerchantId()));
         existed.setChatType(normalizedType);
         existed.setTitle(title);
         existed.setLang(lang);
+        if (StringUtils.isBlank(existed.getPurpose())) {
+            existed.setPurpose(defaultPurpose(subject));
+        }
+        if (StringUtils.isBlank(existed.getEventTypes())) {
+            existed.setEventTypes(defaultEventTypes(subject));
+        }
         existed.setStatus(1);
         existed.setUpdatedAt(now);
         return existed;
+    }
+
+    /**
+     * 根据绑定主体给群设置默认用途。
+     * <p>
+     * purpose 只用于后台展示分类，不参与通知投递过滤。
+     */
+    private String defaultPurpose(SysUserSubjectEntity subject) {
+        if (subject == null) {
+            return TgConstants.ChatPurpose.NOTIFY;
+        }
+        if (SubjectTypeEnum.PLATFORM.matches(subject.getSubjectType())
+                || SubjectTypeEnum.TENANT.matches(subject.getSubjectType())) {
+            return TgConstants.ChatPurpose.OPS;
+        }
+        return TgConstants.ChatPurpose.NOTIFY;
+    }
+
+    /**
+     * 根据绑定主体分配默认订阅事件。
+     * <p>
+     * 商户群通常只有一个，所以默认接收商户相关的业务、风控、渠道和订单通知；
+     * PSP_NOTICE 属于内部四方异常，默认只给平台/租户侧后续手动配置，不主动分配给商户群。
+     * 平台/租户群默认接收系统和风控类通知。
+     */
+    private String defaultEventTypes(SysUserSubjectEntity subject) {
+        if (subject != null && SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
+            return TgAlertEventType.merchantDefaultEventTypes();
+        }
+        return TgAlertEventType.opsDefaultEventTypes();
+    }
+
+    private Long defaultId(Long id) {
+        return id == null ? 0L : id;
     }
 
     /**

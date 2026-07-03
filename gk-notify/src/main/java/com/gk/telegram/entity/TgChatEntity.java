@@ -27,7 +27,7 @@ public class TgChatEntity extends SimpleEntity {
     private String title;
     /** 用途: NOTIFY/OPS/CUSTOMER */
     private String purpose;
-    /** 订阅事件(逗号分隔, 空=全部) */
+    /** 订阅事件(逗号分隔, 空=不接收) */
     private String eventTypes;
     /** 消息语言 */
     private String lang;

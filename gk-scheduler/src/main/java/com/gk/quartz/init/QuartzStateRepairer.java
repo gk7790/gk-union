@@ -13,12 +13,12 @@ public class QuartzStateRepairer {
     private static final String SCHED_NAME = "GkScheduler";
 
     private static final String DELETE_FIRED_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
-            DELETE ft FROM QRTZ_FIRED_TRIGGERS ft
-            JOIN QRTZ_TRIGGERS t
+            DELETE ft FROM qrtz_fired_triggers ft
+            JOIN qrtz_triggers t
               ON t.SCHED_NAME = ft.SCHED_NAME
              AND t.TRIGGER_NAME = ft.TRIGGER_NAME
              AND t.TRIGGER_GROUP = ft.TRIGGER_GROUP
-            LEFT JOIN QRTZ_CRON_TRIGGERS ct
+            LEFT JOIN qrtz_cron_triggers ct
               ON ct.SCHED_NAME = t.SCHED_NAME
              AND ct.TRIGGER_NAME = t.TRIGGER_NAME
              AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP
@@ -28,8 +28,8 @@ public class QuartzStateRepairer {
             """;
 
     private static final String DELETE_CRON_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
-            DELETE t FROM QRTZ_TRIGGERS t
-            LEFT JOIN QRTZ_CRON_TRIGGERS ct
+            DELETE t FROM qrtz_triggers t
+            LEFT JOIN qrtz_cron_triggers ct
               ON ct.SCHED_NAME = t.SCHED_NAME
              AND ct.TRIGGER_NAME = t.TRIGGER_NAME
              AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP
@@ -39,8 +39,8 @@ public class QuartzStateRepairer {
             """;
 
     private static final String DELETE_TASK_JOBS_WITHOUT_TRIGGERS = """
-            DELETE jd FROM QRTZ_JOB_DETAILS jd
-            LEFT JOIN QRTZ_TRIGGERS t
+            DELETE jd FROM qrtz_job_details jd
+            LEFT JOIN qrtz_triggers t
               ON t.SCHED_NAME = jd.SCHED_NAME
              AND t.JOB_NAME = jd.JOB_NAME
              AND t.JOB_GROUP = jd.JOB_GROUP

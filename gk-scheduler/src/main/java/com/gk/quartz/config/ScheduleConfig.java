@@ -40,7 +40,7 @@ public class ScheduleConfig {
         prop.put("org.quartz.jobStore.maxMisfiresToHandleAtATime", "1");
 
         prop.put("org.quartz.jobStore.misfireThreshold", "12000");
-        prop.put("org.quartz.jobStore.tablePrefix", "QRTZ_");
+        prop.put("org.quartz.jobStore.tablePrefix", "qrtz_");
 
         //PostgreSQL数据库，需要打开此注释
         //prop.put("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");

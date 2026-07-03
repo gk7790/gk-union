@@ -20,6 +20,7 @@
         <module>gk-infra</module>
         <module>gk-meta</module>
         <module>gk-admin</module>
+        <module>gk-api</module>
         <module>gk-scheduler</module>
         <module>gk-auth</module>
         <module>gk-devtools</module>

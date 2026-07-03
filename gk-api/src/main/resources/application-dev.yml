@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: ${APP_NAME:gk-api-test}
+    name: ${APP_NAME:gk-api-dev}
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -11,7 +11,7 @@ spring:
     username: ${DB_USERNAME:survey01}
     password: ${DB_PASSWORD:Abc!@#45}
     hikari:
-      pool-name: ${DB_POOL_NAME:gk-api-test-hikari}
+      pool-name: ${DB_POOL_NAME:gk-api-dev-hikari}
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
       minimum-idle: ${DB_POOL_MIN_IDLE:2}
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
@@ -50,4 +50,4 @@ logging:
     org.apache.ibatis: ERROR
     com.mysql: ERROR
   file:
-    name: ${LOG_FILE:logs/gk-api-test.log}
+    name: ${LOG_FILE:logs/gk-api-dev.log}

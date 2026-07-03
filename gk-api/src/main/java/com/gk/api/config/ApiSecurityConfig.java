@@ -15,10 +15,13 @@ public class ApiSecurityConfig {
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/**", "/psp/callback/**", "/error").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/v1/**", "/psp/callback/**").permitAll()
+                        .requestMatchers("/api/v1/**", "/psp/callback/**").permitAll()
                         .anyRequest().denyAll()
                 )
                 .build();

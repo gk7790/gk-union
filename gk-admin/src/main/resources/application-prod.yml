@@ -10,9 +10,9 @@ server:
   tomcat:
     uri-encoding: UTF-8
     threads:
-      max: ${TOMCAT_THREADS_MAX:200}
-      min-spare: ${TOMCAT_THREADS_MIN_SPARE:20}
-    accept-count: ${TOMCAT_ACCEPT_COUNT:300}
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
     connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
     max-keep-alive-requests: ${TOMCAT_MAX_KEEP_ALIVE_REQUESTS:100}
 
@@ -30,8 +30,8 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       pool-name: ${DB_POOL_NAME:gk-admin-hikari}
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:30}
-      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
       connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
       validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
       idle-timeout: ${DB_IDLE_TIMEOUT:600000}
@@ -47,10 +47,10 @@ spring:
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:6000ms}
       lettuce:
         pool:
-          max-active: ${REDIS_POOL_MAX_ACTIVE:200}
-          max-wait: ${REDIS_POOL_MAX_WAIT:3000ms}
-          max-idle: ${REDIS_POOL_MAX_IDLE:20}
-          min-idle: ${REDIS_POOL_MIN_IDLE:5}
+          max-active: ${REDIS_POOL_MAX_ACTIVE:64}
+          max-wait: ${REDIS_POOL_MAX_WAIT:1000ms}
+          max-idle: ${REDIS_POOL_MAX_IDLE:16}
+          min-idle: ${REDIS_POOL_MIN_IDLE:2}
 
   devtools:
     restart:
@@ -84,6 +84,8 @@ gk:
   psp:
     callback:
       base-url: ${PSP_CALLBACK_BASE_URL:}
+  quartz:
+    thread-count: ${QUARTZ_THREAD_COUNT:8}
 
 logging:
   level:

@@ -2,6 +2,7 @@ package com.gk.quartz.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 
 import javax.sql.DataSource;
@@ -15,6 +16,9 @@ import java.util.Properties;
 @Configuration
 public class ScheduleConfig {
 
+    @Value("${gk.quartz.thread-count:8}")
+    private int quartzThreadCount;
+
     @Bean
     public SchedulerFactoryBean schedulerFactoryBean(DataSource dataSource) {
         SchedulerFactoryBean factory = new SchedulerFactoryBean();
@@ -26,7 +30,7 @@ public class ScheduleConfig {
         prop.put("org.quartz.scheduler.instanceId", "AUTO");
         //线程池配置
         prop.put("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
-        prop.put("org.quartz.threadPool.threadCount", "20");
+        prop.put("org.quartz.threadPool.threadCount", String.valueOf(quartzThreadCount));
         prop.put("org.quartz.threadPool.threadPriority", "5");
         //JobStore配置
         prop.put("org.quartz.jobStore.class", "org.springframework.scheduling.quartz.LocalDataSourceJobStore");

@@ -4,9 +4,9 @@ server:
   tomcat:
     uri-encoding: UTF-8
     threads:
-      max: ${TOMCAT_THREADS_MAX:200}
-      min-spare: ${TOMCAT_THREADS_MIN_SPARE:20}
-    accept-count: ${TOMCAT_ACCEPT_COUNT:300}
+      max: ${TOMCAT_THREADS_MAX:120}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:200}
     connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
     max-keep-alive-requests: ${TOMCAT_MAX_KEEP_ALIVE_REQUESTS:100}
   servlet:

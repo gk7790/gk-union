@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @Schema(title = "租户资料", description = "租户基础信息")
@@ -20,6 +21,8 @@ public class TenantDTO {
     private String domain;
     @Schema(title = "默认币种", example = "INR")
     private String currency;
+    @Schema(title = "租户已分配币种", description = "多个币种用英文逗号分隔", accessMode = Schema.AccessMode.READ_ONLY)
+    private List<String> currencyList;
     @Schema(title = "默认时区", example = "Asia/Kolkata")
     private String timezone;
     @Schema(title = "默认语言", example = "en-US")

@@ -11,6 +11,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -25,13 +26,16 @@ import com.gk.iam.service.SysRoleMenuService;
 import com.gk.iam.service.SysRoleService;
 import com.gk.iam.service.SysUserService;
 import com.gk.tenant.dao.TenantDao;
+import com.gk.tenant.dao.TenantCurrencyDao;
 import com.gk.tenant.dto.TenantDTO;
 import com.gk.tenant.dto.TenantOnboardRequest;
 import com.gk.tenant.dto.TenantOnboardResult;
+import com.gk.tenant.entity.TenantCurrencyEntity;
 import com.gk.tenant.entity.TenantEntity;
 import com.gk.tenant.service.TenantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +44,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +61,7 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     private final SysUserService sysUserService;
     private final LedgerAccountService ledgerAccountService;
     private final RedisUtils redisUtils;
+    private final TenantCurrencyDao tenantCurrencyDao;
 
     @Override
     public QueryWrapper<TenantEntity> getWrapper(DynMap params) {
@@ -65,6 +72,13 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
             wrapper.ge("id", Constant.MIN_SYS_ID);
         }
         return wrapper;
+    }
+
+    @Override
+    public PageData<TenantDTO> page(DynMap params) {
+        PageData<TenantDTO> page = super.page(params);
+        fillCurrencies(page.getItems());
+        return page;
     }
 
     @Override
@@ -95,19 +109,31 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void save(TenantDTO dto) {
+        applyDefaultCurrency(dto, dto.getCurrencyList());
         super.save(dto);
+        syncTenantCurrencies(dto.getId(), dto.getCurrencyList());
         evictTenantDictCache();
-        provisionLedgerAccounts(dto.getId(), dto.getCurrency());
+        if (CollectionUtils.isEmpty(dto.getCurrencyList())) {
+            provisionLedgerAccounts(dto.getId(), dto.getCurrency());
+        } else {
+            provisionLedgerAccounts(dto.getId(), dto.getCurrencyList());
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void update(TenantDTO dto) {
+        applyDefaultCurrency(dto, dto.getCurrencyList());
         super.update(dto);
+        syncTenantCurrencies(dto.getId(), dto.getCurrencyList());
         evictTenantDictCache();
         TenantEntity tenant = baseDao.selectById(dto.getId());
         if (tenant != null) {
-            provisionLedgerAccounts(tenant.getId(), tenant.getCurrency());
+            if (CollectionUtils.isEmpty(dto.getCurrencyList())) {
+                provisionLedgerAccounts(tenant.getId(), tenant.getCurrency());
+            } else {
+                provisionLedgerAccounts(tenant.getId(), dto.getCurrencyList());
+            }
         }
     }
 
@@ -229,6 +255,106 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
             return;
         }
         ledgerAccountService.provisionTenantAccounts(tenantId, currency);
+    }
+
+    private void provisionLedgerAccounts(Long tenantId, List<String> currencies) {
+        if (tenantId == null || currencies == null || currencies.isEmpty()) {
+            return;
+        }
+        currencies.stream()
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .forEach(currency -> provisionLedgerAccounts(tenantId, currency));
+    }
+
+    private void applyDefaultCurrency(TenantDTO dto, List<String> currencies) {
+        if (dto == null || currencies == null || currencies.isEmpty()) {
+            return;
+        }
+        dto.setCurrency(currencies.getFirst());
+    }
+
+    private void syncTenantCurrencies(Long tenantId, List<String> currencies) {
+        if (tenantId == null || currencies == null || currencies.isEmpty()) {
+            return;
+        }
+
+        QueryWrapper<TenantCurrencyEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id", "tenant_id", "currency", "status", "sort");
+        wrapper.eq("tenant_id", tenantId);
+        List<TenantCurrencyEntity> existingList = tenantCurrencyDao.selectList(wrapper);
+        Map<String, TenantCurrencyEntity> existingMap = existingList.stream()
+                .filter(item -> StringUtils.isNotBlank(item.getCurrency()))
+                .collect(Collectors.toMap(TenantCurrencyEntity::getCurrency, item -> item, (left, right) -> left));
+
+        for (int i = 0; i < currencies.size(); i++) {
+            String currency = currencies.get(i);
+            TenantCurrencyEntity existing = existingMap.get(currency);
+            int sort = (i + 1) * 10;
+            if (existing == null) {
+                TenantCurrencyEntity entity = new TenantCurrencyEntity();
+                entity.setTenantId(tenantId);
+                entity.setCurrency(currency);
+                entity.setStatus(StatusEnum.NORMAL.code());
+                entity.setSort(sort);
+                tenantCurrencyDao.insert(entity);
+            } else {
+                tenantCurrencyDao.update(null, new UpdateWrapper<TenantCurrencyEntity>()
+                        .set("status", StatusEnum.NORMAL.code())
+                        .set("sort", sort)
+                        .eq("id", existing.getId()));
+            }
+        }
+
+        List<String> removedCurrencies = existingMap.keySet().stream()
+                .filter(currency -> !currencies.contains(currency))
+                .toList();
+        if (!removedCurrencies.isEmpty()) {
+            tenantCurrencyDao.update(null, new UpdateWrapper<TenantCurrencyEntity>()
+                    .set("status", StatusEnum.STOP.code())
+                    .eq("tenant_id", tenantId)
+                    .in("currency", removedCurrencies));
+        }
+    }
+
+    private void fillCurrencies(List<TenantDTO> tenants) {
+        if (tenants == null || tenants.isEmpty()) {
+            return;
+        }
+        List<Long> tenantIds = tenants.stream()
+                .map(TenantDTO::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (tenantIds.isEmpty()) {
+            return;
+        }
+
+        QueryWrapper<TenantCurrencyEntity> tenantCurrencyWrapper = new QueryWrapper<>();
+        tenantCurrencyWrapper.select("tenant_id", "currency", "status", "sort");
+        tenantCurrencyWrapper.in("tenant_id", tenantIds);
+        tenantCurrencyWrapper.in("status", StatusEnum.defaultStatus());
+        tenantCurrencyWrapper.orderByAsc("tenant_id", "sort", "currency");
+        List<TenantCurrencyEntity> tenantCurrencies = tenantCurrencyDao.selectList(tenantCurrencyWrapper);
+        if (tenantCurrencies == null || tenantCurrencies.isEmpty()) {
+            tenants.forEach(item -> item.setCurrencyList(List.of()));
+            return;
+        }
+
+        Map<Long, List<String>> tenantCurrencyMap = tenantCurrencies.stream()
+                .collect(Collectors.groupingBy(
+                        TenantCurrencyEntity::getTenantId,
+                        Collectors.mapping(
+                                TenantCurrencyEntity::getCurrency,
+                                Collectors.filtering(
+                                        StringUtils::isNotBlank,
+                                        Collectors.toList()
+                                )
+                        )
+                ));
+        for (TenantDTO tenant : tenants) {
+            tenant.setCurrencyList(tenantCurrencyMap.getOrDefault(tenant.getId(), List.of(tenant.getCurrency())));
+        }
     }
 
     private List<LabelDTO> getCachedDict(String cacheKey) {

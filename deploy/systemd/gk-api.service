@@ -1,0 +1,27 @@
+[Unit]
+Description=GK Union Open API Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gk
+Group=gk
+WorkingDirectory=/opt/gk-api/app
+EnvironmentFile=/opt/gk-api/config/gk-api.env
+ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/gk-api/app/gk-api.jar'
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=on-failure
+RestartSec=10
+SuccessExitStatus=143
+TimeoutStartSec=120
+TimeoutStopSec=45
+KillSignal=SIGTERM
+LimitNOFILE=65535
+UMask=0027
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

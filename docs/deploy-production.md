@@ -758,10 +758,16 @@ Table 'gk_union.QRTZ_FIRED_TRIGGERS' doesn't exist
 - 数据库表为小写 `qrtz_fired_triggers`
 - 应用或 Quartz 配置使用了大写 `QRTZ_`
 
-当前项目已将 Quartz 表前缀调整为小写：
+当前项目统一使用 Quartz 官方默认大写表名：
 
 ```java
-tablePrefix = "qrtz_"
+tablePrefix = "QRTZ_"
+```
+
+如果已有生产库使用小写 `qrtz_*` 表，先停应用，再执行：
+
+```sql
+gk-scheduler/src/main/resources/sql/v2_qrtz_rename_uppercase.sql
 ```
 
 对应文件：

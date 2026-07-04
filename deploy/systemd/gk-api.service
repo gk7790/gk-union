@@ -2,6 +2,8 @@
 Description=GK Union Open API Service
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -13,6 +15,7 @@ ExecStart=/bin/sh -c 'exec /usr/bin/java $JAVA_OPTS -jar /opt/gk-api/app/gk-api.
 ExecStop=/bin/kill -TERM $MAINPID
 Restart=on-failure
 RestartSec=10
+RestartPreventExitStatus=143
 SuccessExitStatus=143
 TimeoutStartSec=120
 TimeoutStopSec=45

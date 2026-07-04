@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven-3.9'
+    }
+
+    environment {
+        DEPLOY_HOST = '<EC2_PUBLIC_IP_OR_DOMAIN>'
+        SSH_EXE = 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe'
+        SCP_EXE = 'C:\\Program Files\\Git\\usr\\bin\\scp.exe'
+
+        ADMIN_LOCAL_JAR = 'gk-admin\\target\\gk-admin.jar'
+        ADMIN_REMOTE_TMP = '/opt/gk-admin/app/gk-admin.jar.tmp'
+        ADMIN_REMOTE_JAR = '/opt/gk-admin/app/gk-admin.jar'
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'modularize',
+                    credentialsId: '<GIT_CREDENTIAL_ID>',
+                    url: '<GIT_REPOSITORY_URL>'
+            }
+        }
+
+        stage('Build Admin') {
+            steps {
+                bat 'mvn clean package -pl gk-admin -am -DskipTests'
+            }
+        }
+
+        stage('Upload Admin Jar') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: '<SSH_CREDENTIAL_ID>',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    powershell '''
+                        $adminJar = Resolve-Path "$env:ADMIN_LOCAL_JAR"
+
+                        if (!(Test-Path $adminJar)) {
+                          throw "Admin jar not found: $adminJar"
+                        }
+
+                        & "$env:SCP_EXE" `
+                          -i "$env:SSH_KEY" `
+                          -o StrictHostKeyChecking=no `
+                          "$adminJar" `
+                          "${env:SSH_USER}@${env:DEPLOY_HOST}:${env:ADMIN_REMOTE_TMP}"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Admin') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: '<SSH_CREDENTIAL_ID>',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    powershell '''
+                        $remote = @"
+set -e
+
+if [ -f /opt/gk-admin/app/gk-admin.jar ]; then
+  cp /opt/gk-admin/app/gk-admin.jar /opt/gk-admin/app/gk-admin.jar.bak
+fi
+
+mv /opt/gk-admin/app/gk-admin.jar.tmp /opt/gk-admin/app/gk-admin.jar
+
+sudo -n /usr/bin/systemctl restart gk-admin
+sudo -n /usr/bin/systemctl status gk-admin --no-pager
+"@
+
+                        $remote = $remote -replace "`r", ""
+
+                        & "$env:SSH_EXE" `
+                          -i "$env:SSH_KEY" `
+                          -o StrictHostKeyChecking=no `
+                          "$env:SSH_USER@$env:DEPLOY_HOST" `
+                          $remote
+                    '''
+                }
+            }
+        }
+    }
+}

@@ -61,6 +61,11 @@ sudo journalctl -u gk-api -f
 
 sudo systemctl restart gk-admin
 sudo systemctl restart gk-api
+
+sudo systemctl reset-failed gk-admin
+sudo systemctl reset-failed gk-api
 ```
 
 Application log files are written under `LOG_HOME`, for example `/data/logs/gk-admin` and `/data/logs/gk-api`.
+
+The service templates restart on failure, but stop retrying after 3 failures within 5 minutes. After fixing a bad configuration or dependency issue, run `systemctl reset-failed` before starting the service again.

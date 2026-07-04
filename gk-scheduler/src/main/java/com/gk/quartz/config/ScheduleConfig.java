@@ -12,7 +12,7 @@ import java.util.Properties;
  * Quartz 定时任务配置。
  *
  * <p>项目使用数据库持久化 Quartz 状态，因此服务重启、重新部署或多实例运行时，
- * 都会通过同一套 qrtz_ 表记录 Job、Trigger 和执行状态。</p>
+ * 都会通过同一套 QRTZ_ 表记录 Job、Trigger 和执行状态。</p>
  *
  * @author Lowen
  */
@@ -49,8 +49,8 @@ public class ScheduleConfig {
         // 超过该时间未触发的任务会被 Quartz 识别为 misfire。
         prop.put("org.quartz.jobStore.misfireThreshold", "12000");
 
-        // RDS/Linux MySQL 通常区分表名大小写，数据库脚本中 Quartz 表使用小写 qrtz_ 前缀。
-        prop.put("org.quartz.jobStore.tablePrefix", "qrtz_");
+        // RDS/Linux MySQL 通常区分表名大小写，Quartz 表使用官方默认大写 QRTZ_ 前缀。
+        prop.put("org.quartz.jobStore.tablePrefix", "QRTZ_");
 
         // PostgreSQL 数据库需要打开下面配置。
         //prop.put("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");

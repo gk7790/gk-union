@@ -17,21 +17,19 @@ public class QuartzStateRepairer {
 
     /**
      * 清理脏数据场景一：
-     * qrtz_fired_triggers 表表示“已经触发、正在执行”的任务记录。
+     * QRTZ_FIRED_TRIGGERS 表表示“已经触发、正在执行”的任务记录。
      * 如果服务部署、宕机或强制停止时中断，可能残留已经失效的 fired trigger。
-     *
-     * 这里专门删除“CRON trigger 存在，但 qrtz_cron_triggers 明细缺失”的 fired trigger，
+     * 这里专门删除“CRON trigger 存在，但 QRTZ_CRON_TRIGGERS 明细缺失”的 fired trigger，
      * 避免 Quartz 启动时读取到不完整状态。
-     *
-     * 注意：RDS/Linux MySQL 通常区分表名大小写，项目 Quartz 表使用小写 qrtz_ 前缀。
+     * 注意：RDS/Linux MySQL 通常区分表名大小写，项目 Quartz 表使用官方默认大写 QRTZ_ 前缀。
      */
     private static final String DELETE_FIRED_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
-            DELETE ft FROM qrtz_fired_triggers ft
-            JOIN qrtz_triggers t
+            DELETE ft FROM QRTZ_FIRED_TRIGGERS ft
+            JOIN QRTZ_TRIGGERS t
               ON t.SCHED_NAME = ft.SCHED_NAME
              AND t.TRIGGER_NAME = ft.TRIGGER_NAME
              AND t.TRIGGER_GROUP = ft.TRIGGER_GROUP
-            LEFT JOIN qrtz_cron_triggers ct
+            LEFT JOIN QRTZ_CRON_TRIGGERS ct
               ON ct.SCHED_NAME = t.SCHED_NAME
              AND ct.TRIGGER_NAME = t.TRIGGER_NAME
              AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP
@@ -42,12 +40,12 @@ public class QuartzStateRepairer {
 
     /**
      * 清理脏数据场景二：
-     * 删除缺少 qrtz_cron_triggers 明细的 CRON trigger。
+     * 删除缺少 QRTZ_CRON_TRIGGERS 明细的 CRON trigger。
      * 这种数据通常来自异常中断、手工改表或旧版本调度数据不完整。
      */
     private static final String DELETE_CRON_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
-            DELETE t FROM qrtz_triggers t
-            LEFT JOIN qrtz_cron_triggers ct
+            DELETE t FROM QRTZ_TRIGGERS t
+            LEFT JOIN QRTZ_CRON_TRIGGERS ct
               ON ct.SCHED_NAME = t.SCHED_NAME
              AND ct.TRIGGER_NAME = t.TRIGGER_NAME
              AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP
@@ -62,8 +60,8 @@ public class QuartzStateRepairer {
      * 项目内动态任务 Job 名称使用 TASK_ 前缀，所以这里只清理 TASK_%，避免误删 Quartz 其他 Job。
      */
     private static final String DELETE_TASK_JOBS_WITHOUT_TRIGGERS = """
-            DELETE jd FROM qrtz_job_details jd
-            LEFT JOIN qrtz_triggers t
+            DELETE jd FROM QRTZ_JOB_DETAILS jd
+            LEFT JOIN QRTZ_TRIGGERS t
               ON t.SCHED_NAME = jd.SCHED_NAME
              AND t.JOB_NAME = jd.JOB_NAME
              AND t.JOB_GROUP = jd.JOB_GROUP

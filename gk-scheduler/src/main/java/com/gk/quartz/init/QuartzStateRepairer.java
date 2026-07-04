@@ -10,8 +10,21 @@ import java.sql.SQLException;
 @Slf4j
 @Component
 public class QuartzStateRepairer {
+    /**
+     * Quartz 调度器名称，必须和 ScheduleConfig 中的 schedulerName / instanceName 保持一致。
+     */
     private static final String SCHED_NAME = "GkScheduler";
 
+    /**
+     * 清理脏数据场景一：
+     * qrtz_fired_triggers 表表示“已经触发、正在执行”的任务记录。
+     * 如果服务部署、宕机或强制停止时中断，可能残留已经失效的 fired trigger。
+     *
+     * 这里专门删除“CRON trigger 存在，但 qrtz_cron_triggers 明细缺失”的 fired trigger，
+     * 避免 Quartz 启动时读取到不完整状态。
+     *
+     * 注意：RDS/Linux MySQL 通常区分表名大小写，项目 Quartz 表使用小写 qrtz_ 前缀。
+     */
     private static final String DELETE_FIRED_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
             DELETE ft FROM qrtz_fired_triggers ft
             JOIN qrtz_triggers t
@@ -27,6 +40,11 @@ public class QuartzStateRepairer {
               AND ct.TRIGGER_NAME IS NULL
             """;
 
+    /**
+     * 清理脏数据场景二：
+     * 删除缺少 qrtz_cron_triggers 明细的 CRON trigger。
+     * 这种数据通常来自异常中断、手工改表或旧版本调度数据不完整。
+     */
     private static final String DELETE_CRON_TRIGGERS_WITH_MISSING_CRON_DETAIL = """
             DELETE t FROM qrtz_triggers t
             LEFT JOIN qrtz_cron_triggers ct
@@ -38,6 +56,11 @@ public class QuartzStateRepairer {
               AND ct.TRIGGER_NAME IS NULL
             """;
 
+    /**
+     * 清理脏数据场景三：
+     * 删除已经没有任何 trigger 关联的项目任务 Job。
+     * 项目内动态任务 Job 名称使用 TASK_ 前缀，所以这里只清理 TASK_%，避免误删 Quartz 其他 Job。
+     */
     private static final String DELETE_TASK_JOBS_WITHOUT_TRIGGERS = """
             DELETE jd FROM qrtz_job_details jd
             LEFT JOIN qrtz_triggers t
@@ -49,6 +72,10 @@ public class QuartzStateRepairer {
               AND t.TRIGGER_NAME IS NULL
             """;
 
+    /**
+     * 在 Quartz 正式启动前修复数据库中的异常调度状态。
+     * 这个方法只清理确定不完整的调度记录，不会删除正常的任务配置。
+     */
     public void repair(Connection connection) throws SQLException {
         int firedTriggerCount = executeUpdate(connection, DELETE_FIRED_TRIGGERS_WITH_MISSING_CRON_DETAIL);
         int triggerCount = executeUpdate(connection, DELETE_CRON_TRIGGERS_WITH_MISSING_CRON_DETAIL);
@@ -59,6 +86,9 @@ public class QuartzStateRepairer {
         }
     }
 
+    /**
+     * 所有修复 SQL 都按同一个调度器名称过滤，避免误处理其他 scheduler 的数据。
+     */
     private int executeUpdate(Connection connection, String sql) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, SCHED_NAME);

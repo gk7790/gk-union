@@ -1,5 +1,7 @@
 package com.gk.infra.process;
 
+import com.gk.common.tools.StringFormat;
+import com.gk.common.utils.DateUtils;
 import com.gk.infra.telegram.TgAlertService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -53,11 +55,10 @@ public class AppRunProcess implements ApplicationRunner {
         log.warn("JVM default time zone: {}", jvmTimeZone);
         log.warn("-----------------------------------------------------------------");
 
-        sendLifecycleAlert("Service started", activeProfile, systemTimeZone, jvmTimeZone);
+        sendLifecycleAlert(activeProfile, systemTimeZone, jvmTimeZone);
 
-        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-            log.error("Uncaught exception in thread({})", thread.getName(), throwable);
-        });
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
+                log.error("Uncaught exception in thread({})", thread.getName(), throwable));
     }
 
     private String activeProfile() {
@@ -68,21 +69,24 @@ public class AppRunProcess implements ApplicationRunner {
         return String.join(",", activeProfiles);
     }
 
-    private void sendLifecycleAlert(String title, String activeProfile, String systemTimeZone, String jvmTimeZone) {
+    private void sendLifecycleAlert(String activeProfile, String systemTimeZone, String jvmTimeZone) {
         if (!lifecycleAlertEnabled) {
             return;
         }
         TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
         if (tgAlertService == null) {
-            log.debug("TgAlertService is not available, skip lifecycle alert: {}", title);
+            log.debug("TgAlertService is not available, skip lifecycle alert: Service started");
             return;
         }
-        String content = "\n"
-                + "Application: " + serverName + "\n"
-                + "URL: http://localhost:" + serverPort + StringUtils.trimToEmpty(serverPath) + "\n"
-                + "Profile: " + activeProfile + "\n"
-                + "System TimeZone: " + systemTimeZone + "\n"
-                + "JVM TimeZone: " + jvmTimeZone;
-        tgAlertService.sysWarn(title + " - " + serverName, content, "");
+        String content = StringFormat.format("""
+                APP: {}
+                URL: http://localhost:{}{}
+                Profile: {}
+                System TimeZone: {}
+                JVM TimeZone: {}
+                Time: {}
+                """, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
+                activeProfile, systemTimeZone, jvmTimeZone, DateUtils.now("GMT+08:00"));
+        tgAlertService.sysWarn("✅ Service started(" + serverName + ")", content, "");
     }
 }

@@ -11,8 +11,9 @@ import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
-import com.gk.merchant.dao.MerchantDao;
-import com.gk.merchant.entity.MerchantEntity;
+import com.gk.subject.model.SubjectDisplay;
+import com.gk.subject.model.SubjectRef;
+import com.gk.subject.service.SubjectDisplayService;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
@@ -20,8 +21,6 @@ import com.gk.telegram.entity.TgBotEntity;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.support.TgConstants;
-import com.gk.tenant.dao.TenantDao;
-import com.gk.tenant.entity.TenantEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -41,21 +40,18 @@ import java.util.stream.Collectors;
 @Service
 public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, TgChatDTO> implements TgChatService {
     private final TgBotDao tgBotDao;
-    private final MerchantDao merchantDao;
-    private final TenantDao tenantDao;
+    private final SubjectDisplayService subjectDisplayService;
 
-    public TgChatServiceImpl(TgBotDao tgBotDao, MerchantDao merchantDao, TenantDao tenantDao) {
+    public TgChatServiceImpl(TgBotDao tgBotDao, SubjectDisplayService subjectDisplayService) {
         this.tgBotDao = tgBotDao;
-        this.merchantDao = merchantDao;
-        this.tenantDao = tenantDao;
+        this.subjectDisplayService = subjectDisplayService;
     }
 
     @Override
     public PageData<TgChatDTO> page(DynMap params) {
         PageData<TgChatDTO> page = super.page(params);
         fillBotInfo(page.getItems());
-        fillTenantInfo(page.getItems());
-        fillMerchantInfo(page.getItems());
+        fillSubjectInfo(page.getItems());
         return page;
     }
 
@@ -134,50 +130,43 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         }
     }
 
-    private void fillTenantInfo(List<TgChatDTO> items) {
+    private void fillSubjectInfo(List<TgChatDTO> items) {
         if (items == null || items.isEmpty()) {
             return;
         }
-        List<Long> tenantIds = items.stream()
-                .map(TgChatDTO::getTenantId)
-                .filter(id -> id != null && id > 0)
+        List<SubjectRef> refs = items.stream()
+                .flatMap(item -> java.util.stream.Stream.of(
+                        subjectRef(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()),
+                        subjectRef(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId())
+                ))
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        if (tenantIds.isEmpty()) {
+        if (refs.isEmpty()) {
             return;
         }
-        Map<Long, TenantEntity> tenantMap = tenantDao.selectByIds(tenantIds).stream()
-                .collect(Collectors.toMap(TenantEntity::getId, Function.identity(), (left, right) -> left));
+        Map<SubjectRef, SubjectDisplay> displays = subjectDisplayService.batchGet(refs);
         for (TgChatDTO item : items) {
-            TenantEntity tenant = tenantMap.get(item.getTenantId());
-            if (tenant == null) {
-                continue;
+            SubjectDisplay tenant = displays.get(subjectRef(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()));
+            if (tenant != null) {
+                item.setTenantName(displayName(tenant));
             }
-            item.setTenantName(StringUtils.defaultIfBlank(tenant.getName(), tenant.getCode()));
+            SubjectDisplay merchant = displays.get(subjectRef(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId()));
+            if (merchant != null) {
+                item.setMerchantName(displayName(merchant));
+            }
         }
     }
 
-    private void fillMerchantInfo(List<TgChatDTO> items) {
-        if (items == null || items.isEmpty()) {
-            return;
+    private SubjectRef subjectRef(Long tenantId, String subjectType, Long subjectId) {
+        if (tenantId == null || tenantId <= 0 || subjectId == null || subjectId <= 0) {
+            return null;
         }
-        List<Long> merchantIds = items.stream()
-                .map(TgChatDTO::getMerchantId)
-                .filter(id -> id != null && id > 0)
-                .distinct()
-                .toList();
-        if (merchantIds.isEmpty()) {
-            return;
-        }
-        Map<Long, MerchantEntity> merchantMap = merchantDao.selectByIds(merchantIds).stream()
-                .collect(Collectors.toMap(MerchantEntity::getId, Function.identity(), (left, right) -> left));
-        for (TgChatDTO item : items) {
-            MerchantEntity merchant = merchantMap.get(item.getMerchantId());
-            if (merchant == null) {
-                continue;
-            }
-            item.setMerchantName(StringUtils.defaultIfBlank(merchant.getMerchantName(), merchant.getMerchantNo()));
-        }
+        return new SubjectRef(tenantId, subjectType, subjectId);
+    }
+
+    private String displayName(SubjectDisplay display) {
+        return StringUtils.defaultIfBlank(display.getSubjectName(), display.getDisplayName());
     }
 
     /**

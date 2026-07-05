@@ -1,5 +1,7 @@
 package com.gk.infra.process;
 
+import com.gk.common.tools.StringFormat;
+import com.gk.common.utils.DateUtils;
 import com.gk.infra.telegram.TgAlertService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -59,10 +61,13 @@ public class AppStopProcess implements DisposableBean {
             log.debug("TgAlertService is not available, skip lifecycle alert: Service stopped");
             return;
         }
-        String content = "\n"
-                + "Application: " + serverName + "\n"
-                + "URL: http://localhost:" + serverPort + StringUtils.trimToEmpty(serverPath) + "\n"
-                + "Profile: " + activeProfile;
-        tgAlertService.sysWarnSync("Service stopped - " + serverName, content, "");
+        String content = StringFormat.format("""
+                APP: {}
+                URL: http://localhost:{}{}
+                Profile: {}
+                Time: {}
+                """, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
+                activeProfile, DateUtils.now("GMT+08:00"));
+        tgAlertService.sysWarnSync("⛔ Service stopped - " + serverName, content, "");
     }
 }

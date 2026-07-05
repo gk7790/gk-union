@@ -4,6 +4,7 @@ import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.infra.telegram.TgAlertEventType;
 import com.gk.infra.telegram.TgAlertService;
 import com.gk.infra.utils.AsynUtils;
@@ -58,7 +59,7 @@ public class TgAlertServiceImpl implements TgAlertService {
                     eventType.code(), title, created);
         } catch (Exception e) {
             log.warn("Telegram alert task create sync failed, eventType={}, title={}, error={}",
-                    eventType == null ? null : eventType.code(), title, e.getMessage(), e);
+                    eventType.code(), title, e.getMessage(), e);
         }
     }
 
@@ -88,15 +89,17 @@ public class TgAlertServiceImpl implements TgAlertService {
             try {
                 tgMessageTaskDao.insert(task);
                 created++;
-            } catch (DuplicateKeyException ignored) {
+            } catch (DuplicateKeyException ex) {
                 // 同一群同一内容已有任务时跳过，依赖 uk_tg_msg_idem 防止重复刷屏。
+                log.error("机器人通知异常: {}", ex.getMessage());
             }
         }
         return created;
     }
 
     private String renderText(TgAlertEventType eventType, String title, String content) {
-        return "<code>" + StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType)) + "</code>" + content;
+        return "<code>" + StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType)) + "</code>\n" +
+                "─────────────────────\n" + content;
     }
 
     /**
@@ -107,9 +110,7 @@ public class TgAlertServiceImpl implements TgAlertService {
      */
     private List<TgChatEntity> findTargets(TgAlertEventType eventType, Long tenantId, Long merchantId) {
         QueryWrapper<TgChatEntity> wrapper = new QueryWrapper<>();
-        wrapper.eq("status", 1)
-                .orderByAsc("id");
-
+        wrapper.eq("status", StatusEnum.NORMAL.code()).orderByAsc("id");
         if (isSystemAlertEvent(eventType)) {
             appendPlatformTarget(wrapper);
             return tgChatDao.selectList(wrapper);
@@ -142,8 +143,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     }
 
     private void appendPlatformTarget(QueryWrapper<TgChatEntity> wrapper) {
-        wrapper.and(scope -> scope.isNull("tenant_id").or().eq("tenant_id", 0L))
-                .and(scope -> scope.isNull("merchant_id").or().eq("merchant_id", 0L));
+        wrapper.eq("tenant_id", 0L).eq("merchant_id", 0L);
     }
 
     private void appendTenantTarget(QueryWrapper<TgChatEntity> wrapper, Long tenantId) {

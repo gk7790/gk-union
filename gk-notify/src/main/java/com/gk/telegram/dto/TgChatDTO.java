@@ -17,8 +17,12 @@ public class TgChatDTO {
     private Long id;
     @Schema(title = "租户ID")
     private Long tenantId;
+    @Schema(title = "租户名称")
+    private String tenantName;
     @Schema(title = "商户ID")
     private Long merchantId;
+    @Schema(title = "商户名称")
+    private String merchantName;
     @Schema(title = "所属机器人ID")
     private Long botId;
     @Schema(title = "机器人名称", description = "优先返回用户名，没有用户名时返回机器人编号")

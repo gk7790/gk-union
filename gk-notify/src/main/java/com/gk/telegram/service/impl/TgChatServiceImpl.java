@@ -3,12 +3,16 @@ package com.gk.telegram.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
+import com.gk.merchant.dao.MerchantDao;
+import com.gk.merchant.entity.MerchantEntity;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
 import com.gk.telegram.dto.TgChatDTO;
@@ -16,6 +20,8 @@ import com.gk.telegram.entity.TgBotEntity;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.support.TgConstants;
+import com.gk.tenant.dao.TenantDao;
+import com.gk.tenant.entity.TenantEntity;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -35,15 +41,21 @@ import java.util.stream.Collectors;
 @Service
 public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, TgChatDTO> implements TgChatService {
     private final TgBotDao tgBotDao;
+    private final MerchantDao merchantDao;
+    private final TenantDao tenantDao;
 
-    public TgChatServiceImpl(TgBotDao tgBotDao) {
+    public TgChatServiceImpl(TgBotDao tgBotDao, MerchantDao merchantDao, TenantDao tenantDao) {
         this.tgBotDao = tgBotDao;
+        this.merchantDao = merchantDao;
+        this.tenantDao = tenantDao;
     }
 
     @Override
     public PageData<TgChatDTO> page(DynMap params) {
         PageData<TgChatDTO> page = super.page(params);
         fillBotInfo(page.getItems());
+        fillTenantInfo(page.getItems());
+        fillMerchantInfo(page.getItems());
         return page;
     }
 
@@ -53,7 +65,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
     @Override
     public QueryWrapper<TgChatEntity> getWrapper(DynMap params) {
         QueryWrapper<TgChatEntity> wrapper = new QueryWrapper<>();
-        Long tenantId = params.getLong("tenantId", null);
+        Long tenantId = queryTenantId(params);
         Long merchantId = params.getLong("merchantId", null);
         Long botId = params.getLong("botId", null);
         Long chatId = params.getLong("chatId", null);
@@ -61,6 +73,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         String purpose = params.getStr("purpose");
         Integer status = params.containsKey("status") ? params.getInt("status") : null;
 
+        wrapper.gt("id", Constant.MAX_RESERVED_ID);
         wrapper.eq(tenantId != null, "tenant_id", tenantId);
         wrapper.eq(merchantId != null, "merchant_id", merchantId);
         wrapper.eq(botId != null, "bot_id", botId);
@@ -69,6 +82,14 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         wrapper.eq(StrUtil.isNotBlank(purpose), "purpose", purpose);
         wrapper.eq(status != null, "status", status);
         return wrapper;
+    }
+
+    private Long queryTenantId(DynMap params) {
+        if (!ReqContextHolder.isPlatform()) {
+            Long tenantId = ReqContextHolder.getTenantId();
+            return tenantId == null ? -1L : tenantId;
+        }
+        return params.getLong("tenantId", null);
     }
 
     /**
@@ -110,6 +131,52 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
             }
             item.setBotName(StringUtils.defaultIfBlank(bot.getName(),
                     StringUtils.defaultIfBlank(bot.getUsername(), bot.getBotNo())));
+        }
+    }
+
+    private void fillTenantInfo(List<TgChatDTO> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        List<Long> tenantIds = items.stream()
+                .map(TgChatDTO::getTenantId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (tenantIds.isEmpty()) {
+            return;
+        }
+        Map<Long, TenantEntity> tenantMap = tenantDao.selectByIds(tenantIds).stream()
+                .collect(Collectors.toMap(TenantEntity::getId, Function.identity(), (left, right) -> left));
+        for (TgChatDTO item : items) {
+            TenantEntity tenant = tenantMap.get(item.getTenantId());
+            if (tenant == null) {
+                continue;
+            }
+            item.setTenantName(StringUtils.defaultIfBlank(tenant.getName(), tenant.getCode()));
+        }
+    }
+
+    private void fillMerchantInfo(List<TgChatDTO> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        List<Long> merchantIds = items.stream()
+                .map(TgChatDTO::getMerchantId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (merchantIds.isEmpty()) {
+            return;
+        }
+        Map<Long, MerchantEntity> merchantMap = merchantDao.selectByIds(merchantIds).stream()
+                .collect(Collectors.toMap(MerchantEntity::getId, Function.identity(), (left, right) -> left));
+        for (TgChatDTO item : items) {
+            MerchantEntity merchant = merchantMap.get(item.getMerchantId());
+            if (merchant == null) {
+                continue;
+            }
+            item.setMerchantName(StringUtils.defaultIfBlank(merchant.getMerchantName(), merchant.getMerchantNo()));
         }
     }
 

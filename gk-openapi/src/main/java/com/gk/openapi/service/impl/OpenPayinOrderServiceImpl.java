@@ -27,10 +27,8 @@ import com.gk.payment.merchantview.PayinOrderView;
 import com.gk.payment.plan.model.PayinPlan;
 import com.gk.payment.plan.PayinPlanService;
 import com.gk.payment.notify.MerchantOrderNotifyStatusService;
-import com.gk.payment.psp.PspOrderRequests;
+import com.gk.payment.psp.PayinPspSubmitService;
 import com.gk.payment.service.OrderStatusLogService;
-import com.gk.psp.dispatch.PspPayDispatchResult;
-import com.gk.psp.dispatch.PspPayDispatchService;
 import com.gk.psp.route.PspRouteResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,9 +37,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -50,7 +46,7 @@ import java.util.Map;
  * <p>
  * 本类负责商户代收下单和查单的应用层编排：校验请求、处理商户订单号幂等、
  * 计算商户手续费、选择 PSP 路由、提交 PSP 下单，并把订单状态变化写入状态日志。
- * 真正的 PSP 协议差异由 {@link PspPayDispatchService} 和 PSP adapter 承接。
+ * 真正的 PSP 协议差异由 payment PSP submit service 和 PSP adapter 承接。
  */
 @Service
 @RequiredArgsConstructor
@@ -58,7 +54,7 @@ import java.util.Map;
 public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     private final PayinOrderDao payinOrderDao;
     private final PayinPlanService payinPlanService;
-    private final PspPayDispatchService pspPayDispatchService;
+    private final PayinPspSubmitService payinPspSubmitService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
     private final GkSysParamsConfigService configService;
@@ -172,7 +168,11 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         }
         // 提交上游 PSP 成功后，订单进入 PROCESSING，等待 PSP 回调或查单补偿推进终态
         try {
-            submitToPsp(entity, payinPlan);
+            entity = payinPspSubmitService.submit(
+                    entity,
+                    payinPlan,
+                    PayinPspSubmitService.SubmitContext.merchant(context.getAppId(), context.getTraceId())
+            );
             timer.mark("submit_psp");
         } catch (ApiException ex) {
             timer.mark("submit_psp_failed");
@@ -196,7 +196,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     private boolean insertOrder(PayinOrderEntity entity) {
         try {
             payinOrderDao.insert(entity);
-            recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", null, "MERCHANT");
+            recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", "MERCHANT");
             return true;
         } catch (DuplicateKeyException ex) {
             PayinOrderEntity existed = findByMerchantOrderNo(entity.getMerchantOrderNo());
@@ -206,45 +206,6 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
                 return false;
             }
             throw ex;
-        }
-    }
-
-    /**
-     * 提交代收订单到 PSP。
-     * <p>
-     * 这里完成 PSP 路由、PSP 手续费计算、适配器调用和订单状态更新。
-     * 出现异常时会把订单标记为 FAILED，并继续向上抛出 OpenAPI 错误。
-     *
-     * @param order 订单
-     */
-    private void submitToPsp(PayinOrderEntity order, PayinPlan payinPlan) {
-        try {
-            if (payinPlan == null || payinPlan.getRoute() == null) {
-                throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payin plan is not resolved");
-            }
-            // PSP 提交必须使用下单前已经解析并落库的路由，避免落单后再次选路由导致订单快照不一致
-            PspRouteResult route = payinPlan.getRoute();
-
-            // 调用 PSP 分发服务，真正的 HTTP 协议由具体 PSP adapter 处理
-            PspPayDispatchResult dispatchResult = pspPayDispatchService.dispatch(PspOrderRequests.fromPayinOrder(order), route);
-
-            applyDispatchResult(order, dispatchResult);
-
-            payinOrderDao.updateById(order);
-        } catch (ApiException ex) {
-            if (order != null) {
-                markFailed(order, ex.getMessage());
-            }
-            throw ex;
-        } catch (Exception ex) {
-            log.error("OpenAPI pay submit failed, payinOrderNo={}, merchantOrderNo={}",
-                    order == null ? null : order.getPayinOrderNo(),
-                    order == null ? null : order.getMerchantOrderNo(),
-                    ex);
-            if (order != null) {
-                markFailed(order, ApiErrorCode.SYSTEM_ERROR.getMessage());
-            }
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
         }
     }
 
@@ -261,7 +222,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
         order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
         order.setNextQueryAt(null);
         payinOrderDao.updateById(order);
-        recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", null, "SYSTEM");
+        recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", "SYSTEM");
     }
 
     private String sandboxPayUrl(PayinOrderEntity order) {
@@ -311,66 +272,11 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     }
 
     /**
-     * 应用 PSP 下单返回结果。
-     * <p>
-     * 适配器返回成功表示 PSP 已受理，订单进入 PROCESSING。
-     * 适配器返回失败表示 PSP 明确拒绝，订单直接置 FAILED。
-     *
-     * @param entity 订单
-     * @param result 请求结果
-     */
-    private void applyDispatchResult(PayinOrderEntity entity, PspPayDispatchResult result) {
-        String fromStatus = entity.getStatus();
-        entity.setPspRequestNo(result.getPspRequestNo());
-        entity.setPspOrderNo(result.getPspOrderNo());
-        entity.setPspPayUrl(result.getPayUrl());
-        entity.setPspPayParamsJson(result.getPayParamsJson());
-        entity.setPspRawStatus(result.getRawStatus());
-        if (result.isSuccess()) {
-            entity.setStatus(PayinOrderStatusEnum.PROCESSING.code());
-            entity.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
-            entity.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
-            entity.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
-            entity.setSubmittedAt(Instant.now());
-            entity.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
-            recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT", null, "SYSTEM");
-            return;
-        }
-        entity.setStatus(PayinOrderStatusEnum.FAILED.code());
-        entity.setPspStatus(PayinOrderStatusEnum.FAILED.code());
-        String reason = StringUtils.defaultIfBlank(
-                result.getErrorMessage(),
-                StringUtils.defaultIfBlank(result.getResponseMessage(), "PSP submit failed")
-        );
-        entity.setStatusReason(reason);
-        entity.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
-        entity.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
-        recordStatusChange(entity, fromStatus, entity.getStatus(), "PSP_SUBMIT_FAILED", reason, "SYSTEM");
-    }
-
-    /**
-     * 将代收订单标记为失败并记录状态日志     *
-     * @param entity 订单
-     * @param reason 失败原因
-     */
-    private void markFailed(PayinOrderEntity entity, String reason) {
-        String fromStatus = entity.getStatus();
-        entity.setStatus(PayinOrderStatusEnum.FAILED.code());
-        String message = StringUtils.defaultIfBlank(reason, "Pay order failed");
-        entity.setStatusReason(message);
-        entity.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
-        entity.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
-        payinOrderDao.updateById(entity);
-        recordStatusChange(entity, fromStatus, entity.getStatus(), "ORDER_FAILED", message, "SYSTEM");
-    }
-
-    /**
      * 记录代收订单状态变更     */
     private void recordStatusChange(PayinOrderEntity entity,
                                     String fromStatus,
                                     String toStatus,
                                     String eventType,
-                                    String reason,
                                     String operatorType) {
         AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
                     PayDirectionEnum.PAYIN.code(),
@@ -381,7 +287,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
                     fromStatus,
                     toStatus,
                     eventType,
-                    reason,
+                    null,
                     operatorType,
                     ApiReqContextHolder.getAppId(),
                     entity.getMerchantOrderNo(),
@@ -615,14 +521,6 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
 
     private boolean differsTrimmed(String left, String right) {
         return !StringUtils.trimToEmpty(left).equals(StringUtils.trimToEmpty(right));
-    }
-
-    private long firstQueryDelaySeconds() {
-        List<Long> backoffSeconds = configService.pspQueryConfig().getBackoffSeconds();
-        if (backoffSeconds == null || backoffSeconds.isEmpty()) {
-            return 60L;
-        }
-        return Math.max(1L, backoffSeconds.getFirst());
     }
 
     /**

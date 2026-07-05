@@ -192,6 +192,11 @@ public interface Constant {
     String PSP_BALANCE_CONFIG_KEY = "PSP_BALANCE_CONFIG_KEY";
 
     /**
+     * Domain config
+     */
+    String DOMAIN_CONFIG_KEY = "DOMAIN_CONFIG_KEY";
+
+    /**
      * 邮件配置KEY
      */
     String MAIL_CONFIG_KEY = "MAIL_CONFIG_KEY";

@@ -21,6 +21,7 @@ public class ApiSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/api/v1/**", "/psp/callback/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/tools/deeplink-test/*").permitAll()
                         .requestMatchers("/api/v1/**", "/psp/callback/**").permitAll()
                         .anyRequest().denyAll()
                 )

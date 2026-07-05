@@ -32,3 +32,8 @@ INSERT INTO `sys_params`
 (`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
 SELECT 3000000000000000008, 'PSP_BALANCE_CONFIG_KEY', '{"cacheSeconds":300}', 1, 'PSP balance config', NOW()
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'PSP_BALANCE_CONFIG_KEY');
+
+INSERT INTO `sys_params`
+(`id`, `param_code`, `param_value`, `param_type`, `remark`, `created_at`)
+SELECT 3000000000000000009, 'DOMAIN_CONFIG_KEY', '{"apiBaseUrl":"https://api.example.com","adminBaseUrl":"https://admin.example.com","cashierBaseUrl":"https://cashier.example.com","merchantPortalBaseUrl":"https://merchant.example.com","deeplinkBaseUrl":"https://api.example.com"}', 1, 'Platform domain config', NOW()
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `sys_params` WHERE `param_code` = 'DOMAIN_CONFIG_KEY');

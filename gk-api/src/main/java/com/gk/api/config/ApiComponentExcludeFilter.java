@@ -18,7 +18,8 @@ public class ApiComponentExcludeFilter implements TypeFilter {
 
     private static final Set<String> ALLOWED_CONTROLLERS = Set.of(
             "com.gk.openapi.controller.OpenApiV1Controller",
-            "com.gk.payment.callback.PspCallbackController"
+            "com.gk.payment.callback.PspCallbackController",
+            "com.gk.api.controller.DeeplinkTestPageController"
     );
 
     @Override

@@ -3,6 +3,7 @@ package com.gk.infra.config.service;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.enums.SignTypeEnum;
+import com.gk.infra.config.model.DomainConfig;
 import com.gk.infra.config.model.GkOpenApiConfig;
 import com.gk.infra.config.model.GkRunProperties;
 import com.gk.infra.config.model.MerchantDefaultConfig;
@@ -110,6 +111,11 @@ public class GkSysParamsConfigService {
             config.setCacheSeconds(fallback.getCacheSeconds());
         }
         return config;
+    }
+
+    public DomainConfig domainConfig() {
+        DomainConfig fallback = new DomainConfig();
+        return getObject(Constant.DOMAIN_CONFIG_KEY, DomainConfig.class, fallback);
     }
 
     private <T> T getObject(String key, Class<T> type, T fallback) {

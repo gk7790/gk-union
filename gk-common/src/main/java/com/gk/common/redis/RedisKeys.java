@@ -187,6 +187,10 @@ public class RedisKeys {
         return "tg:merchant:bind:" + code;
     }
 
+    public static String getDeeplinkTestTokenKey(String token) {
+        return "tools:deeplink-test:" + token;
+    }
+
     public static String getPspCallbackIpWhitelistKey(String pspCode) {
         return "psp:callback-ip-whitelist:" + nullToAll(pspCode);
     }

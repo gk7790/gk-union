@@ -6,6 +6,9 @@
     <!--suppress ALL, MybatisXMapperXmlInspection, MyBatisXmlInspection, XmlUnresolvedReference -->
     <sql id="pageWithNameWhere">
         <where>
+            <if test="id != null">
+                AND r.id = #{id}
+            </if>
             <if test="tenantId != null">
                 AND r.tenant_id = #{tenantId}
             </if>

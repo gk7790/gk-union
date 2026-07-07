@@ -2,6 +2,8 @@ package com.gk.payment.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
+import com.gk.common.context.ReqContextHolder;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.common.model.R;
@@ -39,6 +41,9 @@ public class PayoutOrderController {
     })
     @PreAuthorize("hasAuthority('payment:payout-order:page')")
     public R<?> page(@RequestMap DynMap params) {
+        if (isMerchantSubject()) {
+            return R.ok(payoutOrderService.merchantPage(params));
+        }
         PageData<PayoutOrderDTO> page = payoutOrderService.page(params);
         return R.ok(page);
     }
@@ -47,7 +52,14 @@ public class PayoutOrderController {
     @Operation(summary = "信息")
     @PreAuthorize("hasAuthority('payment:payout-order:info')")
     public R<?> get(@PathVariable("id") Long id) {
+        if (isMerchantSubject()) {
+            return R.ok(payoutOrderService.merchantGet(id));
+        }
         return R.ok(payoutOrderService.get(id));
+    }
+
+    private boolean isMerchantSubject() {
+        return SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType());
     }
 
     @PostMapping("{id}/notify")

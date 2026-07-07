@@ -1,10 +1,16 @@
 package com.gk.payment.service;
 
 import com.gk.common.core.service.CrudService;
+import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
+import com.gk.payment.dto.MerchantPayinOrderDTO;
 import com.gk.payment.dto.PayinOrderDTO;
 import com.gk.payment.entity.PayinOrderEntity;
 
 public interface PayinOrderService extends CrudService<PayinOrderEntity, PayinOrderDTO> {
+    PageData<MerchantPayinOrderDTO> merchantPage(DynMap params);
+
+    MerchantPayinOrderDTO merchantGet(Long id);
 
     /** 代收成功入账后：写入计划释放时间，T0/AUTO 且已到期则立即释放*/
     void onPaySuccessPosted(Long orderId);

@@ -6,9 +6,13 @@ import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.utils.ConvertUtils;
 import com.gk.payment.dao.PayoutOrderDao;
+import com.gk.payment.dto.MerchantPayoutOrderDTO;
 import com.gk.payment.dto.PayoutOrderDTO;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
@@ -44,6 +48,50 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
                 ? List.of()
                 : baseDao.selectPageWithName(params);
         return new PageData<>(list, total == null ? 0L : total);
+    }
+
+    @Override
+    public PageData<MerchantPayoutOrderDTO> merchantPage(DynMap params) {
+        applyMerchantScope(params);
+        PageData<PayoutOrderDTO> page = page(params);
+        return new PageData<>(ConvertUtils.sourceToTarget(page.getItems(), MerchantPayoutOrderDTO.class), page.getTotal());
+    }
+
+    @Override
+    public MerchantPayoutOrderDTO merchantGet(Long id) {
+        if (id == null) {
+            throw new GkException(ErrorCode.BAD_REQUEST, "id is required");
+        }
+        DynMap params = new DynMap();
+        params.put(Constant.PAGE, 1L);
+        params.put(Constant.LIMIT, 1L);
+        params.put("id", id);
+        PageData<MerchantPayoutOrderDTO> page = merchantPage(params);
+        if (page.getItems() == null || page.getItems().isEmpty()) {
+            throw new GkException(ErrorCode.NOT_FOUND, "Payout order not found");
+        }
+        return page.getItems().get(0);
+    }
+
+    private void applyMerchantScope(DynMap params) {
+        params.put("tenantId", currentTenantId());
+        params.put("merchantId", currentMerchantId());
+    }
+
+    private Long currentTenantId() {
+        Long tenantId = ReqContextHolder.getTenantId();
+        if (tenantId == null) {
+            throw new GkException(ErrorCode.DATA_SCOPE_PARAMS_ERROR);
+        }
+        return tenantId;
+    }
+
+    private Long currentMerchantId() {
+        Long merchantId = ReqContextHolder.getMerchantId();
+        if (merchantId == null) {
+            throw new GkException(ErrorCode.DATA_SCOPE_PARAMS_ERROR);
+        }
+        return merchantId;
     }
 
     @Override

@@ -11,22 +11,22 @@ import com.gk.common.enums.StyleType;
 @EnumDict("pspCallbackStatus")
 public enum PspCallbackStatus implements StringCodeEnum {
     @Style(StyleType.PRIMARY)
-    PROCESSING("PROCESSING", "Processing", "enum.pspCallbackStatus.processing"),
+    PROCESSING("PROCESSING", "处理中", "enum.pspCallbackStatus.processing"),
 
     @Style(StyleType.SUCCESS)
-    SUCCESS("SUCCESS", "Success", "enum.pspCallbackStatus.success"),
+    SUCCESS("SUCCESS", "成功", "enum.pspCallbackStatus.success"),
 
     @Style(StyleType.DANGER)
-    FAILED("FAILED", "Failed", "enum.pspCallbackStatus.failed"),
+    FAILED("FAILED", "失败", "enum.pspCallbackStatus.failed"),
 
     @Style(StyleType.DANGER)
-    CANCELLED("CANCELLED", "Cancelled", "enum.pspCallbackStatus.cancelled"),
+    CANCELLED("CANCELLED", "取消", "enum.pspCallbackStatus.cancelled"),
 
     @Style(StyleType.DANGER)
-    CLOSED("CLOSED", "Closed", "enum.pspCallbackStatus.closed"),
+    CLOSED("CLOSED", "关闭", "enum.pspCallbackStatus.closed"),
 
     @Style(StyleType.WARNING)
-    MANUAL_REVIEW("MANUAL_REVIEW", "Manual review", "enum.pspCallbackStatus.manualReview");
+    MANUAL_REVIEW("MANUAL_REVIEW", "人工", "enum.pspCallbackStatus.manualReview");
 
     private final String code;
     private final String label;

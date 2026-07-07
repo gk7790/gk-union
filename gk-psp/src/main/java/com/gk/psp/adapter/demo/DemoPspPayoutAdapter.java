@@ -2,7 +2,7 @@ package com.gk.psp.adapter.demo;
 
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.psp.adapter.PspPayoutAdapter;
-import com.gk.psp.callback.support.PspCallbackUtils;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.enums.PspPayoutSubmitStatus;
 
@@ -62,8 +62,8 @@ public class DemoPspPayoutAdapter implements PspPayoutAdapter {
                 .systemOrderNo(order.getOrderNo())
                 .merchantOrderNo(order.getMerchantOrderNo())
                 .pspOrderNo(pspOrderNo)
-                .pspStatus(PspCallbackUtils.STATUS_PROCESSING)
-                .orderStatus(PspCallbackUtils.STATUS_PROCESSING)
+                .pspStatus(PspCallbackStatus.PROCESSING.code())
+                .orderStatus(PspCallbackStatus.PROCESSING.code())
                 .amount(order.getAmount())
                 .currency(order.getCurrency())
                 .pspRequestNo(BizKeyUtils.genPspRequestNo())

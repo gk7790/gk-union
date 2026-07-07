@@ -9,7 +9,7 @@ import com.gk.psp.adapter.PspBalanceAdapter;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.balance.PspBalanceSnap;
-import com.gk.psp.callback.support.PspCallbackUtils;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.enums.PspPayoutSubmitStatus;
@@ -278,7 +278,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setResponseStatus(200);
         result.setPspOrderNo(pspOrderNo);
         result.setPayUrl("mock://world/pay/" + order.getOrderNo());
-        result.setRawStatus(PspCallbackUtils.STATUS_PROCESSING);
+        result.setRawStatus(PspCallbackStatus.PROCESSING.code());
         result.setResponseCode("MOCK_ACCEPTED");
         result.setResponseMessage("World PSP submit skipped for internal testing");
         result.setRawResponseJson(mockCreateResponse(pspOrderNo));
@@ -290,7 +290,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setHttpMethod("MOCK");
         result.setResponseStatus(200);
         result.setPspOrderNo(pspOrderNo);
-        result.setRawStatus(PspCallbackUtils.STATUS_PROCESSING);
+        result.setRawStatus(PspCallbackStatus.PROCESSING.code());
         result.setResponseCode("MOCK_ACCEPTED");
         result.setResponseMessage("World PSP submit skipped for internal testing");
         result.setRawResponseJson(mockCreateResponse(pspOrderNo));
@@ -305,7 +305,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         response.put("code", "MOCK_ACCEPTED");
         response.put("message", "World PSP submit skipped for internal testing");
         response.put("system_order_id", pspOrderNo);
-        response.put("order_status", PspCallbackUtils.STATUS_PROCESSING);
+        response.put("order_status", PspCallbackStatus.PROCESSING.code());
         return JSON.toJSONString(response, JSONWriter.Feature.WriteMapNullValue);
     }
 
@@ -375,7 +375,7 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
         result.setSubmitResultStatus(PspPayoutSubmitStatus.ACCEPTED);
         result.setPspOrderNo(data.getString("system_order_id"));
         result.setResponseSign(responseSign);
-        result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackUtils.STATUS_PROCESSING));
+        result.setRawStatus(StringUtils.defaultIfBlank(data.getString("order_status"), PspCallbackStatus.PROCESSING.code()));
     }
 
     private boolean isUnknownPayoutCreateResponse(JSONObject response) {
@@ -490,19 +490,19 @@ public class WorldPspSubmitAdapter implements PspPayAdapter, PspPayoutAdapter, P
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
-            default -> PspCallbackUtils.STATUS_PROCESSING;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackStatus.SUCCESS.code();
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackStatus.FAILED.code();
+            default -> PspCallbackStatus.PROCESSING.code();
         };
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
-            case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
-            default -> PspCallbackUtils.STATUS_PROCESSING;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackStatus.SUCCESS.code();
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "REJECTED" -> PspCallbackStatus.FAILED.code();
+            case "CANCELLED", "CANCELED" -> PspCallbackStatus.CANCELLED.code();
+            default -> PspCallbackStatus.PROCESSING.code();
         };
     }
 

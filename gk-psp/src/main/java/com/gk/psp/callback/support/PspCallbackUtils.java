@@ -12,13 +12,6 @@ import java.util.Locale;
  * Covers status normalization, null fallbacks, amount text formatting and digest calculation.
  */
 public final class PspCallbackUtils {
-    public static final String STATUS_PROCESSING = "PROCESSING";
-    public static final String STATUS_SUCCESS = "SUCCESS";
-    public static final String STATUS_FAILED = "FAILED";
-    public static final String STATUS_CANCELLED = "CANCELLED";
-    public static final String STATUS_CLOSED = "CLOSED";
-    public static final String STATUS_MANUAL_REVIEW = "MANUAL_REVIEW";
-
     private PspCallbackUtils() {
     }
 
@@ -28,7 +21,7 @@ public final class PspCallbackUtils {
     public static boolean isTerminal(String status) {
         String normalized = normalizeStatus(status);
         return isFinalTerminal(normalized)
-                || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(normalized);
+                || PspCallbackStatus.MANUAL_REVIEW.matches(normalized);
     }
 
     /**
@@ -36,10 +29,10 @@ public final class PspCallbackUtils {
      */
     public static boolean isFinalTerminal(String status) {
         String normalized = normalizeStatus(status);
-        return PspCallbackUtils.STATUS_SUCCESS.equals(normalized)
-                || PspCallbackUtils.STATUS_FAILED.equals(normalized)
-                || PspCallbackUtils.STATUS_CLOSED.equals(normalized)
-                || PspCallbackUtils.STATUS_CANCELLED.equals(normalized);
+        return PspCallbackStatus.SUCCESS.matches(normalized)
+                || PspCallbackStatus.FAILED.matches(normalized)
+                || PspCallbackStatus.CLOSED.matches(normalized)
+                || PspCallbackStatus.CANCELLED.matches(normalized);
     }
 
     /**
@@ -61,13 +54,6 @@ public final class PspCallbackUtils {
      */
     public static Long defaultLong(Long value) {
         return value == null ? 0L : value;
-    }
-
-    /**
-     * Formats amount text without scientific notation.
-     */
-    public static String decimalText(BigDecimal value) {
-        return value == null ? null : value.toPlainString();
     }
 
     /**

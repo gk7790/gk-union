@@ -22,6 +22,7 @@ import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -334,14 +335,14 @@ public class MerchantNotifyExecutor {
         return PayinOrderStatusEnum.SUCCESS.matches(status)
                 || PayinOrderStatusEnum.FAILED.matches(status)
                 || PayinOrderStatusEnum.CLOSED.matches(status)
-                || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(PspCallbackUtils.normalizeStatus(status));
+                || PspCallbackStatus.MANUAL_REVIEW.code().equals(PspCallbackUtils.normalizeStatus(status));
     }
 
     private boolean isTerminalPayoutOrder(String status) {
         return PayoutOrderStatusEnum.SUCCESS.matches(status)
                 || PayoutOrderStatusEnum.FAILED.matches(status)
                 || PayoutOrderStatusEnum.CANCELLED.matches(status)
-                || PspCallbackUtils.STATUS_MANUAL_REVIEW.equals(PspCallbackUtils.normalizeStatus(status));
+                || PspCallbackStatus.MANUAL_REVIEW.code().equals(PspCallbackUtils.normalizeStatus(status));
     }
 
     /**

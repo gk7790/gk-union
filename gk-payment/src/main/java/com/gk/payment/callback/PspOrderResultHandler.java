@@ -8,6 +8,7 @@ import com.gk.ledger.service.LedgerPostingService;
 import com.gk.payment.service.PayinOrderService;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.callback.support.PspCallbackValidator;
 import com.gk.psp.query.PspOrderQueryResult;
@@ -62,7 +63,7 @@ public class PspOrderResultHandler {
             LedgerPostingResult postingResult = postLedger(bizType, result, order);
             orderProcessor.attachPostingResult(bizType, order.id(), result.getOrderStatus(), postingResult);
             if (BizTypeEnum.PAYIN_ORDER.matches(bizType)
-                    && PspCallbackUtils.STATUS_SUCCESS.equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
+                    && PspCallbackStatus.SUCCESS.code().equals(PspCallbackUtils.normalizeStatus(result.getOrderStatus()))) {
                 // 代收成功入账后，继续计算待结算释放时间，必要时触发自动释放。
                 payinOrderService.onPaySuccessPosted(order.id());
             }
@@ -79,15 +80,15 @@ public class PspOrderResultHandler {
      */
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackStatus.SUCCESS.code().equals(status)) {
             // 代收成功：资金进入商户待结算账户，商户手续费按订单快照入账。
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackStatus.SUCCESS.code().equals(status)) {
             // 代付成功：把下单时冻结的金额正式扣减。
             return ledgerPostingService.postPayoutSuccess(payoutRequest(order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_FAILED.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackStatus.FAILED.code().equals(status)) {
             // 代付失败：释放下单时冻结的金额，恢复商户可用余额。
             return ledgerPostingService.releasePayout(payoutRequest(order));
         }

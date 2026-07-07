@@ -52,7 +52,7 @@ public class PspCallbackValidator {
         currencyResolver.resolve(result, order);
 
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (PspCallbackStatus.SUCCESS.code().equals(status)) {
             validateRequiredAmount(result.getAmount(), order.amount());
             return;
         }

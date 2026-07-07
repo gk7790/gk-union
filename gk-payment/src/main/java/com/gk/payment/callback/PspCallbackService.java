@@ -24,6 +24,7 @@ import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackAckMapper;
 import com.gk.psp.callback.support.PspCallbackLogRecorder;
 import com.gk.psp.callback.support.PspCallbackRequestFactory;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.callback.support.PspCallbackUtils;
 import com.gk.psp.callback.support.PspCallbackValidator;
 import com.gk.psp.dao.PspAccountDao;
@@ -417,13 +418,13 @@ public class PspCallbackService {
      */
     private LedgerPostingResult postLedger(String bizType, PspCallbackResult result, PspCallbackOrder order) {
         String status = PspCallbackUtils.normalizeStatus(result.getOrderStatus());
-        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYIN_ORDER.matches(bizType) && PspCallbackStatus.SUCCESS.code().equals(status)) {
             return ledgerPostingService.postPaySuccess(paySuccessRequest(result, order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackStatus.SUCCESS.code().equals(status)) {
             return ledgerPostingService.postPayoutSuccess(payoutRequest(order));
         }
-        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackUtils.STATUS_FAILED.equals(status)) {
+        if (BizTypeEnum.PAYOUT_ORDER.matches(bizType) && PspCallbackStatus.FAILED.code().equals(status)) {
             return ledgerPostingService.releasePayout(payoutRequest(order));
         }
         return null;

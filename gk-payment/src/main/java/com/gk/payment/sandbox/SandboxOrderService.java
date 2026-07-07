@@ -24,7 +24,7 @@ import com.gk.payment.enums.SettleStatusEnum;
 import com.gk.payment.notify.MerchantNotifyExecutor;
 import com.gk.psp.callback.model.PspCallbackOrder;
 import com.gk.psp.callback.model.PspCallbackResult;
-import com.gk.psp.callback.support.PspCallbackUtils;
+import com.gk.psp.callback.support.PspCallbackStatus;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -133,17 +133,17 @@ public class SandboxOrderService {
         result.setSystemOrderNo(order.getPayinOrderNo());
         result.setMerchantOrderNo(order.getMerchantOrderNo());
         result.setPspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), Constant.SANDBOX + "_" + order.getPayinOrderNo()));
-        result.setPspStatus(PspCallbackUtils.STATUS_SUCCESS.equals(status) ? SANDBOX_PSP_STATUS_SUCCESS : SANDBOX_PSP_STATUS_FAILED);
+        result.setPspStatus(PspCallbackStatus.SUCCESS.code().equals(status) ? SANDBOX_PSP_STATUS_SUCCESS : SANDBOX_PSP_STATUS_FAILED);
         result.setOrderStatus(status);
         result.setAmount(order.getAmount());
         result.setCurrency(order.getCurrency());
         result.setCallbackType("SANDBOX");
-        result.setErrorCode(PspCallbackUtils.STATUS_FAILED.equals(status) ? "SANDBOX_FAILED" : null);
+        result.setErrorCode(PspCallbackStatus.FAILED.code().equals(status) ? "SANDBOX_FAILED" : null);
         result.setErrorMessage(errorMessage);
 
         PspCallbackOrder callbackOrder = orderResolver.fromPayinOrder(order, null);
         boolean changed = orderProcessor.process(BizTypeEnum.PAYIN_ORDER.code(), result, callbackOrder, null);
-        if (changed && PspCallbackUtils.STATUS_SUCCESS.equals(status)) {
+        if (changed && PspCallbackStatus.SUCCESS.code().equals(status)) {
             PayinOrderEntity patch = new PayinOrderEntity();
             patch.setId(order.getId());
             patch.setSettleStatus(SettleStatusEnum.RELEASED.code());
@@ -162,12 +162,12 @@ public class SandboxOrderService {
         result.setSystemOrderNo(order.getPayoutOrderNo());
         result.setMerchantOrderNo(order.getMerchantOrderNo());
         result.setPspOrderNo(StringUtils.defaultIfBlank(order.getPspOrderNo(), Constant.SANDBOX + "_" + order.getPayoutOrderNo()));
-        result.setPspStatus(PspCallbackUtils.STATUS_SUCCESS.equals(status) ? SANDBOX_PSP_STATUS_SUCCESS : SANDBOX_PSP_STATUS_FAILED);
+        result.setPspStatus(PspCallbackStatus.SUCCESS.code().equals(status) ? SANDBOX_PSP_STATUS_SUCCESS : SANDBOX_PSP_STATUS_FAILED);
         result.setOrderStatus(status);
         result.setAmount(order.getAmount());
         result.setCurrency(order.getCurrency());
         result.setCallbackType("SANDBOX");
-        result.setErrorCode(PspCallbackUtils.STATUS_FAILED.equals(status) ? "SANDBOX_FAILED" : null);
+        result.setErrorCode(PspCallbackStatus.FAILED.code().equals(status) ? "SANDBOX_FAILED" : null);
         result.setErrorMessage(errorMessage);
 
         PspCallbackOrder callbackOrder = orderResolver.fromPayoutOrder(order, null);

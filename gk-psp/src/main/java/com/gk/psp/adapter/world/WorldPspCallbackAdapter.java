@@ -5,7 +5,7 @@ import com.gk.psp.adapter.PspCallbackAdapter;
 import com.gk.psp.callback.model.PspCallbackRequest;
 import com.gk.psp.callback.model.PspCallbackResult;
 import com.gk.psp.callback.support.PspCallbackAckMapper;
-import com.gk.psp.callback.support.PspCallbackUtils;
+import com.gk.psp.callback.support.PspCallbackStatus;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -77,19 +77,19 @@ public class WorldPspCallbackAdapter implements PspCallbackAdapter {
     private String toPayStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackUtils.STATUS_FAILED;
-            default -> PspCallbackUtils.STATUS_PROCESSING;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "PAID", "COMPLETED" -> PspCallbackStatus.SUCCESS.code();
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "CLOSED", "CANCELLED" -> PspCallbackStatus.FAILED.code();
+            default -> PspCallbackStatus.PROCESSING.code();
         };
     }
 
     private String toPayoutStatus(String status) {
         String value = StringUtils.defaultString(status).trim().toUpperCase(Locale.ROOT);
         return switch (value) {
-            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackUtils.STATUS_SUCCESS;
-            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "REJECTED" -> PspCallbackUtils.STATUS_FAILED;
-            case "CANCELLED", "CANCELED" -> PspCallbackUtils.STATUS_CANCELLED;
-            default -> PspCallbackUtils.STATUS_PROCESSING;
+            case "PAYIN_SUCCESS", "PAY_SUCCESS", "SUCCESS", "COMPLETED" -> PspCallbackStatus.SUCCESS.code();
+            case "PAYIN_FAILED", "PAY_FAILED", "PAY_FAIL", "FAILED", "REJECTED" -> PspCallbackStatus.FAILED.code();
+            case "CANCELLED", "CANCELED" -> PspCallbackStatus.CANCELLED.code();
+            default -> PspCallbackStatus.PROCESSING.code();
         };
     }
 

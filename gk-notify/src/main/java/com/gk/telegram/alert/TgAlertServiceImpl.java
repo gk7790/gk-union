@@ -99,7 +99,7 @@ public class TgAlertServiceImpl implements TgAlertService {
 
     private String renderText(TgAlertEventType eventType, String title, String content) {
         return "<code>" + StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType)) + "</code>\n" +
-                "─────────────────────\n" + content;
+                "──────────────\n" + content;
     }
 
     /**

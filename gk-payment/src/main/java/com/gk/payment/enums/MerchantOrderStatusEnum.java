@@ -1,7 +1,9 @@
 package com.gk.payment.enums;
 
 import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.StringCodeEnum;
+import com.gk.common.enums.StyleType;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -9,11 +11,16 @@ import org.apache.commons.lang3.StringUtils;
  */
 @EnumDict("merchantOrderStatus")
 public enum MerchantOrderStatusEnum implements StringCodeEnum {
-    PROCESSING("PROCESSING", "Processing", "enum.merchantOrderStatus.processing", "Order is processing"),
-    SUCCESS("SUCCESS", "Success", "enum.merchantOrderStatus.success", "Transaction successful"),
-    FAILED("FAILED", "Failed", "enum.merchantOrderStatus.failed", "Transaction failed"),
-    CLOSED("CLOSED", "Closed", "enum.merchantOrderStatus.closed", "Order closed"),
-    CANCELLED("CANCELLED", "Cancelled", "enum.merchantOrderStatus.cancelled", "Order cancelled");
+    @Style(StyleType.WARNING)
+    PROCESSING("PROCESSING", "处理中", "enum.merchantOrderStatus.processing", "Order is processing"),
+    @Style(StyleType.SUCCESS)
+    SUCCESS("SUCCESS", "成功", "enum.merchantOrderStatus.success", "Transaction successful"),
+    @Style(StyleType.DANGER)
+    FAILED("FAILED", "失败", "enum.merchantOrderStatus.failed", "Transaction failed"),
+    @Style(StyleType.DANGER)
+    CLOSED("CLOSED", "关闭", "enum.merchantOrderStatus.closed", "Order closed"),
+    @Style(StyleType.WARNING)
+    CANCELLED("CANCELLED", "取消", "enum.merchantOrderStatus.cancelled", "Order cancelled");
 
     private final String code;
     private final String label;

@@ -19,6 +19,8 @@
         u.email as 'email',
         u.avatar AS 'avatar',
         u.`status` AS 'status',
+        u.auth_type AS 'authType',
+        u.auth_secret AS 'authSecret',
         u.gender AS 'gender'
     </sql>
 

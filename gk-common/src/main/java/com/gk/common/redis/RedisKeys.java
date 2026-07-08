@@ -43,6 +43,10 @@ public class RedisKeys {
         return "sys:security:user:" + id;
     }
 
+    public static String getLoginMfaChallengeKey(String token) {
+        return "auth:mfa:challenge:" + token;
+    }
+
     /**
      * 用户菜单导航Key
      */

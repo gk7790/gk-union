@@ -1,14 +1,13 @@
 package com.gk.auth.config;
 
 import com.alibaba.fastjson2.JSONObject;
-import com.gk.common.constant.Constant;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.model.R;
 import com.gk.auth.entity.SysUser;
 import com.gk.auth.oauth.JsonUsernamePasswordAuthenticationFilter;
 import com.gk.auth.oauth.JwtAuthenticationFilter;
 import com.gk.auth.service.JpaUserDetailsService;
-import com.gk.auth.utils.JwtUtils;
+import com.gk.auth.service.LoginMfaService;
 import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.IpUtils;
 import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
@@ -40,9 +39,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -51,11 +48,16 @@ public class SecurityConfig {
     private final JpaUserDetailsService userDetailsService;
     private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
     private final TgAlertService tgAlertService;
+    private final LoginMfaService loginMfaService;
 
-    public SecurityConfig(JpaUserDetailsService userDetailsService, SysLoginIpWhitelistService sysLoginIpWhitelistService, TgAlertService tgAlertService) {
+    public SecurityConfig(JpaUserDetailsService userDetailsService,
+                          SysLoginIpWhitelistService sysLoginIpWhitelistService,
+                          TgAlertService tgAlertService,
+                          LoginMfaService loginMfaService) {
         this.userDetailsService = userDetailsService;
         this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
         this.tgAlertService = tgAlertService;
+        this.loginMfaService = loginMfaService;
     }
 
     /**
@@ -176,38 +178,12 @@ public class SecurityConfig {
             SysUser user = (SysUser) authentication.getPrincipal();
 
             // 构建 claims
-            Map<String, Object> claims = new HashMap<>();
-            claims.put(JwtUtils.USER_ID, user.getId());
-            claims.put(JwtUtils.SUBJECT_ID, user.getSubjectId());
-            claims.put(JwtUtils.TENANT_ID, user.getTenantId());
-            claims.put(JwtUtils.MERCHANT_ID, user.getMerchantId());
-            claims.put(JwtUtils.DEPT_ID, user.getDeptId());
-            claims.put(JwtUtils.ROLE_ID, user.getRoleId());
-            claims.put("roleIds", user.getRoleIdList());
-            claims.put(JwtUtils.SUBJECT_TYPE, user.getSubjectType());
-            claims.put(JwtUtils.UNAME, user.getUsername());
-            claims.put(JwtUtils.SUPER_Admin, user.isSuperAdmin());
-            claims.put("email", user.getEmail());
-            claims.put("realName", user.getRealName());
-            claims.put("roles", user.getRoleList());
-            String token = JwtUtils.generateToken(Constant.ADMIN, claims);
+            if (loginMfaService.requiresMfa(user)) {
+                response.getWriter().write(JSONObject.toJSONString(R.ok(loginMfaService.createChallengeResponse(user))));
+                return;
+            }
 
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("subjectId", user.getSubjectId());
-            userMap.put("username", user.getUsername());
-            userMap.put("realName", user.getNickName());
-            userMap.put("subjectType", user.getSubjectType());
-            userMap.put("tenantId", user.getTenantId());
-            userMap.put("merchantId", user.getMerchantId());
-            userMap.put("deptId", user.getDeptId());
-            userMap.put("roleId", user.getRoleId());
-            userMap.put("roleIds", user.getRoleIdList());
-            userMap.put("roles", user.getRoleList());
-            userMap.put("accessToken", token);
-            userMap.put("tokenType", "Bearer");
-            userMap.put("expiresIn", 86400);
-            response.getWriter().write(JSONObject.toJSONString(R.ok(userMap)));
+            response.getWriter().write(JSONObject.toJSONString(R.ok(loginMfaService.buildLoginResponse(user))));
         };
     }
 

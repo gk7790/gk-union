@@ -30,6 +30,8 @@ public class SysUser implements UserDetails {
     private String email;
     private String avatar;
     private Integer status;
+    private Integer authType;
+    private String authSecret;
     private String realName;
     private Integer gender;
 

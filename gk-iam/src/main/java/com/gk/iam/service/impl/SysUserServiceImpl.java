@@ -3,6 +3,7 @@ package com.gk.iam.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
+import com.gk.common.enums.AuthTypeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -49,7 +51,9 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         }
 
         List<SysUserEntity> list = baseDao.getList(params);
-        return getPageData(list, page.getTotal(), SysUserDTO.class);
+        PageData<SysUserDTO> pageData = getPageData(list, page.getTotal(), SysUserDTO.class);
+        fillAuthenticatorBound(pageData.getItems());
+        return pageData;
     }
 
     @Override
@@ -61,19 +65,25 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         }
 
         List<SysUserEntity> entityList = baseDao.getList(params);
-        return ConvertUtils.sourceToTarget(entityList, SysUserDTO.class);
+        List<SysUserDTO> result = ConvertUtils.sourceToTarget(entityList, SysUserDTO.class);
+        fillAuthenticatorBound(result);
+        return result;
     }
 
     @Override
     public SysUserDTO getById(Long id) {
         SysUserEntity entity = baseDao.selectById(id);
-        return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        SysUserDTO dto = ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        fillAuthenticatorBound(dto);
+        return dto;
     }
 
     @Override
     public SysUserDTO getByUsername(String username) {
         SysUserEntity entity = baseDao.getByUsername(username);
-        return ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        SysUserDTO dto = ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        fillAuthenticatorBound(dto);
+        return dto;
     }
 
     @Override
@@ -127,6 +137,11 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     @Transactional(rollbackFor = Exception.class)
     public void updatePassword(Long id, String newPassword) {
         baseDao.updatePassword(id, PasswordUtils.encode(newPassword));
+    }
+
+    @Override
+    public void updateAuthenticator(Long id, Integer authType, String authSecret) {
+        baseDao.updateAuthenticator(id, authType, authSecret);
     }
 
     @Override
@@ -195,5 +210,20 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         Long tenantId = ReqContextHolder.getTenantId();
         AssertUtils.isNull(tenantId, "tenantId");
         params.put("tenantId", tenantId);
+    }
+
+    private void fillAuthenticatorBound(List<SysUserDTO> users) {
+        if (users == null || users.isEmpty()) {
+            return;
+        }
+        users.stream().filter(Objects::nonNull).forEach(this::fillAuthenticatorBound);
+    }
+
+    private void fillAuthenticatorBound(SysUserDTO user) {
+        if (user == null) {
+            return;
+        }
+        user.setAuthenticatorBound(AuthTypeEnum.requiresMfa(user.getAuthType())
+                && StringUtils.isNotBlank(user.getAuthSecret()));
     }
 }

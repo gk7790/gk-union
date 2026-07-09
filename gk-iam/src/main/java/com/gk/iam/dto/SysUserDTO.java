@@ -1,6 +1,7 @@
 package com.gk.iam.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
@@ -84,9 +85,15 @@ public class SysUserDTO implements Serializable {
     private String tenantName;
 
 	@Schema(title = "验证器类型")
+	@JsonIgnore
 	private Integer authType;
 
 	@Schema(title = "验证器密钥")
+	@JsonIgnore
 	private String authSecret;
+
+	@Schema(title = "是否已绑定验证器", accessMode = Schema.AccessMode.READ_ONLY)
+	@JsonProperty(access = JsonProperty.Access.READ_ONLY)
+	private Boolean authenticatorBound;
 
 }

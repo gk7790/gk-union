@@ -38,6 +38,8 @@ public interface SysUserService extends BaseService<SysUserEntity> {
 	 */
 	void updatePassword(Long id, String newPassword);
 
+	void updateAuthenticator(Long id, Integer authType, String authSecret);
+
 	/**
 	 * 根据部门ID，查询用户数
 	 */

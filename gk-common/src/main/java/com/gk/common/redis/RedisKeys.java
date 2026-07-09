@@ -47,6 +47,10 @@ public class RedisKeys {
         return "auth:mfa:challenge:" + token;
     }
 
+    public static String getAuthenticatorBindKey(Long userId) {
+        return "authenticator:bind:" + userId;
+    }
+
     /**
      * 用户菜单导航Key
      */

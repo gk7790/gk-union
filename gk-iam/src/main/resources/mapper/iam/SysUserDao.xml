@@ -70,6 +70,13 @@
 		update sys_user set password = #{newPassword} where id = #{id}
 	</update>
 
+	<update id="updateAuthenticator">
+		update sys_user
+		set auth_type = #{authType},
+			auth_secret = #{authSecret}
+		where id = #{id}
+	</update>
+
 	<select id="getCountByDeptId" resultType="int">
 		select count(*) from sys_user_subject where dept_id = #{value}
 	</select>

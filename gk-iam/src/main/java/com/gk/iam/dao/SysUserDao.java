@@ -46,6 +46,10 @@ public interface SysUserDao extends BaseMapper<SysUserEntity> {
      */
 	int updatePassword(@Param("id") Long id, @Param("newPassword") String newPassword);
 
+	int updateAuthenticator(@Param("id") Long id,
+							@Param("authType") Integer authType,
+							@Param("authSecret") String authSecret);
+
 	/**
 	 * 根据部门ID，查询用户数
 	 */

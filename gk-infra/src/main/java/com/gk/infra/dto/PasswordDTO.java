@@ -2,6 +2,7 @@ package com.gk.infra.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -23,6 +24,12 @@ public class PasswordDTO implements Serializable {
 
     @Schema(title = "新密码")
     @NotBlank(message="{sysuser.password.require}")
+    @Size(min = 8, max = 72, message = "新密码长度必须为 8 到 72 位")
     private String newPassword;
+
+    @Schema(title = "确认新密码")
+    @NotBlank(message="{sysuser.password.require}")
+    @Size(min = 8, max = 72, message = "确认密码长度必须为 8 到 72 位")
+    private String confirmPassword;
 
 }

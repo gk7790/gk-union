@@ -20,7 +20,7 @@ public class TotpAuthenticator {
         GoogleAuthenticatorConfig config = new GoogleAuthenticatorConfig.GoogleAuthenticatorConfigBuilder()
                 .setCodeDigits(6)
                 .setTimeStepSizeInMillis(30_000)
-                .setWindowSize(1)
+                .setWindowSize(3)
                 .build();
         this.googleAuthenticator = new GoogleAuthenticator(config);
     }
@@ -34,10 +34,11 @@ public class TotpAuthenticator {
         if (StringUtils.isBlank(secret) || StringUtils.isBlank(code)) {
             return false;
         }
-        if (!code.matches(CODE_PATTERN)) {
+        String normalizedCode = StringUtils.deleteWhitespace(code);
+        if (!normalizedCode.matches(CODE_PATTERN)) {
             return false;
         }
-        return googleAuthenticator.authorize(secret, Integer.parseInt(code));
+        return googleAuthenticator.authorize(secret, Integer.parseInt(normalizedCode));
     }
 
     public boolean verify(String secret, int code) {
@@ -56,9 +57,7 @@ public class TotpAuthenticator {
 
         return "otpauth://totp/" + encodedIssuer + ":" + encodedAccount
                 + "?secret=" + encodedSecret
-                + "&issuer=" + encodedIssuer
-                + "&digits=6"
-                + "&period=30";
+                + "&issuer=" + encodedIssuer;
     }
 
     private String encode(String value) {

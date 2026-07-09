@@ -27,6 +27,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -105,7 +106,14 @@ public class SysUserController {
 
     @PutMapping("password")
     @Operation(summary = "修改当前用户密码", description = "当前登录用户修改自己的密码，需要提供原密码和新密码。")
-    public R<?> password(@RequestBody PasswordDTO dto) {
+    public R<?> password(@Valid @RequestBody PasswordDTO dto) {
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            return R.error(ErrorCode.PASSWORD_INCONSISTENCY);
+        }
+        if (dto.getPassword().equals(dto.getNewPassword())) {
+            return R.errorMsg(ErrorCode.FAILURE, "新密码不能与原密码相同");
+        }
+
         SysUserEntity user = sysUserService.selectById(currentUser.getUserId());
         //原密码不正确
         if (!PasswordUtils.matches(dto.getPassword(), user.getPassword())) {

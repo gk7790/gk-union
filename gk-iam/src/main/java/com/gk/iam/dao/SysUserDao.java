@@ -1,7 +1,6 @@
 package com.gk.iam.dao;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.gk.common.core.dao.BaseDao;
 import com.gk.iam.entity.SysUserEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -19,8 +18,8 @@ public interface SysUserDao extends BaseMapper<SysUserEntity> {
 
     /**
      * 获取用户列表
-     * @param params
-     * @return
+     * @param params 参数
+     * @return 集合
      */
 	List<SysUserEntity> getList(Map<String, Object> params);
 

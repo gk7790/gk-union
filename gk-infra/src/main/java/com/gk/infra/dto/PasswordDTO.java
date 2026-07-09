@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /**
@@ -16,6 +17,7 @@ import java.io.Serializable;
 @Data
 @Schema(title = "修改密码")
 public class PasswordDTO implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Schema(title = "原密码")

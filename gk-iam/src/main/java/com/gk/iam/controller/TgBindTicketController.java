@@ -31,7 +31,7 @@ public class TgBindTicketController {
     private final SysUserSubjectService sysUserSubjectService;
 
     @PostMapping
-    @Operation(summary = "生成Telegram绑定码")
+    @Operation(summary = "生成绑定码")
     @PreAuthorize("isAuthenticated()")
     public R<?> generate(@RequestMap DynMap params) {
         if (params == null) {

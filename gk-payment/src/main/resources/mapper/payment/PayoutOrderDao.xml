@@ -42,6 +42,9 @@
             <if test="status != null and status != ''">
                 AND r.status = #{status}
             </if>
+            <if test="merchantStatusCode != null and merchantStatusCode != ''">
+                AND r.merchant_status_code = #{merchantStatusCode}
+            </if>
             <if test="merchantNotifyStatus != null and merchantNotifyStatus != ''">
                 AND r.merchant_notify_status = #{merchantNotifyStatus}
             </if>

@@ -10,13 +10,13 @@ import com.gk.common.enums.StyleType;
 @EnumDict("payinOrderStatus")
 public enum PayinOrderStatusEnum implements StringCodeEnum {
     @Style(StyleType.INFO)
-    CREATED("CREATED", "已创", "enum.payinOrderStatus.created"),
+    CREATED("CREATED", "已创建", "enum.payinOrderStatus.created"),
 
     @Style(StyleType.PRIMARY)
-    PROCESSING("PROCESSING", "处理", "enum.payinOrderStatus.processing"),
+    PROCESSING("PROCESSING", "处理中", "enum.payinOrderStatus.processing"),
 
     @Style(StyleType.WARNING)
-    MANUAL_REVIEW("MANUAL_REVIEW", "待人工处", "enum.payinOrderStatus.manualReview"),
+    MANUAL_REVIEW("MANUAL_REVIEW", "人工", "enum.payinOrderStatus.manualReview"),
 
     @Style(StyleType.SUCCESS)
     SUCCESS("SUCCESS", "成功", "enum.payinOrderStatus.success"),
@@ -25,7 +25,7 @@ public enum PayinOrderStatusEnum implements StringCodeEnum {
     FAILED("FAILED", "失败", "enum.payinOrderStatus.failed"),
 
     @Style(StyleType.DANGER)
-    CLOSED("CLOSED", "已关", "enum.payinOrderStatus.closed");
+    CLOSED("CLOSED", "关闭", "enum.payinOrderStatus.closed");
 
     private final String code;
     private final String label;

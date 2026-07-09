@@ -151,8 +151,17 @@ public class SysUserController {
     }
 
     @PutMapping("app")
-    @Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、姓名、手机号、邮箱等个人资料。")
+    @Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、昵称、姓名、性别、手机号、邮箱等个人资料；用户名不支持自助修改。")
     public R<?> updateUserInfo(@RequestBody SysUserDTO dto) {
+        if (dto == null) {
+            dto = new SysUserDTO();
+        }
+        Long userId = currentUser.getUserId();
+        if (userId == null) {
+            userId = ReqContextHolder.getUserId();
+        }
+        AssertUtils.isNull(userId, "userId");
+        dto.setId(userId);
         sysUserService.updateUserInfo(dto);
         return R.ok();
     }

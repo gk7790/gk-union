@@ -5,6 +5,8 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.BaseServiceImpl;
 import com.gk.common.enums.AuthTypeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
+import com.gk.common.exception.ErrorCode;
+import com.gk.common.exception.GkException;
 import com.gk.common.model.PageData;
 import com.gk.common.password.PasswordUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -115,12 +117,29 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateUserInfo(SysUserDTO dto) {
+        AssertUtils.isNull(dto.getId(), "userId");
         SysUserEntity entity = selectById(dto.getId());
-        entity.setAvatar(dto.getAvatar());
-        entity.setRealName(dto.getRealName());
-        entity.setGender(dto.getGender());
-        entity.setMobile(dto.getMobile());
-        entity.setEmail(dto.getEmail());
+        if (entity == null) {
+            throw new GkException(ErrorCode.ACCOUNT_NOT_EXIST);
+        }
+        if (dto.getAvatar() != null) {
+            entity.setAvatar(dto.getAvatar());
+        }
+        if (dto.getNickname() != null) {
+            entity.setNickname(dto.getNickname());
+        }
+        if (dto.getRealName() != null) {
+            entity.setRealName(dto.getRealName());
+        }
+        if (dto.getGender() != null) {
+            entity.setGender(dto.getGender());
+        }
+        if (dto.getMobile() != null) {
+            entity.setMobile(dto.getMobile());
+        }
+        if (dto.getEmail() != null) {
+            entity.setEmail(dto.getEmail());
+        }
 
         updateById(entity);
     }

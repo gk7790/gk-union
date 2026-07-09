@@ -6,22 +6,22 @@
     <select id="selectPayinOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
         SELECT
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND paid_at &gt;= #{rangeStart}
                  AND paid_at &lt; #{rangeEnd}
                 THEN 1 ELSE 0 END), 0) AS successCount,
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND paid_at &gt;= #{rangeStart}
                  AND paid_at &lt; #{rangeEnd}
                 THEN COALESCE(paid_amount, amount) ELSE 0 END), 0) AS successAmount,
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND paid_at &gt;= #{rangeStart}
                  AND paid_at &lt; #{rangeEnd}
                 THEN merchant_fee_amount ELSE 0 END), 0) AS feeAmount,
             COALESCE(SUM(CASE
-                WHEN status = 'FAILED'
+                WHEN merchant_status_code = 'FAILED'
                  AND failed_at &gt;= #{rangeStart}
                  AND failed_at &lt; #{rangeEnd}
                 THEN 1 ELSE 0 END), 0) AS failedCount,
@@ -31,7 +31,7 @@
                  AND closed_at &lt; #{rangeEnd}
                 THEN 1 ELSE 0 END), 0) AS closedCount,
             COALESCE(SUM(CASE
-                WHEN status IN ('CREATED', 'PROCESSING')
+                WHEN merchant_status_code = 'PROCESSING'
                 THEN 1 ELSE 0 END), 0) AS processingCount
         FROM payin_order
         WHERE tenant_id = #{tenantId}
@@ -42,27 +42,27 @@
     <select id="selectPayoutOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
         SELECT
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
                  AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
                 THEN 1 ELSE 0 END), 0) AS successCount,
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
                  AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
                 THEN amount ELSE 0 END), 0) AS successAmount,
             COALESCE(SUM(CASE
-                WHEN status = 'SUCCESS'
+                WHEN merchant_status_code = 'SUCCESS'
                  AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
                  AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
                 THEN merchant_fee_amount ELSE 0 END), 0) AS feeAmount,
             COALESCE(SUM(CASE
-                WHEN status = 'FAILED'
+                WHEN merchant_status_code = 'FAILED'
                  AND failed_at &gt;= #{rangeStart}
                  AND failed_at &lt; #{rangeEnd}
                 THEN 1 ELSE 0 END), 0) AS failedCount,
             COALESCE(SUM(CASE
-                WHEN status IN ('CREATED', 'FROZEN', 'PROCESSING')
+                WHEN merchant_status_code = 'PROCESSING'
                 THEN 1 ELSE 0 END), 0) AS processingCount
         FROM payout_order
         WHERE tenant_id = #{tenantId}
@@ -94,21 +94,7 @@
 
     <select id="selectTodoCounts" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$Todo">
         SELECT
-            (
-                SELECT COUNT(1)
-                FROM payin_order
-                WHERE tenant_id = #{tenantId}
-                  AND merchant_id = #{merchantId}
-                  AND currency = #{currency}
-                  AND status = 'MANUAL_REVIEW'
-            ) + (
-                SELECT COUNT(1)
-                FROM payout_order
-                WHERE tenant_id = #{tenantId}
-                  AND merchant_id = #{merchantId}
-                  AND currency = #{currency}
-                  AND status = 'MANUAL_REVIEW'
-            ) AS manualReview,
+            0 AS manualReview,
             (
                 SELECT COUNT(1)
                 FROM payin_order
@@ -131,7 +117,7 @@
                 WHERE tenant_id = #{tenantId}
                   AND merchant_id = #{merchantId}
                   AND currency = #{currency}
-                  AND status IN ('CREATED', 'PROCESSING')
+                  AND merchant_status_code = 'PROCESSING'
             ) AS processingPay,
             (
                 SELECT COUNT(1)
@@ -139,7 +125,7 @@
                 WHERE tenant_id = #{tenantId}
                   AND merchant_id = #{merchantId}
                   AND currency = #{currency}
-                  AND status IN ('CREATED', 'FROZEN', 'PROCESSING')
+                  AND merchant_status_code = 'PROCESSING'
             ) AS processingPayout
     </select>
 
@@ -177,53 +163,6 @@
 
     <select id="listTodos" resultType="com.gk.dashboard.dto.TenantDashboardTodoDTO$TodoItem">
         <choose>
-            <when test="type == 'MANUAL_REVIEW'">
-                SELECT * FROM (
-                    SELECT
-                        'PAYIN' AS bizType,
-                        o.id AS orderId,
-                        o.payin_order_no AS orderNo,
-                        o.merchant_id AS merchantId,
-                        o.merchant_no AS merchantNo,
-                        m.merchant_name AS merchantName,
-                        o.amount AS amount,
-                        o.currency AS currency,
-                        o.status AS status,
-                        o.updated_at AS eventAt,
-                        o.status_reason AS reason
-                    FROM payin_order o
-                    LEFT JOIN merchant m
-                      ON m.tenant_id = o.tenant_id
-                     AND m.id = o.merchant_id
-                    WHERE o.tenant_id = #{tenantId}
-                      AND o.merchant_id = #{merchantId}
-                      AND o.currency = #{currency}
-                      AND o.status = 'MANUAL_REVIEW'
-                    UNION ALL
-                    SELECT
-                        'PAYOUT' AS bizType,
-                        o.id AS orderId,
-                        o.payout_order_no AS orderNo,
-                        o.merchant_id AS merchantId,
-                        o.merchant_no AS merchantNo,
-                        m.merchant_name AS merchantName,
-                        o.amount AS amount,
-                        o.currency AS currency,
-                        o.status AS status,
-                        o.updated_at AS eventAt,
-                        COALESCE(o.status_reason, o.fail_msg) AS reason
-                    FROM payout_order o
-                    LEFT JOIN merchant m
-                      ON m.tenant_id = o.tenant_id
-                     AND m.id = o.merchant_id
-                    WHERE o.tenant_id = #{tenantId}
-                      AND o.merchant_id = #{merchantId}
-                      AND o.currency = #{currency}
-                      AND o.status = 'MANUAL_REVIEW'
-                ) todos
-                ORDER BY eventAt DESC
-                LIMIT #{limit}
-            </when>
             <when test="type == 'NOTIFY_FAILED'">
                 SELECT * FROM (
                     SELECT
@@ -235,9 +174,9 @@
                         m.merchant_name AS merchantName,
                         o.amount AS amount,
                         o.currency AS currency,
-                        o.status AS status,
+                        o.merchant_status_code AS status,
                         o.merchant_notify_at AS eventAt,
-                        o.status_reason AS reason
+                        o.merchant_status_reason AS reason
                     FROM payin_order o
                     LEFT JOIN merchant m
                       ON m.tenant_id = o.tenant_id
@@ -256,9 +195,9 @@
                         m.merchant_name AS merchantName,
                         o.amount AS amount,
                         o.currency AS currency,
-                        o.status AS status,
+                        o.merchant_status_code AS status,
                         o.merchant_notify_at AS eventAt,
-                        COALESCE(o.status_reason, o.fail_msg) AS reason
+                        o.merchant_status_reason AS reason
                     FROM payout_order o
                     LEFT JOIN merchant m
                       ON m.tenant_id = o.tenant_id
@@ -281,9 +220,9 @@
                     m.merchant_name AS merchantName,
                     o.amount AS amount,
                     o.currency AS currency,
-                    o.status AS status,
+                    o.merchant_status_code AS status,
                     o.updated_at AS eventAt,
-                    o.status_reason AS reason
+                    o.merchant_status_reason AS reason
                 FROM payin_order o
                 LEFT JOIN merchant m
                   ON m.tenant_id = o.tenant_id
@@ -291,7 +230,7 @@
                 WHERE o.tenant_id = #{tenantId}
                   AND o.merchant_id = #{merchantId}
                   AND o.currency = #{currency}
-                  AND o.status IN ('CREATED', 'PROCESSING')
+                  AND o.merchant_status_code = 'PROCESSING'
                 ORDER BY eventAt DESC
                 LIMIT #{limit}
             </when>
@@ -305,9 +244,9 @@
                     m.merchant_name AS merchantName,
                     o.amount AS amount,
                     o.currency AS currency,
-                    o.status AS status,
+                    o.merchant_status_code AS status,
                     o.updated_at AS eventAt,
-                    COALESCE(o.status_reason, o.fail_msg) AS reason
+                    o.merchant_status_reason AS reason
                 FROM payout_order o
                 LEFT JOIN merchant m
                   ON m.tenant_id = o.tenant_id
@@ -315,7 +254,7 @@
                 WHERE o.tenant_id = #{tenantId}
                   AND o.merchant_id = #{merchantId}
                   AND o.currency = #{currency}
-                  AND o.status IN ('CREATED', 'FROZEN', 'PROCESSING')
+                  AND o.merchant_status_code = 'PROCESSING'
                 ORDER BY eventAt DESC
                 LIMIT #{limit}
             </when>
@@ -332,7 +271,7 @@
             m.merchant_name AS merchantName,
             o.amount AS amount,
             o.currency AS currency,
-            o.status AS status,
+            o.merchant_status_code AS status,
             o.method_code AS methodCode,
             o.created_at AS createdAt,
             o.paid_at AS paidAt
@@ -357,7 +296,7 @@
             m.merchant_name AS merchantName,
             o.amount AS amount,
             o.currency AS currency,
-            o.status AS status,
+            o.merchant_status_code AS status,
             o.method_code AS methodCode,
             o.created_at AS createdAt,
             o.completed_at AS completedAt

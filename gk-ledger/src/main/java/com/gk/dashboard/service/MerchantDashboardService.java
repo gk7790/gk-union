@@ -191,7 +191,6 @@ public class MerchantDashboardService {
             return null;
         }
         return switch (type.trim()) {
-            case "MANUAL_REVIEW", "manualReview" -> "MANUAL_REVIEW";
             case "NOTIFY_FAILED", "notifyFailed" -> "NOTIFY_FAILED";
             case "PROCESSING_PAYIN", "processingPayin" -> "PROCESSING_PAYIN";
             case "PROCESSING_PAYOUT", "processingPayout" -> "PROCESSING_PAYOUT";

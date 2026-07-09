@@ -49,7 +49,7 @@ public class MerchantDashboardController {
     @Operation(summary = "待办明细")
     @PreAuthorize("hasAuthority('dashboard:merchant:view')")
     public R<TenantDashboardTodoDTO> todos(
-            @Parameter(description = "MANUAL_REVIEW/NOTIFY_FAILED/PROCESSING_PAYIN/PROCESSING_PAYOUT")
+            @Parameter(description = "NOTIFY_FAILED/PROCESSING_PAYIN/PROCESSING_PAYOUT")
             @RequestParam String type,
             @RequestParam(required = false) String currency,
             @Parameter(description = "默认10，最0")

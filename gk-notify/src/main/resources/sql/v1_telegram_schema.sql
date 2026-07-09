@@ -91,7 +91,7 @@ CREATE TABLE `tg_message_task`  (
   `biz_no` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '业务编号',
   `event_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '触发事件',
   `source_event_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '来源Outbox事件ID(幂等)',
-  `parse_mode` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'MarkdownV2' COMMENT '解析模式: MarkdownV2/HTML/NONE',
+  `parse_mode` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'HTML' COMMENT '解析模式: HTML/MarkdownV2/NONE',
   `payload_json` json NOT NULL COMMENT '渲染后消息内容/按钮JSON',
   `payload_hash` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '内容哈希(防重复发送)',
   `status` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'INIT' COMMENT '状态: INIT/PROCESSING/SUCCESS/FAILED/DEAD',

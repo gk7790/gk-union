@@ -44,8 +44,35 @@ public final class TgConstants {
     public static final class ParseMode {
         /** HTML 解析模式。 */
         public static final String HTML = "HTML";
+        /** MarkdownV2 解析模式。 */
+        public static final String MARKDOWN_V2 = "MarkdownV2";
+        /** 纯文本模式，不向 Telegram 传 parse_mode。 */
+        public static final String NONE = "NONE";
 
         private ParseMode() {
+        }
+
+        public static String normalize(String parseMode) {
+            if (parseMode == null || parseMode.isBlank()) {
+                return HTML;
+            }
+            String value = parseMode.trim();
+            if (HTML.equalsIgnoreCase(value)) {
+                return HTML;
+            }
+            if (MARKDOWN_V2.equalsIgnoreCase(value)
+                    || "MARKDOWNV2".equalsIgnoreCase(value)
+                    || "MARKDOWN_V2".equalsIgnoreCase(value)) {
+                return MARKDOWN_V2;
+            }
+            if (NONE.equalsIgnoreCase(value)) {
+                return NONE;
+            }
+            return HTML;
+        }
+
+        public static boolean isNone(String parseMode) {
+            return NONE.equalsIgnoreCase(normalize(parseMode));
         }
     }
 }

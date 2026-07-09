@@ -6,6 +6,7 @@ import com.gk.common.constant.Constant;
 import com.gk.common.model.Result;
 import com.gk.infra.config.model.TgBaseConfig;
 import com.gk.infra.config.service.SysParamsService;
+import com.gk.telegram.support.TgConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -91,9 +92,10 @@ public class TgBotApiClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("chat_id", chatId);
         body.put("text", text);
+        String normalizedParseMode = TgConstants.ParseMode.normalize(parseMode);
         // Telegram 不认识 NONE，所以 NONE 仅作为系统内部“不要格式化”的语义。
-        if (parseMode != null && !parseMode.isBlank() && !"NONE".equalsIgnoreCase(parseMode)) {
-            body.put("parse_mode", parseMode);
+        if (!TgConstants.ParseMode.isNone(normalizedParseMode)) {
+            body.put("parse_mode", normalizedParseMode);
         }
         try {
             String resp = client().post()

@@ -13,6 +13,8 @@ import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.entity.TgChatEntity;
 import com.gk.telegram.entity.TgMessageTaskEntity;
 import com.gk.telegram.support.TgConstants;
+import com.gk.telegram.support.TgHtml;
+import com.gk.telegram.support.TgMarkdownV2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -39,22 +41,34 @@ public class TgAlertServiceImpl implements TgAlertService {
     @Override
     public void notify(TgAlertEventType eventType, Long tenantId, Long merchantId,
                        String title, String content, String traceId) {
+        notify(eventType, tenantId, merchantId, title, content, traceId, TgConstants.ParseMode.HTML);
+    }
+
+    @Override
+    public void notify(TgAlertEventType eventType, Long tenantId, Long merchantId,
+                       String title, String content, String traceId, String parseMode) {
         if (eventType == null) {
             log.warn("Skip Telegram alert task create, eventType is null, title={}", title);
             return;
         }
-        createAlertAsync(eventType, tenantId, merchantId, title, content, traceId);
+        createAlertAsync(eventType, tenantId, merchantId, title, content, traceId, parseMode);
     }
 
     @Override
     public void notifySync(TgAlertEventType eventType, Long tenantId, Long merchantId,
                            String title, String content, String traceId) {
+        notifySync(eventType, tenantId, merchantId, title, content, traceId, TgConstants.ParseMode.HTML);
+    }
+
+    @Override
+    public void notifySync(TgAlertEventType eventType, Long tenantId, Long merchantId,
+                           String title, String content, String traceId, String parseMode) {
         if (eventType == null) {
             log.warn("Skip Telegram alert task create sync, eventType is null, title={}", title);
             return;
         }
         try {
-            int created = createAlert(eventType, tenantId, merchantId, title, content, traceId);
+            int created = createAlert(eventType, tenantId, merchantId, title, content, traceId, parseMode);
             log.debug("Telegram alert task created sync, eventType={}, title={}, created={}",
                     eventType.code(), title, created);
         } catch (Exception e) {
@@ -64,9 +78,9 @@ public class TgAlertServiceImpl implements TgAlertService {
     }
 
     private void createAlertAsync(TgAlertEventType eventType, Long tenantId, Long merchantId,
-                                  String title, String content, String traceId) {
+                                  String title, String content, String traceId, String parseMode) {
         AsynUtils.execute("Telegram alert task create", () -> {
-            int created = createAlert(eventType, tenantId, merchantId, title, content, traceId);
+            int created = createAlert(eventType, tenantId, merchantId, title, content, traceId, parseMode);
             log.debug("Telegram alert task created, eventType={}, title={}, created={}", eventType.code(), title, created);
         });
     }
@@ -77,15 +91,16 @@ public class TgAlertServiceImpl implements TgAlertService {
      * @return 成功创建的 tg_message_task 数量
      */
     private int createAlert(TgAlertEventType eventType, Long tenantId, Long merchantId,
-                            String title, String content, String traceId) {
+                            String title, String content, String traceId, String parseMode) {
+        String normalizedParseMode = TgConstants.ParseMode.normalize(parseMode);
         List<TgChatEntity> targets = findTargets(eventType, tenantId, merchantId);
         int created = 0;
         for (TgChatEntity target : targets) {
             if (!subscribes(target, eventType)) {
                 continue;
             }
-            String text = renderText(eventType, title, content);
-            TgMessageTaskEntity task = buildTask(target, eventType, text, title, traceId);
+            String text = renderText(eventType, title, content, normalizedParseMode);
+            TgMessageTaskEntity task = buildTask(target, eventType, text, title, traceId, normalizedParseMode);
             try {
                 tgMessageTaskDao.insert(task);
                 created++;
@@ -97,9 +112,19 @@ public class TgAlertServiceImpl implements TgAlertService {
         return created;
     }
 
-    private String renderText(TgAlertEventType eventType, String title, String content) {
-        return "<code>" + StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType)) + "</code>\n" +
-                "──────────────\n" + content;
+    private String renderText(TgAlertEventType eventType, String title, String content, String parseMode) {
+        String resolvedTitle = StringUtils.defaultIfBlank(title, resolveDefaultTitle(eventType));
+        String resolvedContent = StringUtils.defaultString(content);
+        if (TgConstants.ParseMode.MARKDOWN_V2.equals(parseMode)) {
+            return TgMarkdownV2.code(resolvedTitle) + "\n"
+                    + "──────────────\n" + resolvedContent;
+        }
+        if (TgConstants.ParseMode.NONE.equals(parseMode)) {
+            return resolvedTitle + "\n"
+                    + "──────────────\n" + resolvedContent;
+        }
+        return TgHtml.code(resolvedTitle) + "\n"
+                + "──────────────\n" + resolvedContent;
     }
 
     /**
@@ -202,7 +227,7 @@ public class TgAlertServiceImpl implements TgAlertService {
     }
 
     private TgMessageTaskEntity buildTask(TgChatEntity target, TgAlertEventType eventType,
-                                          String text, String title, String traceId) {
+                                          String text, String title, String traceId, String parseMode) {
         TgMessageTaskEntity task = new TgMessageTaskEntity();
         task.setTenantId(target.getTenantId());
         task.setMerchantId(target.getMerchantId());
@@ -212,8 +237,8 @@ public class TgAlertServiceImpl implements TgAlertService {
         task.setBizType(resolveBizType(eventType));
         task.setBizNo(StringUtils.abbreviate(StringUtils.defaultIfBlank(title, eventType.code()), 128));
         task.setEventType(eventType.code());
-        task.setSourceEventId(sourceEventId(eventType, target, title, traceId, text));
-        task.setParseMode(TgConstants.ParseMode.HTML);
+        task.setSourceEventId(sourceEventId(eventType, target, title, traceId, text, parseMode));
+        task.setParseMode(parseMode);
         task.setPayloadJson(JSON.toJSONString(Map.of("text", text)));
         task.setPayloadHash(SecureUtil.sha256(task.getPayloadJson()));
         task.setStatus("INIT");
@@ -224,9 +249,11 @@ public class TgAlertServiceImpl implements TgAlertService {
         return task;
     }
 
-    private String sourceEventId(TgAlertEventType eventType, TgChatEntity target, String title, String traceId, String text) {
+    private String sourceEventId(TgAlertEventType eventType, TgChatEntity target, String title, String traceId,
+                                 String text, String parseMode) {
         String seed = eventType.code() + "|" + target.getBotId() + "|" + target.getChatId() + "|"
-                + StringUtils.defaultString(traceId) + "|" + StringUtils.defaultString(title) + "|" + text;
+                + StringUtils.defaultString(traceId) + "|" + StringUtils.defaultString(title) + "|"
+                + StringUtils.defaultString(parseMode) + "|" + text;
         return SecureUtil.sha256(seed).substring(0, 32);
     }
 

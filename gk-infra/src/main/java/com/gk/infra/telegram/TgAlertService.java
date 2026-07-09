@@ -21,6 +21,16 @@ public interface TgAlertService {
     void notify(TgAlertEventType eventType, Long tenantId, Long merchantId, String title, String content, String traceId);
 
     /**
+     * 异步创建通知任务，并指定 Telegram parse_mode。
+     * <p>
+     * parseMode 支持 HTML、MarkdownV2、NONE；为空或非法时由实现层回退到 HTML。
+     */
+    default void notify(TgAlertEventType eventType, Long tenantId, Long merchantId,
+                        String title, String content, String traceId, String parseMode) {
+        notify(eventType, tenantId, merchantId, title, content, traceId);
+    }
+
+    /**
      * 同步创建通知任务。
      * <p>
      * 适合服务停止等关闭阶段使用，避免异步线程尚未执行应用就退出。
@@ -28,6 +38,14 @@ public interface TgAlertService {
     default void notifySync(TgAlertEventType eventType, Long tenantId, Long merchantId,
                             String title, String content, String traceId) {
         notify(eventType, tenantId, merchantId, title, content, traceId);
+    }
+
+    /**
+     * 同步创建通知任务，并指定 Telegram parse_mode。
+     */
+    default void notifySync(TgAlertEventType eventType, Long tenantId, Long merchantId,
+                            String title, String content, String traceId, String parseMode) {
+        notifySync(eventType, tenantId, merchantId, title, content, traceId);
     }
 
     /** 创建系统错误通知任务。 */

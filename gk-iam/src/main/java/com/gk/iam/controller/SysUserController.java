@@ -153,6 +153,10 @@ public class SysUserController {
     @PutMapping("app")
     @Operation(summary = "修改当前用户资料", description = "当前登录用户修改头像、昵称、姓名、性别、手机号、邮箱等个人资料；用户名不支持自助修改。")
     public R<?> updateUserInfo(@RequestBody SysUserDTO dto) {
+        String model = ReqContextHolder.get().getModel();
+        if (!Constant.ADMIN.equals(model) && !Constant.ORG.equals(model)) {
+            throw new GkException(ErrorCode.UNAUTHORIZED);
+        }
         if (dto == null) {
             dto = new SysUserDTO();
         }

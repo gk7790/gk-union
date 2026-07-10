@@ -28,7 +28,7 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
     private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
 
     @ExceptionHandler(AuthorizationDeniedException.class)
-    public R<?> handleException(AuthorizationDeniedException ex) {
+    public R<?> handleException() {
         return R.error(ErrorCode.FORBIDDEN);
     }
 

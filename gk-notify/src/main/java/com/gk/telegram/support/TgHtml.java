@@ -105,17 +105,19 @@ public final class TgHtml {
             assertSimpleAttrs(normalized, attrs, rawTag);
             return;
         }
-        if ("code".equals(normalized)) {
-            assertCodeAttrs(attrs, rawTag);
-            return;
-        }
-        if ("a".equals(normalized)) {
-            assertLinkAttrs(attrs, rawTag);
-            return;
-        }
-        if ("span".equals(normalized)) {
-            assertSpoilerSpan(attrs, rawTag);
-            return;
+        switch (normalized) {
+            case "code" -> {
+                assertCodeAttrs(attrs, rawTag);
+                return;
+            }
+            case "a" -> {
+                assertLinkAttrs(attrs, rawTag);
+                return;
+            }
+            case "span" -> {
+                assertSpoilerSpan(attrs, rawTag);
+                return;
+            }
         }
         throw unsupportedTag(rawTag);
     }
@@ -143,10 +145,10 @@ public final class TgHtml {
     }
 
     private static void assertSimpleAttrs(String tagName, String attrs, String rawTag) {
-        if ("blockquote".equals(tagName) && "expandable".equalsIgnoreCase(attrs)) {
+        if (attrs.isBlank()) {
             return;
         }
-        if (!attrs.isBlank()) {
+        if (!"blockquote".equals(tagName) || !"expandable".equalsIgnoreCase(attrs)) {
             throw unsupportedTag(rawTag);
         }
     }

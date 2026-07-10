@@ -19,8 +19,8 @@ public interface TgChatService extends CrudService<TgChatEntity, TgChatDTO> {
     /**
      * 将当前 Telegram 群绑定到系统主体，支持平台、租户和商户群。
      */
-    TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
-                                 SysUserSubjectEntity subject);
+    void bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
+                         SysUserSubjectEntity subject);
 
     /**
      * 批量查询商户当前启用中的群绑定。

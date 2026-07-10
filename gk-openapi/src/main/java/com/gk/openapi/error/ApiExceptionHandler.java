@@ -44,7 +44,7 @@ public class ApiExceptionHandler {
                 .findFirst()
                 .map(error -> StringUtils.defaultIfBlank(error.getDefaultMessage(), "Invalid request"))
                 .orElse("Invalid request");
-        return error(ApiErrorCode.INVALID_REQUEST, message);
+        return invalidRequest(message);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -95,10 +95,10 @@ public class ApiExceptionHandler {
         return error(descriptor);
     }
 
-    private ApiR<?> error(ApiErrorCode errorCode, String message) {
+    private ApiR<?> invalidRequest(String message) {
         return ApiR.error(
-                errorCode.name(),
-                StringUtils.defaultIfBlank(message, errorCode.getMessage())
+                ApiErrorCode.INVALID_REQUEST.name(),
+                StringUtils.defaultIfBlank(message, ApiErrorCode.INVALID_REQUEST.getMessage())
         );
     }
 

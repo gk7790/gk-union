@@ -191,8 +191,8 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
      * 首次绑定会根据主体类型写入默认订阅事件；重新绑定时如果已有自定义 event_types，则不覆盖。
      */
     @Override
-    public TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
-                                        SysUserSubjectEntity subject) {
+    public void bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
+                                SysUserSubjectEntity subject) {
         if (botId == null || chatId == null || subject == null || subject.getId() == null) {
             throw new IllegalArgumentException("botId, chatId and subject are required");
         }
@@ -219,7 +219,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
             entity.setCreatedAt(now);
             entity.setUpdatedAt(now);
             baseDao.insert(entity);
-            return entity;
+            return;
         }
 
         TgChatEntity update = new TgChatEntity();
@@ -252,7 +252,6 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         }
         existed.setStatus(1);
         existed.setUpdatedAt(now);
-        return existed;
     }
 
     @Override

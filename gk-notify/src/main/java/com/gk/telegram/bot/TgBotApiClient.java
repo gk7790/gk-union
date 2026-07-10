@@ -84,15 +84,6 @@ public class TgBotApiClient {
     }
 
     /**
-     * 发送普通文本消息。
-     *
-     * @param parseMode HTML/MarkdownV2/NONE；NONE 表示不传 parse_mode
-     */
-    public Result<JSONObject> sendMessage(String token, Long chatId, String text, String parseMode) {
-        return sendMessage(token, chatId, text, parseMode, null);
-    }
-
-    /**
      * 发送普通文本消息，并可携带 Telegram 扩展载荷，如 reply_markup。
      *
      * @param parseMode HTML/MarkdownV2/NONE；NONE 表示不传 parse_mode
@@ -148,7 +139,7 @@ public class TgBotApiClient {
     private Result<JSONObject> fail(Exception e) {
         if (e instanceof RestClientResponseException responseException) {
             String body = responseException.getResponseBodyAsString();
-            if (body != null && !body.isBlank()) {
+            if (!body.isBlank()) {
                 return result(body, "");
             }
         }

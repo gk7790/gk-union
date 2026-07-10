@@ -47,11 +47,6 @@ public interface TgAlertService {
         notifySync(eventType, tenantId, merchantId, content, traceId);
     }
 
-    /** 创建系统错误通知任务。 */
-    default void sysError(String content, String traceId) {
-        sysError(0L, 0L, content, traceId);
-    }
-
     /** 创建带租户/商户上下文的系统错误通知任务。 */
     default void sysError(Long tenantId, Long merchantId, String content, String traceId) {
         notify(TgAlertEventType.SYSTEM_ERROR, tenantId, merchantId, content, traceId);

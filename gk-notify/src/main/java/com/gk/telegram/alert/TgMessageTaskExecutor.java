@@ -65,14 +65,6 @@ public class TgMessageTaskExecutor {
     }
 
     /**
-     * 排空当前到期 Telegram 消息任务。
-     * <p>不传参数时兼容旧行为，处理所有 biz_type。</p>
-     */
-    public int drain() {
-        return drain(null);
-    }
-
-    /**
      * 按定时任务参数排空当前到期 Telegram 消息任务。
      * <p>
      * 支持参数：SYSTEM_ALERT、BUSINESS_NOTIFY、ALERT、NOTIFY，
@@ -94,31 +86,23 @@ public class TgMessageTaskExecutor {
     }
 
     /**
-     * 扫描并处理一批到期任务。
-     */
-    public int dispatchBatch() {
-        return dispatchBatch(null);
-    }
-
-    /**
      * 扫描并处理一批指定 biz_type 的到期任务。
      */
-    public int dispatchBatch(String bizType) {
+    private int dispatchBatch(String bizType) {
         ensureWorkerId();
         Instant now = Instant.now();
-        List<TgMessageTaskEntity> candidates = findClaimable(now, BATCH_SIZE, bizType);
+        List<TgMessageTaskEntity> candidates = findClaimable(now, bizType);
         int handled = 0;
         for (TgMessageTaskEntity task : candidates) {
             // 先抢占任务，避免集群中多个节点同时发送同一条 Telegram 消息。
-            if (!claim(task, now, now.plusSeconds(LOCK_SECONDS))) {
-                continue;
-            }
-            handled++;
-            try {
-                attempt(task);
-            } catch (Exception e) {
-                log.error("Telegram message task attempt error, taskNo={}", task.getTaskNo(), e);
-                applyResult(task, false, e.getMessage(), null);
+            if (claim(task, now, now.plusSeconds(LOCK_SECONDS))) {
+                handled++;
+                try {
+                    attempt(task);
+                } catch (Exception e) {
+                    log.error("Telegram message task attempt error, taskNo={}", task.getTaskNo(), e);
+                    applyResult(task, false, e.getMessage(), null);
+                }
             }
         }
         return handled;
@@ -182,7 +166,7 @@ public class TgMessageTaskExecutor {
     /**
      * 查找可被当前节点抢占的到期任务。
      */
-    private List<TgMessageTaskEntity> findClaimable(Instant now, int batchSize, String bizType) {
+    private List<TgMessageTaskEntity> findClaimable(Instant now, String bizType) {
         QueryWrapper<TgMessageTaskEntity> wrapper = new QueryWrapper<TgMessageTaskEntity>()
                 .in("status", "INIT", "FAILED")
                 .le("next_retry_at", now)
@@ -192,7 +176,7 @@ public class TgMessageTaskExecutor {
                 .and(w -> w.isNull("lock_until").or().le("lock_until", now))
                 .orderByAsc("next_retry_at")
                 .orderByAsc("id")
-                .last("LIMIT " + Math.max(1, batchSize));
+                .last("LIMIT " + BATCH_SIZE);
         if (StringUtils.isNotBlank(bizType)) {
             wrapper.eq("biz_type", bizType);
         }

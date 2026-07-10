@@ -1,5 +1,6 @@
 package com.gk.telegram.controller;
 
+import com.alibaba.fastjson2.JSON;
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.constant.Constant;
 import com.gk.common.model.DynMap;
@@ -118,7 +119,10 @@ public class TgChatController {
                                @RequestBody(required = false) DynMap body) {
         AssertUtils.isReserved(merchantId);
         String content = body == null ? null : body.getStr("content");
-        String payloadJson = body == null ? null : body.getStr("payloadJson");
+        String payloadJson = null;
+        if (body.containsKey("payloadJson")) {
+            payloadJson = JSON.toJSONString(body.getMap("payloadJson"));
+        }
         tgChatService.sendMerchantMessage(merchantId, content, payloadJson);
         return R.ok();
     }

@@ -59,5 +59,7 @@ public interface SysParamsService extends BaseService<SysParamsEntity> {
      */
     int updateValueByCode(String paramCode, String paramValue);
 
+    void deleteCacheByCode(String paramCode);
+
     SysParamsEntity selectByParamCode(String paramCode);
 }

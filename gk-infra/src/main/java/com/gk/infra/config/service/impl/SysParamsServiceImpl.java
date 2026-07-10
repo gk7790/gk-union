@@ -115,7 +115,7 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
         }
 
         try {
-            return clazz.newInstance();
+            return clazz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new GkException(ErrorCode.PARAMS_GET_ERROR);
         }
@@ -152,6 +152,11 @@ public class SysParamsServiceImpl extends BaseServiceImpl<SysParamsDao, SysParam
         }
         sysParamsRedis.set(paramCode, paramValue);
         return count;
+    }
+
+    @Override
+    public void deleteCacheByCode(String paramCode) {
+        sysParamsRedis.delete(paramCode);
     }
 
     @Override

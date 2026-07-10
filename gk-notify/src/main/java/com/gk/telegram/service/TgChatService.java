@@ -5,6 +5,8 @@ import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgChatEntity;
 
+import java.util.List;
+
 /**
  * Telegram会话/群组服务(出站推送目标)
  */
@@ -19,6 +21,21 @@ public interface TgChatService extends CrudService<TgChatEntity, TgChatDTO> {
      */
     TgChatEntity bindSubjectChat(Long botId, Long chatId, String chatType, String title, String languageCode,
                                  SysUserSubjectEntity subject);
+
+    /**
+     * 批量查询商户当前启用中的群绑定。
+     */
+    List<TgChatDTO> listActiveMerchantChats(List<Long> merchantIds);
+
+    /**
+     * 解绑商户当前启用中的群绑定。
+     */
+    void unbindMerchantChat(Long merchantId);
+
+    /**
+     * 给商户当前绑定的群发送一条测试通知。
+     */
+    void sendMerchantTestMessage(Long merchantId);
 
     /**
      * 解绑群会话，保留历史记录并将状态置为停用。

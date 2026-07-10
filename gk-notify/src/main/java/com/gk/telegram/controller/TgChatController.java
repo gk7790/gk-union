@@ -18,6 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * Telegram 群/会话绑定后台管理接口。
  * <p>用于查看和维护群绑定、通知用途、事件订阅范围以及群解绑操作。</p>
@@ -58,6 +61,18 @@ public class TgChatController {
     }
 
     /**
+     * 批量查询商户当前启用中的 Telegram 群绑定。
+     */
+    @GetMapping("merchant-bindings")
+    @Operation(summary = "商户群绑定状态")
+    @PreAuthorize("hasAuthority('tg:chat:page')")
+    public R<?> merchantBindings(@RequestParam Long[] merchantIds) {
+        AssertUtils.isArrayEmpty(merchantIds, "merchantIds");
+        List<TgChatDTO> chats = tgChatService.listActiveMerchantChats(Arrays.asList(merchantIds));
+        return R.ok(chats);
+    }
+
+    /**
      * 后台手动登记 Telegram 推送会话。
      */
     @PostMapping
@@ -78,6 +93,30 @@ public class TgChatController {
         AssertUtils.isReserved(id);
         dto.setId(id);
         tgChatService.update(dto);
+        return R.ok();
+    }
+
+    /**
+     * 解绑商户当前启用中的 Telegram 群。
+     */
+    @DeleteMapping("merchant/{merchantId}/binding")
+    @Operation(summary = "解绑商户群")
+    @PreAuthorize("hasAuthority('tg:chat:delete')")
+    public R<?> unbindMerchant(@PathVariable("merchantId") Long merchantId) {
+        AssertUtils.isReserved(merchantId);
+        tgChatService.unbindMerchantChat(merchantId);
+        return R.ok();
+    }
+
+    /**
+     * 给商户当前绑定的 Telegram 群发送测试通知。
+     */
+    @PostMapping("merchant/{merchantId}/notify-test")
+    @Operation(summary = "发送商户群测试通知")
+    @PreAuthorize("hasAuthority('tg:chat:update')")
+    public R<?> notifyMerchant(@PathVariable("merchantId") Long merchantId) {
+        AssertUtils.isReserved(merchantId);
+        tgChatService.sendMerchantTestMessage(merchantId);
         return R.ok();
     }
 

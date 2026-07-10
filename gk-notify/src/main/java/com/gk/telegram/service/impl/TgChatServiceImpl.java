@@ -1,6 +1,8 @@
 package com.gk.telegram.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.crypto.SecureUtil;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
@@ -9,6 +11,8 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.utils.BizKeyUtils;
+import com.gk.common.utils.ConvertUtils;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
 import com.gk.subject.model.SubjectDisplay;
@@ -16,11 +20,14 @@ import com.gk.subject.model.SubjectRef;
 import com.gk.subject.service.SubjectDisplayService;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
+import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.dto.TgChatDTO;
 import com.gk.telegram.entity.TgBotEntity;
 import com.gk.telegram.entity.TgChatEntity;
+import com.gk.telegram.entity.TgMessageTaskEntity;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.support.TgConstants;
+import com.gk.telegram.support.TgHtml;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -40,10 +47,13 @@ import java.util.stream.Collectors;
 @Service
 public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, TgChatDTO> implements TgChatService {
     private final TgBotDao tgBotDao;
+    private final TgMessageTaskDao tgMessageTaskDao;
     private final SubjectDisplayService subjectDisplayService;
 
-    public TgChatServiceImpl(TgBotDao tgBotDao, SubjectDisplayService subjectDisplayService) {
+    public TgChatServiceImpl(TgBotDao tgBotDao, TgMessageTaskDao tgMessageTaskDao,
+                             SubjectDisplayService subjectDisplayService) {
         this.tgBotDao = tgBotDao;
+        this.tgMessageTaskDao = tgMessageTaskDao;
         this.subjectDisplayService = subjectDisplayService;
     }
 
@@ -238,6 +248,138 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         existed.setStatus(1);
         existed.setUpdatedAt(now);
         return existed;
+    }
+
+    @Override
+    public List<TgChatDTO> listActiveMerchantChats(List<Long> merchantIds) {
+        List<Long> ids = normalizeMerchantIds(merchantIds);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        QueryWrapper<TgChatEntity> wrapper = activeMerchantChatWrapper()
+                .in("merchant_id", ids)
+                .orderByDesc("updated_at")
+                .orderByDesc("id");
+        List<TgChatDTO> items = ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), TgChatDTO.class);
+        fillBotInfo(items);
+        fillSubjectInfo(items);
+        return items;
+    }
+
+    @Override
+    public void unbindMerchantChat(Long merchantId) {
+        Long normalizedMerchantId = normalizeMerchantId(merchantId);
+        if (normalizedMerchantId == null) {
+            return;
+        }
+        List<TgChatEntity> targets = baseDao.selectList(activeMerchantChatWrapper()
+                .eq("merchant_id", normalizedMerchantId)
+                .orderByDesc("updated_at")
+                .orderByDesc("id"));
+        Instant now = Instant.now();
+        for (TgChatEntity target : targets) {
+            tgMessageTaskDao.insert(buildMerchantChatMessageTask(
+                    target,
+                    "商户 Telegram 群已解绑",
+                    "当前群已从商户管理后台解绑，后续将不再接收该商户的机器人通知。",
+                    "MERCHANT_TG_UNBIND",
+                    "merchant-tg-unbind",
+                    now
+            ));
+        }
+        baseDao.update(null, activeMerchantChatUpdateWrapper(normalizedMerchantId)
+                .set("status", 3)
+                .set("updated_at", now));
+    }
+
+    @Override
+    public void sendMerchantTestMessage(Long merchantId) {
+        Long normalizedMerchantId = normalizeMerchantId(merchantId);
+        if (normalizedMerchantId == null) {
+            throw new IllegalArgumentException("merchantId is required");
+        }
+        List<TgChatEntity> targets = baseDao.selectList(activeMerchantChatWrapper()
+                .eq("merchant_id", normalizedMerchantId)
+                .orderByDesc("updated_at")
+                .orderByDesc("id"));
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("merchant telegram chat is not bound");
+        }
+        Instant now = Instant.now();
+        for (TgChatEntity target : targets) {
+            tgMessageTaskDao.insert(buildMerchantChatMessageTask(
+                    target,
+                    "商户 Telegram 群通知测试",
+                    "这是一条商户管理后台发送的测试通知，用于确认当前群绑定可正常接收消息。",
+                    "MERCHANT_TG_TEST",
+                    "merchant-tg-test",
+                    now
+            ));
+        }
+    }
+
+    private QueryWrapper<TgChatEntity> activeMerchantChatWrapper() {
+        QueryWrapper<TgChatEntity> wrapper = new QueryWrapper<>();
+        Long tenantId = queryTenantId(new DynMap());
+        wrapper.gt("id", Constant.MAX_RESERVED_ID)
+                .eq("status", 1)
+                .gt("merchant_id", 0);
+        wrapper.eq(tenantId != null, "tenant_id", tenantId);
+        return wrapper;
+    }
+
+    private UpdateWrapper<TgChatEntity> activeMerchantChatUpdateWrapper(Long merchantId) {
+        UpdateWrapper<TgChatEntity> wrapper = new UpdateWrapper<>();
+        Long tenantId = queryTenantId(new DynMap());
+        wrapper.gt("id", Constant.MAX_RESERVED_ID)
+                .eq("status", 1)
+                .eq("merchant_id", merchantId);
+        wrapper.eq(tenantId != null, "tenant_id", tenantId);
+        return wrapper;
+    }
+
+    private List<Long> normalizeMerchantIds(List<Long> merchantIds) {
+        if (merchantIds == null || merchantIds.isEmpty()) {
+            return List.of();
+        }
+        return merchantIds.stream()
+                .map(this::normalizeMerchantId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private Long normalizeMerchantId(Long merchantId) {
+        return merchantId == null || merchantId <= Constant.MAX_RESERVED_ID ? null : merchantId;
+    }
+
+    private TgMessageTaskEntity buildMerchantChatMessageTask(TgChatEntity target, String title, String content,
+                                                             String bizNo, String tracePrefix, Instant now) {
+        String text = TgHtml.code(title) + "\n"
+                + "──────────────\n"
+                + TgHtml.escape(content)
+                + "\n"
+                + TgHtml.escape("发送时间：" + now);
+        String payloadJson = JSON.toJSONString(Map.of("text", text));
+        TgMessageTaskEntity task = new TgMessageTaskEntity();
+        task.setTenantId(target.getTenantId());
+        task.setMerchantId(target.getMerchantId());
+        task.setBotId(target.getBotId());
+        task.setChatId(target.getChatId());
+        task.setTaskNo(BizKeyUtils.genTgMessageTaskNo());
+        task.setBizType(TgConstants.MessageBizType.BUSINESS_NOTIFY);
+        task.setBizNo(bizNo);
+        task.setEventType(TgAlertEventType.MERCHANT_NOTICE.code());
+        task.setSourceEventId(tracePrefix + "-" + target.getId() + "-" + now.toEpochMilli());
+        task.setParseMode(TgConstants.ParseMode.HTML);
+        task.setPayloadJson(payloadJson);
+        task.setPayloadHash(SecureUtil.sha256(payloadJson));
+        task.setStatus("INIT");
+        task.setRetryCount(0);
+        task.setMaxRetryCount(8);
+        task.setNextRetryAt(now);
+        task.setTraceId(task.getSourceEventId());
+        return task;
     }
 
     /**

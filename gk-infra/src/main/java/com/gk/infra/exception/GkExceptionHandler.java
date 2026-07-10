@@ -8,6 +8,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.ExceptionUtils;
 import com.gk.common.exception.GkExceptionCoreHandler;
 import com.gk.common.model.R;
+import com.gk.common.tools.StringFormat;
 import com.gk.infra.log.entity.LogErrorEntity;
 import com.gk.infra.log.service.LogErrorService;
 import com.gk.infra.telegram.TgAlertService;
@@ -90,8 +91,14 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
 
         ReqContext context = ReqContextHolder.get();
         try {
-            tgBotService.sysError(context.getTenantId(), context.getMerchantId(),
-                    "系统异常", buildAlertContent(context, ex), context.getTraceId());
+            String text = StringFormat.format("""
+                    🚨 系统异常 🚨
+                    ──────────────
+                    {}
+                    """,
+                    buildAlertContent(context, ex)
+            );
+            tgBotService.sysError(context.getTenantId(), context.getMerchantId(), text, context.getTraceId());
         } catch (Exception alertEx) {
             log.warn("send Telegram system error alert failed: {}", alertEx.getMessage());
         }

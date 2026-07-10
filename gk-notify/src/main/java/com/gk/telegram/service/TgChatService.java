@@ -33,9 +33,9 @@ public interface TgChatService extends CrudService<TgChatEntity, TgChatDTO> {
     void unbindMerchantChat(Long merchantId);
 
     /**
-     * 给商户当前绑定的群发送一条测试通知。
+     * 给商户当前绑定的群发送一条后台通知。
      */
-    void sendMerchantTestMessage(Long merchantId);
+    void sendMerchantMessage(Long merchantId, String content, String payloadJson);
 
     /**
      * 解绑群会话，保留历史记录并将状态置为停用。

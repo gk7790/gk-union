@@ -89,6 +89,16 @@ public class TgBotApiClient {
      * @param parseMode HTML/MarkdownV2/NONE；NONE 表示不传 parse_mode
      */
     public Result<JSONObject> sendMessage(String token, Long chatId, String text, String parseMode) {
+        return sendMessage(token, chatId, text, parseMode, null);
+    }
+
+    /**
+     * 发送普通文本消息，并可携带 Telegram 扩展载荷，如 reply_markup。
+     *
+     * @param parseMode HTML/MarkdownV2/NONE；NONE 表示不传 parse_mode
+     * @param payload   扩展载荷，目前透传 reply_markup
+     */
+    public Result<JSONObject> sendMessage(String token, Long chatId, String text, String parseMode, JSONObject payload) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("chat_id", chatId);
         body.put("text", text);
@@ -96,6 +106,9 @@ public class TgBotApiClient {
         // Telegram 不认识 NONE，所以 NONE 仅作为系统内部“不要格式化”的语义。
         if (!TgConstants.ParseMode.isNone(normalizedParseMode)) {
             body.put("parse_mode", normalizedParseMode);
+        }
+        if (payload != null && payload.containsKey("reply_markup")) {
+            body.put("reply_markup", payload.get("reply_markup"));
         }
         try {
             String resp = client().post()

@@ -35,10 +35,10 @@ public class TgMessageTaskEntity extends SimpleEntity {
     private String sourceEventId;
     /** 解析模式: MarkdownV2/HTML/NONE */
     private String parseMode;
-    /** 渲染后消息内容/按钮JSON */
+    /** 最终发送内容，已按 parseMode 渲染完成 */
+    private String content;
+    /** 扩展消息载荷，如 reply_markup 按钮等 */
     private String payloadJson;
-    /** 内容哈希(防重复发送) */
-    private String payloadHash;
     /** 状态: INIT/PROCESSING/SUCCESS/FAILED/DEAD */
     // 任务状态驱动发送机调度，失败达到上限后进入 DEAD。
     private String status;

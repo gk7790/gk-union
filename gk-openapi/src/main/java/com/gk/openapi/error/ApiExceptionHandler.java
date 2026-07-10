@@ -1,5 +1,6 @@
 package com.gk.openapi.error;
 
+import com.gk.common.tools.StringFormat;
 import com.gk.infra.telegram.TgAlertService;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.openapi.security.ApiReqContext;
@@ -118,8 +119,14 @@ public class ApiExceptionHandler {
 
         ApiReqContext context = ApiReqContextHolder.get();
         try {
-            tgBotService.sysError(getTenantId(context), getMerchantId(context),
-                    "OpenAPI系统异常", buildAlertContent(context, ex, request), getTraceId(context));
+            String text = StringFormat.format("""
+                    🚨 OpenAPI系统异常 🚨
+                    ──────────────
+                    {}
+                    """,
+                    buildAlertContent(context, ex, request)
+            );
+            tgBotService.sysError(getTenantId(context), getMerchantId(context), text, getTraceId(context));
         } catch (Exception alertEx) {
             log.warn("send OpenAPI Telegram system error alert failed: {}", alertEx.getMessage());
         }

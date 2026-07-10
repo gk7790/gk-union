@@ -125,6 +125,33 @@ public class TgMessageTaskExecutor {
     }
 
     /**
+     * 立即发送指定消息任务一次。
+     * <p>
+     * 适合后台人工触发的通知：任务仍然先落库，便于审计和失败重试；随后立即抢占并调用 Telegram。
+     */
+    public boolean sendNow(Long taskId) {
+        ensureWorkerId();
+        if (taskId == null) {
+            return false;
+        }
+        TgMessageTaskEntity task = tgMessageTaskDao.selectById(taskId);
+        if (task == null) {
+            return false;
+        }
+        Instant now = Instant.now();
+        if (!claim(task, now, now.plusSeconds(LOCK_SECONDS))) {
+            return false;
+        }
+        try {
+            return attempt(task);
+        } catch (Exception e) {
+            log.error("Telegram message task send now error, taskNo={}", task.getTaskNo(), e);
+            applyResult(task, false, e.getMessage(), null);
+            return false;
+        }
+    }
+
+    /**
      * 尝试发送单条 Telegram 消息任务。
      *
      * @return true 表示 Telegram API 返回成功；false 表示已记录失败结果
@@ -136,13 +163,13 @@ public class TgMessageTaskExecutor {
             return false;
         }
         JSONObject payload = parsePayload(task.getPayloadJson());
-        String text = payload == null ? null : payload.getString("text");
+        String text = task.getContent();
         if (StringUtils.isBlank(text)) {
             applyResult(task, false, "Telegram message text is blank", null);
             return false;
         }
         String token = tokenCipher.decrypt(bot.getTokenCipher());
-        Result<JSONObject> result = botApiClient.sendMessage(token, task.getChatId(), text, task.getParseMode());
+        Result<JSONObject> result = botApiClient.sendMessage(token, task.getChatId(), text, task.getParseMode(), payload);
         if (result.isSuccess()) {
             Long messageId = result.getData() == null ? null : result.getData().getLong("message_id");
             applyResult(task, true, null, messageId);

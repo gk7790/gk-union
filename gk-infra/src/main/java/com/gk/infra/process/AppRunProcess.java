@@ -79,14 +79,16 @@ public class AppRunProcess implements ApplicationRunner {
             return;
         }
         String content = StringFormat.format("""
+                ✅ Service started({})
+                ──────────────
                 APP: {}
                 URL: http://localhost:{}{}
                 Profile: {}
                 System TimeZone: {}
                 JVM TimeZone: {}
                 Time: {}
-                """, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
+                """, serverName, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
                 activeProfile, systemTimeZone, jvmTimeZone, DateUtils.now("GMT+08:00"));
-        tgAlertService.sysWarn("✅ Service started(" + serverName + ")", content, "");
+        tgAlertService.sysWarn(content, "");
     }
 }

@@ -199,6 +199,8 @@ public class SecurityConfig {
             response.getWriter().write(JSONObject.toJSONString(R.error(getError(exception))));
 
             String content = StringFormat.format("""
+                            ⚠登录失败风险提醒⚠
+                            ──────────────
                             入口: {} {}
                             账号: {}
                             IP: {}
@@ -210,7 +212,7 @@ public class SecurityConfig {
                     IpUtils.getClientIp(request),
                     getError(exception)
             );
-            tgAlertService.sysWarn("⚠登录失败风险提醒⚠", content, "");
+            tgAlertService.sysWarn(content, "");
         };
     }
 

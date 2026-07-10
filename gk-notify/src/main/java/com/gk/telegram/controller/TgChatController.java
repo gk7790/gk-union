@@ -109,14 +109,17 @@ public class TgChatController {
     }
 
     /**
-     * 给商户当前绑定的 Telegram 群发送测试通知。
+     * 给商户当前绑定的 Telegram 群发送后台通知。
      */
     @PostMapping("merchant/{merchantId}/notify-test")
-    @Operation(summary = "发送商户群测试通知")
+    @Operation(summary = "发送商户群通知")
     @PreAuthorize("hasAuthority('tg:chat:update')")
-    public R<?> notifyMerchant(@PathVariable("merchantId") Long merchantId) {
+    public R<?> notifyMerchant(@PathVariable("merchantId") Long merchantId,
+                               @RequestBody(required = false) DynMap body) {
         AssertUtils.isReserved(merchantId);
-        tgChatService.sendMerchantTestMessage(merchantId);
+        String content = body == null ? null : body.getStr("content");
+        String payloadJson = body == null ? null : body.getStr("payloadJson");
+        tgChatService.sendMerchantMessage(merchantId, content, payloadJson);
         return R.ok();
     }
 

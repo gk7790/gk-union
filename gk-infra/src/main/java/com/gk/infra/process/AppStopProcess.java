@@ -62,12 +62,14 @@ public class AppStopProcess implements DisposableBean {
             return;
         }
         String content = StringFormat.format("""
+                ⛔ Service stopped - {}
+                ──────────────
                 APP: {}
                 URL: http://localhost:{}{}
                 Profile: {}
                 Time: {}
-                """, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
+                """, serverName, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
                 activeProfile, DateUtils.now("GMT+08:00"));
-        tgAlertService.sysWarnSync("⛔ Service stopped - " + serverName, content, "");
+        tgAlertService.sysWarnSync(content, "");
     }
 }

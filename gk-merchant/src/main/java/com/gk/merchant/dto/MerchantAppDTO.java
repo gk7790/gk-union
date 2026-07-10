@@ -34,10 +34,6 @@ public class MerchantAppDTO {
     private Integer secretVersion;
     @Schema(title = "密钥更新时间")
     private Instant secretUpdatedAt;
-    @Schema(title = "商户公钥")
-    private String merchantPublicKey;
-    @Schema(title = "平台公钥快照")
-    private String platformPublicKey;
     @Schema(title = "默认异步通知地址")
     private String notifyUrl;
     @Schema(title = "默认同步跳转地址")

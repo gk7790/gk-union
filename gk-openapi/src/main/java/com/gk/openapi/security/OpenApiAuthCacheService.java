@@ -184,7 +184,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
     }
 
     private boolean supportedSignType(String signType) {
-        return SignTypeEnum.HMAC_SHA256.matches(signType) || SignTypeEnum.MD5.matches(signType);
+        return SignTypeEnum.isOpenApiSupported(signType);
     }
 
     private void validateSortedParamSignature(Map<String, Object> params,

@@ -26,8 +26,6 @@ public class MerchantAppEntity extends SimpleEntity {
     private String apiSecret;
     private Integer secretVersion;
     private Instant secretUpdatedAt;
-    private String merchantPublicKey;
-    private String platformPublicKey;
     private String notifyUrl;
     private String returnUrl;
     private Integer rateLimitQps;

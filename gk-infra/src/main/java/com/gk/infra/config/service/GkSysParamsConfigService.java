@@ -30,10 +30,7 @@ public class GkSysParamsConfigService {
     public GkOpenApiConfig openApiConfig() {
         GkOpenApiConfig fallback = new GkOpenApiConfig();
         GkOpenApiConfig config = getObject(Constant.GK_OPENAPI_CONFIG_KEY, GkOpenApiConfig.class, fallback);
-        if (!SignTypeEnum.HMAC_SHA256.matches(config.getDefaultSignType())
-                && !SignTypeEnum.MD5.matches(config.getDefaultSignType())) {
-            config.setDefaultSignType(SignTypeEnum.HMAC_SHA256.code());
-        }
+        config.setDefaultSignType(SignTypeEnum.normalizeOpenApiSignType(config.getDefaultSignType()));
         return config;
     }
 

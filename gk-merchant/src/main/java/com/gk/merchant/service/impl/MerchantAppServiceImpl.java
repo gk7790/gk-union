@@ -25,6 +25,7 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.common.openapi.OpenApiAuthCacheEvictor;
+import com.gk.infra.config.service.GkSysParamsConfigService;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import com.gk.merchant.support.MerchantAppSecrets;
@@ -47,6 +48,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
     private final MerchantPaymentPlanCacheEvictor paymentPlanCacheEvictor;
     private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
+    private final GkSysParamsConfigService configService;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -173,6 +175,11 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         } else {
             entity.setAppEnv(normalizeAppEnv(entity.getAppEnv()));
         }
+        if (StrUtil.isBlank(entity.getSignType())) {
+            entity.setSignType(existed.getSignType());
+        } else {
+            entity.setSignType(normalizeOpenApiSignType(entity.getSignType()));
+        }
         validateTestAppUnique(entity, existed.getId());
         entity.setAppId(existed.getAppId());
         entity.setApiSecret(existed.getApiSecret());
@@ -265,7 +272,9 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             entity.setAppEnv(normalizeAppEnv(entity.getAppEnv()));
         }
         if (StrUtil.isBlank(entity.getSignType())) {
-            entity.setSignType(SignTypeEnum.HMAC_SHA256.code());
+            entity.setSignType(configService.openApiConfig().getDefaultSignType());
+        } else {
+            entity.setSignType(normalizeOpenApiSignType(entity.getSignType()));
         }
         if (StrUtil.isBlank(entity.getEncryptType())) {
             entity.setEncryptType(EncryptTypeEnum.NONE.code());
@@ -374,6 +383,13 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
         if (evictor != null) {
             evictor.evictByAppId(appId);
         }
+    }
+
+    private String normalizeOpenApiSignType(String signType) {
+        if (!SignTypeEnum.isOpenApiSupported(signType)) {
+            throw new GkException("invalid sign_type");
+        }
+        return SignTypeEnum.normalizeOpenApiSignType(signType);
     }
 
     private void evictMerchantAppCache(List<String> appIds) {

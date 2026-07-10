@@ -2,4 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.gk.merchant.dao.MerchantDao">
+    <select id="selectMerchantIdsWithActiveTgChat" resultType="java.lang.Long">
+        SELECT DISTINCT merchant_id
+        FROM tg_chat
+        WHERE status = 1
+          AND merchant_id IN
+        <foreach collection="merchantIds" item="merchantId" open="(" separator="," close=")">
+            #{merchantId}
+        </foreach>
+    </select>
 </mapper>

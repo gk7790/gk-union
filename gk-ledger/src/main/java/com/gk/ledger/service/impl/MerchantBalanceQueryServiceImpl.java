@@ -11,6 +11,7 @@ import com.gk.ledger.dao.MerchantBalanceQueryDao;
 import com.gk.ledger.dto.MerchantBalanceDTO;
 import com.gk.ledger.dto.MerchantWalletBalanceDTO;
 import com.gk.ledger.service.MerchantBalanceQueryService;
+import com.gk.merchant.dao.MerchantDao;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.gk.dashboard.support.DashboardSupport.money;
 
@@ -26,6 +29,7 @@ import static com.gk.dashboard.support.DashboardSupport.money;
 @RequiredArgsConstructor
 public class MerchantBalanceQueryServiceImpl implements MerchantBalanceQueryService {
     private final MerchantBalanceQueryDao queryDao;
+    private final MerchantDao merchantDao;
 
     @Override
     public PageData<MerchantBalanceDTO> page(DynMap params) {
@@ -39,6 +43,7 @@ public class MerchantBalanceQueryServiceImpl implements MerchantBalanceQueryServ
         List<MerchantBalanceDTO> list = total == null || total == 0L
                 ? List.of()
                 : queryDao.pageMerchantBalances(params);
+        fillTgChatBound(list);
         list.forEach(this::normalizeBalanceView);
         return new PageData<>(list, total == null ? 0L : total);
     }
@@ -104,6 +109,25 @@ public class MerchantBalanceQueryServiceImpl implements MerchantBalanceQueryServ
         item.setEffectiveBalanceText(display(item.getEffectiveBalance()));
         item.setTotalBalanceText(display(item.getTotalBalance()));
         item.setHasLedgerAccount(Boolean.TRUE.equals(item.getHasLedgerAccount()));
+        item.setTgChatBound(Boolean.TRUE.equals(item.getTgChatBound()));
+    }
+
+    private void fillTgChatBound(List<MerchantBalanceDTO> merchants) {
+        if (merchants == null || merchants.isEmpty()) {
+            return;
+        }
+        List<Long> merchantIds = merchants.stream()
+                .map(MerchantBalanceDTO::getMerchantId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (merchantIds.isEmpty()) {
+            merchants.forEach(item -> item.setTgChatBound(false));
+            return;
+        }
+        Set<Long> boundIds = merchantDao.selectMerchantIdsWithActiveTgChat(merchantIds).stream()
+                .collect(Collectors.toSet());
+        merchants.forEach(item -> item.setTgChatBound(boundIds.contains(item.getMerchantId())));
     }
 
     private String display(BigDecimal value) {

@@ -60,6 +60,8 @@ public class MerchantBalanceDTO {
     private String totalBalanceText;
     @Schema(title = "是否已初始化账本账户")
     private Boolean hasLedgerAccount;
+    @Schema(title = "是否已绑定Telegram机器人群")
+    private Boolean tgChatBound;
     @Schema(title = "最后入账时间")
     private Instant lastPostedAt;
 }

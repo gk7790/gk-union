@@ -10,6 +10,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.model.PageData;
 import com.gk.common.utils.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
@@ -37,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -74,6 +77,13 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     }
 
     @Override
+    public PageData<MerchantDTO> page(DynMap params) {
+        PageData<MerchantDTO> page = super.page(params);
+        fillTgChatBound(page.getItems());
+        return page;
+    }
+
+    @Override
     public List<MerchantDTO> getDict(DynMap params) {
         QueryWrapper<MerchantEntity> wrapper = new QueryWrapper<>();
         wrapper.select("id", "tenant_id", "merchant_no", "merchant_name", "merchant_short_name", "remark");
@@ -87,6 +97,24 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
         }
         List<MerchantEntity> list = baseDao.selectList(wrapper);
         return ConvertUtils.sourceToTarget(list,  MerchantDTO.class);
+    }
+
+    private void fillTgChatBound(List<MerchantDTO> merchants) {
+        if (merchants == null || merchants.isEmpty()) {
+            return;
+        }
+        List<Long> merchantIds = merchants.stream()
+                .map(MerchantDTO::getId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+        if (merchantIds.isEmpty()) {
+            merchants.forEach(item -> item.setTgChatBound(false));
+            return;
+        }
+        Set<Long> boundIds = baseDao.selectMerchantIdsWithActiveTgChat(merchantIds).stream()
+                .collect(Collectors.toSet());
+        merchants.forEach(item -> item.setTgChatBound(boundIds.contains(item.getId())));
     }
 
     @Override

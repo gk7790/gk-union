@@ -3,6 +3,7 @@ package com.gk.payment.plan;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.enums.PayDirectionEnum;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.enums.StatusEnum;
@@ -304,10 +305,10 @@ public class PaymentPlanResolver {
 
     private boolean redisUnavailable(PaymentPlanKey key, PaymentPlanRouteOptionEntity option) {
         try {
-            return redisUtils.isKeyExist(RedisKeys.getPaymentPspDisableKey(key.tenantId(), key.direction(), option.getPspId()))
-                    || redisUtils.isKeyExist(RedisKeys.getPaymentPspAccountDisableKey(key.tenantId(), key.direction(), option.getPspAccountId()))
-                    || redisHealthDown(RedisKeys.getPaymentPspHealthKey(key.tenantId(), key.direction(), option.getPspId()))
-                    || redisHealthDown(RedisKeys.getPaymentPspAccountHealthKey(key.tenantId(), key.direction(), option.getPspAccountId()));
+            return redisUtils.isKeyExist(PaymentRedisKeys.getPaymentPspDisableKey(key.tenantId(), key.direction(), option.getPspId()))
+                    || redisUtils.isKeyExist(PaymentRedisKeys.getPaymentPspAccountDisableKey(key.tenantId(), key.direction(), option.getPspAccountId()))
+                    || redisHealthDown(PaymentRedisKeys.getPaymentPspHealthKey(key.tenantId(), key.direction(), option.getPspId()))
+                    || redisHealthDown(PaymentRedisKeys.getPaymentPspAccountHealthKey(key.tenantId(), key.direction(), option.getPspAccountId()));
         } catch (Exception ex) {
             // Redis 状态层不可用时只降级，不阻断交易；最终可用性仍DB 状态校验兜底
                         return false;

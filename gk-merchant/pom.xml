@@ -15,6 +15,16 @@
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
+            <artifactId>gk-notify</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-payment-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
             <artifactId>gk-infra</artifactId>
             <version>${project.version}</version>
         </dependency>

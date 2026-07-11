@@ -17,8 +17,11 @@
 
     <modules>
         <module>gk-common</module>
+        <module>gk-notify-api</module>
+        <module>gk-payment-common</module>
         <module>gk-infra</module>
         <module>gk-meta</module>
+        <module>gk-payment-meta</module>
         <module>gk-admin</module>
         <module>gk-api</module>
         <module>gk-scheduler</module>

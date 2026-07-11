@@ -2,6 +2,7 @@ package com.gk.psp.controller;
 
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.config.service.GkSysParamsConfigService;
@@ -56,7 +57,7 @@ public class DeeplinkTestController {
         putIfBlank(data, "deeplinkLabel", "Deeplink");
         putIfBlank(data, "deeplinkPlaceholder", "例如：gcash://... 或 maya://...");
 
-        redisUtils.set(RedisKeys.getDeeplinkTestTokenKey(token), data, EXPIRE_SECONDS);
+        redisUtils.set(PaymentRedisKeys.getDeeplinkTestTokenKey(token), data, EXPIRE_SECONDS);
         return R.ok(data);
     }
 
@@ -71,7 +72,7 @@ public class DeeplinkTestController {
             byte[] bytes = new byte[TOKEN_BYTES];
             random.nextBytes(bytes);
             String token = TOKEN_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-            if (!redisUtils.isKeyExist(RedisKeys.getDeeplinkTestTokenKey(token))) {
+            if (!redisUtils.isKeyExist(PaymentRedisKeys.getDeeplinkTestTokenKey(token))) {
                 return token;
             }
         }

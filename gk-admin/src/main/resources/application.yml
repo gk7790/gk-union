@@ -75,6 +75,12 @@ xss:
     path-list: /devtools/template,/survey/callbacktemplate
 
 gk:
+  security:
+    public-endpoints:
+      - /api/v1/**
+      - /open-api/**
+      - /psp/callback/**
+      - /tg/webhook/**
   psp:
     callback:
       base-url: ${PSP_CALLBACK_BASE_URL:http://mqmq.vip.cpolar.cn}

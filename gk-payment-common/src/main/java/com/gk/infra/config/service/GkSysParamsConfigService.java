@@ -2,6 +2,7 @@ package com.gk.infra.config.service;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
+import com.gk.common.config.SysParamReader;
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.infra.config.model.DomainConfig;
 import com.gk.infra.config.model.GkOpenApiConfig;
@@ -24,7 +25,7 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 public class GkSysParamsConfigService {
-    private final SysParamsService sysParamsService;
+    private final SysParamReader sysParamsService;
     private final GkRunProperties properties;
 
     public GkOpenApiConfig openApiConfig() {

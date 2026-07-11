@@ -62,6 +62,11 @@ knife4j:
     enabled: false
 
 gk:
+  security:
+    public-endpoints:
+      - /api/v1/**
+      - /open-api/**
+      - /psp/callback/**
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:

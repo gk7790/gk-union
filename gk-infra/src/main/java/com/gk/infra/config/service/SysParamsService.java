@@ -1,6 +1,7 @@
 package com.gk.infra.config.service;
 
 
+import com.gk.common.config.SysParamReader;
 import com.gk.common.core.service.BaseService;
 import com.gk.common.model.PageData;
 import com.gk.common.model.DynMap;
@@ -15,7 +16,7 @@ import java.util.List;
  * @author Lowen
  * @since 1.0.0
  */
-public interface SysParamsService extends BaseService<SysParamsEntity> {
+public interface SysParamsService extends BaseService<SysParamsEntity>, SysParamReader {
 
     PageData<SysParamsDTO> page(DynMap params);
 

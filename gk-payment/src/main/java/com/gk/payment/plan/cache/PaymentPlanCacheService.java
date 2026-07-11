@@ -1,6 +1,7 @@
 package com.gk.payment.plan.cache;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.payment.dao.PaymentPlanBucketDao;
@@ -79,7 +80,7 @@ public class PaymentPlanCacheService {
     public void evictAll() {
         localCache.clear();
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPaymentPlanActivePattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPaymentPlanActivePattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

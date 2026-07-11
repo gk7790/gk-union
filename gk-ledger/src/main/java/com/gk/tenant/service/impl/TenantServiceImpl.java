@@ -12,6 +12,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -85,7 +86,7 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     public List<LabelDTO> getDict(DynMap params) {
         List<Integer> list = params.getList("status", Integer.class, StatusEnum.defaultStatus());
         boolean includeSystemTenant = ReqContextHolder.isSuperAdmin();
-        String cacheKey = RedisKeys.getTenantDictKey(statusCacheKey(list), includeSystemTenant);
+        String cacheKey = PaymentRedisKeys.getTenantDictKey(statusCacheKey(list), includeSystemTenant);
         List<LabelDTO> cached = getCachedDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -397,7 +398,7 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
 
     private void evictTenantDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getTenantDictPattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getTenantDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

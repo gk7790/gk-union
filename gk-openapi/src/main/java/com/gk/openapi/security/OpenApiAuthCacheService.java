@@ -2,6 +2,7 @@ package com.gk.openapi.security;
 
 import com.gk.common.enums.SignTypeEnum;
 import com.gk.common.openapi.OpenApiAuthCacheEvictor;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.IpPatternUtils;
@@ -85,7 +86,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return null;
         }
 
-        String cacheKey = RedisKeys.getOpenApiAuthKey(normalizedAppId);
+        String cacheKey = PaymentRedisKeys.getOpenApiAuthKey(normalizedAppId);
         Snapshot cached = getCached(cacheKey);
         if (cached != null) {
             return cached;
@@ -105,8 +106,8 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return;
         }
         try {
-            redisUtils.delete(RedisKeys.getOpenApiAuthKey(normalizedAppId));
-            redisUtils.delete(RedisKeys.getOpenApiMerchantAppKey(normalizedAppId));
+            redisUtils.delete(PaymentRedisKeys.getOpenApiAuthKey(normalizedAppId));
+            redisUtils.delete(PaymentRedisKeys.getOpenApiMerchantAppKey(normalizedAppId));
         } catch (Exception ex) {
             log.warn("Evict OpenAPI auth cache failed, appId={}, err={}", normalizedAppId, ex.getMessage());
         }
@@ -169,7 +170,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return;
         }
         int ttl = nonceTtlSeconds == null || nonceTtlSeconds <= 0 ? 300 : nonceTtlSeconds;
-        String nonceKey = RedisKeys.getApiNonceKey(appId, nonce);
+        String nonceKey = PaymentRedisKeys.getApiNonceKey(appId, nonce);
         if (!redisUtils.tryLockStrict(nonceKey, ttl)) {
             throw new ApiException(ApiErrorCode.REPLAY_REQUEST);
         }
@@ -177,7 +178,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
 
     private void validateRateLimit(String appId, Integer rateLimitQps) {
         int qps = rateLimitQps == null || rateLimitQps <= 0 ? 50 : rateLimitQps;
-        String limitQpsKey = RedisKeys.getApiLimitQpsKey(appId, Instant.now().getEpochSecond());
+        String limitQpsKey = PaymentRedisKeys.getApiLimitQpsKey(appId, Instant.now().getEpochSecond());
         if (redisUtils.getIncrement(limitQpsKey, 2) > qps) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Rate limit exceeded");
         }

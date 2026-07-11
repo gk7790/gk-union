@@ -9,7 +9,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.Result;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.telegram.support.NotificationKeyUtils;
 import com.gk.infra.config.model.TgBaseConfig;
 import com.gk.infra.config.service.SysParamsService;
 import com.gk.telegram.bot.TgBotApiClient;
@@ -82,10 +82,10 @@ public class TgBotServiceImpl extends CrudServiceImpl<TgBotDao, TgBotEntity, TgB
         BeanUtils.copyProperties(dto, entity);
 
         entity.setId(null);
-        entity.setBotNo(StrUtil.isNotBlank(dto.getBotNo()) ? dto.getBotNo() : BOT_NO_PREFIX + BizKeyUtils.genShortCode());
+        entity.setBotNo(StrUtil.isNotBlank(dto.getBotNo()) ? dto.getBotNo() : BOT_NO_PREFIX + NotificationKeyUtils.shortCode());
         entity.setTokenCipher(tokenCipher.encrypt(dto.getToken()));
         entity.setTokenHash(tokenCipher.hash(dto.getToken()));
-        entity.setSecretToken(BizKeyUtils.genApiSecret());
+        entity.setSecretToken(NotificationKeyUtils.secret());
         entity.setOwnerScope(StrUtil.isNotBlank(dto.getOwnerScope()) ? dto.getOwnerScope() : SubjectTypeEnum.PLATFORM.code());
         entity.setMode(StrUtil.isNotBlank(dto.getMode()) ? dto.getMode() : "WEBHOOK");
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : 1);

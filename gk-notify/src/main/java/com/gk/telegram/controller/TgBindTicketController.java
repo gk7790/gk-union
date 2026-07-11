@@ -1,4 +1,4 @@
-package com.gk.iam.controller;
+package com.gk.telegram.controller;
 
 import com.gk.common.annotation.RequestMap;
 import com.gk.common.context.ReqContextHolder;

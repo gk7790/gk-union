@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -82,7 +83,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         String methodType = normalize(params.getStr("methodType"));
         List<Integer> statusList = statusList(params);
         String statusKey = statusKey(statusList);
-        String cacheKey = RedisKeys.getPaymentMethodDictKey(countryCode, currency, direction, methodType, statusKey);
+        String cacheKey = PaymentRedisKeys.getPaymentMethodDictKey(countryCode, currency, direction, methodType, statusKey);
         List<PaymentMethodDTO> cached = getCachedDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -310,7 +311,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
 
     private void evictDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPaymentMethodDictPattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPaymentMethodDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

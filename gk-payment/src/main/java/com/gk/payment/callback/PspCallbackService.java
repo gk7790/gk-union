@@ -2,6 +2,7 @@ package com.gk.payment.callback;
 
 import com.gk.common.enums.BizTypeEnum;
 import com.gk.common.model.Result;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.ipwhitelist.service.PspCallbackIpWhitelistService;
@@ -345,7 +346,7 @@ public class PspCallbackService {
             return Result.fail(PspCallbackAckMapper.ADAPTER_NOT_FOUND);
         }
         String trimmedAccountNo = StringUtils.trim(pspAccountNo);
-        String cacheKey = RedisKeys.getPspCallbackAccountKey(trimmedAccountNo);
+        String cacheKey = PaymentRedisKeys.getPspCallbackAccountKey(trimmedAccountNo);
         PspCallbackAccount account = getCachedCallbackAccount(cacheKey);
         if (account == null) {
             account = pspAccountDao.selectCallbackAccount(trimmedAccountNo);

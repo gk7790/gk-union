@@ -49,15 +49,18 @@ public class SecurityConfig {
     private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
     private final TgAlertService tgAlertService;
     private final LoginMfaService loginMfaService;
+    private final PublicEndpoints publicEndpoints;
 
     public SecurityConfig(JpaUserDetailsService userDetailsService,
                           SysLoginIpWhitelistService sysLoginIpWhitelistService,
                           TgAlertService tgAlertService,
-                          LoginMfaService loginMfaService) {
+                          LoginMfaService loginMfaService,
+                          PublicEndpoints publicEndpoints) {
         this.userDetailsService = userDetailsService;
         this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
         this.tgAlertService = tgAlertService;
         this.loginMfaService = loginMfaService;
+        this.publicEndpoints = publicEndpoints;
     }
 
     /**
@@ -88,7 +91,7 @@ public class SecurityConfig {
      */
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(userDetailsService);
+        return new JwtAuthenticationFilter(userDetailsService, publicEndpoints);
     }
 
     @Bean
@@ -111,7 +114,7 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
         // 配置 JSON 登录过滤器
-        return http.authorizeHttpRequests(authorize -> authorize.requestMatchers(PublicEndpoints.PATTERNS)
+        return http.authorizeHttpRequests(authorize -> authorize.requestMatchers(publicEndpoints.patterns())
                         .permitAll().anyRequest().authenticated()
                 )
                 // 禁用CSRF - 前后端分离通常不需要

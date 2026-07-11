@@ -12,13 +12,10 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.telegram.support.NotificationKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
-import com.gk.subject.model.SubjectDisplay;
-import com.gk.subject.model.SubjectRef;
-import com.gk.subject.service.SubjectDisplayService;
 import com.gk.telegram.alert.TgMessageTaskExecutor;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
@@ -30,7 +27,9 @@ import com.gk.telegram.entity.TgMessageTaskEntity;
 import com.gk.telegram.service.TgChatService;
 import com.gk.telegram.support.TgConstants;
 import com.gk.telegram.support.TgHtml;
+import com.gk.telegram.spi.NotificationSubjectNameResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -51,15 +50,15 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
     private final TgBotDao tgBotDao;
     private final TgMessageTaskDao tgMessageTaskDao;
     private final TgMessageTaskExecutor tgMessageTaskExecutor;
-    private final SubjectDisplayService subjectDisplayService;
+    private final ObjectProvider<NotificationSubjectNameResolver> subjectNameResolverProvider;
 
     public TgChatServiceImpl(TgBotDao tgBotDao, TgMessageTaskDao tgMessageTaskDao,
                              TgMessageTaskExecutor tgMessageTaskExecutor,
-                             SubjectDisplayService subjectDisplayService) {
+                             ObjectProvider<NotificationSubjectNameResolver> subjectNameResolverProvider) {
         this.tgBotDao = tgBotDao;
         this.tgMessageTaskDao = tgMessageTaskDao;
         this.tgMessageTaskExecutor = tgMessageTaskExecutor;
-        this.subjectDisplayService = subjectDisplayService;
+        this.subjectNameResolverProvider = subjectNameResolverProvider;
     }
 
     @Override
@@ -146,42 +145,12 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
     }
 
     private void fillSubjectInfo(List<TgChatDTO> items) {
-        if (items == null || items.isEmpty()) {
-            return;
-        }
-        List<SubjectRef> refs = items.stream()
-                .flatMap(item -> java.util.stream.Stream.of(
-                        subjectRef(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()),
-                        subjectRef(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId())
-                ))
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        if (refs.isEmpty()) {
-            return;
-        }
-        Map<SubjectRef, SubjectDisplay> displays = subjectDisplayService.batchGet(refs);
+        NotificationSubjectNameResolver resolver = subjectNameResolverProvider.getIfAvailable();
+        if (resolver == null || items == null) return;
         for (TgChatDTO item : items) {
-            SubjectDisplay tenant = displays.get(subjectRef(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()));
-            if (tenant != null) {
-                item.setTenantName(displayName(tenant));
-            }
-            SubjectDisplay merchant = displays.get(subjectRef(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId()));
-            if (merchant != null) {
-                item.setMerchantName(displayName(merchant));
-            }
+            item.setTenantName(resolver.resolve(item.getTenantId(), SubjectTypeEnum.TENANT.code(), item.getTenantId()));
+            item.setMerchantName(resolver.resolve(item.getTenantId(), SubjectTypeEnum.MERCHANT.code(), item.getMerchantId()));
         }
-    }
-
-    private SubjectRef subjectRef(Long tenantId, String subjectType, Long subjectId) {
-        if (tenantId == null || tenantId <= 0 || subjectId == null || subjectId <= 0) {
-            return null;
-        }
-        return new SubjectRef(tenantId, subjectType, subjectId);
-    }
-
-    private String displayName(SubjectDisplay display) {
-        return StringUtils.defaultIfBlank(display.getSubjectName(), display.getDisplayName());
     }
 
     /**
@@ -266,7 +235,6 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
                 .orderByDesc("id");
         List<TgChatDTO> items = ConvertUtils.sourceToTarget(baseDao.selectList(wrapper), TgChatDTO.class);
         fillBotInfo(items);
-        fillSubjectInfo(items);
         return items;
     }
 
@@ -382,7 +350,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         task.setMerchantId(target.getMerchantId());
         task.setBotId(target.getBotId());
         task.setChatId(target.getChatId());
-        task.setTaskNo(BizKeyUtils.genTgMessageTaskNo());
+        task.setTaskNo(NotificationKeyUtils.messageTaskNo());
         task.setBizType(TgConstants.MessageBizType.BUSINESS_NOTIFY);
         task.setBizNo(bizNo);
         task.setEventType(TgAlertEventType.MERCHANT_NOTICE.code());

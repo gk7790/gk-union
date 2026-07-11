@@ -10,6 +10,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -76,7 +77,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
             return Collections.emptyList();
         }
 
-        String cacheKey = RedisKeys.getPspAccountDictKey(pspId);
+        String cacheKey = PaymentRedisKeys.getPspAccountDictKey(pspId);
         List<LabelDTO> cached = getCachedDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -284,7 +285,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     private void evictDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPspAccountDictPattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPspAccountDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }
@@ -295,7 +296,7 @@ public class PspAccountServiceImpl extends CrudServiceImpl<PspAccountDao, PspAcc
 
     private void evictCallbackAccountCache() {
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPspCallbackAccountPattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPspCallbackAccountPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

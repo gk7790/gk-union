@@ -6,9 +6,9 @@ spring:
     name: ${APP_NAME:gk-admin-dev}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL:jdbc:mysql://rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306/gk-union?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true}
-    username: ${DB_USERNAME:survey01}
-    password: ${DB_PASSWORD:Abc!@#45}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     hikari:
       pool-name: ${DB_POOL_NAME:gk-admin-dev-hikari}
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
@@ -23,7 +23,7 @@ spring:
       database: ${REDIS_DATABASE:11}
       host: ${REDIS_HOST:192.168.1.95}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:Lz121314}
+      password: ${REDIS_PASSWORD}
       timeout: ${REDIS_TIMEOUT:6000ms}
       connect-timeout: ${REDIS_CONNECT_TIMEOUT:6000ms}
       lettuce:

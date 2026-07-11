@@ -1,5 +1,6 @@
 package com.gk.psp.balance.impl;
 
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.config.service.GkSysParamsConfigService;
@@ -39,7 +40,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
             return null;
         }
         try {
-            return redisUtils.get(RedisKeys.getPaymentPspBalanceKey(tenantId, pspAccountId),
+            return redisUtils.get(PaymentRedisKeys.getPaymentPspBalanceKey(tenantId, pspAccountId),
                     PspBalanceSnap.class);
         } catch (Exception ex) {
             log.warn("Get PSP account balance cache failed, pspAccountId={}, err={}", pspAccountId, ex.getMessage());
@@ -186,7 +187,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
         }
         try {
             // Redis TTL 与 snap.expireAt 对齐，后台展示过期时间和缓存失效时间保持一致。
-            redisUtils.set(RedisKeys.getPaymentPspBalanceKey(snap.getTenantId(), snap.getPspAccountId()),
+            redisUtils.set(PaymentRedisKeys.getPaymentPspBalanceKey(snap.getTenantId(), snap.getPspAccountId()),
                     snap, cacheTtlSeconds(snap));
         } catch (Exception ex) {
             log.warn("Set PSP account balance cache failed, pspAccountId={}, err={}",

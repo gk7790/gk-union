@@ -1,6 +1,7 @@
 package com.gk.api.controller;
 
 import com.gk.common.model.DynMap;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class DeeplinkTestPageController {
 
     @GetMapping(value = "/tools/deeplink-test/{token}", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<?> deeplinkTestPage(@PathVariable String token) {
-        DynMap params = redisUtils.get(RedisKeys.getDeeplinkTestTokenKey(token), DynMap.class);
+        DynMap params = redisUtils.get(PaymentRedisKeys.getDeeplinkTestTokenKey(token), DynMap.class);
         if (params == null || params.isEmpty()) {
             return ResponseEntity.status(HttpStatus.GONE)
                     .contentType(MediaType.TEXT_HTML)

@@ -1,12 +1,14 @@
-package com.gk.infra.telegram;
+package com.gk.telegram.bind;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
 import com.gk.common.enums.SubjectTypeEnum;
-import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.config.model.TgBaseConfig;
 import com.gk.infra.config.service.SysParamsService;
+import com.gk.infra.telegram.TgBindPurpose;
+import com.gk.infra.telegram.TgBindTicket;
+import com.gk.infra.telegram.TgBindTicketService;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -18,7 +20,7 @@ import java.security.SecureRandom;
  */
 @Component
 @RequiredArgsConstructor
-public class TgBindTicketService {
+public class RedisTgBindTicketService implements TgBindTicketService {
     private static final String ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int CODE_LENGTH = 10;
     private static final int MAX_GENERATE_ATTEMPTS = 5;
@@ -27,13 +29,14 @@ public class TgBindTicketService {
     private final SysParamsService sysParamsService;
     private final SecureRandom random = new SecureRandom();
 
+    @Override
     public TgBindTicket generate(TgBindPurpose purpose, String subjectType,
                                  Long tenantId, Long merchantId, Long subjectId, Long userId) {
         validateCreateRequest(purpose, subjectType, tenantId, merchantId, subjectId, userId);
         long ttlSeconds = getTtlSeconds();
         for (int i = 0; i < MAX_GENERATE_ATTEMPTS; i++) {
             String code = randomCode();
-            String key = RedisKeys.getTgBindTicketKey(code);
+            String key = bindTicketKey(code);
             if (!redisUtils.isKeyExist(key)) {
                 TgBindTicket ticket = new TgBindTicket();
                 ticket.setCode(code);
@@ -50,12 +53,13 @@ public class TgBindTicketService {
         throw new IllegalStateException("Failed to generate Telegram bind ticket");
     }
 
+    @Override
     public TgBindTicket consume(String code, TgBindPurpose expectedPurpose) {
         String normalized = normalize(code);
         if (normalized == null || expectedPurpose == null) {
             return null;
         }
-        String key = RedisKeys.getTgBindTicketKey(normalized);
+        String key = bindTicketKey(normalized);
         TgBindTicket ticket = parseTicket(redisUtils.getAndDelete(key));
         return matches(ticket, expectedPurpose) ? ticket : null;
     }
@@ -117,5 +121,9 @@ public class TgBindTicketService {
             return null;
         }
         return code.trim().toUpperCase();
+    }
+
+    private String bindTicketKey(String code) {
+        return "tg:merchant:bind:" + code;
     }
 }

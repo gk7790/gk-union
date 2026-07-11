@@ -11,6 +11,7 @@ import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
+import com.gk.common.redis.PaymentRedisKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -81,7 +82,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
             return Collections.emptyList();
         }
 
-        String cacheKey = RedisKeys.getPspMethodCodeDictKey(pspId);
+        String cacheKey = PaymentRedisKeys.getPspMethodCodeDictKey(pspId);
         List<PspMethodDTO> cached = getCachedPspMethodCodeDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -281,7 +282,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     private void evictMethodDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(RedisKeys.getPspMethodCodeDictPattern());
+            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPspMethodCodeDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

@@ -37,14 +37,16 @@ import java.util.*;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JpaUserDetailsService userDetailsService;
+    private final PublicEndpoints publicEndpoints;
 
-    public JwtAuthenticationFilter(JpaUserDetailsService userDetailsService) {
+    public JwtAuthenticationFilter(JpaUserDetailsService userDetailsService, PublicEndpoints publicEndpoints) {
         this.userDetailsService = userDetailsService;
+        this.publicEndpoints = publicEndpoints;
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return PublicEndpoints.matches(request);
+        return publicEndpoints.matches(request);
     }
 
     @Override

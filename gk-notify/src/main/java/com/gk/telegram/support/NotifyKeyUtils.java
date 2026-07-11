@@ -5,12 +5,12 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-public final class NotificationKeyUtils {
+public final class NotifyKeyUtils {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final char[] CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".toCharArray();
     private static final char[] BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
 
-    private NotificationKeyUtils() {}
+    private NotifyKeyUtils() {}
 
     public static String messageTaskNo() { return "TGM" + encode(IdWorker.getId()); }
     public static String shortCode() { return randomCode(8); }

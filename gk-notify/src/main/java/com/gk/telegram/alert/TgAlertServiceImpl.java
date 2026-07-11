@@ -2,7 +2,7 @@ package com.gk.telegram.alert;
 
 import cn.hutool.crypto.SecureUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.telegram.support.NotificationKeyUtils;
+import com.gk.telegram.support.NotifyKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.infra.telegram.TgAlertEventType;
 import com.gk.infra.telegram.TgAlertService;
@@ -212,7 +212,7 @@ public class TgAlertServiceImpl implements TgAlertService {
         task.setMerchantId(target.getMerchantId());
         task.setBotId(target.getBotId());
         task.setChatId(target.getChatId());
-        task.setTaskNo(NotificationKeyUtils.messageTaskNo());
+        task.setTaskNo(NotifyKeyUtils.messageTaskNo());
         task.setBizType(resolveBizType(eventType));
         task.setBizNo(eventType.code());
         task.setEventType(eventType.code());

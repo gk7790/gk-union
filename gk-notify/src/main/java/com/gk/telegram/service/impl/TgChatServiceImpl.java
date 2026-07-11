@@ -12,7 +12,7 @@ import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.telegram.support.NotificationKeyUtils;
+import com.gk.telegram.support.NotifyKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.iam.entity.SysUserSubjectEntity;
 import com.gk.infra.telegram.TgAlertEventType;
@@ -350,7 +350,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         task.setMerchantId(target.getMerchantId());
         task.setBotId(target.getBotId());
         task.setChatId(target.getChatId());
-        task.setTaskNo(NotificationKeyUtils.messageTaskNo());
+        task.setTaskNo(NotifyKeyUtils.messageTaskNo());
         task.setBizType(TgConstants.MessageBizType.BUSINESS_NOTIFY);
         task.setBizNo(bizNo);
         task.setEventType(TgAlertEventType.MERCHANT_NOTICE.code());

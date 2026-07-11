@@ -6,8 +6,8 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.gk.common.core.entity.SimpleEntity;
 import com.gk.meta.dto.SysMenuMeta;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.List;
 
@@ -17,16 +17,13 @@ import java.util.List;
  * @author Lowen
  */
 @Data
+@EqualsAndHashCode(callSuper = false)
 @TableName(value = "sys_menu", autoResultMap = true)
 public class SysMenuEntity extends SimpleEntity {
     /**
      * 父菜单ID，一级菜单为0
      */
     private Long pid;
-    /**
-     * 租户id
-     */
-    private Long tenantId;
 	/**
 	 * 菜单名称
 	 */
@@ -61,10 +58,10 @@ public class SysMenuEntity extends SimpleEntity {
      */
     private Integer sort;
     /**
-     * 领域
+     * 可见主体：PLATFORM / TENANT / MERCHANT
      */
     @TableField(typeHandler = JacksonTypeHandler.class)
-    private List<Integer> scope;
+    private List<String> subjectTypes;
     /**
      * 业务领域
      */

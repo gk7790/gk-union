@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.psp.dao.PspRouteRuleDao">
+    <select id="selectBestRouteRuleForOrder" resultType="com.gk.psp.entity.PspRouteRuleEntity">
+        SELECT r.* FROM psp_route_rule r
+        INNER JOIN psp_method m ON m.id = r.psp_method_id
+            AND m.method_code = #{methodCode}
+            AND m.currency = #{currency}
+            AND m.direction = #{direction}
+            AND m.status = #{status}
+            <if test="countryCode != null and countryCode != ''">
+            AND (m.country_code = #{countryCode} OR m.country_code IS NULL OR m.country_code = '')
+            </if>
+        <if test='direction == "PAYOUT" and methodCode == "BANK_CARD"'>
+        INNER JOIN psp_bank_mapping b ON b.psp_id = r.psp_id
+            AND b.country_code = #{countryCode}
+            AND b.currency = #{currency}
+            AND b.bank_code = #{bankCode}
+            AND b.status = #{status}
+            AND b.psp_bank_code IS NOT NULL
+            AND b.psp_bank_code != ''
+        </if>
+        WHERE r.tenant_id = #{tenantId}
+          <if test="countryCode != null and countryCode != ''">
+          AND (r.country_code = #{countryCode} OR r.country_code IS NULL OR r.country_code = '')
+          </if>
+          AND r.currency = #{currency}
+          AND (r.method_code = #{methodCode} OR r.method_code IS NULL OR r.method_code = '')
+          AND r.direction = #{direction}
+          AND r.status = #{status}
+          AND (r.merchant_id IS NULL OR r.merchant_id = #{merchantId})
+          AND (r.merchant_app_id IS NULL OR r.merchant_app_id = #{merchantAppId})
+          AND r.min_amount &lt;= #{amount}
+          AND (r.max_amount = 0 OR r.max_amount &gt;= #{amount})
+          AND r.min_amount &gt;= 0
+          AND r.max_amount &gt;= 0
+          AND (
+                r.start_time IS NULL
+                OR r.end_time IS NULL
+                OR r.start_time = r.end_time
+                OR (r.start_time &lt; r.end_time AND #{nowTime} &gt;= r.start_time AND #{nowTime} &lt;= r.end_time)
+                OR (r.start_time &gt; r.end_time AND (#{nowTime} &gt;= r.start_time OR #{nowTime} &lt;= r.end_time))
+          )
+        ORDER BY
+            CASE
+                WHEN r.merchant_id = #{merchantId} AND r.merchant_app_id = #{merchantAppId} THEN 0
+                WHEN r.merchant_id = #{merchantId} AND r.merchant_app_id IS NULL THEN 10
+                WHEN r.merchant_id IS NULL AND r.merchant_app_id IS NULL THEN 20
+                ELSE 100
+            END ASC,
+            CASE WHEN r.method_code = #{methodCode} THEN 0 ELSE 1 END ASC,
+            <if test="countryCode != null and countryCode != ''">
+            CASE WHEN r.country_code = #{countryCode} THEN 0 ELSE 1 END ASC,
+            </if>
+            COALESCE(r.priority, 100) ASC,
+            r.id ASC
+        LIMIT 1
+    </select>
+</mapper>

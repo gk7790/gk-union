@@ -1,14 +1,18 @@
 package com.gk.auth.config;
 
 import com.alibaba.fastjson2.JSONObject;
-import com.gk.common.constant.Constant;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.model.R;
 import com.gk.auth.entity.SysUser;
 import com.gk.auth.oauth.JsonUsernamePasswordAuthenticationFilter;
 import com.gk.auth.oauth.JwtAuthenticationFilter;
 import com.gk.auth.service.JpaUserDetailsService;
-import com.gk.auth.utils.JwtUtils;
+import com.gk.auth.service.LoginMfaService;
+import com.gk.common.tools.StringFormat;
+import com.gk.common.utils.IpUtils;
+import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
+import com.gk.infra.telegram.TgAlertService;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,11 +21,11 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.*;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -35,26 +39,32 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
     private final JpaUserDetailsService userDetailsService;
+    private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
+    private final TgAlertService tgAlertService;
+    private final LoginMfaService loginMfaService;
 
-    public SecurityConfig(JpaUserDetailsService userDetailsService) {
+    public SecurityConfig(JpaUserDetailsService userDetailsService,
+                          SysLoginIpWhitelistService sysLoginIpWhitelistService,
+                          TgAlertService tgAlertService,
+                          LoginMfaService loginMfaService) {
         this.userDetailsService = userDetailsService;
+        this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
+        this.tgAlertService = tgAlertService;
+        this.loginMfaService = loginMfaService;
     }
 
     /**
      * JSON 登录过滤器
      */
     private JsonUsernamePasswordAuthenticationFilter jsonAuthenticationFilter(AuthenticationManager authManager) {
-        JsonUsernamePasswordAuthenticationFilter filter = new JsonUsernamePasswordAuthenticationFilter();
+        JsonUsernamePasswordAuthenticationFilter filter = new JsonUsernamePasswordAuthenticationFilter(sysLoginIpWhitelistService);
         filter.setAuthenticationManager(authManager);
         filter.setFilterProcessesUrl("/auth/login");
         filter.setAuthenticationSuccessHandler(loginSuccessHandler());
@@ -68,12 +78,9 @@ public class SecurityConfig {
      */
     @Bean
     public AuthenticationManager authenticationManager() {
-        return new ProviderManager(
-                new DaoAuthenticationProvider() {{
-                    setUserDetailsService(userDetailsService);
-                    setPasswordEncoder(passwordEncoder());
-                }}
-        );
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider(userDetailsService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        return new ProviderManager(authenticationProvider);
     }
 
     /**
@@ -85,21 +92,30 @@ public class SecurityConfig {
     }
 
     @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtAuthenticationFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    /**
+     * 方法安全表达式处理器: 超级管理员跳过所有 @PreAuthorize 权限校验。
+     * <p>必须用 static 方法发布, 以保证早于方法安全配置类初始化。</p>
+     */
+    @Bean
+    static org.springframework.security.access.expression.method.MethodSecurityExpressionHandler methodSecurityExpressionHandler() {
+        return new SuperAdminMethodSecurityExpressionHandler();
+    }
+
+    @Bean
     @Order(1)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
         // 配置 JSON 登录过滤器
-        return http.authorizeHttpRequests(authorize ->authorize.requestMatchers(
-                        "/auth/**", // 认证相关端点
-                        "/internal/**", // 内部接口使用
-                        "/public/**",
-                        "/static/**",
-                        "/.well-known/**", // OIDC发现端点
-                        "/favicon.ico",
-                        "/error"  // 错误端点
-                        ).permitAll().anyRequest().authenticated()
+        return http.authorizeHttpRequests(authorize -> authorize.requestMatchers(PublicEndpoints.PATTERNS)
+                        .permitAll().anyRequest().authenticated()
                 )
                 // 禁用CSRF - 前后端分离通常不需要
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 // 启用 CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // 添加 JWT 过滤器（在 JSON 登录过滤器之前）
@@ -109,6 +125,7 @@ public class SecurityConfig {
                 // 退出登录配置
                 .logout(logout -> logout
                         .logoutUrl("/auth/logout")
+                        .logoutSuccessHandler(logoutSuccessHandler())
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
                         .permitAll()
@@ -161,28 +178,12 @@ public class SecurityConfig {
             SysUser user = (SysUser) authentication.getPrincipal();
 
             // 构建 claims
-            Map<String, Object> claims = new HashMap<>();
-            claims.put(JwtUtils.USER_ID, user.getId());
-            claims.put(JwtUtils.TENANT_ID, user.getTenantId());
-            claims.put(JwtUtils.DEPT_ID, user.getDeptId());
-            claims.put(JwtUtils.UNAME, user.getUsername());
-            claims.put(JwtUtils.SUPER_Admin, user.isSuperAdmin());
-            claims.put(JwtUtils.SCOPE, user.getScope());
-            claims.put(JwtUtils.DOMAIN, user.getDomain());
-            claims.put("email", user.getEmail());
-            claims.put("realName", user.getRealName());
-            claims.put("roles", user.getRoleList());
-            String token = JwtUtils.generateToken(Constant.ADMIN, claims);
+            if (loginMfaService.requiresMfa(user)) {
+                response.getWriter().write(JSONObject.toJSONString(R.ok(loginMfaService.createChallengeResponse(user))));
+                return;
+            }
 
-            Map<String, Object> userMap = new HashMap<>();
-            userMap.put("id", user.getId());
-            userMap.put("username", user.getUsername());
-            userMap.put("realName", user.getNickName());
-            userMap.put("roles", user.getRoleList());
-            userMap.put("accessToken", token);
-            userMap.put("tokenType", "Bearer");
-            userMap.put("expiresIn", 86400);
-            response.getWriter().write(JSONObject.toJSONString(R.ok(userMap)));
+            response.getWriter().write(JSONObject.toJSONString(R.ok(loginMfaService.buildLoginResponse(user))));
         };
     }
 
@@ -196,6 +197,22 @@ public class SecurityConfig {
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
             response.getWriter().write(JSONObject.toJSONString(R.error(getError(exception))));
+
+            String content = StringFormat.format("""
+                            ⚠登录失败风险提醒⚠
+                            ──────────────
+                            入口: {} {}
+                            账号: {}
+                            IP: {}
+                            原因: {}
+                            """,
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    request.getAttribute(JsonUsernamePasswordAuthenticationFilter.LOGIN_USERNAME_ATTR),
+                    IpUtils.getClientIp(request),
+                    getError(exception)
+            );
+            tgAlertService.sysWarn(content, "");
         };
     }
 
@@ -205,6 +222,10 @@ public class SecurityConfig {
     @Bean
     public LogoutSuccessHandler logoutSuccessHandler() {
         return (request, response, authentication) -> {
+            if (authentication != null && authentication.getPrincipal() instanceof SysUser user) {
+                userDetailsService.evictLoginCache(user.getId(), user.getSubjectId(), user.getDeptId());
+            }
+            SecurityContextHolder.clearContext();
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
             response.getWriter().write(JSONObject.toJSONString(R.ok()));
@@ -237,38 +258,15 @@ public class SecurityConfig {
         };
     }
 
-    // ==================== 辅助方法 ====================
-
-    // 构建用户信息
-    private Map<String, Object> buildUserInfo(Authentication authentication) {
-        Map<String, Object> userInfo = new HashMap<>();
-        userInfo.put("username", authentication.getName());
-        userInfo.put("authorities", authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList()));
-
-        if (authentication.getPrincipal() instanceof SysUser user) {
-            userInfo.put("userId", user.getId());
-            userInfo.put("email", user.getEmail());
-        }
-
-        return userInfo;
-    }
-
     // 获取错误信息
     private int getError(Exception exception) {
-        if (exception instanceof BadCredentialsException) {
-            return ErrorCode.ACCOUNT_PASSWORD_ERROR;
-        } else if (exception instanceof DisabledException) {
-            return ErrorCode.ACCOUNT_DISABLE;
-        } else if (exception instanceof LockedException) {
-            return ErrorCode.ACCOUNT_LOCK;
-        } else if (exception instanceof AccountExpiredException) {
-            return ErrorCode.ACCOUNT_DISABLE;
-        } else if (exception instanceof CredentialsExpiredException) {
-            return ErrorCode.TOKEN_INVALID;
-        } else {
-            return ErrorCode.FAILURE;
-        }
+        return switch (exception) {
+            case BadCredentialsException ignored -> ErrorCode.ACCOUNT_PASSWORD_ERROR;
+            case DisabledException ignored -> ErrorCode.ACCOUNT_DISABLE;
+            case LockedException ignored -> ErrorCode.ACCOUNT_LOCK;
+            case AccountExpiredException ignored -> ErrorCode.ACCOUNT_DISABLE;
+            case CredentialsExpiredException ignored -> ErrorCode.TOKEN_INVALID;
+            default -> ErrorCode.FAILURE;
+        };
     }
 }

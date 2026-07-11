@@ -1,6 +1,7 @@
 package com.gk.common.context;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
+import com.gk.common.enums.SubjectTypeEnum;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.util.*;
@@ -61,10 +62,50 @@ public class ReqContextHolder {
     }
 
     /**
+     * 用户主体ID
+     */
+    public static Long getSubjectId() {
+        return get().getSubjectId();
+    }
+
+    /**
      * 租户ID
      */
     public static Long getTenantId() {
         return get().getTenantId();
+    }
+
+    /**
+     * 商户ID
+     */
+    public static Long getMerchantId() {
+        return get().getMerchantId();
+    }
+
+    /**
+     * 当前主体角色ID
+     */
+    public static Long getRoleId() {
+        return get().getRoleId();
+    }
+
+    /**
+     * 当前主体角色ID列表
+     */
+    public static List<Long> getRoleIdList() {
+        List<Long> roleIdList = get().getRoleIdList();
+        if (roleIdList != null && !roleIdList.isEmpty()) {
+            return roleIdList;
+        }
+        Long roleId = getRoleId();
+        return roleId == null ? List.of() : List.of(roleId);
+    }
+
+    /**
+     * 主体类型
+     */
+    public static String getSubjectType() {
+        return get().getSubjectType();
     }
 
     /**
@@ -115,13 +156,6 @@ public class ReqContextHolder {
     }
 
     /**
-     * 领域
-     */
-    public static Integer getScope() {
-        return get().getScope();
-    }
-
-    /**
      * 业务领域
      */
     public static Integer getDomain() {
@@ -145,10 +179,17 @@ public class ReqContextHolder {
     /**
      * 是否超级管理员
      */
-    public static Boolean isSAdmin() {
+    public static Boolean isSuperAdmin() {
         return Boolean.TRUE.equals(
                 get().getSAdmin()
         );
+    }
+
+    /**
+     * 判断是否是平台级用户
+     */
+    public static boolean isPlatform() {
+        return isSuperAdmin() || SubjectTypeEnum.PLATFORM.matches(ReqContextHolder.getSubjectType());
     }
 
     /**

@@ -1,26 +1,22 @@
 package com.gk.common.exception;
 
 public interface ErrorCode {
+    // 通用结果码
     int FAILURE = 3;
-    int BIND_AUTH = 21;
-    int VERIFY_AUTH = 22;
-    int AUTH_CODE_ERROR = 23;
+
+    // HTTP / 系统通用错误
     int INTERNAL_SERVER_ERROR = 500;
     int BAD_REQUEST = 400;
     int UNAUTHORIZED = 401;
     int FORBIDDEN = 403;
     int NOT_FOUND = 404;
     int NOT_ACCEPTABLE = 406;
+
+    // 10000-10099: 后台管理业务错误码
     int NOT_NULL = 10001;
     int DB_RECORD_EXISTS = 10002;
     int PARAMS_GET_ERROR = 10003;
-    int ACCOUNT_PASSWORD_ERROR = 10004;
-    int ACCOUNT_DISABLE = 10005;
-    int IDENTIFIER_NOT_NULL = 10006;
-    int CAPTCHA_ERROR = 10007;
     int SUB_MENU_EXIST = 10008;
-    int PASSWORD_ERROR = 10009;
-    int ACCOUNT_NOT_EXIST = 10010;
     int SUPERIOR_DEPT_ERROR = 10011;
     int SUPERIOR_MENU_ERROR = 10012;
     int DATA_SCOPE_PARAMS_ERROR = 10013;
@@ -30,9 +26,6 @@ public interface ErrorCode {
     int ACT_MODEL_IMG_ERROR = 10017;
     int ACT_MODEL_EXPORT_ERROR = 10018;
     int UPLOAD_FILE_EMPTY = 10019;
-    int TOKEN_NOT_EMPTY = 10020;
-    int TOKEN_INVALID = 10021;
-    int ACCOUNT_LOCK = 10022;
     int ACT_DEPLOY_FORMAT_ERROR = 10023;
     int OSS_UPLOAD_FILE_ERROR = 10024;
     int SEND_SMS_ERROR = 10025;
@@ -61,9 +54,31 @@ public interface ErrorCode {
     int DEL_MYSELF_ERROR = 10048;
     int DEPT_SETTING_ERROR = 10049;
     int VARIATE_ALREADY_EXIST = 10050;
-    int PASSWORD_INCONSISTENCY = 10051;
     int VARIATE_NOT_EXIST = 10052;
     int REQUEST_FREQUENT = 10053;
     int REQUEST_LIMIT_REACHED = 10054;
+    int ROLE_MENU_SUBJECT_MISMATCH = 10055;
+    int ROLE_AUTH_RESERVED = 10056;
+    int ROLE_PLATFORM_ONLY = 10057;
+    int ROLE_TEMPLATE_NOT_ASSIGNABLE = 10058;
+    int ROLE_SUBJECT_MISMATCH = 10059;
 
+    // 10100-10199: 用户 / 登录认证 / MFA 错误码
+    int BIND_AUTH = 10100;
+    int VERIFY_AUTH = 10101;
+    int AUTH_CODE_ERROR = 10102;
+    int ACCOUNT_PASSWORD_ERROR = 10103;
+    int ACCOUNT_DISABLE = 10104;
+    int IDENTIFIER_NOT_NULL = 10105;
+    int CAPTCHA_ERROR = 10106;
+    int PASSWORD_ERROR = 10107;
+    int ACCOUNT_NOT_EXIST = 10108;
+    int TOKEN_NOT_EMPTY = 10109;
+    int TOKEN_INVALID = 10110;
+    int ACCOUNT_LOCK = 10111;
+    int PASSWORD_INCONSISTENCY = 10112;
+
+    // 10200-10299: 商户业务错误码
+    // 10300-10399: 支付 / 订单业务错误码
+    // 10400-10499: PSP / 渠道业务错误码
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.iam.dao.SysUserSubjectDao">
+    <select id="getByUserId" resultType="com.gk.iam.entity.SysUserSubjectEntity">
+        SELECT s.*
+        FROM sys_user_subject s
+        WHERE s.user_id = #{userId}
+        LIMIT 1
+    </select>
+</mapper>

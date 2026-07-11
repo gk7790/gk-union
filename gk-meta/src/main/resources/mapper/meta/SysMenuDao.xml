@@ -6,7 +6,6 @@
     <resultMap id="SysMenuResultMap" type="com.gk.meta.entity.SysMenuEntity">
         <id property="id" column="id"/>
         <result property="pid" column="pid"/>
-        <result property="tenantId" column="tenant_id"/>
         <result property="name" column="name"/>
         <result property="path" column="path"/>
         <result property="type" column="type"/>
@@ -15,65 +14,89 @@
         <result property="authCode" column="auth_code"/>
         <result property="component" column="component"/>
         <result property="sort" column="sort"/>
-        <result property="scope" column="scope" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result property="subjectTypes" column="subject_types" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
         <result property="domain" column="domain" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
         <result column="meta" property="meta" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
     </resultMap>
 
-	<select id="getById" resultType="com.gk.meta.entity.SysMenuEntity">
+    <sql id="subjectTypeFilter">
+        <if test="subjectType != null and subjectType != ''">
+            and t1.subject_types is not null
+            and json_valid(t1.subject_types)
+            and json_contains(t1.subject_types, json_quote(#{subjectType}))
+        </if>
+    </sql>
+
+    <sql id="typeListFilter">
+        <if test="typeList != null">
+            and t1.type in
+            <foreach item="type" collection="typeList" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+    </sql>
+
+	<select id="getById" resultMap="SysMenuResultMap">
 		select t1.* from sys_menu t1
 		where t1.id = #{id}
 	</select>
 
-	<select id="getMenuList" resultMap="SysMenuResultMap">
-		select t1.*	from sys_menu t1
+	<select id="getCatalogMenuList" resultMap="SysMenuResultMap">
+		select t1.* from sys_menu t1
 		<where>
-            <if test="typeList != null">
-                and t1.type in
-                <foreach item="type" collection="typeList" open="(" separator="," close=")">
-                    #{type}
-                </foreach>
-            </if>
-            <if test="scope != null and scope > 0">
-                and t3.scope is not null
-                and json_valid(t3.scope)
-                and json_contains(t3.scope, cast(#{scope} as json))
-            </if>
-            <if test="domain != null and domain > 0">
-                and t3.domain is not null
-                and json_valid(t3.domain)
-                and json_contains(t3.domain, cast(#{domain} as json))
-            </if>
+            <include refid="typeListFilter"/>
+            <include refid="subjectTypeFilter"/>
 		</where>
 		order by t1.sort asc
 	</select>
 
-	<select id="getUserMenuList" resultMap="SysMenuResultMap">
-		select t3.* from sys_role_user t1
-		left join sys_role_menu t2 on t1.role_id = t2.role_id
-		left join sys_menu t3 on t2.menu_id = t3.id
-		where t3.id &gt; #{minId} AND  t1.user_id = #{userId}
+	<select id="getNavCatalogMenuList" resultMap="SysMenuResultMap">
+		select t1.* from sys_menu t1
+		<where>
+            and t1.status = #{normalStatus}
+            <include refid="typeListFilter"/>
+            <include refid="subjectTypeFilter"/>
+		</where>
+		order by t1.sort asc
+	</select>
+
+	<select id="getNavMenuList" resultMap="SysMenuResultMap">
+		select distinct t3.* from sys_role_user t1
+		inner join sys_role_menu t2 on t1.role_id = t2.role_id
+		inner join sys_role t4 on t1.role_id = t4.id
+		inner join sys_menu t3 on t2.menu_id = t3.id
+		where t1.user_subject_id = #{userSubjectId}
+        and t4.status = #{normalStatus}
+        and t3.status = #{normalStatus}
         <if test="typeList != null">
             and t3.type in
             <foreach item="type" collection="typeList" open="(" separator="," close=")">
                 #{type}
             </foreach>
         </if>
-        <if test="scope != null and scope > 0">
-            and t3.scope is not null
-            and json_valid(t3.scope)
-            and json_contains(t3.scope, cast(#{scope} as json))
-        </if>
-        <if test="domain != null and domain > 0">
-            and t3.domain is not null
-            and json_valid(t3.domain)
-            and json_contains(t3.domain, cast(#{domain} as json))
+        <if test="subjectType != null and subjectType != ''">
+            and t3.subject_types is not null
+            and json_valid(t3.subject_types)
+            and json_contains(t3.subject_types, json_quote(#{subjectType}))
         </if>
 		order by t3.sort asc
 	</select>
 
-	<select id="getListPid" resultType="com.gk.meta.entity.SysMenuEntity">
+    <select id="countMenusNotInSubjectType" resultType="long">
+        select count(1) from sys_menu
+        where id in
+        <foreach item="menuId" collection="menuIds" open="(" separator="," close=")">
+            #{menuId}
+        </foreach>
+        and (
+            subject_types is null
+            or not json_valid(subject_types)
+            or not json_contains(subject_types, json_quote(#{subjectType}))
+        )
+    </select>
+
+	<select id="getListPid" resultMap="SysMenuResultMap">
 		select * from sys_menu where pid = #{value}
 	</select>
-	
+
 </mapper>

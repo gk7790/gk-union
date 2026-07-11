@@ -24,7 +24,9 @@ public interface SecurityDao {
     /**
      * 查询角色权限列表
      */
-    Set<String> getRoleAuthList(Long userId);
+    Set<String> getRoleAuthList(@Param("userSubjectId") Long userSubjectId);
+
+    List<Long> getRoleIdList(@Param("userSubjectId") Long userSubjectId);
 
     /**
      * 查询所有权限列表
@@ -35,9 +37,9 @@ public interface SecurityDao {
      * 查询用户权限列表
      * @param userId  用户ID
      */
-    List<String> getUserPermissionsList(@Param("userId") Long userId, @Param("typeList") List<Integer> typeList);
+    List<String> getUserPermissionsList(@Param("userSubjectId") Long userSubjectId, @Param("typeList") List<Integer> typeList);
 
-    Set<Long> getDataScopeList(Long userId);
+    Set<Long> getDataScopeList(@Param("userSubjectId") Long userSubjectId);
 
     Set<Long> getSubDeptIdList(Long deptId);
 }

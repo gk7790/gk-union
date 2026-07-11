@@ -8,6 +8,7 @@ import com.gk.common.model.PageData;
 import com.gk.devtools.dao.DataSourceDao;
 import com.gk.devtools.entity.DataSourceEntity;
 import com.gk.devtools.service.DataSourceService;
+import com.gk.infra.enums.StatusEnum;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +46,7 @@ public class DataSourceServiceImpl extends BaseServiceImpl<DataSourceDao, DataSo
     @Override
     public List<DataSourceEntity> list() {
         QueryWrapper wrapper = new QueryWrapper<>();
-        wrapper.eq("status", 0);
+        wrapper.eq("status", StatusEnum.NORMAL.code());
 
         return baseDao.selectList(wrapper);
     }

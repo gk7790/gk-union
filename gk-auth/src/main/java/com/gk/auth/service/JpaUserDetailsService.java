@@ -1,6 +1,7 @@
 package com.gk.auth.service;
 
 import cn.hutool.core.util.StrUtil;
+import com.gk.common.constant.Constant;
 import com.gk.common.enums.MenuTypeEnum;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
@@ -26,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @RequiredArgsConstructor
 public class JpaUserDetailsService implements UserDetailsService {
+    private static final Long EMPTY_DATA_SCOPE_MARKER = -1L;
+
     private final SecurityDao securityDao;
     private final RedisUtils redisUtils;
 
@@ -40,13 +43,7 @@ public class JpaUserDetailsService implements UserDetailsService {
 
         SysUser user = getByUid(model, uid);
         validateUser(user);
-
-        Set<String> roleAuth = getRoleAuthList(user.getId());
-        user.setRoleList(roleAuth);
-
-        // TODO 后期数据多了单独缓存
-        Set<String> permissions = getUserPermissions(user.getId(), user.isSuperAdmin());
-        user.setAuthList(permissions);
+        populateAuthorizations(user);
 
         redisUtils.set(redisKey, user, TimeUnit.HOURS.toSeconds(5));
         return user;
@@ -60,6 +57,7 @@ public class JpaUserDetailsService implements UserDetailsService {
         }
         SysUser user = userOpt.get();
         validateUser(user);
+        populateAuthorizations(user);
         return user;
     }
 
@@ -95,21 +93,20 @@ public class JpaUserDetailsService implements UserDetailsService {
     /**
      * 获取用户对应的部门数据权限
      *
-     * @param userId 用户ID
+     * @param userSubjectId 用户ID
      * @return 返回部门ID列表
      */
-    public Set<String> getRoleAuthList(Long userId) {
-        return securityDao.getRoleAuthList(userId);
+    public Set<String> getRoleAuthList(Long userSubjectId) {
+        return securityDao.getRoleAuthList(userSubjectId);
     }
 
-    public Set<String> getUserPermissions(Long userId, boolean isAdmin) {
+    public Set<String> getUserPermissions(Long userSubjectId, boolean isAdmin) {
         //系统管理员，拥有最高权限
         List<String> permissionsList;
         if (isAdmin) {
-
             permissionsList = securityDao.getPermissionsList(MenuTypeEnum.auth());
         } else {
-            permissionsList = securityDao.getUserPermissionsList(userId,  MenuTypeEnum.auth());
+            permissionsList = securityDao.getUserPermissionsList(userSubjectId,  MenuTypeEnum.auth());
         }
 
         //用户权限列表
@@ -138,6 +135,88 @@ public class JpaUserDetailsService implements UserDetailsService {
         if  (CollectionUtils.isNotEmpty(subDeptIdList)) {
             redisUtils.addSet(redisKey, subDeptIdList, TimeUnit.HOURS.toSeconds(5));
         }
-        return securityDao.getSubDeptIdList(deptId);
+        return subDeptIdList;
+    }
+
+    public void evictLoginCache(Long userId, Long subjectId, Long deptId) {
+        List<String> keys = new ArrayList<>(6);
+        if (userId != null) {
+            keys.add(RedisKeys.getSysLonginKey(Constant.ADMIN, userId.toString()));
+            keys.add(RedisKeys.getUserMenuNavKey(userId));
+            keys.add(RedisKeys.getUserPermissionsKey(userId));
+            keys.add(RedisKeys.getSecurityUserKey(userId));
+        }
+        if (subjectId != null) {
+            keys.add(RedisKeys.getSubjectDataScopeKey(subjectId));
+        }
+        if (deptId != null) {
+            keys.add(RedisKeys.getDeptIdsKey(deptId));
+        }
+        if (!keys.isEmpty()) {
+            redisUtils.delete(keys);
+        }
+    }
+
+    public Set<Long> getDataScopeList(Long userSubjectId) {
+        if (userSubjectId == null) {
+            return Set.of();
+        }
+        String redisKey = RedisKeys.getSubjectDataScopeKey(userSubjectId);
+        Set<Long> cachedScope = redisUtils.getSet(redisKey, Long.class);
+        if (CollectionUtils.isNotEmpty(cachedScope)) {
+            if (cachedScope.contains(EMPTY_DATA_SCOPE_MARKER)) {
+                return Set.of();
+            }
+            return cachedScope;
+        }
+
+        Set<Long> dataScope = securityDao.getDataScopeList(userSubjectId);
+        if (CollectionUtils.isNotEmpty(dataScope)) {
+            redisUtils.addSet(redisKey, dataScope, TimeUnit.HOURS.toSeconds(5));
+        } else {
+            redisUtils.addSet(redisKey, List.of(EMPTY_DATA_SCOPE_MARKER), TimeUnit.HOURS.toSeconds(5));
+        }
+        return dataScope == null ? Set.of() : dataScope;
+    }
+
+    private void populateAuthorizations(SysUser user) {
+        refreshRoleAuths(user);
+        repopulateAuthorities(user);
+    }
+
+    private void repopulateAuthorities(SysUser user) {
+        Set<String> permissions = getUserPermissions(user.getSubjectId(), user.isSuperAdmin());
+        user.setAuthList(permissions);
+
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        Set<String> roleAuth = user.getRoleList() == null ? Set.of() : user.getRoleList();
+        roleAuth.forEach(role -> authorities.add(new SimpleGrantedAuthority("ROLE_" + role)));
+        permissions.forEach(permission -> authorities.add(new SimpleGrantedAuthority(permission)));
+        user.setAuthorities(authorities);
+    }
+
+    private void refreshRoleAuths(SysUser user) {
+        if (user.getSubjectId() == null) {
+            return;
+        }
+        Set<String> roleAuth = getRoleAuthList(user.getSubjectId());
+        user.setRoleList(roleAuth);
+        List<Long> roleIds = securityDao.getRoleIdList(user.getSubjectId());
+        user.setRoleIdList(roleIds);
+        if ((user.getRoleId() == null) && roleIds != null && !roleIds.isEmpty()) {
+            user.setRoleId(roleIds.get(0));
+        }
+        if (roleAuth != null && !roleAuth.isEmpty()) {
+            user.setRoleAuth(roleAuth.stream()
+                    .filter(this::isSuperAdminAuth)
+                    .findFirst()
+                    .orElse(roleAuth.iterator().next()));
+        }
+    }
+
+    private boolean isSuperAdminAuth(String auth) {
+        return auth != null
+                && (Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
+                || "SUPER_ADMIN".equalsIgnoreCase(auth));
     }
 }

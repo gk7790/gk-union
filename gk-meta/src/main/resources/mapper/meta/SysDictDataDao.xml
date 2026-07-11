@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.meta.dao.SysDictDataDao">
+
+    <select id="getList" resultType="com.gk.meta.entity.SysDictDataEntity">
+        SELECT
+            d.id,
+            d.dict_type_id,
+            d.dict_label,
+            d.dict_value,
+            d.i18n_key,
+            d.attr_type,
+            d.remark,
+            d.sort,
+            d.updated_by,
+            d.updated_at,
+            d.created_by,
+            d.created_at
+        FROM sys_dict_data d
+        <where>
+            d.dict_type_id = #{dictTypeId}
+            <if test="dictLabel != null and dictLabel.trim() != ''">
+                AND d.dict_label like concat("%", #{dictLabel}, "%")
+            </if>
+            <if test="dictValue != null and dictValue.trim() != ''">
+                AND d.dict_value like concat("%", #{dictValue}, "%")
+            </if>
+        </where>
+        ORDER BY d.sort ASC
+    </select>
+
+    <select id="getDictDataList" resultType="com.gk.meta.entity.DictData">
+        SELECT d.dict_type_id, d.dict_label as 'dictLabel', d.dict_value, d.attr_type, d.i18n_key
+        FROM sys_dict_data d
+        <if test="dictType != null and dictType != ''">
+            LEFT JOIN sys_dict_type t ON d.dict_type_id = t.id
+            WHERE t.dict_type = #{dictType}
+        </if>
+        ORDER BY d.dict_type_id, d.sort
+    </select>
+
+</mapper>

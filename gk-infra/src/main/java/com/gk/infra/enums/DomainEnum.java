@@ -1,10 +1,17 @@
 package com.gk.infra.enums;
 
+import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
 import com.gk.common.enums.SimpleEnum;
+import com.gk.common.enums.StyleType;
 
+@EnumDict("domain")
 public enum DomainEnum implements SimpleEnum<Integer> {
+    @Style(StyleType.PRIMARY)
     GAMING(1, "游戏", "dict.domain.gaming"),
-    CLOAK(2, "斗篷", "dict.domain.cloak"),;
+
+    @Style(StyleType.INFO)
+    CLOAK(2, "斗篷", "dict.domain.cloak");
 
     private final int code;
     private final String label;

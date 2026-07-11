@@ -1,8 +1,7 @@
 package com.gk.quartz.task;
 
+import com.gk.common.task.ITask;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -12,7 +11,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component("testTask")
-public class TestTask implements ITask{
+public class TestTask implements ITask {
 	@Override
 	public String run(String params){
         log.debug("TestTask定时任务正在执行，参数为：{}", params);

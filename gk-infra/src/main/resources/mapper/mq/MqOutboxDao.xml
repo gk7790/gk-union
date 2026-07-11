@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.infra.mq.dao.MqOutboxDao">
+    <select id="selectDueForConsume" resultType="com.gk.infra.mq.entity.MqOutboxEntity">
+        SELECT *
+        FROM mq_outbox
+        WHERE event_type = #{eventType}
+          AND (
+              consume_status IN (#{initStatus}, #{failedStatus})
+              OR (consume_status = #{lockedStatus} AND lock_until &lt;= #{now})
+          )
+          AND next_retry_at &lt;= #{now}
+          AND (lock_until IS NULL OR lock_until &lt;= #{now})
+        ORDER BY next_retry_at ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <update id="lockForConsume">
+        UPDATE mq_outbox
+        SET consume_status = #{lockedStatus},
+            locked_by = #{lockedBy},
+            locked_at = #{now},
+            lock_until = #{lockUntil},
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND (
+              consume_status IN (#{initStatus}, #{failedStatus})
+              OR (consume_status = #{lockedStatus} AND lock_until &lt;= #{now})
+          )
+          AND (lock_until IS NULL OR lock_until &lt;= #{now})
+    </update>
+
+    <update id="markConsumeDone">
+        UPDATE mq_outbox
+        SET consume_status = #{doneStatus},
+            consumed_at = #{now},
+            locked_by = NULL,
+            locked_at = NULL,
+            lock_until = NULL,
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND consume_status = #{lockedStatus}
+    </update>
+
+    <update id="markConsumeFailed">
+        UPDATE mq_outbox
+        SET consume_status = #{failedStatus},
+            retry_count = retry_count + 1,
+            next_retry_at = #{nextRetryAt},
+            locked_by = NULL,
+            locked_at = NULL,
+            lock_until = NULL,
+            last_error_code = #{errorCode},
+            last_error_msg = #{errorMsg},
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND consume_status = #{lockedStatus}
+          AND retry_count + 1 &lt; max_retry_count
+    </update>
+
+    <update id="markConsumeDead">
+        UPDATE mq_outbox
+        SET consume_status = #{deadStatus},
+            dead_at = #{now},
+            locked_by = NULL,
+            locked_at = NULL,
+            lock_until = NULL,
+            last_error_code = #{errorCode},
+            last_error_msg = #{errorMsg},
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+          AND consume_status = #{lockedStatus}
+    </update>
+</mapper>

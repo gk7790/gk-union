@@ -1,17 +1,17 @@
 package com.gk.infra.controller;
 
-import com.gk.common.annotation.RequiresPermission;
+import com.gk.common.context.ReqContextHolder;
+import com.gk.common.dto.LabelDTO;
+import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.R;
-import com.gk.common.utils.EnumUtils;
-import com.gk.infra.enums.DomainEnum;
-import com.gk.infra.enums.ScopeEnum;
+import com.gk.common.provider.EnumDictProvider;
 import com.gk.infra.i18n.service.I18nService;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
-import java.awt.*;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -27,6 +27,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SysController {
     private final I18nService i18nService;
+    private final EnumDictProvider enumDictProvider;
 
     @GetMapping("/i18n/{key}")
     public R<?> getI18nList(@PathVariable("key") String key, @RequestParam String lang) {
@@ -34,14 +35,38 @@ public class SysController {
         return R.ok(messages);
     }
 
+    @GetMapping("/i18n/all")
+    public R<?> getI18nList(@RequestParam String lang) {
+        Map<String, Object> messages = i18nService.getMessagesAll(lang);
+        return R.ok(messages);
+    }
 
     @GetMapping("/enum/{key}")
     public R<?> getEnumDict(@PathVariable("key") String key) {
-        if ("scope".equalsIgnoreCase(key)) {
-            return R.ok(EnumUtils.toDictList(ScopeEnum.class));
-        } else if ("domain".equalsIgnoreCase(key)) {
-            return R.ok(EnumUtils.toDictList(DomainEnum.class));
+        if ("subjectType".equalsIgnoreCase(key)) {
+            return R.ok(SubjectTypeEnum.visibleList(ReqContextHolder.getSubjectType()));
         }
-        return R.ok();
+        return R.ok(enumDictProvider.get(key));
+    }
+
+    @GetMapping("/enum/list")
+    public R<?> getEnumDictList(@RequestParam(required = false) List<String> keys) {
+        Map<String, List<LabelDTO>> result = new LinkedHashMap<>(enumDictProvider.list(keys));
+        if (containsKey(keys, "subjectType")) {
+            result.put("subjectType", SubjectTypeEnum.visibleList(ReqContextHolder.getSubjectType()));
+        }
+        return R.ok(result);
+    }
+
+    private boolean containsKey(List<String> keys, String key) {
+        if (keys == null || keys.isEmpty()) {
+            return true;
+        }
+        for (String item : keys) {
+            if (key.equalsIgnoreCase(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

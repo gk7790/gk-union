@@ -20,15 +20,28 @@
         <module>gk-infra</module>
         <module>gk-meta</module>
         <module>gk-admin</module>
+        <module>gk-api</module>
         <module>gk-scheduler</module>
         <module>gk-auth</module>
         <module>gk-devtools</module>
-        <module>gk-platform</module>
-        <module>gk-tenant</module>
+        <module>gk-iam</module>
+        <module>gk-notify</module>
+        <module>gk-merchant</module>
+        <module>gk-psp</module>
+        <module>gk-ledger</module>
+        <module>gk-payment</module>
+        <module>gk-openapi</module>
     </modules>
 
     <properties>
         <java.version>21</java.version>
+        <hutool.version>5.8.34</hutool.version>
+        <commons.lang.version>3.18.0</commons.lang.version>
+        <commons.beanutils.version>1.11.0</commons.beanutils.version>
+        <fastjson.version>2.0.61</fastjson.version>
+        <grpc.version>1.73.0</grpc.version>
+        <nimbus.jose.jwt.version>9.48</nimbus.jose.jwt.version>
+        <protobuf.version>3.25.8</protobuf.version>
     </properties>
 
     <dependencies>
@@ -79,6 +92,53 @@
                 <version>3.5.14</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-core</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-json</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-crypto</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-lang3</artifactId>
+                <version>${commons.lang.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>${commons.beanutils.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java-util</artifactId>
+                <version>${protobuf.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${nimbus.jose.jwt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

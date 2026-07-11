@@ -18,25 +18,34 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
     SysMenuEntity getById(@Param("id") Long id);
 
     /**
-     * 查询所有菜单列表
-     *
-     * @param typeList 菜单类型
+     * 菜单目录（管理端 / 角色授权树），按主体类型过滤。
      */
-    List<SysMenuEntity> getMenuList(@Param("typeList") List<Integer> typeList, @Param("scope") Integer scope, @Param("domain") Integer domain);
+    List<SysMenuEntity> getCatalogMenuList(@Param("typeList") List<Integer> typeList,
+                                           @Param("subjectType") String subjectType);
 
     /**
-     * 查询用户菜单列表
-     *
-     * @param userId   用户ＩＤ
-     * @param typeList 菜单类型
-     * @param scope    语言
+     * 导航菜单目录，只返回启用状态的菜单。
      */
-    List<SysMenuEntity> getUserMenuList(@Param("userId") Long userId, @Param("typeList") List<Integer> typeList, @Param("scope") Integer scope, @Param("domain") Integer domain, @Param("minId") long minId);
+    List<SysMenuEntity> getNavCatalogMenuList(@Param("typeList") List<Integer> typeList,
+                                              @Param("subjectType") String subjectType,
+                                              @Param("normalStatus") Integer normalStatus);
+
+    /**
+     * 当前登录上下文下的导航菜单：用户 + 角色 + 主体类型 + 角色菜单。
+     */
+    List<SysMenuEntity> getNavMenuList(@Param("userSubjectId") Long userSubjectId,
+                                       @Param("subjectType") String subjectType,
+                                       @Param("typeList") List<Integer> typeList,
+                                       @Param("normalStatus") Integer normalStatus);
+
+    /**
+     * 统计不在指定主体类型可见范围内的菜单数量。
+     */
+    long countMenusNotInSubjectType(@Param("menuIds") List<Long> menuIds,
+                                    @Param("subjectType") String subjectType);
 
     /**
      * 根据父菜单，查询子菜单
-     *
-     * @param pid 父菜单ID
      */
     List<SysMenuEntity> getListPid(Long pid);
 

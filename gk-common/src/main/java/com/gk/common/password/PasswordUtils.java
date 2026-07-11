@@ -31,7 +31,7 @@ public class PasswordUtils {
 
 
     public static void main(String[] args) {
-        String str = "admin";
+        String str = "N7v@qR4!zK9#pL2x";
         String password = encode(str);
 
         System.out.println(password);

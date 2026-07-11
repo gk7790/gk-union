@@ -39,6 +39,12 @@ public class GkException extends RuntimeException {
 		this.msg = MsgUtils.getMessage(code, params);
 	}
 
+	public GkException(int code, String msg) {
+		super(msg);
+		this.code = code;
+		this.msg = msg;
+	}
+
 	public GkException(String msg) {
 		super(msg);
 		this.code = ErrorCode.INTERNAL_SERVER_ERROR;
@@ -48,6 +54,12 @@ public class GkException extends RuntimeException {
 	public GkException(String msg, Throwable e) {
 		super(msg, e);
 		this.code = ErrorCode.INTERNAL_SERVER_ERROR;
+		this.msg = msg;
+	}
+
+	public GkException(int code, String msg, Throwable e) {
+		super(msg, e);
+		this.code = code;
 		this.msg = msg;
 	}
 

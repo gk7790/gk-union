@@ -1,0 +1,94 @@
+server:
+  port: ${SERVER_PORT:8082}
+  shutdown: graceful
+  tomcat:
+    uri-encoding: UTF-8
+    threads:
+      max: ${TOMCAT_THREADS_MAX:120}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:200}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+    max-keep-alive-requests: ${TOMCAT_MAX_KEEP_ALIVE_REQUESTS:100}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: Lax
+
+spring:
+  application:
+    name: ${APP_NAME:gk-api}
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+  messages:
+    encoding: UTF-8
+    basename: i18n/messages
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+  mvc:
+    pathmatch:
+      matching-strategy: PATH_PATTERN_PARSER
+    dispatch-trace-request: false
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:50MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:50MB}
+  liquibase:
+    enabled: false
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  typeAliasesPackage: com.gk.**.entity
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+      meta-object-handler: true
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    call-setters-on-nulls: true
+    jdbc-type-for-null: 'null'
+  configuration-properties:
+    prefix:
+    blobType: BLOB
+    boolValue: TRUE
+
+knife4j:
+  enable: false
+  ui:
+    enabled: false
+
+gk:
+  lifecycle-alert:
+    enabled: ${LIFECYCLE_ALERT_ENABLED:true}
+  redis:
+    open: true
+  time-zone: ${APP_TIME_ZONE:UTC}
+  psp:
+    callback:
+      base-url: ${PSP_CALLBACK_BASE_URL:}
+  merchant:
+    defaults:
+      timezone: ${MERCHANT_DEFAULT_TIMEZONE:UTC}
+      lang: ${MERCHANT_DEFAULT_LANG:zh-CN}
+      countryCode: ${MERCHANT_DEFAULT_COUNTRY_CODE:PH}
+      config-json: '${MERCHANT_DEFAULT_CONFIG_JSON:{}}'
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.gk: ${LOG_LEVEL_GK:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis.spring: ERROR
+    org.apache.ibatis: ERROR
+    com.mysql: ERROR
+  file:
+    name: ${LOG_FILE:logs/gk-api.log}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_MAX_FILE_SIZE:100MB}
+      max-history: ${LOG_MAX_HISTORY:30}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:10GB}

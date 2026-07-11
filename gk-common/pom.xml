@@ -14,12 +14,6 @@
     <packaging>jar</packaging>
     <description>gk-common</description>
     <version>1.0.0</version>
-
-    <properties>
-        <hutool.version>5.8.34</hutool.version>
-        <commons.lang.version>3.17.0</commons.lang.version>
-        <fastjson.version>2.0.61</fastjson.version>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -42,8 +36,15 @@
         </dependency>
         <dependency>
             <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>${hutool.version}</version>
+            <artifactId>hutool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-json</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-crypto</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
@@ -70,7 +71,6 @@
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <version>6.1.0</version>
-            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -78,6 +78,12 @@
             <artifactId>transmittable-thread-local</artifactId>
             <version>2.14.5</version>
             <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.warrenstrange</groupId>
+            <artifactId>googleauth</artifactId>
+            <version>1.5.0</version>
         </dependency>
     </dependencies>
 

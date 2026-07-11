@@ -85,7 +85,7 @@ public class Result<T> {
     }
 
     public static <T> Result<T> fail(String message, Object... args) {
-        return new Result<>(1, StringFormat.format(message, args));
+        return new Result<>(3, StringFormat.format(message, args));
     }
 
     /**

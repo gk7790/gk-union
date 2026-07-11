@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.openapi.dao.OpenApiAuthDao">
+
+    <select id="selectAuthSnapshotByAppId"
+            resultType="com.gk.openapi.security.OpenApiAuthSnapshotRow">
+        SELECT
+            a.tenant_id          AS tenantId,
+            a.merchant_id        AS merchantId,
+            a.id                 AS merchantAppId,
+            a.app_id             AS appId,
+            a.api_secret         AS apiSecret,
+            a.sign_type          AS signType,
+            a.status             AS appStatus,
+            a.nonce_ttl_seconds  AS nonceTtlSeconds,
+            a.rate_limit_qps     AS rateLimitQps,
+            a.app_env            AS appEnv,
+            m.merchant_no        AS merchantNo,
+            m.status             AS merchantStatus,
+            m.risk_status        AS riskStatus,
+            m.default_currency   AS defaultCurrency,
+            m.country_code       AS countryCode
+        FROM merchant_app a
+        INNER JOIN merchant m
+            ON m.id = a.merchant_id
+           AND m.tenant_id = a.tenant_id
+        WHERE a.app_id = #{appId}
+        LIMIT 1
+    </select>
+
+    <select id="selectIpWhitelistPatterns" resultType="java.lang.String">
+        SELECT ip_pattern
+        FROM merchant_api_ip_whitelist
+        WHERE status = 1
+          AND tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND ip_pattern IS NOT NULL
+          AND ip_pattern != ''
+    </select>
+
+    <select id="selectAppIdsByMerchant" resultType="java.lang.String">
+        SELECT app_id
+        FROM merchant_app
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND app_id IS NOT NULL
+          AND app_id != ''
+    </select>
+
+</mapper>

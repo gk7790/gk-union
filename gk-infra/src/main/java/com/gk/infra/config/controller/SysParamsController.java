@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -47,6 +48,7 @@ public class SysParamsController {
     }
 
     @PostMapping
+    @PreAuthorize("T(com.gk.common.context.ReqContextHolder).isSuperAdmin()")
     @Operation(summary = "保存")
     public R<?> save(@RequestBody SysParamsDTO dto){
         //效验数据
@@ -56,6 +58,7 @@ public class SysParamsController {
     }
 
     @PutMapping
+    @PreAuthorize("T(com.gk.common.context.ReqContextHolder).isSuperAdmin()")
     @Operation(summary = "修改")
     public R<?> update(@RequestBody SysParamsDTO dto){
         //效验数据
@@ -64,6 +67,7 @@ public class SysParamsController {
     }
 
     @DeleteMapping
+    @PreAuthorize("T(com.gk.common.context.ReqContextHolder).isSuperAdmin()")
     @Operation(summary = "删除")
     public R<?> delete(@RequestParam Long[] ids){
         //效验数据

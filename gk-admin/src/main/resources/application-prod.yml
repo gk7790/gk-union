@@ -1,0 +1,106 @@
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: Lax
+  tomcat:
+    uri-encoding: UTF-8
+    threads:
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:10}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20000}
+    max-keep-alive-requests: ${TOMCAT_MAX_KEEP_ALIVE_REQUESTS:100}
+
+spring:
+  application:
+    name: ${APP_NAME:gk-admin-prod}
+
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      pool-name: ${DB_POOL_NAME:gk-admin-hikari}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:6000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:6000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:64}
+          max-wait: ${REDIS_POOL_MAX_WAIT:1000ms}
+          max-idle: ${REDIS_POOL_MAX_IDLE:16}
+          min-idle: ${REDIS_POOL_MIN_IDLE:2}
+
+  devtools:
+    restart:
+      enabled: false
+
+  liquibase:
+    enabled: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:50MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:50MB}
+
+  mvc:
+    dispatch-trace-request: false
+
+knife4j:
+  enable: false
+  basic:
+    enable: true
+    username: ${KNIFE4J_USERNAME:admin}
+    password: ${KNIFE4J_PASSWORD:change-me}
+  ui:
+    enabled: false
+
+gk:
+  lifecycle-alert:
+    enabled: ${LIFECYCLE_ALERT_ENABLED:true}
+  redis:
+    open: true
+  time-zone: ${APP_TIME_ZONE:UTC}
+  psp:
+    callback:
+      base-url: ${PSP_CALLBACK_BASE_URL:}
+  quartz:
+    thread-count: ${QUARTZ_THREAD_COUNT:8}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.gk: ${LOG_LEVEL_GK:INFO}
+    org.springframework: ${LOG_LEVEL_SPRING:WARN}
+    org.mybatis.spring: ERROR
+    org.apache.ibatis: ERROR
+    com.mysql: ERROR
+  file:
+    name: ${LOG_FILE:logs/gk-admin.log}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_MAX_FILE_SIZE:100MB}
+      max-history: ${LOG_MAX_HISTORY:30}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:10GB}

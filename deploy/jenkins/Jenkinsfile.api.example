@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'maven-3.9'
+    }
+
+    environment {
+        DEPLOY_HOST = '<EC2_PUBLIC_IP_OR_DOMAIN>'
+        SSH_EXE = 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe'
+        SCP_EXE = 'C:\\Program Files\\Git\\usr\\bin\\scp.exe'
+
+        API_LOCAL_JAR = 'gk-api\\target\\gk-api.jar'
+        API_REMOTE_TMP = '/opt/gk-api/app/gk-api.jar.tmp'
+        API_REMOTE_JAR = '/opt/gk-api/app/gk-api.jar'
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'modularize',
+                    credentialsId: '<GIT_CREDENTIAL_ID>',
+                    url: '<GIT_REPOSITORY_URL>'
+            }
+        }
+
+        stage('Build API') {
+            steps {
+                bat 'mvn clean package -pl gk-api -am -DskipTests'
+            }
+        }
+
+        stage('Upload API Jar') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: '<SSH_CREDENTIAL_ID>',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    powershell '''
+                        $apiJar = Resolve-Path "$env:API_LOCAL_JAR"
+
+                        if (!(Test-Path $apiJar)) {
+                          throw "API jar not found: $apiJar"
+                        }
+
+                        & "$env:SCP_EXE" `
+                          -i "$env:SSH_KEY" `
+                          -o StrictHostKeyChecking=no `
+                          "$apiJar" `
+                          "${env:SSH_USER}@${env:DEPLOY_HOST}:${env:API_REMOTE_TMP}"
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy API') {
+            steps {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: '<SSH_CREDENTIAL_ID>',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    powershell '''
+                        $remote = @"
+set -e
+
+if [ -f /opt/gk-api/app/gk-api.jar ]; then
+  cp /opt/gk-api/app/gk-api.jar /opt/gk-api/app/gk-api.jar.bak
+fi
+
+mv /opt/gk-api/app/gk-api.jar.tmp /opt/gk-api/app/gk-api.jar
+
+sudo -n /usr/bin/systemctl restart gk-api
+sudo -n /usr/bin/systemctl status gk-api --no-pager
+"@
+
+                        $remote = $remote -replace "`r", ""
+
+                        & "$env:SSH_EXE" `
+                          -i "$env:SSH_KEY" `
+                          -o StrictHostKeyChecking=no `
+                          "$env:SSH_USER@$env:DEPLOY_HOST" `
+                          $remote
+                    '''
+                }
+            }
+        }
+    }
+}

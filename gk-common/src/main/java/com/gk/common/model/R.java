@@ -6,6 +6,7 @@ import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.MsgUtils;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Serial;
 import java.io.Serializable;
@@ -89,5 +90,26 @@ public class R<T> implements Serializable {
         result.code = code;
         result.msg = StringFormat.format(msg, args);
         return result;
+    }
+
+    /**
+     * 将业务层 {@link Result} 转为 HTTP 响应。
+     * 失败时也会携带 data(如通知尝试详情), 便于前端展示下游响应摘要。
+     */
+    public static <T> R<T> fromResult(Result<T> result) {
+        if (result == null) {
+            return error();
+        }
+        R<T> response = new R<>();
+        if (result.isSuccess()) {
+            response.code = result.getCode() != null ? result.getCode() : 0;
+            response.msg = StringUtils.defaultIfBlank(result.getMsg(), MsgUtils.getMessage(0));
+            response.data = result.getData();
+            return response;
+        }
+        response.code = result.getCode() != null ? result.getCode() : ErrorCode.FAILURE;
+        response.msg = StringUtils.defaultIfBlank(result.getMsg(), MsgUtils.getMessage(response.code));
+        response.data = result.getData();
+        return response;
     }
 }

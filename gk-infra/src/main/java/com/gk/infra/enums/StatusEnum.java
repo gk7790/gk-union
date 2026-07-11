@@ -1,20 +1,32 @@
 package com.gk.infra.enums;
 
-import com.gk.common.enums.CodeEnum;
+import com.gk.common.annotation.EnumDict;
+import com.gk.common.annotation.Style;
+import com.gk.common.enums.SimpleEnum;
+import com.gk.common.enums.StyleType;
 
 import java.util.List;
+import java.util.Objects;
 
-public enum StatusEnum implements CodeEnum<Integer> {
-    NORMAL(1, "正常"),
-    PAUSE(2, "暂停"),
-    STOP(3, "停用");
+@EnumDict("status")
+public enum StatusEnum implements SimpleEnum<Integer> {
+    @Style(StyleType.SUCCESS)
+    NORMAL(1, "正常", "enum.status.normal"),
+
+    @Style(StyleType.WARNING)
+    PAUSE(2, "暂停", "enum.status.pause"),
+
+    @Style(StyleType.DANGER)
+    STOP(3, "停用", "enum.status.stop");
 
     private final Integer code;
     private final String label;
+    private final String i18nKey;
 
-    StatusEnum(int code, String label) {
+    StatusEnum(int code, String label, String i18nKey) {
         this.code = code;
         this.label = label;
+        this.i18nKey = i18nKey;
     }
 
     @Override
@@ -27,7 +39,23 @@ public enum StatusEnum implements CodeEnum<Integer> {
         return label;
     }
 
+    @Override
+    public String i18nKey() {
+        return i18nKey;
+    }
+
     public static List<Integer> defaultStatus() {
         return List.of(NORMAL.code, PAUSE.code);
+    }
+
+    public static List<Integer> normalizeQueryStatus(List<Integer> statusList) {
+        if (statusList == null || statusList.isEmpty()) {
+            return defaultStatus();
+        }
+        List<Integer> normalized = statusList.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return normalized.isEmpty() ? defaultStatus() : normalized;
     }
 }

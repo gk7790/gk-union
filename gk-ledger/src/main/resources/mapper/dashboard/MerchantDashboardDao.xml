@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.dashboard.dao.MerchantDashboardDao">
+
+    <select id="selectPayinOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
+        SELECT
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND paid_at &gt;= #{rangeStart}
+                 AND paid_at &lt; #{rangeEnd}
+                THEN 1 ELSE 0 END), 0) AS successCount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND paid_at &gt;= #{rangeStart}
+                 AND paid_at &lt; #{rangeEnd}
+                THEN COALESCE(paid_amount, amount) ELSE 0 END), 0) AS successAmount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND paid_at &gt;= #{rangeStart}
+                 AND paid_at &lt; #{rangeEnd}
+                THEN merchant_fee_amount ELSE 0 END), 0) AS feeAmount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'FAILED'
+                 AND failed_at &gt;= #{rangeStart}
+                 AND failed_at &lt; #{rangeEnd}
+                THEN 1 ELSE 0 END), 0) AS failedCount,
+            COALESCE(SUM(CASE
+                WHEN status = 'CLOSED'
+                 AND closed_at &gt;= #{rangeStart}
+                 AND closed_at &lt; #{rangeEnd}
+                THEN 1 ELSE 0 END), 0) AS closedCount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'PROCESSING'
+                THEN 1 ELSE 0 END), 0) AS processingCount
+        FROM payin_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+    </select>
+
+    <select id="selectPayoutOrderStats" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$OrderMetric">
+        SELECT
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+                 AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+                THEN 1 ELSE 0 END), 0) AS successCount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+                 AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+                THEN amount ELSE 0 END), 0) AS successAmount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'SUCCESS'
+                 AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+                 AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+                THEN merchant_fee_amount ELSE 0 END), 0) AS feeAmount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'FAILED'
+                 AND failed_at &gt;= #{rangeStart}
+                 AND failed_at &lt; #{rangeEnd}
+                THEN 1 ELSE 0 END), 0) AS failedCount,
+            COALESCE(SUM(CASE
+                WHEN merchant_status_code = 'PROCESSING'
+                THEN 1 ELSE 0 END), 0) AS processingCount
+        FROM payout_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+    </select>
+
+    <select id="selectBalanceSummary" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$Balance">
+        SELECT
+            COALESCE(SUM(CASE WHEN a.account_type = 'AVAILABLE' THEN b.balance ELSE 0 END), 0) AS available,
+            COALESCE(SUM(CASE WHEN a.account_type = 'FROZEN' THEN b.balance ELSE 0 END), 0) AS frozen,
+            COALESCE(SUM(CASE WHEN a.account_type = 'PENDING_SETTLE' THEN b.balance ELSE 0 END), 0) AS pendingSettle,
+            COALESCE(SUM(CASE WHEN a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE') THEN b.balance ELSE 0 END), 0) AS total,
+            1 AS merchantCount
+        FROM merchant m
+        LEFT JOIN ledger_account a
+          ON a.tenant_id = m.tenant_id
+         AND a.owner_type = 'MERCHANT'
+         AND a.owner_id = m.id
+         AND a.account_type IN ('AVAILABLE', 'FROZEN', 'PENDING_SETTLE')
+         AND a.status = 1
+        LEFT JOIN ledger_balance b
+          ON b.tenant_id = a.tenant_id
+         AND b.account_id = a.id
+        WHERE m.tenant_id = #{tenantId}
+          AND m.id = #{merchantId}
+          AND COALESCE(a.currency, m.default_currency) = #{currency}
+    </select>
+
+    <select id="selectTodoCounts" resultType="com.gk.dashboard.dto.TenantDashboardSummaryDTO$Todo">
+        SELECT
+            0 AS manualReview,
+            (
+                SELECT COUNT(1)
+                FROM payin_order
+                WHERE tenant_id = #{tenantId}
+                  AND merchant_id = #{merchantId}
+                  AND currency = #{currency}
+                  AND merchant_notify_status = 'FAILED'
+            ) + (
+                SELECT COUNT(1)
+                FROM payout_order
+                WHERE tenant_id = #{tenantId}
+                  AND merchant_id = #{merchantId}
+                  AND currency = #{currency}
+                  AND merchant_notify_status = 'FAILED'
+            ) AS notifyFailed,
+            0 AS settleDue,
+            (
+                SELECT COUNT(1)
+                FROM payin_order
+                WHERE tenant_id = #{tenantId}
+                  AND merchant_id = #{merchantId}
+                  AND currency = #{currency}
+                  AND merchant_status_code = 'PROCESSING'
+            ) AS processingPay,
+            (
+                SELECT COUNT(1)
+                FROM payout_order
+                WHERE tenant_id = #{tenantId}
+                  AND merchant_id = #{merchantId}
+                  AND currency = #{currency}
+                  AND merchant_status_code = 'PROCESSING'
+            ) AS processingPayout
+    </select>
+
+    <select id="selectPayTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
+            COUNT(1) AS payInCount,
+            COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount
+        FROM payin_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND paid_at &gt;= #{rangeStart}
+          AND paid_at &lt; #{rangeEnd}
+        GROUP BY DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
+
+    <select id="selectPayoutTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
+            COUNT(1) AS payOutCount,
+            COALESCE(SUM(amount), 0) AS payOutAmount
+        FROM payout_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+          AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+        GROUP BY DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
+
+    <select id="listTodos" resultType="com.gk.dashboard.dto.TenantDashboardTodoDTO$TodoItem">
+        <choose>
+            <when test="type == 'NOTIFY_FAILED'">
+                SELECT * FROM (
+                    SELECT
+                        'PAYIN' AS bizType,
+                        o.id AS orderId,
+                        o.payin_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.merchant_status_code AS status,
+                        o.merchant_notify_at AS eventAt,
+                        o.merchant_status_reason AS reason
+                    FROM payin_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.merchant_id = #{merchantId}
+                      AND o.currency = #{currency}
+                      AND o.merchant_notify_status = 'FAILED'
+                    UNION ALL
+                    SELECT
+                        'PAYOUT' AS bizType,
+                        o.id AS orderId,
+                        o.payout_order_no AS orderNo,
+                        o.merchant_id AS merchantId,
+                        o.merchant_no AS merchantNo,
+                        m.merchant_name AS merchantName,
+                        o.amount AS amount,
+                        o.currency AS currency,
+                        o.merchant_status_code AS status,
+                        o.merchant_notify_at AS eventAt,
+                        o.merchant_status_reason AS reason
+                    FROM payout_order o
+                    LEFT JOIN merchant m
+                      ON m.tenant_id = o.tenant_id
+                     AND m.id = o.merchant_id
+                    WHERE o.tenant_id = #{tenantId}
+                      AND o.merchant_id = #{merchantId}
+                      AND o.currency = #{currency}
+                      AND o.merchant_notify_status = 'FAILED'
+                ) todos
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'PROCESSING_PAYIN'">
+                SELECT
+                    'PAYIN' AS bizType,
+                    o.id AS orderId,
+                    o.payin_order_no AS orderNo,
+                    o.merchant_id AS merchantId,
+                    o.merchant_no AS merchantNo,
+                    m.merchant_name AS merchantName,
+                    o.amount AS amount,
+                    o.currency AS currency,
+                    o.merchant_status_code AS status,
+                    o.updated_at AS eventAt,
+                    o.merchant_status_reason AS reason
+                FROM payin_order o
+                LEFT JOIN merchant m
+                  ON m.tenant_id = o.tenant_id
+                 AND m.id = o.merchant_id
+                WHERE o.tenant_id = #{tenantId}
+                  AND o.merchant_id = #{merchantId}
+                  AND o.currency = #{currency}
+                  AND o.merchant_status_code = 'PROCESSING'
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+            <when test="type == 'PROCESSING_PAYOUT'">
+                SELECT
+                    'PAYOUT' AS bizType,
+                    o.id AS orderId,
+                    o.payout_order_no AS orderNo,
+                    o.merchant_id AS merchantId,
+                    o.merchant_no AS merchantNo,
+                    m.merchant_name AS merchantName,
+                    o.amount AS amount,
+                    o.currency AS currency,
+                    o.merchant_status_code AS status,
+                    o.updated_at AS eventAt,
+                    o.merchant_status_reason AS reason
+                FROM payout_order o
+                LEFT JOIN merchant m
+                  ON m.tenant_id = o.tenant_id
+                 AND m.id = o.merchant_id
+                WHERE o.tenant_id = #{tenantId}
+                  AND o.merchant_id = #{merchantId}
+                  AND o.currency = #{currency}
+                  AND o.merchant_status_code = 'PROCESSING'
+                ORDER BY eventAt DESC
+                LIMIT #{limit}
+            </when>
+        </choose>
+    </select>
+
+    <select id="selectRecentPayinOrders" resultType="com.gk.dashboard.dto.TenantDashboardRecentOrderDTO$RecentOrder">
+        SELECT
+            o.id AS orderId,
+            o.payin_order_no AS orderNo,
+            o.merchant_order_no AS merchantOrderNo,
+            o.merchant_id AS merchantId,
+            o.merchant_no AS merchantNo,
+            m.merchant_name AS merchantName,
+            o.amount AS amount,
+            o.currency AS currency,
+            o.merchant_status_code AS status,
+            o.method_code AS methodCode,
+            o.created_at AS createdAt,
+            o.paid_at AS paidAt
+        FROM payin_order o
+        LEFT JOIN merchant m
+          ON m.tenant_id = o.tenant_id
+         AND m.id = o.merchant_id
+        WHERE o.tenant_id = #{tenantId}
+          AND o.merchant_id = #{merchantId}
+          AND o.currency = #{currency}
+        ORDER BY o.created_at DESC, o.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectRecentPayoutOrders" resultType="com.gk.dashboard.dto.TenantDashboardRecentOrderDTO$RecentOrder">
+        SELECT
+            o.id AS orderId,
+            o.payout_order_no AS orderNo,
+            o.merchant_order_no AS merchantOrderNo,
+            o.merchant_id AS merchantId,
+            o.merchant_no AS merchantNo,
+            m.merchant_name AS merchantName,
+            o.amount AS amount,
+            o.currency AS currency,
+            o.merchant_status_code AS status,
+            o.method_code AS methodCode,
+            o.created_at AS createdAt,
+            o.completed_at AS completedAt
+        FROM payout_order o
+        LEFT JOIN merchant m
+          ON m.tenant_id = o.tenant_id
+         AND m.id = o.merchant_id
+        WHERE o.tenant_id = #{tenantId}
+          AND o.merchant_id = #{merchantId}
+          AND o.currency = #{currency}
+        ORDER BY o.created_at DESC, o.id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

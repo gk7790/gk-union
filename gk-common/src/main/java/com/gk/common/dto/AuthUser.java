@@ -27,6 +27,9 @@ public class AuthUser extends DynMap {
     public Long getDeptId() { return getLong("deptId"); }
     public void setDeptId(Long deptId) {put("deptId", deptId);}
 
+    public Long getSubjectId() { return getLong("subjectId"); }
+    public void setSubjectId(Long subjectId) {put("subjectId", subjectId);}
+
     /**
      * 当前登入用户部门deptIdList
      */
@@ -39,6 +42,18 @@ public class AuthUser extends DynMap {
      */
     public Long getTenantId() { return getLong("tenantId"); }
     public void setTenantId(Long tenantId) {put("tenantId", tenantId);}
+
+    public Long getMerchantId() { return getLong("merchantId"); }
+    public void setMerchantId(Long merchantId) {put("merchantId", merchantId);}
+
+    public Long getRoleId() { return getLong("roleId"); }
+    public void setRoleId(Long roleId) {put("roleId", roleId);}
+
+    public List<Long> getRoleIdList() { return getList("roleIdList", Long.class); }
+    public void setRoleIdList(List<Long> roleIdList) {put("roleIdList", roleIdList);}
+
+    public String getSubjectType() { return getStr("subjectType"); }
+    public void setSubjectType(String subjectType) {put("subjectType", subjectType);}
 
     /**
      * 当前登入用户登入标识
@@ -73,11 +88,10 @@ public class AuthUser extends DynMap {
     /**
      * 当前登入用户是否是超级管理员
      */
-    public int getSAdmin() {
-        return getInt("sAdmin", 0);
+    public boolean getSAdmin() {
+        return getBool("sAdmin", false);
     }
-    public void setSAdmin(Integer sadmin) {put("sAdmin", sadmin);}
-    public boolean isSAdmin() { return getSAdmin() == 1; }
+    public void setSAdmin(boolean sadmin) {put("sAdmin", sadmin);}
 
     public List<String> getRoleList() { return getList("roleList", String.class);}
     public void setRoleList(Set<String> roleAuthList) {put("roleList", roleAuthList);}

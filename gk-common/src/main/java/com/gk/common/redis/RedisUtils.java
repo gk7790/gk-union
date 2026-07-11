@@ -76,7 +76,7 @@ public class RedisUtils {
      */
     public boolean tryLock(String key, int expireSeconds) {
         try {
-            return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, "1", Duration.ofSeconds(expireSeconds)));
+            return tryLockStrict(key, expireSeconds);
         } catch (Exception e) {
             log.warn("Redis加锁失败: {}", e.getMessage());
             return false;
@@ -126,14 +126,62 @@ public class RedisUtils {
         return redisTemplate.opsForValue().get(key);
     }
 
+    public Object getAndDelete(String key) {
+        Object value = redisTemplate.opsForValue().get(key);
+        if (value != null) {
+            redisTemplate.delete(key);
+        }
+        return value;
+    }
+
     /**
      * 获取指定类型的keu数据
      */
     public <T> T get(String key, Class<T> clazz) {
         Object o = get(key);
-        if (o == null) return null;
+        return toTypedValue(o, clazz);
+    }
 
-        String str = o.toString().trim();
+    public boolean tryLockStrict(String key, int expireSeconds) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, "1", Duration.ofSeconds(expireSeconds)));
+    }
+
+    /**
+     * 批量获取指定类型的数据，返回值的 key 与传入 redis key 保持一致。
+     */
+    public <T> Map<String, T> getBatch(Collection<String> keys, Class<T> clazz) {
+        if (CollectionUtil.isEmpty(keys)) {
+            return Collections.emptyMap();
+        }
+
+        List<String> keyList = keys.stream()
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .toList();
+        if (keyList.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Object> values = redisTemplate.opsForValue().multiGet(keyList);
+        if (CollectionUtil.isEmpty(values)) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, T> result = new LinkedHashMap<>();
+        for (int i = 0; i < keyList.size(); i++) {
+            T value = toTypedValue(values.get(i), clazz);
+            if (value != null) {
+                result.put(keyList.get(i), value);
+            }
+        }
+        return result;
+    }
+
+    private <T> T toTypedValue(Object value, Class<T> clazz) {
+        if (value == null) return null;
+        if (clazz.isAssignableFrom(value.getClass())) return clazz.cast(value);
+
+        String str = value.toString().trim();
         if (str.isEmpty()) return null;
 
         return JSONObject.parseObject(str, clazz);

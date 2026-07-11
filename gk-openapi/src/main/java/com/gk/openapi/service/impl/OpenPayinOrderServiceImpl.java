@@ -1,0 +1,535 @@
+package com.gk.openapi.service.impl;
+
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
+import com.gk.common.constant.Constant;
+import com.gk.common.enums.PayDirectionEnum;
+import com.gk.common.utils.BizKeyUtils;
+import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.infra.utils.AsynUtils;
+import com.gk.merchant.entity.MerchantAppEntity;
+import com.gk.merchant.entity.MerchantEntity;
+import com.gk.merchant.enums.MerchantAppEnvEnum;
+import com.gk.openapi.dto.PayinOrderCreateRequest;
+import com.gk.openapi.error.ApiErrorCode;
+import com.gk.openapi.error.ApiException;
+import com.gk.openapi.security.ApiReqContext;
+import com.gk.openapi.security.ApiReqContextHolder;
+import com.gk.openapi.service.OpenPayinOrderService;
+import com.gk.common.enums.OrderSourceEnum;
+import com.gk.payment.enums.PayinOrderStatusEnum;
+import com.gk.payment.dao.PayinOrderDao;
+import com.gk.payment.entity.PayinOrderEntity;
+import com.gk.payment.enums.MerchantOrderStatusEnum;
+import com.gk.payment.enums.SettleStatusEnum;
+import com.gk.payment.merchantview.MerchantOrderViewAssembler;
+import com.gk.payment.merchantview.PayinOrderView;
+import com.gk.payment.plan.model.PayinPlan;
+import com.gk.payment.plan.PayinPlanService;
+import com.gk.payment.notify.MerchantOrderNotifyStatusService;
+import com.gk.payment.psp.PayinPspSubmitService;
+import com.gk.payment.service.OrderStatusLogService;
+import com.gk.psp.route.PspRouteResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * 商户 OpenAPI 代收订单服务实现。
+ * <p>
+ * 本类负责商户代收下单和查单的应用层编排：校验请求、处理商户订单号幂等、
+ * 计算商户手续费、选择 PSP 路由、提交 PSP 下单，并把订单状态变化写入状态日志。
+ * 真正的 PSP 协议差异由 payment PSP submit service 和 PSP adapter 承接。
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
+    private final PayinOrderDao payinOrderDao;
+    private final PayinPlanService payinPlanService;
+    private final PayinPspSubmitService payinPspSubmitService;
+    private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
+    private final OrderStatusLogService orderStatusLogService;
+    private final GkSysParamsConfigService configService;
+    private final MerchantOrderViewAssembler merchantOrderViewAssembler;
+
+    /**
+     * 创建代收订单。
+     * <p>
+     * 主流程：检查幂等 -> 校验金额和商户应用权限 -> 组装平台订单 -> 计算费用和路由 ->
+     * 落库 -> 提交 PSP -> 返回支付链接和订单状态。
+     */
+    @Override
+    public PayinOrderView create(PayinOrderCreateRequest request) {
+        if (request == null) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST);
+        }
+        PayCreateStepTimer timer = PayCreateStepTimer.start(request.getMerchantOrderId());
+        // 先按商户订单号查重，保证商户重复请求时能按幂等规则返回同一笔平台订单
+        PayinOrderEntity existed = findByMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        timer.mark("idempotency_check");
+
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ApiException(ApiErrorCode.INVALID_AMOUNT);
+        }
+        // 校验金额小数位
+        validateAmountScale(request.getAmount());
+
+        // OpenApiAuthFilter 已经app_id 解析出的租户、商户、应用上下文放入 ThreadLocal
+        ApiReqContext context = ApiReqContextHolder.get();
+        MerchantEntity merchant = context.getMerchant();
+
+        String currency = StringUtils.defaultIfBlank(request.getCurrency(), merchant.getDefaultCurrency());
+        String countryCode = StringUtils.trimToNull(request.getCountryCode());
+        if (StringUtils.isBlank(currency)) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "currency is required");
+        }
+        String normalizedCurrency = currency.toUpperCase(Locale.ROOT);
+        String normalizedCountryCode = StringUtils.defaultString(countryCode).toUpperCase(Locale.ROOT);
+        String normalizedMethod = request.getMethodCode().toUpperCase(Locale.ROOT);
+        timer.mark("validate_request");
+
+        if (existed != null) {
+            // 同一商户订单号再次请求时，核心请求参数必须一致，否则按重复请求冲突处理
+            validateIdempotentRequest(existed, request, normalizedCurrency, normalizedMethod);
+            timer.mark("return_idempotent_order");
+            PayinOrderView response = toResponse(existed);
+            timer.log("SUCCESS", existed);
+            return response;
+        }
+
+        // 生成平台代收订单，订单号、租户、商户、应用等信息均来自认证上下文和平台规则
+        PayinOrderEntity entity = new PayinOrderEntity();
+        entity.setTenantId(context.getTenantId());
+        entity.setMerchantId(context.getMerchantId());
+        entity.setMerchantNo(context.getMerchantNo());
+        entity.setMerchantAppId(context.getMerchantAppId());
+        entity.setAppId(context.getAppId());
+        entity.setPayinOrderNo(BizKeyUtils.genPayinOrderNo());
+        entity.setMerchantOrderNo(StringUtils.trim(request.getMerchantOrderId()));
+        entity.setIdempotencyKey(StringUtils.trim(request.getMerchantOrderId()));
+        entity.setOrderSource(OrderSourceEnum.API.code());
+        entity.setCountryCode(normalizedCountryCode);
+        entity.setCurrency(normalizedCurrency);
+        entity.setMethodCode(normalizedMethod);
+        entity.setAmount(request.getAmount());
+        entity.setPaidAmount(BigDecimal.ZERO);
+        entity.setPspFeeAmount(BigDecimal.ZERO);
+        entity.setSubject(request.getSubject());
+        entity.setDescription(request.getDescription());
+        entity.setClientIp(context.getClientIp());
+        entity.setPayerJson(toJson(request.getPayer()));
+        entity.setNotifyUrl(request.getNotifyUrl());
+        entity.setReturnUrl(request.getReturnUrl());
+        entity.setMerchantNotifyStatus(merchantOrderNotifyStatusService.initialStatus(entity.getNotifyUrl()));
+        entity.setStatus(PayinOrderStatusEnum.CREATED.code());
+        entity.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        entity.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
+        entity.setSettleStatus(SettleStatusEnum.PENDING.code());
+        entity.setQueryCount(0);
+        entity.setExtraJson(toJson(request.getExtra()));
+        entity.setVersion(0);
+        timer.mark("build_order");
+
+        PayinPlan payinPlan = null;
+        if (isTestApp(context.getMerchantApp())) {
+            // Test app skips payment plan and fee rule matching; sandbox fees default to zero.
+            applySandboxPayinDefaults(entity);
+            timer.mark("resolve_payment_plan");
+            timer.mark("apply_payment_plan");
+        } else {
+            payinPlan = payinPlanService.resolve(entity);
+            timer.mark("resolve_payment_plan");
+            applyPayinPlan(entity, payinPlan);
+            timer.mark("apply_payment_plan");
+        }
+
+        // 先落平台订单再请求 PSP，避免 PSP 已受理但平台没有订单记录
+        boolean created = insertOrder(entity);
+        timer.mark("insert_order");
+        if (!created) {
+            PayinOrderView response = toResponse(entity);
+            timer.log("SUCCESS", entity);
+            return response;
+        }
+        if (isTestApp(context.getMerchantApp())) {
+            submitToSandbox(entity);
+            timer.mark("submit_sandbox");
+            PayinOrderView response = toResponse(entity);
+            timer.log("SUCCESS", entity);
+            return response;
+        }
+        // 提交上游 PSP 成功后，订单进入 PROCESSING，等待 PSP 回调或查单补偿推进终态
+        try {
+            entity = payinPspSubmitService.submit(
+                    entity,
+                    payinPlan,
+                    PayinPspSubmitService.SubmitContext.merchant(context.getAppId(), context.getTraceId())
+            );
+            timer.mark("submit_psp");
+        } catch (ApiException ex) {
+            timer.mark("submit_psp_failed");
+            timer.log("FAILED:" + ex.getErrorCode().name(), entity);
+            throw ex;
+        } catch (RuntimeException ex) {
+            timer.mark("submit_psp_failed");
+            timer.log("FAILED:" + ex.getClass().getSimpleName(), entity);
+            throw ex;
+        }
+        PayinOrderView response = toResponse(entity);
+        timer.log("SUCCESS", entity);
+        return response;
+    }
+
+    /**
+     * 插入代收订单并记录创建状态日志。
+     * <p>
+     * 如果并发请求触发唯一键冲突，会重新查询已有订单并按幂等规则复用。
+     */
+    private boolean insertOrder(PayinOrderEntity entity) {
+        try {
+            payinOrderDao.insert(entity);
+            recordStatusChange(entity, null, entity.getStatus(), "ORDER_CREATED", "MERCHANT");
+            return true;
+        } catch (DuplicateKeyException ex) {
+            PayinOrderEntity existed = findByMerchantOrderNo(entity.getMerchantOrderNo());
+            if (existed != null) {
+                validateIdempotentEntity(existed, entity);
+                copyOrder(existed, entity);
+                return false;
+            }
+            throw ex;
+        }
+    }
+
+    private void submitToSandbox(PayinOrderEntity order) {
+        String fromStatus = order.getStatus();
+        order.setPspRequestNo(BizKeyUtils.genPspRequestNo());
+        order.setPspCode(Constant.SANDBOX);
+        order.setPspOrderNo(Constant.SANDBOX + "_" + order.getPayinOrderNo());
+        order.setPspPayUrl(sandboxPayUrl(order));
+        order.setPspStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setPspRawStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setStatus(PayinOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
+        order.setNextQueryAt(null);
+        payinOrderDao.updateById(order);
+        recordStatusChange(order, fromStatus, order.getStatus(), "SANDBOX_SUBMIT", "SYSTEM");
+    }
+
+    private String sandboxPayUrl(PayinOrderEntity order) {
+        String template = configService.openApiConfig().getSandboxPayUrl();
+        if (StringUtils.isBlank(template) || order == null) {
+            return null;
+        }
+        return template
+                .replace("{payinOrderNo}", StringUtils.defaultString(order.getPayinOrderNo()))
+                .replace("{pspOrderNo}", StringUtils.defaultString(order.getPspOrderNo()))
+                .replace("{merchantOrderNo}", StringUtils.defaultString(order.getMerchantOrderNo()));
+    }
+
+    private boolean isTestApp(MerchantAppEntity app) {
+        return app != null && MerchantAppEnvEnum.TEST.code().equals(app.getAppEnv());
+    }
+
+    private void applySandboxPayinDefaults(PayinOrderEntity entity) {
+        entity.setMerchantFeeAmount(BigDecimal.ZERO);
+        entity.setSettleAmount(entity.getAmount());
+        entity.setMerchantFeeRuleId(null);
+        entity.setMerchantFeeSnapshotJson(null);
+        entity.setPspFeeAmount(BigDecimal.ZERO);
+        entity.setPspFeeRuleId(null);
+        entity.setPspFeeSnapshotJson(null);
+    }
+
+    /**
+     * 保存 PSP 路由结果到订单。
+     * <p>
+     * 后续 PSP 回调、主动查单和问题排查都依赖这些 PSP 标识和账户信息。
+     *
+     * @param entity 订单
+     * @param route 路由
+     */
+    private void applyRoute(PayinOrderEntity entity, PspRouteResult route) {
+        entity.setRouteRuleId(route.getRouteRuleId());
+        entity.setRouteGroupId(route.getRouteGroupId());
+        entity.setRouteChannelId(route.getRouteChannelId());
+        entity.setRouteSnapshotJson(routeSnapshotJson(entity, route));
+        entity.setPspId(route.getPspId());
+        entity.setPspCode(route.getPspCode());
+        entity.setPspMethodId(route.getPspMethodId());
+        entity.setPspMethodCode(route.getPspMethodCode());
+        entity.setPspAccountId(route.getPspAccountId());
+        entity.setPspAccountNo(route.getPspAccountNo());
+    }
+
+    /**
+     * 记录代收订单状态变更     */
+    private void recordStatusChange(PayinOrderEntity entity,
+                                    String fromStatus,
+                                    String toStatus,
+                                    String eventType,
+                                    String operatorType) {
+        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
+                    PayDirectionEnum.PAYIN.code(),
+                    entity.getTenantId(),
+                    entity.getMerchantId(),
+                    entity.getId(),
+                    entity.getPayinOrderNo(),
+                    fromStatus,
+                    toStatus,
+                    eventType,
+                    null,
+                    operatorType,
+                    ApiReqContextHolder.getAppId(),
+                    entity.getMerchantOrderNo(),
+                    traceId()
+            ));
+    }
+
+    /**
+     * 获取当前 OpenAPI 请求 traceId     */
+    private String traceId() {
+        ApiReqContext context = ApiReqContextHolder.get();
+        return context == null ? null : context.getTraceId();
+    }
+
+    private static final class PayCreateStepTimer {
+        private final String merchantOrderNo;
+        private final long startNanos;
+        private long lastNanos;
+        private final StringBuilder steps = new StringBuilder();
+
+        private PayCreateStepTimer(String merchantOrderNo) {
+            this.merchantOrderNo = StringUtils.trimToNull(merchantOrderNo);
+            this.startNanos = System.nanoTime();
+            this.lastNanos = this.startNanos;
+        }
+
+        private static PayCreateStepTimer start(String merchantOrderNo) {
+            return new PayCreateStepTimer(merchantOrderNo);
+        }
+
+        private void mark(String step) {
+            long now = System.nanoTime();
+            if (!steps.isEmpty()) {
+                steps.append(", ");
+            }
+            steps.append(step).append('=').append(toMillis(now - lastNanos)).append("ms");
+            lastNanos = now;
+        }
+
+        private void log(String result, PayinOrderEntity order) {
+            long totalMs = toMillis(System.nanoTime() - startNanos);
+            ApiReqContext context = ApiReqContextHolder.get();
+            log.info(
+                    "OpenAPI pay create profile result={}, traceId={}, tenantId={}, merchantId={}, appId={}, merchantOrderNo={}, payinOrderNo={}, status={}, total={}ms, steps=[{}]",
+                    result,
+                    context == null ? null : context.getTraceId(),
+                    context == null ? null : context.getTenantId(),
+                    context == null ? null : context.getMerchantId(),
+                    context == null ? null : context.getAppId(),
+                    order == null ? merchantOrderNo : StringUtils.defaultIfBlank(order.getMerchantOrderNo(), merchantOrderNo),
+                    order == null ? null : order.getPayinOrderNo(),
+                    order == null ? null : order.getStatus(),
+                    totalMs,
+                    steps
+            );
+        }
+
+        private static long toMillis(long nanos) {
+            return Math.max(0L, nanos / 1_000_000L);
+        }
+    }
+
+    /**
+     * 将扩展 Map 转成 JSON。
+     */
+    private String toJson(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        try {
+            return JSON.toJSONString(value);
+        } catch (Exception e) {
+            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid JSON field");
+        }
+    }
+
+    /**
+     * 把已有订单字段复制到当前对象     * <p>
+     * 用于并发幂等场景，调用方可继续用当前对象生成统一响应     */
+    private void copyOrder(PayinOrderEntity source, PayinOrderEntity target) {
+        target.setId(source.getId());
+        target.setTenantId(source.getTenantId());
+        target.setMerchantId(source.getMerchantId());
+        target.setMerchantNo(source.getMerchantNo());
+        target.setMerchantAppId(source.getMerchantAppId());
+        target.setAppId(source.getAppId());
+        target.setPayinOrderNo(source.getPayinOrderNo());
+        target.setMerchantOrderNo(source.getMerchantOrderNo());
+        target.setStatus(source.getStatus());
+        target.setStatusReason(source.getStatusReason());
+        target.setMerchantStatusCode(source.getMerchantStatusCode());
+        target.setMerchantStatusReason(source.getMerchantStatusReason());
+        target.setAmount(source.getAmount());
+        target.setPaidAmount(source.getPaidAmount());
+        target.setMerchantFeeAmount(source.getMerchantFeeAmount());
+        target.setMerchantFeeRuleId(source.getMerchantFeeRuleId());
+        target.setMerchantFeeSnapshotJson(source.getMerchantFeeSnapshotJson());
+        target.setPspFeeAmount(source.getPspFeeAmount());
+        target.setPspFeeRuleId(source.getPspFeeRuleId());
+        target.setPspFeeSnapshotJson(source.getPspFeeSnapshotJson());
+        target.setSettleAmount(source.getSettleAmount());
+        target.setPaymentPlanCatalogId(source.getPaymentPlanCatalogId());
+        target.setPaymentPlanVersion(source.getPaymentPlanVersion());
+        target.setPaymentPlanBucketId(source.getPaymentPlanBucketId());
+        target.setPaymentPlanRouteOptionId(source.getPaymentPlanRouteOptionId());
+        target.setRouteRuleId(source.getRouteRuleId());
+        target.setRouteGroupId(source.getRouteGroupId());
+        target.setRouteChannelId(source.getRouteChannelId());
+        target.setRouteSnapshotJson(source.getRouteSnapshotJson());
+        target.setCurrency(source.getCurrency());
+        target.setCountryCode(source.getCountryCode());
+        target.setMethodCode(source.getMethodCode());
+        target.setPspPayUrl(source.getPspPayUrl());
+        target.setPspOrderNo(source.getPspOrderNo());
+    }
+
+    /**
+     * 按平台代收订单号查询订单     */
+    @Override
+    public PayinOrderView getByPayinOrderNo(String payinOrderNo) {
+        PayinOrderEntity entity = payinOrderDao.selectOpenApiByPayinOrderNo(
+                ApiReqContextHolder.getTenantId(),
+                ApiReqContextHolder.getMerchantId(),
+                StringUtils.trim(payinOrderNo)
+        );
+        return toResponse(entity);
+    }
+
+    /**
+     * 按商户订单号查询订单     */
+    @Override
+    public PayinOrderView getByMerchantOrderNo(String merchantOrderNo) {
+        PayinOrderEntity entity = findByMerchantOrderNo(StringUtils.trim(merchantOrderNo));
+        return toResponse(entity);
+    }
+
+    /**
+     * 按商户订单号查询当前商户的代收订单。
+     */
+    private PayinOrderEntity findByMerchantOrderNo(String merchantOrderNo) {
+        return payinOrderDao.selectOpenApiByMerchantOrderNo(
+                ApiReqContextHolder.getTenantId(),
+                ApiReqContextHolder.getMerchantId(),
+                merchantOrderNo
+        );
+    }
+
+    /**
+     * 计算 PSP 手续费并保存规则快照     * <p>
+     * PSP 手续费是平台对上游的成本，用于后续利润、对账和报表     *
+     * @param entity 订单
+     */
+    private void applyPayinPlan(PayinOrderEntity entity, PayinPlan plan) {
+        entity.setPaymentPlanCatalogId(plan.getCatalogId());
+        entity.setPaymentPlanVersion(plan.getCatalogVersion());
+        entity.setPaymentPlanBucketId(plan.getBucketId());
+        entity.setPaymentPlanRouteOptionId(plan.getRouteOptionId());
+
+        entity.setMerchantFeeAmount(plan.getMerchantFeeAmount());
+        entity.setSettleAmount(plan.getSettleAmount());
+        entity.setMerchantFeeRuleId(plan.getMerchantFee().getRule().getId());
+        entity.setMerchantFeeSnapshotJson(plan.getMerchantFee().getSnapshotJson());
+
+        applyRoute(entity, plan.getRoute());
+
+        entity.setPspFeeAmount(plan.getPspFeeAmount() == null ? BigDecimal.ZERO : plan.getPspFeeAmount());
+        if (plan.getPspFee() != null && plan.getPspFee().getRule() != null) {
+            entity.setPspFeeRuleId(plan.getPspFee().getRule().getId());
+            entity.setPspFeeSnapshotJson(plan.getPspFee().getSnapshotJson());
+        }
+    }
+
+    private String routeSnapshotJson(PayinOrderEntity entity, PspRouteResult route) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("catalogId", entity.getPaymentPlanCatalogId());
+        snapshot.put("catalogVersion", entity.getPaymentPlanVersion());
+        snapshot.put("bucketId", entity.getPaymentPlanBucketId());
+        snapshot.put("routeOptionId", entity.getPaymentPlanRouteOptionId());
+        snapshot.put("routeRuleId", route.getRouteRuleId());
+        snapshot.put("routeGroupId", route.getRouteGroupId());
+        snapshot.put("routeChannelId", route.getRouteChannelId());
+        snapshot.put("pspId", route.getPspId());
+        snapshot.put("pspCode", route.getPspCode());
+        snapshot.put("pspMethodId", route.getPspMethodId());
+        snapshot.put("pspMethodCode", route.getPspMethodCode());
+        snapshot.put("pspAccountId", route.getPspAccountId());
+        snapshot.put("pspAccountNo", route.getPspAccountNo());
+        snapshot.put("pspBankCode", route.getPspBankCode());
+        return JSON.toJSONString(snapshot, JSONWriter.Feature.WriteMapNullValue);
+    }
+
+    /**
+     * 校验重复商户订单号对应的请求参数是否一致     */
+    private void validateIdempotentRequest(PayinOrderEntity existed, PayinOrderCreateRequest request, String currency, String methodCode) {
+        if (existed.getAmount() == null || request.getAmount() == null
+                || existed.getAmount().compareTo(request.getAmount()) != 0
+                || differsIgnoreCase(existed.getCurrency(), currency)
+                || differsIgnoreCase(existed.getMethodCode(), methodCode)
+                || differsTrimmed(existed.getNotifyUrl(), request.getNotifyUrl())) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    /**
+     * 校验并发插入冲突后查到的已有订单是否与当前订单一致     */
+    private void validateIdempotentEntity(PayinOrderEntity existed, PayinOrderEntity entity) {
+        if (existed.getAmount() == null || entity.getAmount() == null
+                || existed.getAmount().compareTo(entity.getAmount()) != 0
+                || differsIgnoreCase(existed.getCurrency(), entity.getCurrency())
+                || differsIgnoreCase(existed.getMethodCode(), entity.getMethodCode())
+                || differsTrimmed(existed.getNotifyUrl(), entity.getNotifyUrl())) {
+            throw new ApiException(ApiErrorCode.DUPLICATE_REQUEST, "merchant_order_id exists with different request parameters");
+        }
+    }
+
+    /**
+     * 校验金额小数位
+     */
+    private void validateAmountScale(BigDecimal amount) {
+        if (amount.scale() > 8) {
+            throw new ApiException(ApiErrorCode.INVALID_AMOUNT, "amount scale must be less than or equal to 8");
+        }
+    }
+
+    /**
+     * 比较两个字符串是否存在大小写无关差异。
+     */
+    private boolean differsIgnoreCase(String left, String right) {
+        return left == null ? right != null : !left.equalsIgnoreCase(right);
+    }
+
+    private boolean differsTrimmed(String left, String right) {
+        return !StringUtils.trimToEmpty(left).equals(StringUtils.trimToEmpty(right));
+    }
+
+    /**
+     * 转换代收订单 OpenAPI 响应。
+     */
+    private PayinOrderView toResponse(PayinOrderEntity entity) {
+        if (entity == null) {
+            throw new ApiException(ApiErrorCode.ORDER_NOT_FOUND);
+        }
+        return merchantOrderViewAssembler.fromPayinOrder(entity);
+    }
+}

@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gk.common.constant.Constant;
 import com.gk.common.core.service.impl.BaseServiceImpl;
-import com.gk.quartz.enums.ScheduleStatusEnum;
 import com.gk.common.model.PageData;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.infra.enums.StatusEnum;
 import com.gk.quartz.dao.ScheduleJobDao;
 import com.gk.quartz.dto.ScheduleJobDTO;
 import com.gk.quartz.entity.ScheduleJobEntity;
@@ -57,7 +57,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
     public void save(ScheduleJobDTO dto) {
         ScheduleJobEntity entity = ConvertUtils.sourceToTarget(dto, ScheduleJobEntity.class);
 
-        entity.setStatus(ScheduleStatusEnum.NORMAL.code());
+        entity.setStatus(StatusEnum.NORMAL.code());
         this.insert(entity);
 
         ScheduleUtils.createScheduleJob(scheduler, entity);
@@ -107,7 +107,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
             ScheduleUtils.pauseJob(scheduler, id);
         }
 
-        updateBatch(ids, ScheduleStatusEnum.PAUSE.code());
+        updateBatch(ids, StatusEnum.PAUSE.code());
     }
 
     @Override
@@ -117,7 +117,7 @@ public class ScheduleJobServiceImpl extends BaseServiceImpl<ScheduleJobDao, Sche
             ScheduleUtils.resumeJob(scheduler, id);
         }
 
-        updateBatch(ids, ScheduleStatusEnum.NORMAL.code());
+        updateBatch(ids, StatusEnum.NORMAL.code());
     }
 
 }

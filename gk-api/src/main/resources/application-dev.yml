@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: ${APP_NAME:gk-api-dev}
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306/gk-union?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true}
+    username: ${DB_USERNAME:survey01}
+    password: ${DB_PASSWORD:Abc!@#45}
+    hikari:
+      pool-name: ${DB_POOL_NAME:gk-api-dev-hikari}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.1.95}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:11}
+      password: ${REDIS_PASSWORD:Lz121314}
+      timeout: ${REDIS_TIMEOUT:6000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:6000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:32}
+          max-wait: ${REDIS_POOL_MAX_WAIT:1000ms}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:1}
+
+gk:
+  lifecycle-alert:
+    enabled: ${LIFECYCLE_ALERT_ENABLED:true}
+  redis:
+    open: true
+  time-zone: ${APP_TIME_ZONE:UTC}
+  psp:
+    callback:
+      base-url: ${PSP_CALLBACK_BASE_URL:http://localhost:8082}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.gk: ${LOG_LEVEL_GK:INFO}
+    org.mybatis.spring: ERROR
+    org.apache.ibatis: ERROR
+    com.mysql: ERROR
+  file:
+    name: ${LOG_FILE:logs/gk-api-dev.log}

@@ -7,7 +7,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -17,7 +19,7 @@ public class I18nService {
     private final SysI18nDao sysI18nDao;
 
     public Map<String, Object> getMessages(String type, String lang) {
-        List<SysI18nEntity> list = sysI18nDao.selectByLang(type, lang);
+        List<SysI18nEntity> list = sysI18nDao.selectByTypeAndLang(type, lang);
 
         Map<String, String> flatMap = list.stream()
                 .collect(Collectors.toMap(
@@ -54,6 +56,29 @@ public class I18nService {
             }
         }
 
+        return result;
+    }
+
+    public Map<String, Object> getMessagesAll(String lang) {
+        List<SysI18nEntity> list = sysI18nDao.selectByLang(lang);
+        Map<String, List<SysI18nEntity>> groupByBizType = list.stream()
+                .collect(Collectors.groupingBy(
+                        item -> StringUtils.defaultIfBlank(item.getBizType(), "DEFAULT").toLowerCase(Locale.ROOT),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        groupByBizType.forEach((bizType, items) -> {
+            Map<String, String> flatMap = items.stream()
+                    .collect(Collectors.toMap(
+                            SysI18nEntity::getI18nKey,
+                            SysI18nEntity::getValue,
+                            (a, b) -> a,
+                            LinkedHashMap::new
+                    ));
+            result.put(bizType, flatToTree(flatMap));
+        });
         return result;
     }
 }

@@ -18,9 +18,12 @@
     </resultMap>
 
     <select id="selectByLang" resultType="com.gk.infra.i18n.entity.SysI18nEntity">
-        SELECT * FROM sys_i18n WHERE biz_type = #{type} AND lang = #{lang}
+        SELECT * FROM sys_i18n WHERE lang = #{lang}
     </select>
 
+    <select id="selectByTypeAndLang" resultType="com.gk.infra.i18n.entity.SysI18nEntity">
+        SELECT * FROM sys_i18n WHERE biz_type = #{type} AND lang = #{lang}
+    </select>
 
     <select id="getPageList" resultType="com.gk.infra.i18n.entity.SysI18nEntity">
         SELECT t1.tenant_id, t1.biz_type, t1.biz_id, t1.i18n_key, t1.lang, t1.`value` FROM sys_i18n t1

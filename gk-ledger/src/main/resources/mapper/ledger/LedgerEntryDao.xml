@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.ledger.dao.LedgerEntryDao">
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ledger_entry (
+            tenant_id,
+            journal_id,
+            journal_no,
+            entry_no,
+            account_id,
+            account_no,
+            owner_type,
+            owner_id,
+            account_type,
+            currency,
+            normal_side,
+            direction,
+            amount,
+            balance_change,
+            balance_before,
+            balance_after,
+            biz_type,
+            biz_id,
+            biz_no,
+            event_type,
+            summary,
+            remark,
+            created_by,
+            created_at,
+            updated_by,
+            updated_at
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.tenantId},
+                #{item.journalId},
+                #{item.journalNo},
+                #{item.entryNo},
+                #{item.accountId},
+                #{item.accountNo},
+                #{item.ownerType},
+                #{item.ownerId},
+                #{item.accountType},
+                #{item.currency},
+                #{item.normalSide},
+                #{item.direction},
+                #{item.amount},
+                #{item.balanceChange},
+                #{item.balanceBefore},
+                #{item.balanceAfter},
+                #{item.bizType},
+                #{item.bizId},
+                #{item.bizNo},
+                #{item.eventType},
+                #{item.summary},
+                #{item.remark},
+                #{item.createdBy},
+                #{item.createdAt},
+                #{item.updatedBy},
+                #{item.updatedAt}
+            )
+        </foreach>
+    </insert>
+</mapper>

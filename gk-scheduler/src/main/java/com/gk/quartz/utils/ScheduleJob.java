@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * @author Lowen
  */
 public class ScheduleJob extends QuartzJobBean {
-    private Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
     protected void executeInternal(JobExecutionContext context) {
@@ -42,7 +42,7 @@ public class ScheduleJob extends QuartzJobBean {
 
         try {
             //执行任务
-            logger.info("任务准备执行，任务ID：{}", scheduleJob.getId());
+            logger.debug("任务准备执行，任务ID：{}", scheduleJob.getId());
             Object target = SpringContextUtils.getBean(scheduleJob.getBeanName());
             Method method = target.getClass().getDeclaredMethod("run", String.class);
             Object result = method.invoke(target, scheduleJob.getParams());
@@ -55,9 +55,9 @@ public class ScheduleJob extends QuartzJobBean {
             // 任务执行的结果,要求字符串
             log.setResult(ObjectUtil.toString(result));
 
-            logger.info("任务执行完毕，任务ID：{}  总共耗时：{} 毫秒", scheduleJob.getId(), times);
+            logger.debug("任务执行完毕，任务ID：{}  总共耗时：{} 毫秒", scheduleJob.getId(), times);
         } catch (Exception e) {
-            logger.error("任务执行失败，任务ID：{}", scheduleJob.getId(), e);
+            logger.debug("任务执行失败，任务ID：{}", scheduleJob.getId(), e);
 
             //任务执行总时长
             long times = System.currentTimeMillis() - startTime;

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gk</groupId>
+        <artifactId>gk-union</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>gk-ledger</artifactId>
+    <name>gk-ledger</name>
+    <description>Payment ledger, merchant settlement, PSP aggregation foundation</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-infra</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-meta</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-iam</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-merchant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-psp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+</project>

@@ -8,6 +8,7 @@ import com.gk.common.model.PageData;
 import com.gk.devtools.dao.TemplateDao;
 import com.gk.devtools.entity.TemplateEntity;
 import com.gk.devtools.service.TemplateService;
+import com.gk.infra.enums.StatusEnum;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -43,7 +44,7 @@ public class TemplateServiceImpl extends BaseServiceImpl<TemplateDao, TemplateEn
     @Override
     public List<TemplateEntity> list() {
         QueryWrapper<TemplateEntity> wrapper = new QueryWrapper<>();
-        wrapper.eq("status", 1);
+        wrapper.eq("status", StatusEnum.NORMAL.code());
         return baseDao.selectList(wrapper);
     }
 

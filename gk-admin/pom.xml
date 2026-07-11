@@ -19,6 +19,10 @@
     </properties>
     <dependencies>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.gk</groupId>
             <artifactId>gk-meta</artifactId>
             <version>${project.version}</version>
@@ -30,38 +34,54 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-scheduler</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
             <artifactId>gk-devtools</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-platform</artifactId>
+            <artifactId>gk-iam</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-tenant</artifactId>
+            <artifactId>gk-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-cloak</artifactId>
+            <artifactId>gk-merchant</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-payment</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-notify</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-psp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>gk-scheduler</artifactId>
             <version>1.0.0</version>
         </dependency>
     </dependencies>
 
     <build>
+        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <release>21</release>
+                    <includeSystemScope>true</includeSystemScope>
                 </configuration>
             </plugin>
         </plugins>

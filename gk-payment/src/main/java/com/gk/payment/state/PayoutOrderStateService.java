@@ -1,7 +1,7 @@
 package com.gk.payment.state;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.dao.PayoutOrderDao;

@@ -1,7 +1,7 @@
 package com.gk.psp.fee;
 
-import com.gk.common.amount.FeeLimitUtils;
-import com.gk.common.enums.FeeModeEnum;
+import com.gk.payment.domain.amount.FeeLimitUtils;
+import com.gk.payment.domain.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.psp.entity.PspFeeRuleEntity;
 

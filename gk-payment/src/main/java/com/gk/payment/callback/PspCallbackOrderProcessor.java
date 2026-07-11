@@ -1,6 +1,6 @@
 package com.gk.payment.callback;
 
-import com.gk.common.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.enums.PayoutOrderStatusEnum;

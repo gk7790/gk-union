@@ -1,11 +1,11 @@
 package com.gk.payment.psp;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.gk.common.enums.PayDirectionEnum;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.domain.enums.PayDirectionEnum;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.infra.utils.AsynUtils;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.enums.MerchantOrderStatusEnum;
@@ -29,16 +29,16 @@ import java.util.List;
 public class PayinPspSubmitService {
     private final PayinOrderDao payinOrderDao;
     private final PspPayDispatchService pspPayDispatchService;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
     private final OrderStatusLogService orderStatusLogService;
 
     public PayinOrderEntity submit(PayinOrderEntity order, PayinPlan payinPlan, SubmitContext context) {
         if (order == null || order.getId() == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payin order is required");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payin order is required");
         }
         SubmitContext safeContext = context == null ? SubmitContext.system(order.getAppId(), null) : context;
         if (payinPlan == null || payinPlan.getRoute() == null) {
-            ApiException ex = new ApiException(ApiErrorCode.SERVICE_NOT_READY, "Payin plan is not resolved");
+            PaymentException ex = new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "Payin plan is not resolved");
             handleSubmitException(order, ex, safeContext);
             throw ex;
         }
@@ -47,11 +47,11 @@ public class PayinPspSubmitService {
 
     public PayinOrderEntity submit(PayinOrderEntity order, PspRouteResult route, SubmitContext context) {
         if (order == null || order.getId() == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payin order is required");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payin order is required");
         }
         SubmitContext safeContext = context == null ? SubmitContext.system(order.getAppId(), null) : context;
         if (route == null) {
-            ApiException ex = new ApiException(ApiErrorCode.SERVICE_NOT_READY, "PSP route is unavailable");
+            PaymentException ex = new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route is unavailable");
             handleSubmitException(order, ex, safeContext);
             throw ex;
         }
@@ -64,13 +64,13 @@ public class PayinPspSubmitService {
         try {
             PspPayDispatchResult result = pspPayDispatchService.dispatch(PspOrderRequests.fromPayinOrder(submitOrder), route);
             return applyDispatchResult(submitOrder, result, safeContext);
-        } catch (ApiException ex) {
+        } catch (PaymentException ex) {
             handleSubmitException(submitOrder, ex, safeContext);
             throw ex;
         } catch (Exception ex) {
             log.error("Payin PSP submit failed, payinOrderNo={}, merchantOrderNo={}",
                     submitOrder.getPayinOrderNo(), submitOrder.getMerchantOrderNo(), ex);
-            ApiException apiException = new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
+            PaymentException apiException = new PaymentException(PaymentErrorCode.SYSTEM_ERROR, ex);
             handleSubmitException(submitOrder, apiException, safeContext);
             throw apiException;
         }
@@ -80,7 +80,7 @@ public class PayinPspSubmitService {
                                                  PspPayDispatchResult result,
                                                  SubmitContext context) {
         if (result == null) {
-            throw new ApiException(ApiErrorCode.SYSTEM_ERROR, "PSP payin submit result is empty");
+            throw new PaymentException(PaymentErrorCode.SYSTEM_ERROR, "PSP payin submit result is empty");
         }
         String fromStatus = order.getStatus();
         String toStatus = result.isSuccess() ? PayinOrderStatusEnum.PROCESSING.code() : PayinOrderStatusEnum.FAILED.code();
@@ -130,7 +130,7 @@ public class PayinPspSubmitService {
         }
         PayinOrderEntity currentOrder = payinOrderDao.selectById(order.getId());
         if (currentOrder == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payin order not found");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payin order not found");
         }
         return shouldSkipPspSubmit(currentOrder) ? null : currentOrder;
     }
@@ -143,7 +143,7 @@ public class PayinPspSubmitService {
                 || PayinOrderStatusEnum.CLOSED.code().equals(order.getStatus());
     }
 
-    private void handleSubmitException(PayinOrderEntity order, ApiException ex, SubmitContext context) {
+    private void handleSubmitException(PayinOrderEntity order, PaymentException ex, SubmitContext context) {
         if (order != null && context != null && context.markFailedOnException()) {
             markFailed(order, ex.getMessage(), context);
         }
@@ -192,7 +192,7 @@ public class PayinPspSubmitService {
     }
 
     private long firstQueryDelaySeconds() {
-        List<Long> backoffSeconds = configService.pspQueryConfig().getBackoffSeconds();
+        List<Long> backoffSeconds = configService.pspQuery().getBackoffSeconds();
         if (backoffSeconds == null || backoffSeconds.isEmpty()) {
             return 60L;
         }

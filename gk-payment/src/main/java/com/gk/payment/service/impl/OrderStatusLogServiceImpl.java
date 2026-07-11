@@ -4,7 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.payment.dao.OrderStatusLogDao;
 import com.gk.payment.dto.OrderStatusLogDTO;
 import com.gk.payment.entity.OrderStatusLogEntity;

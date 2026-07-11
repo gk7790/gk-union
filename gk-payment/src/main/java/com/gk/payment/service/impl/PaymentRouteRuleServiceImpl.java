@@ -9,7 +9,7 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.common.amount.AmountRangeUtils;
+import com.gk.payment.domain.amount.AmountRangeUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.payment.dao.PaymentRouteGroupDao;
 import com.gk.payment.dao.PaymentRouteRuleDao;

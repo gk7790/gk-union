@@ -1,9 +1,9 @@
 package com.gk.payment.fee;
 
-import com.gk.common.enums.FeeBearerEnum;
-import com.gk.common.enums.FeeModeEnum;
+import com.gk.payment.domain.enums.FeeBearerEnum;
+import com.gk.payment.domain.enums.FeeModeEnum;
 import com.gk.common.enums.StringCodeEnum;
-import com.gk.common.amount.FeeLimitUtils;
+import com.gk.payment.domain.amount.FeeLimitUtils;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 
 import java.math.BigDecimal;

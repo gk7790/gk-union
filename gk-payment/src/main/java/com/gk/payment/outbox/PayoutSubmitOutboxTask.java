@@ -2,9 +2,9 @@ package com.gk.payment.outbox;
 
 import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.service.MqOutboxService;
-import com.gk.infra.config.service.GkSysParamsConfigService;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.config.PaymentConfigService;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.common.task.ITask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class PayoutSubmitOutboxTask implements ITask {
 
     private final MqOutboxService mqOutboxService;
     private final PayoutSubmitOutboxConsumer consumer;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
 
     /**
      * 扫描、锁定并消费一批到outbox 事件     * <p>
@@ -60,19 +60,19 @@ public class PayoutSubmitOutboxTask implements ITask {
     /**
      * 判断异常是否属于重试也无法恢复的业务失败     */
     private boolean isNonRetryable(Exception ex) {
-        if (!(ex instanceof ApiException apiException)) {
+        if (!(ex instanceof PaymentException apiException)) {
             return false;
         }
-        ApiErrorCode code = apiException.getErrorCode();
-        return code == ApiErrorCode.INVALID_REQUEST
-                || code == ApiErrorCode.INSUFFICIENT_BALANCE
-                || code == ApiErrorCode.UNSUPPORTED_METHOD;
+        PaymentErrorCode code = apiException.getErrorCode();
+        return code == PaymentErrorCode.INVALID_REQUEST
+                || code == PaymentErrorCode.INSUFFICIENT_BALANCE
+                || code == PaymentErrorCode.UNSUPPORTED_METHOD;
     }
 
     /**
      * 转换异常outbox 最近一次失败码，便于后台排查和重试决策     */
     private String errorCode(Exception ex) {
-        if (ex instanceof ApiException apiException) {
+        if (ex instanceof PaymentException apiException) {
             return apiException.getErrorCode().name();
         }
         return ex.getClass().getSimpleName();
@@ -92,7 +92,7 @@ public class PayoutSubmitOutboxTask implements ITask {
     }
 
     private int defaultBatchSize() {
-        int batchSize = configService.payoutSubmitConfig().getDefaultBatchSize();
+        int batchSize = configService.payoutSubmit().getDefaultBatchSize();
         if (batchSize <= 0) {
             batchSize = DEFAULT_BATCH_SIZE;
         }

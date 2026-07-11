@@ -1,6 +1,6 @@
 package com.gk.payment.merchantview;
 
-import com.gk.openapi.util.ApiAmountUtils;
+import com.gk.payment.domain.amount.MoneyFormat;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.MerchantOrderStatusEnum;
@@ -128,7 +128,7 @@ public class MerchantOrderViewAssembler {
     }
 
     private String money(BigDecimal value, String currency) {
-        return value == null ? null : ApiAmountUtils.formatCurrencyAmount(value, currency);
+        return value == null ? null : MoneyFormat.format(value);
     }
 
     private String moneyIfPositive(BigDecimal value, String currency) {

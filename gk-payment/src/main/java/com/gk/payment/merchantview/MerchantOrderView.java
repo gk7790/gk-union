@@ -2,11 +2,11 @@ package com.gk.payment.merchantview;
 
 import com.alibaba.fastjson2.annotation.JSONField;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.gk.openapi.dto.OpenApiModel;
+import com.gk.payment.dto.PaymentJsonModel;
 import lombok.Data;
 
 @Data
-@OpenApiModel
+@PaymentJsonModel
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class MerchantOrderView {
     @JSONField(name = "system_order_id")

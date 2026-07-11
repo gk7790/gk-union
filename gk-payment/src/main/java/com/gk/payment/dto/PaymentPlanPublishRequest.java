@@ -1,13 +1,13 @@
 package com.gk.payment.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.gk.openapi.dto.OpenApiModel;
+import com.gk.payment.dto.PaymentJsonModel;
 import lombok.Data;
 
 import java.math.BigDecimal;
 
 @Data
-@OpenApiModel
+@PaymentJsonModel
 public class PaymentPlanPublishRequest {
     @JsonAlias("tenantId")
     private Long tenantId;

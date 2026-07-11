@@ -17,10 +17,10 @@
 
     <modules>
         <module>gk-common</module>
-        <module>gk-payment-common</module>
+        <module>gk-payment-domain</module>
         <module>gk-infra</module>
         <module>gk-meta</module>
-        <module>gk-payment-meta</module>
+        <module>gk-reference-data</module>
         <module>gk-admin</module>
         <module>gk-api</module>
         <module>gk-scheduler</module>

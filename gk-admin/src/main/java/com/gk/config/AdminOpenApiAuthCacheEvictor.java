@@ -1,8 +1,8 @@
 package com.gk.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.openapi.OpenApiAuthCacheEvictor;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.merchant.cache.OpenApiAuthCacheEvictor;
+import com.gk.merchant.cache.OpenApiCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.merchant.dao.MerchantAppDao;
@@ -28,8 +28,8 @@ public class AdminOpenApiAuthCacheEvictor implements OpenApiAuthCacheEvictor {
             return;
         }
         try {
-            redisUtils.delete(PaymentRedisKeys.getOpenApiAuthKey(normalizedAppId));
-            redisUtils.delete(PaymentRedisKeys.getOpenApiMerchantAppKey(normalizedAppId));
+            redisUtils.delete(OpenApiCacheKeys.auth(normalizedAppId));
+            redisUtils.delete(OpenApiCacheKeys.merchantApp(normalizedAppId));
         } catch (Exception ex) {
             log.warn("Evict OpenAPI auth cache failed, appId={}, err={}", normalizedAppId, ex.getMessage());
         }

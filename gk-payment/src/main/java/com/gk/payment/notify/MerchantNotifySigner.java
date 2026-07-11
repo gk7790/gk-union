@@ -1,8 +1,8 @@
 package com.gk.payment.notify;
 
 import com.alibaba.fastjson2.JSON;
-import com.gk.common.enums.SignTypeEnum;
-import com.gk.openapi.util.ApiSignUtils;
+import com.gk.payment.domain.enums.SignTypeEnum;
+import com.gk.payment.domain.security.SignatureUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -26,8 +26,8 @@ public class MerchantNotifySigner {
         Map<String, Object> body = parse(payloadJson);
         body.remove("sign");
         String sign = SignTypeEnum.MD5.matches(signType)
-                ? ApiSignUtils.createMd5Sign(body, apiSecret)
-                : ApiSignUtils.createHmacSha256Sign(body, apiSecret);
+                ? SignatureUtils.createMd5Sign(body, apiSecret)
+                : SignatureUtils.createHmacSha256Sign(body, apiSecret);
         body.put("sign", sign);
         return new MerchantNotifySigned(sign, JSON.toJSONString(body));
     }

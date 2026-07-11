@@ -1,6 +1,6 @@
 package com.gk.payment.plan.model;
 
-import com.gk.common.amount.AmountRangeUtils;
+import com.gk.payment.domain.amount.AmountRangeUtils;
 
 import java.math.BigDecimal;
 

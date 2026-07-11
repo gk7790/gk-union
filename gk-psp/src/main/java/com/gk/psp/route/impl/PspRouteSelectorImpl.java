@@ -1,7 +1,7 @@
 package com.gk.psp.route.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;

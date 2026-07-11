@@ -6,7 +6,7 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.adjustment.dao.MerchantBalanceAdjustOrderDao;
 import com.gk.adjustment.dto.MerchantBalanceAdjustOrderDTO;

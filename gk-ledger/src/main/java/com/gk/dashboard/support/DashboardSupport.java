@@ -1,6 +1,6 @@
 package com.gk.dashboard.support;
 
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.dashboard.dto.TenantDashboardSummaryDTO;
 import com.gk.dashboard.dto.TenantDashboardTrendDTO;
 import org.apache.commons.lang3.StringUtils;

@@ -13,10 +13,10 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
-import com.gk.common.enums.SignTypeEnum;
+import com.gk.payment.domain.enums.SignTypeEnum;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.EncryptTypeEnum;
@@ -24,8 +24,8 @@ import com.gk.merchant.enums.MerchantAppTypeEnum;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dto.MerchantAppDTO;
 import com.gk.merchant.entity.MerchantAppEntity;
-import com.gk.common.openapi.OpenApiAuthCacheEvictor;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.merchant.cache.OpenApiAuthCacheEvictor;
+import com.gk.merchant.config.MerchantConfigService;
 import com.gk.merchant.service.MerchantAppService;
 import com.gk.merchant.service.MerchantPaymentPlanCacheEvictor;
 import com.gk.merchant.support.MerchantAppSecrets;
@@ -48,7 +48,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
 
     private final MerchantPaymentPlanCacheEvictor paymentPlanCacheEvictor;
     private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
-    private final GkSysParamsConfigService configService;
+    private final MerchantConfigService configService;
 
     @Override
     public QueryWrapper<MerchantAppEntity> getWrapper(DynMap params) {
@@ -272,7 +272,7 @@ public class MerchantAppServiceImpl extends CrudServiceImpl<MerchantAppDao, Merc
             entity.setAppEnv(normalizeAppEnv(entity.getAppEnv()));
         }
         if (StrUtil.isBlank(entity.getSignType())) {
-            entity.setSignType(configService.openApiConfig().getDefaultSignType());
+            entity.setSignType(configService.defaultApiSignType());
         } else {
             entity.setSignType(normalizeOpenApiSignType(entity.getSignType()));
         }

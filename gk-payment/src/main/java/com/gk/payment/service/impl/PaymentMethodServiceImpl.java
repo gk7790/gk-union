@@ -7,13 +7,13 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.model.DynMap;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.payment.support.PaymentCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.PaymentMethodDTO;
 import com.gk.payment.entity.PaymentMethodEntity;
@@ -83,7 +83,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         String methodType = normalize(params.getStr("methodType"));
         List<Integer> statusList = statusList(params);
         String statusKey = statusKey(statusList);
-        String cacheKey = PaymentRedisKeys.getPaymentMethodDictKey(countryCode, currency, direction, methodType, statusKey);
+        String cacheKey = PaymentCacheKeys.methodDict(countryCode, currency, direction, methodType, statusKey);
         List<PaymentMethodDTO> cached = getCachedDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -171,7 +171,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
         wrapper.ne(dto.getId() != null, "id", dto.getId());
         wrapper.last("limit 1");
         if (baseDao.selectOne(wrapper) != null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "payment method scope already exists");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "payment method scope already exists");
         }
     }
 
@@ -311,7 +311,7 @@ public class PaymentMethodServiceImpl extends CrudServiceImpl<PaymentMethodDao, 
 
     private void evictDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPaymentMethodDictPattern());
+            Set<String> keys = redisUtils.keys(PaymentCacheKeys.methodDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

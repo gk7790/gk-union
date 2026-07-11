@@ -1,8 +1,8 @@
 package com.gk.payment.plan.impl;
 
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
-import com.gk.openapi.error.ApiExceptionMapper;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
+import com.gk.payment.domain.error.PaymentExceptions;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.plan.PaymentPlanResolver;
 import com.gk.payment.plan.PayoutPlanService;
@@ -31,10 +31,10 @@ public class PayoutPlanServiceImpl implements PayoutPlanService {
                               Set<Long> disabledRouteOptionIds) {
         try {
             PaymentPlan paymentPlan = paymentPlanResolver.resolvePayout(order, disabledPspIds, disabledAccountIds, disabledRouteOptionIds)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
+                    .orElseThrow(() -> new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
             return toPayoutPlan(order, paymentPlan);
         } catch (IllegalArgumentException ex) {
-            throw ApiExceptionMapper.toApiException(ex);
+            throw PaymentExceptions.normalize(ex);
         }
     }
 

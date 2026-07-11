@@ -20,7 +20,7 @@
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-payment-common</artifactId>
+            <artifactId>gk-payment-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -2,8 +2,8 @@ package com.gk.payment.outbox;
 
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.enums.MqOutboxConsumeStatusEnum;
 import com.gk.infra.mq.enums.MqOutboxPublishStatusEnum;

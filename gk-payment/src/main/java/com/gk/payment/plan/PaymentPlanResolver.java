@@ -2,13 +2,13 @@ package com.gk.payment.plan;
 
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.enums.PayDirectionEnum;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.payment.domain.enums.PayDirectionEnum;
+import com.gk.payment.support.PaymentCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.payment.constant.PaymentMethodCodes;
 import com.gk.payment.entity.MerchantFeeRuleEntity;
 import com.gk.payment.entity.PayinOrderEntity;
@@ -305,10 +305,10 @@ public class PaymentPlanResolver {
 
     private boolean redisUnavailable(PaymentPlanKey key, PaymentPlanRouteOptionEntity option) {
         try {
-            return redisUtils.isKeyExist(PaymentRedisKeys.getPaymentPspDisableKey(key.tenantId(), key.direction(), option.getPspId()))
-                    || redisUtils.isKeyExist(PaymentRedisKeys.getPaymentPspAccountDisableKey(key.tenantId(), key.direction(), option.getPspAccountId()))
-                    || redisHealthDown(PaymentRedisKeys.getPaymentPspHealthKey(key.tenantId(), key.direction(), option.getPspId()))
-                    || redisHealthDown(PaymentRedisKeys.getPaymentPspAccountHealthKey(key.tenantId(), key.direction(), option.getPspAccountId()));
+            return redisUtils.isKeyExist(PaymentCacheKeys.pspDisabled(key.tenantId(), key.direction(), option.getPspId()))
+                    || redisUtils.isKeyExist(PaymentCacheKeys.accountDisabled(key.tenantId(), key.direction(), option.getPspAccountId()))
+                    || redisHealthDown(PaymentCacheKeys.pspHealth(key.tenantId(), key.direction(), option.getPspId()))
+                    || redisHealthDown(PaymentCacheKeys.accountHealth(key.tenantId(), key.direction(), option.getPspAccountId()));
         } catch (Exception ex) {
             // Redis 状态层不可用时只降级，不阻断交易；最终可用性仍DB 状态校验兜底
                         return false;
@@ -364,13 +364,13 @@ public class PaymentPlanResolver {
     private PspProviderEntity requireProvider(Long pspId, String direction) {
         PspProviderEntity provider = cached(providerCache, pspId, pspProviderDao::selectById);
         if (provider == null || !StatusEnum.NORMAL.code().equals(provider.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
+            throw new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
         }
         boolean supported = PayDirectionEnum.PAYOUT.code().equals(direction)
                 ? Integer.valueOf(1).equals(provider.getSupportPayout())
                 : Integer.valueOf(1).equals(provider.getSupportPayin());
         if (!supported) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
+            throw new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "PSP_PROVIDER_UNAVAILABLE", "PSP provider is not available");
         }
         return provider;
     }
@@ -378,7 +378,7 @@ public class PaymentPlanResolver {
     private PspMethodEntity requireMethod(Long pspMethodId) {
         PspMethodEntity method = cached(methodCache, pspMethodId, pspMethodDao::selectById);
         if (method == null || !StatusEnum.NORMAL.code().equals(method.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_METHOD_UNAVAILABLE", "PSP method is not available");
+            throw new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "PSP_METHOD_UNAVAILABLE", "PSP method is not available");
         }
         return method;
     }
@@ -386,7 +386,7 @@ public class PaymentPlanResolver {
     private PspAccountEntity requirePspAccount(Long pspAccountId) {
         PspAccountEntity account = cached(accountCache, pspAccountId, pspAccountDao::selectById);
         if (account == null || !StatusEnum.NORMAL.code().equals(account.getStatus())) {
-            throw new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "PSP_ACCOUNT_UNAVAILABLE", "PSP account is not available");
+            throw new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "PSP_ACCOUNT_UNAVAILABLE", "PSP account is not available");
         }
         return account;
     }
@@ -411,7 +411,7 @@ public class PaymentPlanResolver {
 
     private JSONObject parseSnapshot(String snapshotJson, String message) {
         if (StringUtils.isBlank(snapshotJson)) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, message);
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, message);
         }
         return JSONObject.parseObject(snapshotJson);
     }

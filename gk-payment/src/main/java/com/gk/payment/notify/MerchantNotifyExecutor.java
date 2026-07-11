@@ -3,8 +3,8 @@ package com.gk.payment.notify;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.model.Result;
 import com.gk.common.validator.AssertUtils;
-import com.gk.infra.config.model.MerchantNotifyConfig;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.config.MerchantNotifyConfig;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.payment.callback.PspCallbackNotifyCreator;
@@ -13,8 +13,8 @@ import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.enums.SignTypeEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.SignTypeEnum;
 import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
@@ -79,7 +79,7 @@ public class MerchantNotifyExecutor {
     private final MerchantAppDao merchantAppDao;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
     private final PayinOrderDao payinOrderDao;
     private final PayoutOrderDao payoutOrderDao;
     private final PspCallbackNotifyCreator callbackNotifyCreator;
@@ -556,7 +556,7 @@ public class MerchantNotifyExecutor {
     }
 
     private MerchantNotifyConfig notifyConfig() {
-        return configService.merchantNotifyConfig();
+        return configService.merchantNotify();
     }
 
     private int safeInt(Integer value) {

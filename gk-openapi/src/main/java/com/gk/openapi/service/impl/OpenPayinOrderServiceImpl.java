@@ -3,9 +3,9 @@ package com.gk.openapi.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.gk.common.constant.Constant;
-import com.gk.common.enums.PayDirectionEnum;
-import com.gk.common.utils.BizKeyUtils;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.domain.enums.PayDirectionEnum;
+import com.gk.payment.domain.key.BizKeyUtils;
+import com.gk.openapi.config.OpenApiConfigService;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
@@ -16,7 +16,7 @@ import com.gk.openapi.error.ApiException;
 import com.gk.openapi.security.ApiReqContext;
 import com.gk.openapi.security.ApiReqContextHolder;
 import com.gk.openapi.service.OpenPayinOrderService;
-import com.gk.common.enums.OrderSourceEnum;
+import com.gk.payment.domain.enums.OrderSourceEnum;
 import com.gk.payment.enums.PayinOrderStatusEnum;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
@@ -57,7 +57,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     private final PayinPspSubmitService payinPspSubmitService;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
     private final OrderStatusLogService orderStatusLogService;
-    private final GkSysParamsConfigService configService;
+    private final OpenApiConfigService configService;
     private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
     /**
@@ -226,7 +226,7 @@ public class OpenPayinOrderServiceImpl implements OpenPayinOrderService {
     }
 
     private String sandboxPayUrl(PayinOrderEntity order) {
-        String template = configService.openApiConfig().getSandboxPayUrl();
+        String template = configService.get().getSandboxPayUrl();
         if (StringUtils.isBlank(template) || order == null) {
             return null;
         }

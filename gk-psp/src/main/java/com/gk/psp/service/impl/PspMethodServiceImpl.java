@@ -5,13 +5,13 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONException;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.gk.common.amount.AmountRangeUtils;
+import com.gk.payment.domain.amount.AmountRangeUtils;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.dto.LabelDTO;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.psp.support.PspCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.ConvertUtils;
@@ -82,7 +82,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
             return Collections.emptyList();
         }
 
-        String cacheKey = PaymentRedisKeys.getPspMethodCodeDictKey(pspId);
+        String cacheKey = PspCacheKeys.methodDict(pspId);
         List<PspMethodDTO> cached = getCachedPspMethodCodeDict(cacheKey);
         if (cached != null) {
             return cached;
@@ -282,7 +282,7 @@ public class PspMethodServiceImpl extends CrudServiceImpl<PspMethodDao, PspMetho
 
     private void evictMethodDictCache() {
         try {
-            Set<String> keys = redisUtils.keys(PaymentRedisKeys.getPspMethodCodeDictPattern());
+            Set<String> keys = redisUtils.keys(PspCacheKeys.methodDictPattern());
             if (keys != null && !keys.isEmpty()) {
                 redisUtils.delete(keys);
             }

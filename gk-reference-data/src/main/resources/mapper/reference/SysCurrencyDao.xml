@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.gk.reference.dao.SysCurrencyDao">
+    <resultMap id="SysCurrencyOptionMap" type="com.gk.reference.dto.SysCurrencyDTO">
+        <id property="currency" column="currency"/>
+        <collection property="tenantIds" javaType="java.util.ArrayList" ofType="java.lang.Long" notNullColumn="tenant_id">
+            <result column="tenant_id"/>
+        </collection>
+    </resultMap>
+
+    <select id="selectOptions" resultMap="SysCurrencyOptionMap">
+        SELECT DISTINCT
+            c.currency AS currency,
+            c.sort AS sort
+        FROM sys_currency c
+        WHERE c.status IN
+        <foreach collection="statusList" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+        ORDER BY c.sort ASC, c.currency ASC
+    </select>
+</mapper>

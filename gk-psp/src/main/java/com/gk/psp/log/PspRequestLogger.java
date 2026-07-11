@@ -2,8 +2,8 @@ package com.gk.psp.log;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.psp.dispatch.PspPayDispatchResult;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;
 import com.gk.psp.entity.PspRequestLogEntity;

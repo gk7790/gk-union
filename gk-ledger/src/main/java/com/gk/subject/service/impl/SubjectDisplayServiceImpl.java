@@ -2,7 +2,7 @@ package com.gk.subject.service.impl;
 
 import cn.hutool.core.util.StrUtil;
 import com.gk.common.enums.SubjectTypeEnum;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.ledger.support.LedgerCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.ledger.enums.LedgerOwnerTypeEnum;
@@ -259,6 +259,6 @@ public class SubjectDisplayServiceImpl implements SubjectDisplayService {
     }
 
     private String cacheKey(SubjectRef ref) {
-        return PaymentRedisKeys.getSubjectDisplayKey(ref.tenantId(), ref.subjectType(), ref.subjectId());
+        return LedgerCacheKeys.subjectDisplay(ref.tenantId(), ref.subjectType(), ref.subjectId());
     }
 }

@@ -3,8 +3,8 @@ package com.gk.payment.outbox;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.enums.PayinOrderStatusEnum;
@@ -34,14 +34,14 @@ public class PayinSubmitOutboxConsumer {
     public void consume(String payloadJson) {
         PayinSubmitOutboxPayload payload = JSON.parseObject(payloadJson, PayinSubmitOutboxPayload.class);
         if (payload == null || StringUtils.isBlank(payload.payinOrderNo())) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Invalid payin submit outbox payload");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Invalid payin submit outbox payload");
         }
         PayinOrderEntity order = payinOrderDao.selectOne(new QueryWrapper<PayinOrderEntity>()
                 .eq("tenant_id", payload.tenantId())
                 .eq("payin_order_no", payload.payinOrderNo())
                 .last("limit 1"));
         if (order == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payin order not found: " + payload.payinOrderNo());
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payin order not found: " + payload.payinOrderNo());
         }
         if (shouldSkipPspSubmit(order)) {
             return;
@@ -61,13 +61,13 @@ public class PayinSubmitOutboxConsumer {
 
     private PspRouteResult buildPspSubmitRoute(PayinOrderEntity order) {
         if (order.getPspId() == null || order.getPspAccountId() == null || StringUtils.isBlank(order.getPspCode())) {
-            throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "PSP route snapshot is incomplete");
+            throw new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route snapshot is incomplete");
         }
         PspProviderEntity provider = pspProviderDao.selectById(order.getPspId());
         PspAccountEntity account = pspAccountDao.selectById(order.getPspAccountId());
         PspMethodEntity method = order.getPspMethodId() == null ? null : pspMethodDao.selectById(order.getPspMethodId());
         if (provider == null || account == null) {
-            throw new ApiException(ApiErrorCode.SERVICE_NOT_READY, "PSP route snapshot is unavailable");
+            throw new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route snapshot is unavailable");
         }
 
         PspRouteResult route = new PspRouteResult();

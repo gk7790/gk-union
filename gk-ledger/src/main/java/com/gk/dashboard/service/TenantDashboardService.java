@@ -1,7 +1,7 @@
 package com.gk.dashboard.service;
 
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;

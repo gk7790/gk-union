@@ -1,12 +1,12 @@
 package com.gk.ledger.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
 import com.gk.ledger.enums.LedgerDirectionEnum;

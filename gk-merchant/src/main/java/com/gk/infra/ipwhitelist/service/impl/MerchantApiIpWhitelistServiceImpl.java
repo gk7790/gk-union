@@ -6,7 +6,7 @@ import com.gk.common.context.ReqContextHolder;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
-import com.gk.common.openapi.OpenApiAuthCacheEvictor;
+import com.gk.merchant.cache.OpenApiAuthCacheEvictor;
 import com.gk.common.utils.IpPatternUtils;
 import com.gk.common.validator.AssertUtils;
 import com.gk.infra.enums.StatusEnum;

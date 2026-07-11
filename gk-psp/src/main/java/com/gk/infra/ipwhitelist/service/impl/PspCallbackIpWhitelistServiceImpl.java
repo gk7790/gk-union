@@ -8,7 +8,7 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.psp.support.PspCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.IpPatternUtils;
@@ -108,7 +108,7 @@ public class PspCallbackIpWhitelistServiceImpl extends CrudServiceImpl<PspCallba
     }
 
     private List<String> loadRules(String pspCode) {
-        String cacheKey = PaymentRedisKeys.getPspCallbackIpWhitelistKey(pspCode);
+        String cacheKey = PspCacheKeys.callbackWhitelist(pspCode);
         Object cached = redisUtils.get(cacheKey);
         if (cached instanceof String cachedText && StringUtils.isNotBlank(cachedText)) {
             return JSON.parseArray(cachedText, String.class);
@@ -132,7 +132,7 @@ public class PspCallbackIpWhitelistServiceImpl extends CrudServiceImpl<PspCallba
     }
 
     private void evictCache() {
-        deleteKeys(redisUtils.keys(PaymentRedisKeys.getPspCallbackIpWhitelistPattern()));
+        deleteKeys(redisUtils.keys(PspCacheKeys.callbackWhitelistPattern()));
     }
 
     private void deleteKeys(Collection<String> keys) {

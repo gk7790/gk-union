@@ -1,8 +1,8 @@
 package com.gk.openapi.log;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.openapi.dto.BalanceQueryRequest;
 import com.gk.openapi.dto.BalanceResponse;
 import com.gk.openapi.dto.PayinOrderCreateRequest;

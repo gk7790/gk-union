@@ -3,8 +3,8 @@ package com.gk.payment.outbox;
 import com.gk.common.task.ITask;
 import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.service.MqOutboxService;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -51,16 +51,16 @@ public class PayinSubmitOutboxTask implements ITask {
     }
 
     private boolean isNonRetryable(Exception ex) {
-        if (!(ex instanceof ApiException apiException)) {
+        if (!(ex instanceof PaymentException apiException)) {
             return false;
         }
-        ApiErrorCode code = apiException.getErrorCode();
-        return code == ApiErrorCode.INVALID_REQUEST
-                || code == ApiErrorCode.UNSUPPORTED_METHOD;
+        PaymentErrorCode code = apiException.getErrorCode();
+        return code == PaymentErrorCode.INVALID_REQUEST
+                || code == PaymentErrorCode.UNSUPPORTED_METHOD;
     }
 
     private String errorCode(Exception ex) {
-        if (ex instanceof ApiException apiException) {
+        if (ex instanceof PaymentException apiException) {
             return apiException.getErrorCode().name();
         }
         return ex.getClass().getSimpleName();

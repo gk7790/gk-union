@@ -1,9 +1,9 @@
 package com.gk.psp.balance.impl;
 
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.psp.support.PspCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.psp.config.PspConfigService;
 import com.gk.psp.adapter.PspBalanceAdapter;
 import com.gk.psp.balance.model.PspBalanceAccount;
 import com.gk.psp.balance.PspBalanceSnap;
@@ -32,7 +32,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
     private final PspAccountDao pspAccountDao;
     private final List<PspBalanceAdapter> adapters;
     private final RedisUtils redisUtils;
-    private final GkSysParamsConfigService configService;
+    private final PspConfigService configService;
 
     @Override
     public PspBalanceSnap getCached(Long tenantId, Long pspAccountId) {
@@ -40,7 +40,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
             return null;
         }
         try {
-            return redisUtils.get(PaymentRedisKeys.getPaymentPspBalanceKey(tenantId, pspAccountId),
+            return redisUtils.get(PspCacheKeys.balance(tenantId, pspAccountId),
                     PspBalanceSnap.class);
         } catch (Exception ex) {
             log.warn("Get PSP account balance cache failed, pspAccountId={}, err={}", pspAccountId, ex.getMessage());
@@ -187,7 +187,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
         }
         try {
             // Redis TTL 与 snap.expireAt 对齐，后台展示过期时间和缓存失效时间保持一致。
-            redisUtils.set(PaymentRedisKeys.getPaymentPspBalanceKey(snap.getTenantId(), snap.getPspAccountId()),
+            redisUtils.set(PspCacheKeys.balance(snap.getTenantId(), snap.getPspAccountId()),
                     snap, cacheTtlSeconds(snap));
         } catch (Exception ex) {
             log.warn("Set PSP account balance cache failed, pspAccountId={}, err={}",
@@ -206,7 +206,7 @@ public class PspBalanceServiceImpl implements PspBalanceService {
     }
 
     private long cacheSeconds() {
-        return configService.pspBalanceConfig().getCacheSeconds();
+        return configService.balance().getCacheSeconds();
     }
 
     private boolean isExpired(PspBalanceSnap snap) {

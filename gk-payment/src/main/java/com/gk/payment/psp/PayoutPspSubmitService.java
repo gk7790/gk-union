@@ -3,13 +3,13 @@ package com.gk.payment.psp;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.ledger.exception.InsufficientLedgerBalanceException;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PayoutPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayoutOrderEntity;
 import com.gk.payment.enums.MerchantOrderStatusEnum;
@@ -62,7 +62,7 @@ public class PayoutPspSubmitService {
     private final PspPayoutDispatchService pspPayoutDispatchService;
     private final PayoutPlanService payoutPlanService;
     private final PayoutRouteAttemptService payoutRouteAttemptService;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
     private final TransactionTemplate transactionTemplate;
     private final PayoutOrderStateService payoutOrderStateService;
 
@@ -86,10 +86,10 @@ public class PayoutPspSubmitService {
      */
     public PayoutOrderEntity submit(PayoutOrderEntity order, PspRouteResult route, SubmitContext context) {
         if (order == null || order.getId() == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payout order is required");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payout order is required");
         }
         if (route == null) {
-            markSubmitUnknown(order.getId(), new ApiException(ApiErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
+            markSubmitUnknown(order.getId(), new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
             return payoutOrderDao.selectById(order.getId());
         }
 
@@ -135,7 +135,7 @@ public class PayoutPspSubmitService {
                     return payoutOrderDao.selectById(order.getId());
                 }
             }
-        } catch (ApiException ex) {
+        } catch (PaymentException ex) {
             markSubmitUnknown(order.getId(), currentRoute, ex, context);
         } catch (Exception ex) {
             log.warn("Payout PSP submit result unknown, payoutOrderNo={}, err={}",
@@ -230,7 +230,7 @@ public class PayoutPspSubmitService {
             }
             payoutRouteAttemptService.recordAttempt(order, route, unknownResult(ex));
             applySubmitUnknown(order,
-                    ex instanceof ApiException apiException ? apiException.getErrorCode().name() : ex.getClass().getSimpleName(),
+                    ex instanceof PaymentException apiException ? apiException.getErrorCode().name() : ex.getClass().getSimpleName(),
                     ex.getMessage(),
                     context);
         });
@@ -243,7 +243,7 @@ public class PayoutPspSubmitService {
      */
     private PayoutOrderEntity freezeIfNeeded(PayoutOrderEntity order, SubmitContext context) {
         if (order == null || order.getId() == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payout order is required");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payout order is required");
         }
         SubmitContext safeContext = context == null ? SubmitContext.system(order.getAppId(), null) : context;
         return transactionTemplate.execute(status -> {
@@ -256,16 +256,16 @@ public class PayoutPspSubmitService {
                 payoutOrderStateService.markFrozen(current, result, stateContext("PAYOUT_FROZEN", null, safeContext));
                 return current;
             } catch (InsufficientLedgerBalanceException ex) {
-                markFreezeFailed(current, ApiErrorCode.INSUFFICIENT_BALANCE.getMessage(),
-                        ApiErrorCode.INSUFFICIENT_BALANCE.name(), safeContext);
+                markFreezeFailed(current, PaymentErrorCode.INSUFFICIENT_BALANCE.getMessage(),
+                        PaymentErrorCode.INSUFFICIENT_BALANCE.name(), safeContext);
                 if (safeContext.throwOnFreezeFailure()) {
-                    throw new ApiException(ApiErrorCode.INSUFFICIENT_BALANCE, ex);
+                    throw new PaymentException(PaymentErrorCode.INSUFFICIENT_BALANCE, ex);
                 }
                 return current;
-            } catch (ApiException ex) {
+            } catch (PaymentException ex) {
                 throw ex;
             } catch (Exception ex) {
-                throw new ApiException(ApiErrorCode.SYSTEM_ERROR, ex);
+                throw new PaymentException(PaymentErrorCode.SYSTEM_ERROR, ex);
             }
         });
     }
@@ -315,7 +315,7 @@ public class PayoutPspSubmitService {
                 .eq("id", orderId)
                 .last("limit 1 for update"));
         if (order == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Payout order not found");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payout order not found");
         }
         return order;
     }
@@ -365,8 +365,8 @@ public class PayoutPspSubmitService {
                                        Set<Long> disabledRouteOptionIds) {
         try {
             return payoutPlanService.resolve(order, disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
-        } catch (ApiException ex) {
-            if (ApiErrorCode.UNSUPPORTED_METHOD.equals(ex.getErrorCode())) {
+        } catch (PaymentException ex) {
+            if (PaymentErrorCode.UNSUPPORTED_METHOD.equals(ex.getErrorCode())) {
                 return null;
             }
             throw ex;
@@ -500,7 +500,7 @@ public class PayoutPspSubmitService {
         PspPayoutDispatchResult result = new PspPayoutDispatchResult();
         result.setSuccess(false);
         result.setSubmitResultStatus(PspPayoutSubmitStatus.UNKNOWN);
-        result.setErrorCode(ex instanceof ApiException apiException
+        result.setErrorCode(ex instanceof PaymentException apiException
                 ? apiException.getErrorCode().name()
                 : ex.getClass().getSimpleName());
         result.setErrorMessage(ex.getMessage());
@@ -531,7 +531,7 @@ public class PayoutPspSubmitService {
      * PSP 受理或 UNKNOWN 后首次查单延迟。
      */
     private long firstQueryDelaySeconds() {
-        long seconds = configService.payoutSubmitConfig().getFirstQueryDelaySeconds();
+        long seconds = configService.payoutSubmit().getFirstQueryDelaySeconds();
         return seconds <= 0 ? 60L : seconds;
     }
 
@@ -539,7 +539,7 @@ public class PayoutPspSubmitService {
      * 可换路由场景下最多尝试的提交次数，增加上限保护避免配置错误造成长循环。
      */
     private int maxRouteAttempts() {
-        int attempts = configService.payoutSubmitConfig().getMaxRouteAttempts();
+        int attempts = configService.payoutSubmit().getMaxRouteAttempts();
         if (attempts <= 0) {
             attempts = DEFAULT_MAX_ROUTE_ATTEMPTS;
         }

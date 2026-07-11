@@ -3,9 +3,9 @@ package com.gk.payment.reconcile;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.constant.Constant;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.infra.config.model.PspQueryConfig;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.config.PspQueryConfig;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;
@@ -42,7 +42,7 @@ public class PspOrderQueryExecutor {
     private final PspPayoutQueryService payoutQueryService;
     private final PspOrderResultHandler resultHandler;
     private final PspCallbackOrderResolver orderResolver;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
 
     public int drainPayinOrders() {
         int total = 0;
@@ -167,7 +167,7 @@ public class PspOrderQueryExecutor {
     }
 
     private Instant nextQueryAt(int attemptNo) {
-        List<Long> backoffSeconds = configService.pspQueryConfig().getBackoffSeconds();
+        List<Long> backoffSeconds = configService.pspQuery().getBackoffSeconds();
         if (backoffSeconds == null || backoffSeconds.isEmpty()) {
             backoffSeconds = BACKOFF_SECONDS;
         }
@@ -179,7 +179,7 @@ public class PspOrderQueryExecutor {
     }
 
     private int maxQueryCount() {
-        PspQueryConfig config = configService.pspQueryConfig();
+        PspQueryConfig config = configService.pspQuery();
         int maxQueryCount = config.getMaxQueryCount();
         return maxQueryCount <= 0 ? MAX_QUERY_COUNT : maxQueryCount;
     }

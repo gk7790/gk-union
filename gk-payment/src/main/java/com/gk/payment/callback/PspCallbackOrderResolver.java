@@ -2,7 +2,7 @@ package com.gk.payment.callback;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.gk.common.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.PayinOrderEntity;

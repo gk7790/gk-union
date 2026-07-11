@@ -5,9 +5,9 @@ import com.gk.merchant.dao.MerchantAppDao;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
-import com.gk.openapi.error.ApiExceptionMapper;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
+import com.gk.payment.domain.error.PaymentExceptions;
 import com.gk.payment.dto.PayinConfigPrecheckRequest;
 import com.gk.payment.dto.PayinConfigPrecheckResult;
 import com.gk.payment.entity.PayinOrderEntity;
@@ -34,10 +34,10 @@ public class PayinPlanServiceImpl implements PayinPlanService {
     public PayinPlan resolve(PayinOrderEntity order) {
         try {
             PaymentPlan paymentPlan = paymentPlanResolver.resolvePayin(order)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
+                    .orElseThrow(() -> new PaymentException(PaymentErrorCode.UNSUPPORTED_METHOD, "ACTIVE payment plan is not published"));
             return toPayinPlan(paymentPlan);
         } catch (IllegalArgumentException ex) {
-            throw ApiExceptionMapper.toApiException(ex);
+            throw PaymentExceptions.normalize(ex);
         }
     }
 
@@ -63,7 +63,7 @@ public class PayinPlanServiceImpl implements PayinPlanService {
             if (paymentPlanResolver.resolvePayin(order).isEmpty()) {
                 result.addError("PAYMENT_PLAN_NOT_PUBLISHED", "ACTIVE payment plan is not published");
             }
-        } catch (ApiException ex) {
+        } catch (PaymentException ex) {
             result.addError(toConfigErrorCode(ex), ex.getMessage());
         } catch (Exception ex) {
             result.addError("PAYIN_PLAN_INVALID", ex.getMessage());
@@ -139,11 +139,11 @@ public class PayinPlanServiceImpl implements PayinPlanService {
         return order;
     }
 
-    private String toConfigErrorCode(ApiException ex) {
+    private String toConfigErrorCode(PaymentException ex) {
         if (StringUtils.isNotBlank(ex.getDetailCode())) {
             return ex.getDetailCode();
         }
-        ApiErrorCode errorCode = ex.getErrorCode();
+        PaymentErrorCode errorCode = ex.getErrorCode();
         return errorCode == null ? "PAYIN_PLAN_INVALID" : errorCode.name();
     }
 

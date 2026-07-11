@@ -1,6 +1,6 @@
 package com.gk.psp.adapter.demo;
 
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.psp.adapter.PspPayoutAdapter;
 import com.gk.psp.callback.support.PspCallbackStatus;
 import com.gk.psp.dispatch.PspPayoutDispatchResult;

@@ -1,6 +1,6 @@
 package com.gk.payment.plan.model;
 
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.payment.support.PaymentCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import org.apache.commons.lang3.StringUtils;
 
@@ -37,7 +37,7 @@ public record PaymentPlanKey(
     }
 
     public String redisKey() {
-        return PaymentRedisKeys.getPaymentPlanActiveKey(tenantId, merchantId, merchantAppId, direction, countryCode, currency, methodCode);
+        return PaymentCacheKeys.activePlan(tenantId, merchantId, merchantAppId, direction, countryCode, currency, methodCode);
     }
 
     public String localKey() {

@@ -3,11 +3,11 @@ package com.gk.openapi.service.impl;
 import com.alibaba.fastjson2.JSONWriter;
 import com.alibaba.fastjson2.JSON;
 import com.gk.common.constant.Constant;
-import com.gk.common.enums.OrderSourceEnum;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.OrderSourceEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
-import com.gk.common.utils.BizKeyUtils;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.domain.key.BizKeyUtils;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.infra.utils.AsynUtils;
 import com.gk.ledger.dao.LedgerBalanceDao;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
@@ -66,7 +66,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
     private final PayoutPspSubmitService payoutPspSubmitService;
     private final LedgerBalanceDao ledgerBalanceDao;
     private final TransactionTemplate transactionTemplate;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
     private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
     /**
@@ -163,7 +163,7 @@ public class OpenPayoutOrderServiceImpl implements OpenPayoutOrderService {
             timer.mark("balance_precheck");
         }
 
-        boolean asyncSubmitEnabled = configService.payoutSubmitConfig().isAsyncSubmit();
+        boolean asyncSubmitEnabled = configService.payoutSubmit().isAsyncSubmit();
 
         boolean created = asyncSubmitEnabled && !isTestApp(context.getMerchantApp())
                 ? insertOrderAndOutbox(entity)

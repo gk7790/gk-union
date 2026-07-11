@@ -2,10 +2,10 @@ package com.gk.psp.controller;
 
 import com.gk.common.model.DynMap;
 import com.gk.common.model.R;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.psp.support.PspCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.psp.config.PspConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +31,7 @@ public class DeeplinkTestController {
     private static final int MAX_GENERATE_ATTEMPTS = 5;
 
     private final RedisUtils redisUtils;
-    private final GkSysParamsConfigService configService;
+    private final PspConfigService configService;
     private final SecureRandom random = new SecureRandom();
 
     @PostMapping("token")
@@ -57,7 +57,7 @@ public class DeeplinkTestController {
         putIfBlank(data, "deeplinkLabel", "Deeplink");
         putIfBlank(data, "deeplinkPlaceholder", "例如：gcash://... 或 maya://...");
 
-        redisUtils.set(PaymentRedisKeys.getDeeplinkTestTokenKey(token), data, EXPIRE_SECONDS);
+        redisUtils.set(PspCacheKeys.deeplinkTest(token), data, EXPIRE_SECONDS);
         return R.ok(data);
     }
 
@@ -72,7 +72,7 @@ public class DeeplinkTestController {
             byte[] bytes = new byte[TOKEN_BYTES];
             random.nextBytes(bytes);
             String token = TOKEN_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-            if (!redisUtils.isKeyExist(PaymentRedisKeys.getDeeplinkTestTokenKey(token))) {
+            if (!redisUtils.isKeyExist(PspCacheKeys.deeplinkTest(token))) {
                 return token;
             }
         }
@@ -83,7 +83,7 @@ public class DeeplinkTestController {
         if (StringUtils.isNotBlank(baseUrl)) {
             return removeTrailingSlash(baseUrl.trim());
         }
-        String apiBaseUrl = configService.domainConfig().getApiBaseUrl();
+        String apiBaseUrl = configService.domains().getApiBaseUrl();
         if (StringUtils.isNotBlank(apiBaseUrl)) {
             return removeTrailingSlash(apiBaseUrl.trim());
         }

@@ -1,12 +1,12 @@
 package com.gk.openapi.security;
 
-import com.gk.common.enums.SignTypeEnum;
-import com.gk.common.openapi.OpenApiAuthCacheEvictor;
-import com.gk.common.redis.PaymentRedisKeys;
+import com.gk.payment.domain.enums.SignTypeEnum;
+import com.gk.merchant.cache.OpenApiAuthCacheEvictor;
+import com.gk.merchant.cache.OpenApiCacheKeys;
 import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
 import com.gk.common.utils.IpPatternUtils;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.openapi.config.OpenApiConfigService;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.entity.MerchantAppEntity;
 import com.gk.merchant.entity.MerchantEntity;
@@ -33,7 +33,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
 
     private final OpenApiAuthDao openApiAuthDao;
     private final RedisUtils redisUtils;
-    private final GkSysParamsConfigService configService;
+    private final OpenApiConfigService configService;
 
     public ApiReqContext authenticate(String appId,
                                       String clientIp,
@@ -51,7 +51,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
         if (!StatusEnum.NORMAL.code().equals(snapshot.getAppStatus())) {
             throw new ApiException(ApiErrorCode.APP_DISABLED);
         }
-        String defaultSignType = StringUtils.defaultIfBlank(configService.openApiConfig().getDefaultSignType(), SignTypeEnum.HMAC_SHA256.code());
+        String defaultSignType = StringUtils.defaultIfBlank(configService.get().getDefaultSignType(), SignTypeEnum.HMAC_SHA256.code());
         String appSignType = StringUtils.defaultIfBlank(snapshot.getSignType(), defaultSignType);
         if (!supportedSignType(signType) || !signType.equalsIgnoreCase(appSignType)) {
             throw new ApiException(ApiErrorCode.UNSUPPORTED_SIGN_TYPE);
@@ -70,7 +70,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
         }
 
         validateTimestamp(timestamp);
-        if (configService.openApiConfig().isRequireNonce() && StringUtils.isBlank(nonce)) {
+        if (configService.get().isRequireNonce() && StringUtils.isBlank(nonce)) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "request parameters 'nonce' is empty");
         }
         validateNonce(appId, nonce, snapshot.getNonceTtlSeconds());
@@ -86,7 +86,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return null;
         }
 
-        String cacheKey = PaymentRedisKeys.getOpenApiAuthKey(normalizedAppId);
+        String cacheKey = OpenApiCacheKeys.auth(normalizedAppId);
         Snapshot cached = getCached(cacheKey);
         if (cached != null) {
             return cached;
@@ -106,8 +106,8 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return;
         }
         try {
-            redisUtils.delete(PaymentRedisKeys.getOpenApiAuthKey(normalizedAppId));
-            redisUtils.delete(PaymentRedisKeys.getOpenApiMerchantAppKey(normalizedAppId));
+            redisUtils.delete(OpenApiCacheKeys.auth(normalizedAppId));
+            redisUtils.delete(OpenApiCacheKeys.merchantApp(normalizedAppId));
         } catch (Exception ex) {
             log.warn("Evict OpenAPI auth cache failed, appId={}, err={}", normalizedAppId, ex.getMessage());
         }
@@ -170,7 +170,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
             return;
         }
         int ttl = nonceTtlSeconds == null || nonceTtlSeconds <= 0 ? 300 : nonceTtlSeconds;
-        String nonceKey = PaymentRedisKeys.getApiNonceKey(appId, nonce);
+        String nonceKey = OpenApiCacheKeys.nonce(appId, nonce);
         if (!redisUtils.tryLockStrict(nonceKey, ttl)) {
             throw new ApiException(ApiErrorCode.REPLAY_REQUEST);
         }
@@ -178,7 +178,7 @@ public class OpenApiAuthCacheService implements OpenApiAuthCacheEvictor {
 
     private void validateRateLimit(String appId, Integer rateLimitQps) {
         int qps = rateLimitQps == null || rateLimitQps <= 0 ? 50 : rateLimitQps;
-        String limitQpsKey = PaymentRedisKeys.getApiLimitQpsKey(appId, Instant.now().getEpochSecond());
+        String limitQpsKey = OpenApiCacheKeys.rate(appId, Instant.now().getEpochSecond());
         if (redisUtils.getIncrement(limitQpsKey, 2) > qps) {
             throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Rate limit exceeded");
         }

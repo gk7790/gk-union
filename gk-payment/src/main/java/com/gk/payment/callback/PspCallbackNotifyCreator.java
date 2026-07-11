@@ -1,12 +1,12 @@
 package com.gk.payment.callback;
 
 import com.alibaba.fastjson2.JSON;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.enums.PayDirectionEnum;
-import com.gk.common.enums.SignTypeEnum;
-import com.gk.common.utils.BizKeyUtils;
-import com.gk.infra.config.model.MerchantNotifyConfig;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.SignTypeEnum;
+import com.gk.payment.domain.key.BizKeyUtils;
+import com.gk.payment.config.MerchantNotifyConfig;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.merchantview.MerchantOrderView;
@@ -34,7 +34,7 @@ import java.time.Instant;
 public class PspCallbackNotifyCreator {
     private final MerchantNotifyTaskDao merchantNotifyTaskDao;
     private final MerchantOrderNotifyStatusService merchantOrderNotifyStatusService;
-    private final GkSysParamsConfigService configService;
+    private final PaymentConfigService configService;
     private final MerchantOrderViewAssembler merchantOrderViewAssembler;
 
     public void create(String bizType, PspCallbackResult result, PspCallbackOrder order, PspCallbackLogEntity logEntity) {
@@ -61,7 +61,7 @@ public class PspCallbackNotifyCreator {
         task.setSignType(SignTypeEnum.HMAC_SHA256.code());
         task.setPayloadHash(PspCallbackUtils.sha256Hex(payloadJson));
         task.setPayloadJson(payloadJson);
-        MerchantNotifyConfig config = configService.merchantNotifyConfig();
+        MerchantNotifyConfig config = configService.merchantNotify();
         task.setTimeoutMs(config.getReadTimeoutMs());
         task.setStatus("INIT");
         task.setRetryCount(0);

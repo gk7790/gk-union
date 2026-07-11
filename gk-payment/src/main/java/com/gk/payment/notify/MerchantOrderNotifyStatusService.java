@@ -5,7 +5,7 @@ import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.entity.MerchantNotifyTaskEntity;
 import com.gk.payment.entity.PayinOrderEntity;
 import com.gk.payment.entity.PayoutOrderEntity;
-import com.gk.common.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
 import com.gk.payment.enums.MerchantNotifyStatusEnum;
 import com.gk.payment.enums.MerchantNotifyTaskStatusEnum;
 import lombok.RequiredArgsConstructor;

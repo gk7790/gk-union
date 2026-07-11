@@ -11,12 +11,12 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.validator.AssertUtils;
-import com.gk.common.openapi.OpenApiAuthCacheEvictor;
-import com.gk.infra.config.model.MerchantDefaultConfig;
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.merchant.cache.OpenApiAuthCacheEvictor;
+import com.gk.merchant.config.MerchantDefaultConfig;
+import com.gk.merchant.config.MerchantConfigService;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.merchant.enums.MerchantAppEnvEnum;
 import com.gk.merchant.enums.MerchantRiskStatusEnum;
@@ -50,7 +50,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
 
     private final MerchantAppService merchantAppService;
     private final ObjectProvider<MerchantLedgerAccountProvisioner> ledgerAccountProvisioner;
-    private final GkSysParamsConfigService configService;
+    private final MerchantConfigService configService;
     private final ObjectProvider<OpenApiAuthCacheEvictor> openApiAuthCacheEvictorProvider;
 
     @Override
@@ -187,7 +187,7 @@ public class MerchantServiceImpl extends CrudServiceImpl<MerchantDao, MerchantEn
     }
 
     private void applyCreateDefaults(MerchantEntity entity) {
-        MerchantDefaultConfig defaults = configService.merchantDefaultConfig();
+        MerchantDefaultConfig defaults = configService.defaults();
         if (entity.getStatus() == null) {
             entity.setStatus(DEFAULT_STATUS);
         }

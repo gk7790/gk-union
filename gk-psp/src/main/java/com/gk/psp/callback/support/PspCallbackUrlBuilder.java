@@ -1,6 +1,6 @@
 package com.gk.psp.callback.support;
 
-import com.gk.infra.config.service.GkSysParamsConfigService;
+import com.gk.psp.config.PspConfigService;
 import com.gk.psp.config.PspCallbackProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -12,7 +12,7 @@ public class PspCallbackUrlBuilder {
     private static final String CALLBACK_ROOT = "/psp/callback";
 
     private final PspCallbackProperties properties;
-    private final GkSysParamsConfigService configService;
+    private final PspConfigService configService;
 
     public String payinCallbackUrl(String pspAccountNo) {
         return callbackUrl(pspAccountNo, "payin");
@@ -26,7 +26,7 @@ public class PspCallbackUrlBuilder {
         if (StringUtils.isBlank(pspAccountNo)) {
             throw new IllegalArgumentException("pspAccountNo is required");
         }
-        String baseUrl = StringUtils.trimToNull(configService.pspCallbackConfig().getBaseUrl());
+        String baseUrl = StringUtils.trimToNull(configService.callback().getBaseUrl());
         if (baseUrl == null) {
             baseUrl = StringUtils.trimToNull(properties.getBaseUrl());
         }

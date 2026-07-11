@@ -2,8 +2,8 @@ package com.gk.payment.sandbox;
 
 import com.gk.common.constant.Constant;
 import com.gk.common.context.ReqContextHolder;
-import com.gk.common.enums.BizTypeEnum;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.BizTypeEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;

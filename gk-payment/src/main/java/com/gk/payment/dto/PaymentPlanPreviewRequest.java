@@ -1,14 +1,14 @@
 package com.gk.payment.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.gk.openapi.dto.OpenApiModel;
+import com.gk.payment.dto.PaymentJsonModel;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-@OpenApiModel
+@PaymentJsonModel
 public class PaymentPlanPreviewRequest {
     @JsonAlias("tenantId")
     private Long tenantId;
@@ -34,7 +34,7 @@ public class PaymentPlanPreviewRequest {
     private List<TestCase> testCases;
 
     @Data
-    @OpenApiModel
+    @PaymentJsonModel
     public static class TestCase {
         @JsonAlias("merchantOrderId")
         private String merchantOrderId;
@@ -45,7 +45,7 @@ public class PaymentPlanPreviewRequest {
     }
 
     @Data
-    @OpenApiModel
+    @PaymentJsonModel
     public static class Payee {
         private String name;
         @JsonAlias("accountNo")

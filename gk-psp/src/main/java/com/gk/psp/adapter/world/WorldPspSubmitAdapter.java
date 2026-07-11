@@ -4,7 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.alibaba.fastjson2.JSONWriter;
-import com.gk.common.utils.BizKeyUtils;
+import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.psp.adapter.PspBalanceAdapter;
 import com.gk.psp.adapter.PspPayAdapter;
 import com.gk.psp.adapter.PspPayoutAdapter;

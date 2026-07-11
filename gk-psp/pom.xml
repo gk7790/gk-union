@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-payment-common</artifactId>
+            <artifactId>gk-payment-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -25,7 +25,7 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>gk-payment-meta</artifactId>
+            <artifactId>gk-reference-data</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

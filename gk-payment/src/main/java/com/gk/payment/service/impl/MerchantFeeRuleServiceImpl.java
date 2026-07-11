@@ -12,16 +12,16 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
-import com.gk.common.enums.PayDirectionEnum;
+import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
 import com.gk.infra.enums.StatusEnum;
-import com.gk.openapi.error.ApiErrorCode;
-import com.gk.openapi.error.ApiException;
+import com.gk.payment.domain.error.PaymentErrorCode;
+import com.gk.payment.domain.error.PaymentException;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
-import com.gk.common.amount.AmountRangeUtils;
-import com.gk.common.amount.FeeLimitUtils;
+import com.gk.payment.domain.amount.AmountRangeUtils;
+import com.gk.payment.domain.amount.FeeLimitUtils;
 import com.gk.payment.dao.MerchantFeeRuleDao;
 import com.gk.payment.dao.PaymentMethodDao;
 import com.gk.payment.dto.MerchantFeeRuleDTO;
@@ -509,7 +509,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
         try {
             amount = MerchantFeeCalculator.calculate(orderAmount, rule);
         } catch (IllegalArgumentException ex) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, ex.getMessage());
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, ex.getMessage());
         }
 
         MerchantFeeResult result = new MerchantFeeResult();
@@ -547,7 +547,7 @@ public class MerchantFeeRuleServiceImpl extends CrudServiceImpl<MerchantFeeRuleD
                 StatusEnum.NORMAL.code()
         );
         if (rule == null) {
-            throw new ApiException(ApiErrorCode.INVALID_REQUEST, "Merchant fee rule is not configured");
+            throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Merchant fee rule is not configured");
         }
         return rule;
     }

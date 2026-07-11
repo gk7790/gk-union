@@ -2,7 +2,7 @@ package com.gk.infra.process;
 
 import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.DateUtils;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.notify.NotifyService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.DisposableBean;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class AppStopProcess implements DisposableBean {
     private final Environment environment;
-    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
+    private final ObjectProvider<NotifyService> notifyServiceProvider;
 
     @Value("${spring.application.name}")
     private String serverName;
@@ -29,9 +29,9 @@ public class AppStopProcess implements DisposableBean {
     @Value("${gk.lifecycle-alert.enabled:true}")
     private boolean lifecycleAlertEnabled;
 
-    public AppStopProcess(Environment environment, ObjectProvider<TgAlertService> tgAlertServiceProvider) {
+    public AppStopProcess(Environment environment, ObjectProvider<NotifyService> notifyServiceProvider) {
         this.environment = environment;
-        this.tgAlertServiceProvider = tgAlertServiceProvider;
+        this.notifyServiceProvider = notifyServiceProvider;
     }
 
     @Override
@@ -56,9 +56,9 @@ public class AppStopProcess implements DisposableBean {
         if (!lifecycleAlertEnabled) {
             return;
         }
-        TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
-        if (tgAlertService == null) {
-            log.debug("TgAlertService is not available, skip lifecycle alert: Service stopped");
+        NotifyService notifyService = notifyServiceProvider.getIfAvailable();
+        if (notifyService == null) {
+            log.debug("NotifyService is not available, skip lifecycle alert: Service stopped");
             return;
         }
         String content = StringFormat.format("""
@@ -70,6 +70,6 @@ public class AppStopProcess implements DisposableBean {
                 Time: {}
                 """, serverName, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
                 activeProfile, DateUtils.now("GMT+08:00"));
-        tgAlertService.sysWarnSync(content, "");
+        notifyService.sysWarnSync(content, "");
     }
 }

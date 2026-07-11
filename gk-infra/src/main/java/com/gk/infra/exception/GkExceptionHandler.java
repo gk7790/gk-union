@@ -11,7 +11,7 @@ import com.gk.common.model.R;
 import com.gk.common.tools.StringFormat;
 import com.gk.infra.log.entity.LogErrorEntity;
 import com.gk.infra.log.service.LogErrorService;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.notify.NotifyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RequiredArgsConstructor
 public class GkExceptionHandler extends GkExceptionCoreHandler {
     private final LogErrorService logErrorService;
-    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
+    private final ObjectProvider<NotifyService> notifyServiceProvider;
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public R<?> handleException() {
@@ -84,8 +84,8 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
         if (isBrokenPipe(ex)) {
             return;
         }
-        TgAlertService tgBotService = tgAlertServiceProvider.getIfAvailable();
-        if (tgBotService == null) {
+        NotifyService notifyService = notifyServiceProvider.getIfAvailable();
+        if (notifyService == null) {
             return;
         }
 
@@ -98,14 +98,14 @@ public class GkExceptionHandler extends GkExceptionCoreHandler {
                     """,
                     buildAlertContent(context, ex)
             );
-            tgBotService.sysError(context.getTenantId(), context.getMerchantId(), text, context.getTraceId());
+            notifyService.sysError(context.getTenantId(), context.getMerchantId(), text, context.getTraceId());
         } catch (Exception alertEx) {
             log.warn("send Telegram system error alert failed: {}", alertEx.getMessage());
         }
     }
 
     /**
-     * 告警正文保留请求入口和异常摘要，租户/商户展示由 TgAlertService 根据接收群层级处理。
+     * 告警正文保留请求入口和异常摘要，租户/商户展示由 NotifyService 根据接收群层级处理。
      */
     private String buildAlertContent(ReqContext context, Exception ex) {
         StringBuilder content = new StringBuilder();

@@ -1,10 +1,8 @@
-package com.gk.infra.telegram;
+package com.gk.telegram.bind;
 
 import lombok.Data;
 
-/**
- * Telegram 一次性绑定票据。
- */
+/** One-time Telegram binding ticket. */
 @Data
 public class TgBindTicket {
     private String code;

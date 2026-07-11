@@ -11,7 +11,7 @@ import com.gk.auth.service.LoginMfaService;
 import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.IpUtils;
 import com.gk.infra.ipwhitelist.service.SysLoginIpWhitelistService;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.notify.NotifyService;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,18 +47,18 @@ import java.util.List;
 public class SecurityConfig {
     private final JpaUserDetailsService userDetailsService;
     private final SysLoginIpWhitelistService sysLoginIpWhitelistService;
-    private final TgAlertService tgAlertService;
+    private final NotifyService notifyService;
     private final LoginMfaService loginMfaService;
     private final PublicEndpoints publicEndpoints;
 
     public SecurityConfig(JpaUserDetailsService userDetailsService,
                           SysLoginIpWhitelistService sysLoginIpWhitelistService,
-                          TgAlertService tgAlertService,
+                          NotifyService notifyService,
                           LoginMfaService loginMfaService,
                           PublicEndpoints publicEndpoints) {
         this.userDetailsService = userDetailsService;
         this.sysLoginIpWhitelistService = sysLoginIpWhitelistService;
-        this.tgAlertService = tgAlertService;
+        this.notifyService = notifyService;
         this.loginMfaService = loginMfaService;
         this.publicEndpoints = publicEndpoints;
     }
@@ -215,7 +215,7 @@ public class SecurityConfig {
                     IpUtils.getClientIp(request),
                     getError(exception)
             );
-            tgAlertService.sysWarn(content, "");
+            notifyService.sysWarn(content, "");
         };
     }
 

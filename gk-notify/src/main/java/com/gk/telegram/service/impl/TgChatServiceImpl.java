@@ -15,7 +15,7 @@ import com.gk.common.model.PageData;
 import com.gk.telegram.support.NotifyKeyUtils;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.iam.entity.SysUserSubjectEntity;
-import com.gk.infra.telegram.TgAlertEventType;
+import com.gk.telegram.alert.TgNotifyEventCodes;
 import com.gk.telegram.alert.TgMessageTaskExecutor;
 import com.gk.telegram.dao.TgBotDao;
 import com.gk.telegram.dao.TgChatDao;
@@ -353,7 +353,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         task.setTaskNo(NotifyKeyUtils.messageTaskNo());
         task.setBizType(TgConstants.MessageBizType.BUSINESS_NOTIFY);
         task.setBizNo(bizNo);
-        task.setEventType(TgAlertEventType.MERCHANT_NOTICE.code());
+        task.setEventType(TgNotifyEventCodes.MERCHANT_NOTICE);
         task.setSourceEventId(tracePrefix + "-" + target.getId() + "-" + now.toEpochMilli());
         task.setParseMode(TgConstants.ParseMode.HTML);
         task.setContent(text);
@@ -412,9 +412,9 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
      */
     private String defaultEventTypes(SysUserSubjectEntity subject) {
         if (subject != null && SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
-            return TgAlertEventType.merchantDefaultEventTypes();
+            return TgNotifyEventCodes.merchantDefaults();
         }
-        return TgAlertEventType.opsDefaultEventTypes();
+        return TgNotifyEventCodes.opsDefaults();
     }
 
     private Long defaultId(Long id) {

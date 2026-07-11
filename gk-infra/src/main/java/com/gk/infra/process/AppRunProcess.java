@@ -2,7 +2,7 @@ package com.gk.infra.process;
 
 import com.gk.common.tools.StringFormat;
 import com.gk.common.utils.DateUtils;
-import com.gk.infra.telegram.TgAlertService;
+import com.gk.infra.notify.NotifyService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -21,7 +21,7 @@ import java.util.TimeZone;
 @Component
 public class AppRunProcess implements ApplicationRunner {
     private final Environment environment;
-    private final ObjectProvider<TgAlertService> tgAlertServiceProvider;
+    private final ObjectProvider<NotifyService> notifyServiceProvider;
 
     @Value("${server.servlet.context-path: }")
     private String serverPath;
@@ -35,9 +35,9 @@ public class AppRunProcess implements ApplicationRunner {
     @Value("${gk.lifecycle-alert.enabled:true}")
     private boolean lifecycleAlertEnabled;
 
-    public AppRunProcess(Environment environment, ObjectProvider<TgAlertService> tgAlertServiceProvider) {
+    public AppRunProcess(Environment environment, ObjectProvider<NotifyService> notifyServiceProvider) {
         this.environment = environment;
-        this.tgAlertServiceProvider = tgAlertServiceProvider;
+        this.notifyServiceProvider = notifyServiceProvider;
     }
 
     @Override
@@ -73,9 +73,9 @@ public class AppRunProcess implements ApplicationRunner {
         if (!lifecycleAlertEnabled) {
             return;
         }
-        TgAlertService tgAlertService = tgAlertServiceProvider.getIfAvailable();
-        if (tgAlertService == null) {
-            log.debug("TgAlertService is not available, skip lifecycle alert: Service started");
+        NotifyService notifyService = notifyServiceProvider.getIfAvailable();
+        if (notifyService == null) {
+            log.debug("NotifyService is not available, skip lifecycle alert: Service started");
             return;
         }
         String content = StringFormat.format("""
@@ -89,6 +89,6 @@ public class AppRunProcess implements ApplicationRunner {
                 Time: {}
                 """, serverName, serverName, serverPort, StringUtils.trimToEmpty(serverPath),
                 activeProfile, systemTimeZone, jvmTimeZone, DateUtils.now("GMT+08:00"));
-        tgAlertService.sysWarn(content, "");
+        notifyService.sysWarn(content, "");
     }
 }

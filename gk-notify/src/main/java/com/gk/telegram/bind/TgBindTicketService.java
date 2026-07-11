@@ -1,4 +1,4 @@
-package com.gk.infra.telegram;
+package com.gk.telegram.bind;
 
 public interface TgBindTicketService {
     TgBindTicket generate(TgBindPurpose purpose, String subjectType,

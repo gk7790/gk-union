@@ -24,7 +24,6 @@ spring:
     timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:30s}
 
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
@@ -78,6 +77,8 @@ knife4j:
     enabled: false
 
 gk:
+  datasource:
+    type: ${DB_TYPE:mysql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:

@@ -5,35 +5,51 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.BlockAttackInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.gk.common.database.DatabaseProperties;
+import com.gk.common.database.DatabaseType;
+import org.apache.ibatis.mapping.DatabaseIdProvider;
+import org.apache.ibatis.mapping.VendorDatabaseIdProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-/**
- * mybatis-plus配置
- *
- * @author Lowen
- * @since 1.0.0
- */
+import java.util.Properties;
+
+/** MyBatis-Plus configuration shared by all applications. */
 @Configuration
 @EnableTransactionManagement
+@EnableConfigurationProperties(DatabaseProperties.class)
 public class MybatisPlusConfig {
 
     @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(DatabaseProperties databaseProperties) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        // 分页插件
-        PaginationInnerInterceptor paginationInnerInterceptor = new PaginationInnerInterceptor();
-        paginationInnerInterceptor.setDbType(DbType.MYSQL);
-        paginationInnerInterceptor.setOverflow(true);
-        paginationInnerInterceptor.setMaxLimit(1000L);
-        interceptor.addInnerInterceptor(paginationInnerInterceptor);
-
-        // 乐观锁
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(
+                toMybatisPlusDbType(databaseProperties.getType()));
+        pagination.setOverflow(true);
+        pagination.setMaxLimit(1000L);
+        interceptor.addInnerInterceptor(pagination);
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
-        // 防止全表更新与删除插件
         interceptor.addInnerInterceptor(new BlockAttackInnerInterceptor());
-        // 添加分页插件
         return interceptor;
+    }
+
+    /** Supports databaseId="mysql" and databaseId="postgresql" in mapper XML. */
+    @Bean
+    public DatabaseIdProvider databaseIdProvider() {
+        VendorDatabaseIdProvider provider = new VendorDatabaseIdProvider();
+        Properties properties = new Properties();
+        properties.setProperty("MySQL", "mysql");
+        properties.setProperty("PostgreSQL", "postgresql");
+        provider.setProperties(properties);
+        return provider;
+    }
+
+    private DbType toMybatisPlusDbType(DatabaseType type) {
+        return switch (type) {
+            case MYSQL -> DbType.MYSQL;
+            case POSTGRESQL -> DbType.POSTGRE_SQL;
+        };
     }
 }

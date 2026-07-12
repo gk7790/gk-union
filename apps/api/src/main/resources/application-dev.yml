@@ -6,7 +6,6 @@ spring:
     name: ${APP_NAME:gk-api-dev}
 
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306/gk-union?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true}
     username: ${DB_USERNAME:survey01}
     password: ${DB_PASSWORD:Abc!@#45}
@@ -35,6 +34,8 @@ spring:
           min-idle: ${REDIS_POOL_MIN_IDLE:1}
 
 gk:
+  datasource:
+    type: ${DB_TYPE:mysql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:

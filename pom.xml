@@ -16,25 +16,10 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>gk-common</module>
-        <module>gk-payment-domain</module>
-        <module>gk-infra</module>
-        <module>gk-meta</module>
-        <module>gk-reference-data</module>
-        <module>gk-admin</module>
-        <module>gk-api</module>
-        <module>gk-scheduler</module>
-        <module>gk-auth</module>
-        <module>gk-devtools</module>
-        <module>gk-iam</module>
-        <module>gk-notify</module>
-        <module>gk-merchant</module>
-        <module>gk-psp</module>
-        <module>gk-ledger</module>
-        <module>gk-payment</module>
-        <module>gk-openapi</module>
+        <module>framework</module>
+        <module>business</module>
+        <module>apps</module>
     </modules>
-
     <properties>
         <java.version>21</java.version>
         <hutool.version>5.8.34</hutool.version>

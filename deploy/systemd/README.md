@@ -37,8 +37,8 @@ Edit `/opt/gk-admin/config/gk-admin.env` and `/opt/gk-api/config/gk-api.env` bef
 ## Deploy jars
 
 ```bash
-sudo cp gk-admin/target/gk-admin.jar /opt/gk-admin/app/gk-admin.jar
-sudo cp gk-api/target/gk-api.jar /opt/gk-api/app/gk-api.jar
+sudo cp apps/admin/target/admin.jar /opt/gk-admin/app/gk-admin.jar
+sudo cp apps/api/target/api.jar /opt/gk-api/app/gk-api.jar
 sudo chown gk:gk /opt/gk-admin/app/gk-admin.jar /opt/gk-api/app/gk-api.jar
 ```
 

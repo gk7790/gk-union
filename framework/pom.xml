@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.gk</groupId>
+        <artifactId>gk-union</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>framework</artifactId>
+    <name>framework</name>
+    <description>Foundation framework modules</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>common</module>
+        <module>infra</module>
+        <module>meta</module>
+        <module>auth</module>
+        <module>devtools</module>
+        <module>iam</module>
+        <module>notify</module>
+        <module>scheduler</module>
+    </modules>
+</project>

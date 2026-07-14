@@ -15,7 +15,7 @@ public interface ITask {
      */
     String run(String params);
 
-    default TaskExecutionReporter executionReporter() {
-        return TaskExecutionReports.current();
+    default TaskExecution execution() {
+        return TaskExecutions.current();
     }
 }

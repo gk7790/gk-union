@@ -39,11 +39,15 @@ public class PayoutSubmitOutboxTask implements ITask {
         int success = 0;
         int failed = 0;
         for (MqOutboxEntity event : events) {
+            var record = execution().record("Payout outbox event=" + event.getEventId() + ", bizNo=" + event.getBizNo());
             try {
+                record.step("CONSUME", "Start consuming outbox payload");
                 consumer.consume(event.getPayloadJson());
+                record.step("CONSUME", "Payload consumed");
                 mqOutboxService.markDone(event.getId());
                 success++;
-                executionReporter().success("payout-submit-outbox", event.getEventId(), "bizNo=" + event.getBizNo());
+                record.step("MARK_DONE", "Outbox marked done");
+                record.complete("Payout submission completed");
             } catch (Exception ex) {
                 failed++;
                 log.warn("Payout submit outbox consume failed, eventId={}, bizNo={}, err={}",
@@ -53,8 +57,8 @@ public class PayoutSubmitOutboxTask implements ITask {
                 } else {
                     mqOutboxService.markRetry(event.getId(), errorCode(ex), ex.getMessage());
                 }
-                executionReporter().failure("payout-submit-outbox", event.getEventId(),
-                        "bizNo=" + event.getBizNo() + ", reason=" + ex.getMessage());
+                record.error("CONSUME", "Payout submission failed", ex);
+                record.complete("Outbox marked for retry or dead letter");
             }
         }
         return "payout-submit-outbox handled=" + events.size() + ", success=" + success + ", failed=" + failed;

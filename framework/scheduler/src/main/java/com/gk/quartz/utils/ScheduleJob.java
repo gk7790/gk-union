@@ -3,7 +3,8 @@ package com.gk.quartz.utils;
 import cn.hutool.core.util.ObjectUtil;
 import com.gk.common.constant.Constant;
 import com.gk.common.exception.ExceptionUtils;
-import com.gk.common.task.TaskExecutionReports;
+import com.gk.common.task.TaskExecution;
+import com.gk.common.task.TaskExecutions;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.common.utils.SpringContextUtils;
 import com.gk.quartz.entity.ScheduleJobEntity;
@@ -42,7 +43,7 @@ public class ScheduleJob extends QuartzJobBean {
         long startTime = System.currentTimeMillis();
 
         try {
-            TaskExecutionReports.start();
+            TaskExecution execution = TaskExecutions.start(scheduleJob.getBeanName());
             //执行任务
             logger.debug("任务准备执行，任务ID：{}", scheduleJob.getId());
             Object target = SpringContextUtils.getBean(scheduleJob.getBeanName());
@@ -55,7 +56,7 @@ public class ScheduleJob extends QuartzJobBean {
             //任务状态
             log.setStatus(Constant.SUCCESS);
             // 任务执行的结果,要求字符串
-            log.setResult(TaskExecutionReports.format(ObjectUtil.toString(result)));
+            log.setResult(execution.summary(ObjectUtil.toString(result)));
 
             logger.debug("任务执行完毕，任务ID：{}  总共耗时：{} 毫秒", scheduleJob.getId(), times);
         } catch (Exception e) {
@@ -69,7 +70,7 @@ public class ScheduleJob extends QuartzJobBean {
             log.setStatus(Constant.FAIL);
             log.setError(ExceptionUtils.getErrorStackTrace(e));
         } finally {
-            TaskExecutionReports.clear();
+            TaskExecutions.clear();
             //获取spring bean
             ScheduleJobLogService scheduleJobLogService = SpringContextUtils.getBean(ScheduleJobLogService.class);
             scheduleJobLogService.insert(log);

@@ -5,23 +5,23 @@
 
     <sql id="userSubjectColumns">
         u.id AS id,
-        s.id AS 'subjectId',
-        s.dept_id AS 'deptId',
-        s.tenant_id AS 'tenantId',
-        s.merchant_id AS 'merchantId',
-        (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) AS 'roleId',
-        s.subject_type AS 'subjectType',
-        (select r.auth from sys_role_user ru inner join sys_role r on r.id = ru.role_id where ru.user_subject_id = s.id order by ru.id asc limit 1) AS 'roleAuth',
-        u.username AS 'username',
-        u.`password` AS 'password',
-        u.real_name AS 'realName',
-        u.nickname AS 'nickName',
-        u.email as 'email',
-        u.avatar AS 'avatar',
-        u.`status` AS 'status',
-        u.auth_type AS 'authType',
-        u.auth_secret AS 'authSecret',
-        u.gender AS 'gender'
+        s.id AS subjectId,
+        s.dept_id AS deptId,
+        s.tenant_id AS tenantId,
+        s.merchant_id AS merchantId,
+        (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) AS roleId,
+        s.subject_type AS subjectType,
+        (select r.auth from sys_role_user ru inner join sys_role r on r.id = ru.role_id where ru.user_subject_id = s.id order by ru.id asc limit 1) AS roleAuth,
+        u.username AS username,
+        u.password AS password,
+        u.real_name AS realName,
+        u.nickname AS nickName,
+        u.email as email,
+        u.avatar AS avatar,
+        u.status AS status,
+        u.auth_type AS authType,
+        u.auth_secret AS authSecret,
+        u.gender AS gender
     </sql>
 
     <select id="getUserByUserId" resultType="com.gk.auth.entity.SysUser">
@@ -101,7 +101,13 @@
         where t1.user_subject_id = #{userSubjectId}
     </select>
 
-    <select id="getSubDeptIdList" resultType="long">
+    <select id="getSubDeptIdList" databaseId="mysql" resultType="long">
         select id from sys_dept where FIND_IN_SET(#{id}, pids)
+    </select>
+
+    <select id="getSubDeptIdList" databaseId="postgresql" resultType="long">
+        select id
+        from sys_dept
+        where position(concat(',', #{id}, ',') in concat(',', pids, ',')) > 0
     </select>
 </mapper>

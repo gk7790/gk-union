@@ -20,7 +20,15 @@ public class MerchantNotifyTask implements ITask {
 
     @Override
     public String run(String params) {
-        int handled = executor.drain();
-        return "merchant-notify handled=" + handled;
+        var record = execution().record("Dispatch merchant notifications");
+        try {
+            int handled = executor.drain();
+            record.step("DRAIN", "Notifications handled=" + handled);
+            record.complete("Merchant notification dispatch completed");
+            return "merchant-notify handled=" + handled;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Merchant notification dispatch failed", exception);
+            throw exception;
+        }
     }
 }

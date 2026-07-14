@@ -17,7 +17,15 @@ public class PaySettleReleaseTask implements ITask {
 
     @Override
     public String run(String params) {
-        int released = payinOrderService.drainDueSettlements();
-        return "pay-settle-release released=" + released;
+        var record = execution().record("Release due payin settlements");
+        try {
+            int released = payinOrderService.drainDueSettlements();
+            record.step("DRAIN", "Released settlements=" + released);
+            record.complete("Settlement release scan completed");
+            return "pay-settle-release released=" + released;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Settlement release scan failed", exception);
+            throw exception;
+        }
     }
 }

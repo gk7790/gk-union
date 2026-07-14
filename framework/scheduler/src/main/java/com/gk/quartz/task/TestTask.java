@@ -14,6 +14,9 @@ import org.springframework.stereotype.Component;
 public class TestTask implements ITask {
 	@Override
 	public String run(String params){
+        var record = execution().record("Run test task");
+        record.step("LOG", "Task invoked with params=" + params);
+        record.complete("Test task completed");
         log.debug("TestTask定时任务正在执行，参数为：{}", params);
 		return "";
 	}

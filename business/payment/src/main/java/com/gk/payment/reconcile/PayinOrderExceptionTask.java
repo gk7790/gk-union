@@ -15,7 +15,15 @@ public class PayinOrderExceptionTask implements ITask {
 
     @Override
     public String run(String params) {
-        int marked = payinOrderService.drainLongProcessingOrders();
-        return "payin-order-exception manualReview=" + marked;
+        var record = execution().record("Mark long-processing payin orders for manual review");
+        try {
+            int marked = payinOrderService.drainLongProcessingOrders();
+            record.step("DRAIN", "Orders marked for review=" + marked);
+            record.complete("Payin exception scan completed");
+            return "payin-order-exception manualReview=" + marked;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Payin exception scan failed", exception);
+            throw exception;
+        }
     }
 }

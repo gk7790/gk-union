@@ -11,7 +11,15 @@ public class PspBalanceTask implements ITask {
 
     @Override
     public String run(String params) {
-        int refreshed = balanceService.refreshAll();
-        return "psp-balance refreshed=" + refreshed;
+        var record = execution().record("Refresh PSP balances");
+        try {
+            int refreshed = balanceService.refreshAll();
+            record.step("REFRESH", "Refreshed balances=" + refreshed);
+            record.complete("PSP balance refresh completed");
+            return "psp-balance refreshed=" + refreshed;
+        } catch (RuntimeException exception) {
+            record.error("REFRESH", "PSP balance refresh failed", exception);
+            throw exception;
+        }
     }
 }

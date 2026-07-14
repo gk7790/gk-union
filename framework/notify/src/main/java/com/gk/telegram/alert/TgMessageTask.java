@@ -15,7 +15,15 @@ public class TgMessageTask implements ITask {
 
     @Override
     public String run(String params) {
-        int handled = executor.drain(params);
-        return "tg-message params=" + params + ", handled=" + handled;
+        var record = execution().record("Dispatch Telegram messages");
+        try {
+            int handled = executor.drain(params);
+            record.step("DRAIN", "Messages handled=" + handled + ", params=" + params);
+            record.complete("Telegram message dispatch completed");
+            return "tg-message params=" + params + ", handled=" + handled;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Telegram message dispatch failed", exception);
+            throw exception;
+        }
     }
 }

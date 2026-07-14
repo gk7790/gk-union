@@ -14,7 +14,15 @@ public class LedgerHoldExpireTask implements ITask {
 
     @Override
     public String run(String params) {
-        int expired = ledgerHoldService.drainExpiredHolds();
-        return "ledger-hold-expire expired=" + expired;
+        var record = execution().record("Expire ledger holds");
+        try {
+            int expired = ledgerHoldService.drainExpiredHolds();
+            record.step("DRAIN", "Expired holds=" + expired);
+            record.complete("Ledger hold expiry scan completed");
+            return "ledger-hold-expire expired=" + expired;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Ledger hold expiry scan failed", exception);
+            throw exception;
+        }
     }
 }

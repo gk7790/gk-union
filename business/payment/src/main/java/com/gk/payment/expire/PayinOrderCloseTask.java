@@ -15,7 +15,15 @@ public class PayinOrderCloseTask implements ITask {
 
     @Override
     public String run(String params) {
-        int closed = payinOrderService.drainExpiredPayinOrders();
-        return "payin-order-close closed=" + closed;
+        var record = execution().record("Close expired payin orders");
+        try {
+            int closed = payinOrderService.drainExpiredPayinOrders();
+            record.step("DRAIN", "Closed orders=" + closed);
+            record.complete("Expired order scan completed");
+            return "payin-order-close closed=" + closed;
+        } catch (RuntimeException exception) {
+            record.error("DRAIN", "Expired order scan failed", exception);
+            throw exception;
+        }
     }
 }

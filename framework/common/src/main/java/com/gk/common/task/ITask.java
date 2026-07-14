@@ -14,4 +14,8 @@ public interface ITask {
      * @param params   参数，多参数使用JSON数据
      */
     String run(String params);
+
+    default TaskExecutionReporter executionReporter() {
+        return TaskExecutionReports.current();
+    }
 }

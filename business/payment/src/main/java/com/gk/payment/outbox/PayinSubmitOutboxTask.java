@@ -36,6 +36,7 @@ public class PayinSubmitOutboxTask implements ITask {
                 consumer.consume(event.getPayloadJson());
                 mqOutboxService.markDone(event.getId());
                 success++;
+                executionReporter().success("payin-submit-outbox", event.getEventId(), "bizNo=" + event.getBizNo());
             } catch (Exception ex) {
                 failed++;
                 log.warn("Payin submit outbox consume failed, eventId={}, bizNo={}, err={}",
@@ -45,6 +46,8 @@ public class PayinSubmitOutboxTask implements ITask {
                 } else {
                     mqOutboxService.markRetry(event.getId(), errorCode(ex), ex.getMessage());
                 }
+                executionReporter().failure("payin-submit-outbox", event.getEventId(),
+                        "bizNo=" + event.getBizNo() + ", reason=" + ex.getMessage());
             }
         }
         return "payin-submit-outbox handled=" + events.size() + ", success=" + success + ", failed=" + failed;

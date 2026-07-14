@@ -1,248 +1,212 @@
-﻿/*
- Navicat Premium Dump SQL
+-- gk-union PostgreSQL schema generated from the provided MySQL dump.
+-- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
 
- Source Server         : 涓汉鏁版嵁搴?HK)
- Source Server Type    : MySQL
- Source Server Version : 80036 (8.0.36)
- Source Host           : rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306
- Source Schema         : gk-union
-
- Target Server Type    : MySQL
- Target Server Version : 80036 (8.0.36)
- File Encoding         : 65001
-
- Date: 10/06/2026 12:31:23
-*/
-
-
--- ----------------------------
--- Table structure for QRTZ_BLOB_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_BLOB_TRIGGERS";
-CREATE TABLE "QRTZ_BLOB_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "BLOB_DATA" blob NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"),
-  CONSTRAINT "QRTZ_BLOB_TRIGGERS_ibfk_1" FOREIGN KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") REFERENCES "QRTZ_TRIGGERS" ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") ON DELETE RESTRICT ON UPDATE RESTRICT
+DROP TABLE IF EXISTS qrtz_blob_triggers CASCADE;
+CREATE TABLE qrtz_blob_triggers (
+  sched_name varchar(120) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  blob_data bytea NULL,
+  CONSTRAINT pk_qrtz_blob_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
-CREATE INDEX "SCHED_NAME" ON "QRTZ_BLOB_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_NAME" ASC, "TRIGGER_GROUP" ASC);
+CREATE INDEX idx_qrtz_blob_triggers_sched_name ON qrtz_blob_triggers (sched_name, trigger_name, trigger_group);
 
--- ----------------------------
--- Table structure for QRTZ_CALENDARS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_CALENDARS";
-CREATE TABLE "QRTZ_CALENDARS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "CALENDAR_NAME" varchar(200) NOT NULL,
-  "CALENDAR" blob NOT NULL,
-  PRIMARY KEY ("SCHED_NAME", "CALENDAR_NAME")
+DROP TABLE IF EXISTS qrtz_calendars CASCADE;
+CREATE TABLE qrtz_calendars (
+  sched_name varchar(120) NOT NULL,
+  calendar_name varchar(200) NOT NULL,
+  calendar bytea NOT NULL,
+  CONSTRAINT pk_qrtz_calendars PRIMARY KEY (sched_name, calendar_name)
 );
 
--- ----------------------------
--- Table structure for QRTZ_CRON_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_CRON_TRIGGERS";
-CREATE TABLE "QRTZ_CRON_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "CRON_EXPRESSION" varchar(120) NOT NULL,
-  "TIME_ZONE_ID" varchar(80) NULL DEFAULT NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"),
-  CONSTRAINT "QRTZ_CRON_TRIGGERS_ibfk_1" FOREIGN KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") REFERENCES "QRTZ_TRIGGERS" ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") ON DELETE RESTRICT ON UPDATE RESTRICT
+DROP TABLE IF EXISTS qrtz_cron_triggers CASCADE;
+CREATE TABLE qrtz_cron_triggers (
+  sched_name varchar(120) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  cron_expression varchar(120) NOT NULL,
+  time_zone_id varchar(80) NULL,
+  CONSTRAINT pk_qrtz_cron_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
 
--- ----------------------------
--- Table structure for QRTZ_FIRED_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_FIRED_TRIGGERS";
-CREATE TABLE "QRTZ_FIRED_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "ENTRY_ID" varchar(95) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "INSTANCE_NAME" varchar(200) NOT NULL,
-  "FIRED_TIME" bigint NOT NULL,
-  "SCHED_TIME" bigint NOT NULL,
-  "PRIORITY" int NOT NULL,
-  "STATE" varchar(16) NOT NULL,
-  "JOB_NAME" varchar(200) NULL DEFAULT NULL,
-  "JOB_GROUP" varchar(200) NULL DEFAULT NULL,
-  "IS_NONCONCURRENT" varchar(1) NULL DEFAULT NULL,
-  "REQUESTS_RECOVERY" varchar(1) NULL DEFAULT NULL,
-  PRIMARY KEY ("SCHED_NAME", "ENTRY_ID"),
+DROP TABLE IF EXISTS qrtz_fired_triggers CASCADE;
+CREATE TABLE qrtz_fired_triggers (
+  sched_name varchar(120) NOT NULL,
+  entry_id varchar(95) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  instance_name varchar(200) NOT NULL,
+  fired_time bigint NOT NULL,
+  sched_time bigint NOT NULL,
+  priority integer NOT NULL,
+  state varchar(16) NOT NULL,
+  job_name varchar(200) NULL,
+  job_group varchar(200) NULL,
+  is_nonconcurrent varchar(1) NULL,
+  requests_recovery varchar(1) NULL,
+  CONSTRAINT pk_qrtz_fired_triggers PRIMARY KEY (sched_name, entry_id)
 );
-CREATE INDEX "IDX_QRTZ_FT_TRIG_INST_NAME" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "INSTANCE_NAME" ASC);
-CREATE INDEX "IDX_QRTZ_FT_INST_JOB_REQ_RCVRY" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "INSTANCE_NAME" ASC, "REQUESTS_RECOVERY" ASC);
-CREATE INDEX "IDX_QRTZ_FT_J_G" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "JOB_NAME" ASC, "JOB_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_FT_JG" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "JOB_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_FT_T_G" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_NAME" ASC, "TRIGGER_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_FT_TG" ON "QRTZ_FIRED_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_GROUP" ASC);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_trig_inst_name ON qrtz_fired_triggers (sched_name, instance_name);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_jg ON qrtz_fired_triggers (sched_name, job_group);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
+CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_tg ON qrtz_fired_triggers (sched_name, trigger_group);
 
--- ----------------------------
--- Table structure for QRTZ_JOB_DETAILS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_JOB_DETAILS";
-CREATE TABLE "QRTZ_JOB_DETAILS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "JOB_NAME" varchar(200) NOT NULL,
-  "JOB_GROUP" varchar(200) NOT NULL,
-  "DESCRIPTION" varchar(250) NULL DEFAULT NULL,
-  "JOB_CLASS_NAME" varchar(250) NOT NULL,
-  "IS_DURABLE" varchar(1) NOT NULL,
-  "IS_NONCONCURRENT" varchar(1) NOT NULL,
-  "IS_UPDATE_DATA" varchar(1) NOT NULL,
-  "REQUESTS_RECOVERY" varchar(1) NOT NULL,
-  "JOB_DATA" blob NULL,
-  PRIMARY KEY ("SCHED_NAME", "JOB_NAME", "JOB_GROUP"),
+DROP TABLE IF EXISTS qrtz_job_details CASCADE;
+CREATE TABLE qrtz_job_details (
+  sched_name varchar(120) NOT NULL,
+  job_name varchar(200) NOT NULL,
+  job_group varchar(200) NOT NULL,
+  description varchar(250) NULL,
+  job_class_name varchar(250) NOT NULL,
+  is_durable varchar(1) NOT NULL,
+  is_nonconcurrent varchar(1) NOT NULL,
+  is_update_data varchar(1) NOT NULL,
+  requests_recovery varchar(1) NOT NULL,
+  job_data bytea NULL,
+  CONSTRAINT pk_qrtz_job_details PRIMARY KEY (sched_name, job_name, job_group)
 );
-CREATE INDEX "IDX_QRTZ_J_REQ_RECOVERY" ON "QRTZ_JOB_DETAILS" ("SCHED_NAME" ASC, "REQUESTS_RECOVERY" ASC);
-CREATE INDEX "IDX_QRTZ_J_GRP" ON "QRTZ_JOB_DETAILS" ("SCHED_NAME" ASC, "JOB_GROUP" ASC);
+CREATE INDEX idx_qrtz_job_details_idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
+CREATE INDEX idx_qrtz_job_details_idx_qrtz_j_grp ON qrtz_job_details (sched_name, job_group);
 
--- ----------------------------
--- Table structure for QRTZ_LOCKS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_LOCKS";
-CREATE TABLE "QRTZ_LOCKS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "LOCK_NAME" varchar(40) NOT NULL,
-  PRIMARY KEY ("SCHED_NAME", "LOCK_NAME")
+DROP TABLE IF EXISTS qrtz_locks CASCADE;
+CREATE TABLE qrtz_locks (
+  sched_name varchar(120) NOT NULL,
+  lock_name varchar(40) NOT NULL,
+  CONSTRAINT pk_qrtz_locks PRIMARY KEY (sched_name, lock_name)
 );
 
--- ----------------------------
--- Table structure for QRTZ_PAUSED_TRIGGER_GRPS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_PAUSED_TRIGGER_GRPS";
-CREATE TABLE "QRTZ_PAUSED_TRIGGER_GRPS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_GROUP")
+DROP TABLE IF EXISTS qrtz_paused_trigger_grps CASCADE;
+CREATE TABLE qrtz_paused_trigger_grps (
+  sched_name varchar(120) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  CONSTRAINT pk_qrtz_paused_trigger_grps PRIMARY KEY (sched_name, trigger_group)
 );
 
--- ----------------------------
--- Table structure for QRTZ_SCHEDULER_STATE
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_SCHEDULER_STATE";
-CREATE TABLE "QRTZ_SCHEDULER_STATE"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "INSTANCE_NAME" varchar(200) NOT NULL,
-  "LAST_CHECKIN_TIME" bigint NOT NULL,
-  "CHECKIN_INTERVAL" bigint NOT NULL,
-  PRIMARY KEY ("SCHED_NAME", "INSTANCE_NAME")
+DROP TABLE IF EXISTS qrtz_scheduler_state CASCADE;
+CREATE TABLE qrtz_scheduler_state (
+  sched_name varchar(120) NOT NULL,
+  instance_name varchar(200) NOT NULL,
+  last_checkin_time bigint NOT NULL,
+  checkin_interval bigint NOT NULL,
+  CONSTRAINT pk_qrtz_scheduler_state PRIMARY KEY (sched_name, instance_name)
 );
 
--- ----------------------------
--- Table structure for QRTZ_SIMPLE_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_SIMPLE_TRIGGERS";
-CREATE TABLE "QRTZ_SIMPLE_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "REPEAT_COUNT" bigint NOT NULL,
-  "REPEAT_INTERVAL" bigint NOT NULL,
-  "TIMES_TRIGGERED" bigint NOT NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"),
-  CONSTRAINT "QRTZ_SIMPLE_TRIGGERS_ibfk_1" FOREIGN KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") REFERENCES "QRTZ_TRIGGERS" ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") ON DELETE RESTRICT ON UPDATE RESTRICT
+DROP TABLE IF EXISTS qrtz_simple_triggers CASCADE;
+CREATE TABLE qrtz_simple_triggers (
+  sched_name varchar(120) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  repeat_count bigint NOT NULL,
+  repeat_interval bigint NOT NULL,
+  times_triggered bigint NOT NULL,
+  CONSTRAINT pk_qrtz_simple_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
 
--- ----------------------------
--- Table structure for QRTZ_SIMPROP_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_SIMPROP_TRIGGERS";
-CREATE TABLE "QRTZ_SIMPROP_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "STR_PROP_1" varchar(512) NULL DEFAULT NULL,
-  "STR_PROP_2" varchar(512) NULL DEFAULT NULL,
-  "STR_PROP_3" varchar(512) NULL DEFAULT NULL,
-  "INT_PROP_1" int NULL DEFAULT NULL,
-  "INT_PROP_2" int NULL DEFAULT NULL,
-  "LONG_PROP_1" bigint NULL DEFAULT NULL,
-  "LONG_PROP_2" bigint NULL DEFAULT NULL,
-  "DEC_PROP_1" decimal(13, 4) NULL DEFAULT NULL,
-  "DEC_PROP_2" decimal(13, 4) NULL DEFAULT NULL,
-  "BOOL_PROP_1" varchar(1) NULL DEFAULT NULL,
-  "BOOL_PROP_2" varchar(1) NULL DEFAULT NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"),
-  CONSTRAINT "QRTZ_SIMPROP_TRIGGERS_ibfk_1" FOREIGN KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") REFERENCES "QRTZ_TRIGGERS" ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP") ON DELETE RESTRICT ON UPDATE RESTRICT
+DROP TABLE IF EXISTS qrtz_simprop_triggers CASCADE;
+CREATE TABLE qrtz_simprop_triggers (
+  sched_name varchar(120) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  str_prop_1 varchar(512) NULL,
+  str_prop_2 varchar(512) NULL,
+  str_prop_3 varchar(512) NULL,
+  int_prop_1 integer NULL,
+  int_prop_2 integer NULL,
+  long_prop_1 bigint NULL,
+  long_prop_2 bigint NULL,
+  dec_prop_1 numeric(13, 4) NULL,
+  dec_prop_2 numeric(13, 4) NULL,
+  bool_prop_1 varchar(1) NULL,
+  bool_prop_2 varchar(1) NULL,
+  CONSTRAINT pk_qrtz_simprop_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
 
--- ----------------------------
--- Table structure for QRTZ_TRIGGERS
--- ----------------------------
-DROP TABLE IF EXISTS "QRTZ_TRIGGERS";
-CREATE TABLE "QRTZ_TRIGGERS"  (
-  "SCHED_NAME" varchar(120) NOT NULL,
-  "TRIGGER_NAME" varchar(200) NOT NULL,
-  "TRIGGER_GROUP" varchar(200) NOT NULL,
-  "JOB_NAME" varchar(200) NOT NULL,
-  "JOB_GROUP" varchar(200) NOT NULL,
-  "DESCRIPTION" varchar(250) NULL DEFAULT NULL,
-  "NEXT_FIRE_TIME" bigint NULL DEFAULT NULL,
-  "PREV_FIRE_TIME" bigint NULL DEFAULT NULL,
-  "PRIORITY" int NULL DEFAULT NULL,
-  "TRIGGER_STATE" varchar(16) NOT NULL,
-  "TRIGGER_TYPE" varchar(8) NOT NULL,
-  "START_TIME" bigint NOT NULL,
-  "END_TIME" bigint NULL DEFAULT NULL,
-  "CALENDAR_NAME" varchar(200) NULL DEFAULT NULL,
-  "MISFIRE_INSTR" smallint NULL DEFAULT NULL,
-  "JOB_DATA" blob NULL,
-  PRIMARY KEY ("SCHED_NAME", "TRIGGER_NAME", "TRIGGER_GROUP"),
-  CONSTRAINT "QRTZ_TRIGGERS_ibfk_1" FOREIGN KEY ("SCHED_NAME", "JOB_NAME", "JOB_GROUP") REFERENCES "QRTZ_JOB_DETAILS" ("SCHED_NAME", "JOB_NAME", "JOB_GROUP") ON DELETE RESTRICT ON UPDATE RESTRICT
+DROP TABLE IF EXISTS qrtz_triggers CASCADE;
+CREATE TABLE qrtz_triggers (
+  sched_name varchar(120) NOT NULL,
+  trigger_name varchar(200) NOT NULL,
+  trigger_group varchar(200) NOT NULL,
+  job_name varchar(200) NOT NULL,
+  job_group varchar(200) NOT NULL,
+  description varchar(250) NULL,
+  next_fire_time bigint NULL,
+  prev_fire_time bigint NULL,
+  priority integer NULL,
+  trigger_state varchar(16) NOT NULL,
+  trigger_type varchar(8) NOT NULL,
+  start_time bigint NOT NULL,
+  end_time bigint NULL,
+  calendar_name varchar(200) NULL,
+  misfire_instr smallint NULL,
+  job_data bytea NULL,
+  CONSTRAINT pk_qrtz_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
-CREATE INDEX "IDX_QRTZ_T_J" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "JOB_NAME" ASC, "JOB_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_T_JG" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "JOB_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_T_C" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "CALENDAR_NAME" ASC);
-CREATE INDEX "IDX_QRTZ_T_G" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_GROUP" ASC);
-CREATE INDEX "IDX_QRTZ_T_STATE" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_STATE" ASC);
-CREATE INDEX "IDX_QRTZ_T_N_STATE" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_NAME" ASC, "TRIGGER_GROUP" ASC, "TRIGGER_STATE" ASC);
-CREATE INDEX "IDX_QRTZ_T_N_G_STATE" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_GROUP" ASC, "TRIGGER_STATE" ASC);
-CREATE INDEX "IDX_QRTZ_T_NEXT_FIRE_TIME" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "NEXT_FIRE_TIME" ASC);
-CREATE INDEX "IDX_QRTZ_T_NFT_ST" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "TRIGGER_STATE" ASC, "NEXT_FIRE_TIME" ASC);
-CREATE INDEX "IDX_QRTZ_T_NFT_MISFIRE" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "MISFIRE_INSTR" ASC, "NEXT_FIRE_TIME" ASC);
-CREATE INDEX "IDX_QRTZ_T_NFT_ST_MISFIRE" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "MISFIRE_INSTR" ASC, "NEXT_FIRE_TIME" ASC, "TRIGGER_STATE" ASC);
-CREATE INDEX "IDX_QRTZ_T_NFT_ST_MISFIRE_GRP" ON "QRTZ_TRIGGERS" ("SCHED_NAME" ASC, "MISFIRE_INSTR" ASC, "NEXT_FIRE_TIME" ASC, "TRIGGER_GROUP" ASC, "TRIGGER_STATE" ASC);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_jg ON qrtz_triggers (sched_name, job_group);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_g ON qrtz_triggers (sched_name, trigger_group);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_state ON qrtz_triggers (sched_name, trigger_state);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_n_state ON qrtz_triggers (sched_name, trigger_name, trigger_group, trigger_state);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_n_g_state ON qrtz_triggers (sched_name, trigger_group, trigger_state);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_next_fire_time ON qrtz_triggers (sched_name, next_fire_time);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_nft_misfire ON qrtz_triggers (sched_name, misfire_instr, next_fire_time);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_nft_st_misfire ON qrtz_triggers (sched_name, misfire_instr, next_fire_time, trigger_state);
+CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_nft_st_misfire_grp ON qrtz_triggers (sched_name, misfire_instr, next_fire_time, trigger_group, trigger_state);
 
--- ----------------------------
--- Table structure for schedule_job
--- ----------------------------
-DROP TABLE IF EXISTS "schedule_job";
-CREATE TABLE "schedule_job"  (
-  "id" bigint NOT NULL,
-  "schedule_group" varchar(255) NULL DEFAULT NULL,
-  "bean_name" varchar(200) NULL DEFAULT NULL,
-  "params" varchar(2000) NULL DEFAULT NULL,
-  "cron_expression" varchar(100) NULL DEFAULT NULL,
-  "status" SMALLINT UNSIGNED NULL DEFAULT 1,
-  "remark" varchar(255) NULL DEFAULT NULL,
-  "created_by" bigint NULL DEFAULT NULL,
-  "created_at" TIMESTAMP NULL DEFAULT NULL,
-  "updated_by" bigint NULL DEFAULT NULL,
-  "updated_at" TIMESTAMP NULL DEFAULT NULL,
-  PRIMARY KEY ("id"),
+DROP TABLE IF EXISTS schedule_job CASCADE;
+CREATE TABLE schedule_job (
+  id bigint NOT NULL,
+  schedule_group varchar(255) NULL,
+  bean_name varchar(200) NULL,
+  params varchar(2000) NULL,
+  cron_expression varchar(100) NULL,
+  status smallint NULL,
+  remark varchar(255) NULL,
+  created_by bigint NULL,
+  created_at timestamp NULL,
+  updated_by bigint NULL,
+  updated_at timestamp NULL,
+  CONSTRAINT pk_schedule_job PRIMARY KEY (id)
 );
-CREATE INDEX "idx_created_at" ON "schedule_job" ("created_at" ASC);
+CREATE INDEX idx_schedule_job_idx_created_at ON schedule_job (created_at);
 
--- ----------------------------
--- Table structure for schedule_job_log
--- ----------------------------
-DROP TABLE IF EXISTS "schedule_job_log";
-CREATE TABLE "schedule_job_log"  (
-  "id" bigint NOT NULL,
-  "job_id" bigint NOT NULL,
-  "bean_name" varchar(200) NULL DEFAULT NULL,
-  "params" varchar(2000) NULL DEFAULT NULL,
-  "status" SMALLINT UNSIGNED NOT NULL,
-  "result" text NULL,
-  "error" varchar(2000) NULL DEFAULT NULL,
-  "times" int NOT NULL,
-  "created_at" TIMESTAMP NULL DEFAULT NULL,
-  PRIMARY KEY ("id"),
+DROP TABLE IF EXISTS schedule_job_log CASCADE;
+CREATE TABLE schedule_job_log (
+  id bigint NOT NULL,
+  job_id bigint NOT NULL,
+  bean_name varchar(200) NULL,
+  params varchar(2000) NULL,
+  status smallint NOT NULL,
+  result text NULL,
+  error varchar(2000) NULL,
+  times integer NOT NULL,
+  created_at timestamp NULL,
+  CONSTRAINT pk_schedule_job_log PRIMARY KEY (id)
 );
-CREATE INDEX "idx_job_id" ON "schedule_job_log" ("job_id" ASC);
-CREATE INDEX "idx_created_at" ON "schedule_job_log" ("created_at" ASC);
+CREATE INDEX idx_schedule_job_log_idx_job_id ON schedule_job_log (job_id);
+CREATE INDEX idx_schedule_job_log_idx_created_at ON schedule_job_log (created_at);
+
+-- Foreign keys
+ALTER TABLE qrtz_blob_triggers
+  ADD CONSTRAINT fk_qrtz_blob_triggers_1
+  FOREIGN KEY (sched_name, trigger_name, trigger_group)
+  REFERENCES qrtz_triggers (sched_name, trigger_name, trigger_group) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE qrtz_cron_triggers
+  ADD CONSTRAINT fk_qrtz_cron_triggers_1
+  FOREIGN KEY (sched_name, trigger_name, trigger_group)
+  REFERENCES qrtz_triggers (sched_name, trigger_name, trigger_group) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE qrtz_simple_triggers
+  ADD CONSTRAINT fk_qrtz_simple_triggers_1
+  FOREIGN KEY (sched_name, trigger_name, trigger_group)
+  REFERENCES qrtz_triggers (sched_name, trigger_name, trigger_group) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE qrtz_simprop_triggers
+  ADD CONSTRAINT fk_qrtz_simprop_triggers_1
+  FOREIGN KEY (sched_name, trigger_name, trigger_group)
+  REFERENCES qrtz_triggers (sched_name, trigger_name, trigger_group) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE qrtz_triggers
+  ADD CONSTRAINT fk_qrtz_triggers_1
+  FOREIGN KEY (sched_name, job_name, job_group)
+  REFERENCES qrtz_job_details (sched_name, job_name, job_group) ON DELETE RESTRICT ON UPDATE RESTRICT;

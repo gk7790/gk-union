@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS merchant CASCADE;
 CREATE TABLE merchant (
@@ -31,6 +31,33 @@ CREATE TABLE merchant (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant IS '支付商户主体';
+COMMENT ON COLUMN merchant.id IS '主键ID';
+COMMENT ON COLUMN merchant.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant.merchant_no IS '商户号';
+COMMENT ON COLUMN merchant.merchant_name IS '商户名称';
+COMMENT ON COLUMN merchant.merchant_short_name IS '商户简称';
+COMMENT ON COLUMN merchant.merchant_type IS '商户类型: COMPANY/PERSON';
+COMMENT ON COLUMN merchant.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN merchant.risk_status IS '风控状态: NORMAL/FROZEN/BLOCKED';
+COMMENT ON COLUMN merchant.country_code IS '国家编码';
+COMMENT ON COLUMN merchant.default_currency IS '默认币种';
+COMMENT ON COLUMN merchant.timezone IS '商户时区';
+COMMENT ON COLUMN merchant.lang IS '商户语言';
+COMMENT ON COLUMN merchant.contact_name IS '联系人';
+COMMENT ON COLUMN merchant.contact_email IS '联系邮箱';
+COMMENT ON COLUMN merchant.contact_phone IS '联系电话';
+COMMENT ON COLUMN merchant.tg_user_id IS 'Telegram用户ID';
+COMMENT ON COLUMN merchant.business_license_no IS '营业执照/注册编号';
+COMMENT ON COLUMN merchant.settle_mode IS '结算模式: MANUAL/AUTO';
+COMMENT ON COLUMN merchant.settle_cycle IS '结算周期: T0/T1/TN';
+COMMENT ON COLUMN merchant.min_settle_amount IS '最小结算金额';
+COMMENT ON COLUMN merchant.config_json IS '商户扩展配置JSON';
+COMMENT ON COLUMN merchant.remark IS '备注';
+COMMENT ON COLUMN merchant.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant.created_at IS '创建时间';
+COMMENT ON COLUMN merchant.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_merchant_uk_merchant_no ON merchant (merchant_no);
 CREATE UNIQUE INDEX uk_merchant_uk_merchant_tenant_name ON merchant (tenant_id, merchant_name);
 CREATE INDEX idx_merchant_idx_merchant_tenant_status ON merchant (tenant_id, status);
@@ -53,6 +80,18 @@ CREATE TABLE merchant_api_ip_whitelist (
   CONSTRAINT pk_merchant_api_ip_whitelist PRIMARY KEY (id),
   CONSTRAINT chk_merchant_api_ip_whitelist_1 CHECK (status in (1,2,3))
 );
+COMMENT ON TABLE merchant_api_ip_whitelist IS 'merchant API IP whitelist';
+COMMENT ON COLUMN merchant_api_ip_whitelist.id IS 'primary key';
+COMMENT ON COLUMN merchant_api_ip_whitelist.tenant_id IS 'tenant id';
+COMMENT ON COLUMN merchant_api_ip_whitelist.merchant_id IS 'merchant id';
+COMMENT ON COLUMN merchant_api_ip_whitelist.rule_name IS 'rule name';
+COMMENT ON COLUMN merchant_api_ip_whitelist.ip_pattern IS 'IPv4, CIDR, or *';
+COMMENT ON COLUMN merchant_api_ip_whitelist.status IS '1 normal, 2 pause, 3 stop';
+COMMENT ON COLUMN merchant_api_ip_whitelist.remark IS 'remark';
+COMMENT ON COLUMN merchant_api_ip_whitelist.created_by IS 'created by';
+COMMENT ON COLUMN merchant_api_ip_whitelist.created_at IS 'created at';
+COMMENT ON COLUMN merchant_api_ip_whitelist.updated_by IS 'updated by';
+COMMENT ON COLUMN merchant_api_ip_whitelist.updated_at IS 'updated at';
 CREATE INDEX idx_merchant_api_ip_whitelist_idx_merchant_api_ip_scope ON merchant_api_ip_whitelist (tenant_id, merchant_id, status);
 CREATE INDEX idx_merchant_api_ip_whitelist_idx_merchant_api_ip_status ON merchant_api_ip_whitelist (status, created_at);
 CREATE INDEX idx_merchant_api_ip_whitelist_idx_merchant_api_ip_pattern ON merchant_api_ip_whitelist (tenant_id, merchant_id, status, ip_pattern);
@@ -83,6 +122,29 @@ CREATE TABLE merchant_app (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_app PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_app IS '商户API接入应用';
+COMMENT ON COLUMN merchant_app.id IS '主键ID';
+COMMENT ON COLUMN merchant_app.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_app.merchant_id IS '商户ID';
+COMMENT ON COLUMN merchant_app.app_id IS '商户应用ID，对外API身份标识';
+COMMENT ON COLUMN merchant_app.app_name IS '应用名称';
+COMMENT ON COLUMN merchant_app.app_type IS '应用类型: API/ADMIN/SYSTEM';
+COMMENT ON COLUMN merchant_app.app_env IS '应用环境: TEST/PROD';
+COMMENT ON COLUMN merchant_app.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN merchant_app.sign_type IS '签名类型: HMAC_SHA256/RSA2';
+COMMENT ON COLUMN merchant_app.encrypt_type IS '加密类型: NONE/AES/RSA';
+COMMENT ON COLUMN merchant_app.api_secret IS 'API密钥密文或密钥引用，HMAC模式使用';
+COMMENT ON COLUMN merchant_app.secret_version IS '密钥版本号';
+COMMENT ON COLUMN merchant_app.secret_updated_at IS '密钥更新时间';
+COMMENT ON COLUMN merchant_app.notify_url IS '默认异步通知地址';
+COMMENT ON COLUMN merchant_app.return_url IS '默认同步跳转地址';
+COMMENT ON COLUMN merchant_app.rate_limit_qps IS '接口限流QPS';
+COMMENT ON COLUMN merchant_app.nonce_ttl_seconds IS 'nonce防重放有效秒数';
+COMMENT ON COLUMN merchant_app.remark IS '备注';
+COMMENT ON COLUMN merchant_app.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_app.created_at IS '创建时间';
+COMMENT ON COLUMN merchant_app.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant_app.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_merchant_app_uk_merchant_app_id ON merchant_app (app_id);
 CREATE INDEX idx_merchant_app_idx_merchant_app_merchant_status ON merchant_app (tenant_id, merchant_id, status);
 CREATE INDEX idx_merchant_app_idx_merchant_app_tenant_status ON merchant_app (tenant_id, status);
@@ -119,6 +181,34 @@ CREATE TABLE merchant_fee_rule (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_fee_rule PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_fee_rule IS '商户手续费规则';
+COMMENT ON COLUMN merchant_fee_rule.id IS '主键ID';
+COMMENT ON COLUMN merchant_fee_rule.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_fee_rule.merchant_id IS '商户ID';
+COMMENT ON COLUMN merchant_fee_rule.merchant_app_id IS '商户应用ID，NULL表示不限应用';
+COMMENT ON COLUMN merchant_fee_rule.rule_name IS '规则名称';
+COMMENT ON COLUMN merchant_fee_rule.direction IS '订单类型: PAYIN/PAYOUT';
+COMMENT ON COLUMN merchant_fee_rule.country_code IS '国家编码，NULL表示不限国家';
+COMMENT ON COLUMN merchant_fee_rule.currency IS '币种';
+COMMENT ON COLUMN merchant_fee_rule.method_code IS '平台统一支付方式编码，NULL表示不限支付方式';
+COMMENT ON COLUMN merchant_fee_rule.min_amount IS '订单最小金额';
+COMMENT ON COLUMN merchant_fee_rule.max_amount IS '订单最大金额';
+COMMENT ON COLUMN merchant_fee_rule.fee_mode IS '手续费模式: RATE/FIXED/RATE_FIXED';
+COMMENT ON COLUMN merchant_fee_rule.fee_rate IS '比例费率，例如0.025表示2.5%';
+COMMENT ON COLUMN merchant_fee_rule.fee_fixed IS '固定手续费';
+COMMENT ON COLUMN merchant_fee_rule.min_fee IS '最低手续费';
+COMMENT ON COLUMN merchant_fee_rule.max_fee IS '最高手续费';
+COMMENT ON COLUMN merchant_fee_rule.fee_bearer IS '手续费承担方: MERCHANT/CUSTOMER';
+COMMENT ON COLUMN merchant_fee_rule.settle_mode IS '结算处理方式: DEDUCT/ADD';
+COMMENT ON COLUMN merchant_fee_rule.priority IS '优先级，数字越小越优先';
+COMMENT ON COLUMN merchant_fee_rule.effective_at IS '生效时间';
+COMMENT ON COLUMN merchant_fee_rule.expire_at IS '失效时间';
+COMMENT ON COLUMN merchant_fee_rule.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN merchant_fee_rule.remark IS '备注';
+COMMENT ON COLUMN merchant_fee_rule.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_fee_rule.created_at IS '创建时间';
+COMMENT ON COLUMN merchant_fee_rule.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant_fee_rule.updated_at IS '更新时间';
 CREATE INDEX idx_merchant_fee_rule_idx_fee_rule_merchant ON merchant_fee_rule (tenant_id, merchant_id, direction, currency, status);
 CREATE INDEX idx_merchant_fee_rule_idx_fee_rule_app ON merchant_fee_rule (tenant_id, merchant_app_id, direction, currency, status);
 CREATE INDEX idx_merchant_fee_rule_idx_fee_rule_match ON merchant_fee_rule (tenant_id, merchant_id, direction, country_code, currency, method_code, status, priority);
@@ -153,6 +243,31 @@ CREATE TABLE merchant_notify_record (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_notify_record PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_notify_record IS '商户通知记录';
+COMMENT ON COLUMN merchant_notify_record.id IS '主键ID';
+COMMENT ON COLUMN merchant_notify_record.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_notify_record.notify_task_id IS '通知任务ID';
+COMMENT ON COLUMN merchant_notify_record.task_no IS '通知任务编号';
+COMMENT ON COLUMN merchant_notify_record.attempt_no IS '第几次通知';
+COMMENT ON COLUMN merchant_notify_record.notify_url IS '通知地址';
+COMMENT ON COLUMN merchant_notify_record.http_method IS 'HTTP方法';
+COMMENT ON COLUMN merchant_notify_record.content_type IS '请求Content-Type';
+COMMENT ON COLUMN merchant_notify_record.request_signature IS '请求签名';
+COMMENT ON COLUMN merchant_notify_record.request_headers_json IS '请求头JSON';
+COMMENT ON COLUMN merchant_notify_record.request_body IS '请求体';
+COMMENT ON COLUMN merchant_notify_record.response_headers_json IS '响应头JSON';
+COMMENT ON COLUMN merchant_notify_record.response_status IS 'HTTP响应状态码';
+COMMENT ON COLUMN merchant_notify_record.response_body IS '响应体';
+COMMENT ON COLUMN merchant_notify_record.success IS '是否成功: 0否 1是';
+COMMENT ON COLUMN merchant_notify_record.error_msg IS '错误信息';
+COMMENT ON COLUMN merchant_notify_record.cost_ms IS '耗时毫秒';
+COMMENT ON COLUMN merchant_notify_record.started_at IS '开始通知时间';
+COMMENT ON COLUMN merchant_notify_record.finished_at IS '完成通知时间';
+COMMENT ON COLUMN merchant_notify_record.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN merchant_notify_record.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_notify_record.created_at IS '创建时间';
+COMMENT ON COLUMN merchant_notify_record.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant_notify_record.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_merchant_notify_record_uk_merchant_notify_record_attempt ON merchant_notify_record (notify_task_id, attempt_no);
 CREATE INDEX idx_merchant_notify_record_idx_merchant_notify_record_task ON merchant_notify_record (tenant_id, task_no);
 CREATE INDEX idx_merchant_notify_record_idx_merchant_notify_reco_a6dc6399 ON merchant_notify_record (tenant_id, success, created_at);
@@ -201,6 +316,47 @@ CREATE TABLE merchant_notify_task (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_notify_task PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_notify_task IS '商户通知任务';
+COMMENT ON COLUMN merchant_notify_task.id IS '主键ID';
+COMMENT ON COLUMN merchant_notify_task.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_notify_task.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN merchant_notify_task.merchant_app_id IS '商户应用ID';
+COMMENT ON COLUMN merchant_notify_task.app_id IS '商户应用ID快照';
+COMMENT ON COLUMN merchant_notify_task.task_no IS '通知任务编号';
+COMMENT ON COLUMN merchant_notify_task.biz_type IS '业务类型: PAY_ORDER/PAYOUT_ORDER等';
+COMMENT ON COLUMN merchant_notify_task.biz_id IS '业务ID';
+COMMENT ON COLUMN merchant_notify_task.biz_no IS '业务编号';
+COMMENT ON COLUMN merchant_notify_task.event_type IS '通知事件: PAY_SUCCESS/PAYOUT_FAILED等';
+COMMENT ON COLUMN merchant_notify_task.source_event_id IS '来源Outbox事件ID';
+COMMENT ON COLUMN merchant_notify_task.notify_url IS '通知地址';
+COMMENT ON COLUMN merchant_notify_task.http_method IS 'HTTP方法';
+COMMENT ON COLUMN merchant_notify_task.content_type IS '请求Content-Type';
+COMMENT ON COLUMN merchant_notify_task.charset IS '请求字符集';
+COMMENT ON COLUMN merchant_notify_task.sign_type IS '签名方式';
+COMMENT ON COLUMN merchant_notify_task.signature IS '通知签名';
+COMMENT ON COLUMN merchant_notify_task.payload_hash IS '通知内容哈希';
+COMMENT ON COLUMN merchant_notify_task.headers_json IS '通知请求头JSON';
+COMMENT ON COLUMN merchant_notify_task.payload_json IS '通知内容JSON';
+COMMENT ON COLUMN merchant_notify_task.timeout_ms IS 'HTTP通知超时毫秒';
+COMMENT ON COLUMN merchant_notify_task.status IS '状态: INIT/PROCESSING/SUCCESS/FAILED/DEAD';
+COMMENT ON COLUMN merchant_notify_task.retry_count IS '已重试次数';
+COMMENT ON COLUMN merchant_notify_task.max_retry_count IS '最大重试次数';
+COMMENT ON COLUMN merchant_notify_task.next_retry_at IS '下次重试时间';
+COMMENT ON COLUMN merchant_notify_task.last_http_status IS '最后HTTP状态码';
+COMMENT ON COLUMN merchant_notify_task.last_response_body IS '最后响应体';
+COMMENT ON COLUMN merchant_notify_task.last_error_msg IS '最后错误信息';
+COMMENT ON COLUMN merchant_notify_task.last_attempt_at IS '最后通知尝试时间';
+COMMENT ON COLUMN merchant_notify_task.locked_by IS '锁定节点';
+COMMENT ON COLUMN merchant_notify_task.locked_at IS '锁定时间';
+COMMENT ON COLUMN merchant_notify_task.lock_until IS '锁定过期时间';
+COMMENT ON COLUMN merchant_notify_task.success_at IS '通知成功时间';
+COMMENT ON COLUMN merchant_notify_task.dead_at IS '进入死信时间';
+COMMENT ON COLUMN merchant_notify_task.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN merchant_notify_task.remark IS '备注';
+COMMENT ON COLUMN merchant_notify_task.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_notify_task.created_at IS '创建时间';
+COMMENT ON COLUMN merchant_notify_task.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant_notify_task.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_merchant_notify_task_uk_merchant_notify_task_no ON merchant_notify_task (tenant_id, task_no);
 CREATE UNIQUE INDEX uk_merchant_notify_task_uk_merchant_notify_task_biz_event ON merchant_notify_task (tenant_id, biz_type, biz_no, event_type);
 CREATE INDEX idx_merchant_notify_task_idx_merchant_notify_task_scan ON merchant_notify_task (tenant_id, status, next_retry_at, id);
@@ -245,6 +401,40 @@ CREATE TABLE merchant_request_log (
   created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_request_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_request_log IS '商户请求日志';
+COMMENT ON COLUMN merchant_request_log.id IS '主键ID';
+COMMENT ON COLUMN merchant_request_log.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_request_log.merchant_id IS '商户ID';
+COMMENT ON COLUMN merchant_request_log.merchant_no IS '商户号快照';
+COMMENT ON COLUMN merchant_request_log.merchant_app_id IS '商户应用ID';
+COMMENT ON COLUMN merchant_request_log.app_id IS '商户应用ID快照';
+COMMENT ON COLUMN merchant_request_log.request_no IS '平台请求日志号';
+COMMENT ON COLUMN merchant_request_log.api_path IS '请求路径';
+COMMENT ON COLUMN merchant_request_log.api_name IS '接口名称';
+COMMENT ON COLUMN merchant_request_log.http_method IS 'HTTP方法';
+COMMENT ON COLUMN merchant_request_log.client_ip IS '客户端IP';
+COMMENT ON COLUMN merchant_request_log.user_agent IS 'User-Agent';
+COMMENT ON COLUMN merchant_request_log.request_body_hash IS '请求体哈希';
+COMMENT ON COLUMN merchant_request_log.request_body_json IS '请求体JSON，脱敏后保存';
+COMMENT ON COLUMN merchant_request_log.request_params_json IS '请求参数JSON，脱敏后保存';
+COMMENT ON COLUMN merchant_request_log.sign_type IS '签名类型: HMAC_SHA256/MD5';
+COMMENT ON COLUMN merchant_request_log.sign_value IS '商户提交签名，脱敏后保存';
+COMMENT ON COLUMN merchant_request_log.sign_valid IS '验签结果: 0失败 1成功';
+COMMENT ON COLUMN merchant_request_log.timestamp_value IS '商户提交的时间戳';
+COMMENT ON COLUMN merchant_request_log.nonce_value IS '商户提交的nonce';
+COMMENT ON COLUMN merchant_request_log.biz_type IS '业务类型: PAY_ORDER/PAYOUT_ORDER/BALANCE/QUERY';
+COMMENT ON COLUMN merchant_request_log.biz_no IS '平台业务单号';
+COMMENT ON COLUMN merchant_request_log.merchant_order_no IS '商户订单号';
+COMMENT ON COLUMN merchant_request_log.response_code IS '响应码';
+COMMENT ON COLUMN merchant_request_log.response_message IS '响应消息';
+COMMENT ON COLUMN merchant_request_log.response_body_json IS '响应体JSON，脱敏或摘要后保存';
+COMMENT ON COLUMN merchant_request_log.status IS '处理状态: RECEIVED/SUCCESS/FAILED/REJECTED';
+COMMENT ON COLUMN merchant_request_log.error_code IS '错误码';
+COMMENT ON COLUMN merchant_request_log.error_message IS '错误信息';
+COMMENT ON COLUMN merchant_request_log.cost_ms IS '处理耗时毫秒';
+COMMENT ON COLUMN merchant_request_log.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN merchant_request_log.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_request_log.created_at IS '创建时间';
 CREATE UNIQUE INDEX uk_merchant_request_log_uk_merchant_request_no ON merchant_request_log (request_no);
 CREATE INDEX idx_merchant_request_log_idx_merchant_request_app ON merchant_request_log (tenant_id, merchant_app_id, created_at);
 CREATE INDEX idx_merchant_request_log_idx_merchant_request_merchant ON merchant_request_log (tenant_id, merchant_id, created_at);

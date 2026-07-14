@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS psp_account CASCADE;
 CREATE TABLE psp_account (
@@ -21,6 +21,23 @@ CREATE TABLE psp_account (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_account PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_account IS 'PSP账户配置';
+COMMENT ON COLUMN psp_account.id IS '主键ID';
+COMMENT ON COLUMN psp_account.tenant_id IS '租户ID';
+COMMENT ON COLUMN psp_account.psp_id IS 'PSP ID';
+COMMENT ON COLUMN psp_account.psp_account_no IS 'PSP账户号/商户号';
+COMMENT ON COLUMN psp_account.psp_account_name IS 'PSP账户名称';
+COMMENT ON COLUMN psp_account.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN psp_account.secret_type IS '密钥类型: HMAC/RSA/BASIC/TOKEN';
+COMMENT ON COLUMN psp_account.api_key IS 'PSP API Key或Key引用';
+COMMENT ON COLUMN psp_account.api_secret IS 'PSP API Secret密文或密钥引用';
+COMMENT ON COLUMN psp_account.callback_secret IS '回调验签密钥密文或密钥引用';
+COMMENT ON COLUMN psp_account.config_json IS 'PSP账户扩展配置JSON';
+COMMENT ON COLUMN psp_account.remark IS '备注';
+COMMENT ON COLUMN psp_account.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_account.created_at IS '创建时间';
+COMMENT ON COLUMN psp_account.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_account.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_account_uk_psp_account_no ON psp_account (psp_account_no);
 CREATE INDEX idx_psp_account_idx_psp_account_tenant ON psp_account (tenant_id, psp_id, status);
 CREATE INDEX idx_psp_account_idx_psp_account_no ON psp_account (psp_id, psp_account_no);
@@ -42,6 +59,20 @@ CREATE TABLE psp_bank_mapping (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_bank_mapping PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_bank_mapping IS 'PSP银行编码映射表';
+COMMENT ON COLUMN psp_bank_mapping.id IS '主键ID';
+COMMENT ON COLUMN psp_bank_mapping.psp_id IS 'PSP供应商ID，关联 psp_provider.id';
+COMMENT ON COLUMN psp_bank_mapping.country_code IS '国家代码，如 PH';
+COMMENT ON COLUMN psp_bank_mapping.currency IS '币种，如 PHP';
+COMMENT ON COLUMN psp_bank_mapping.bank_code IS '平台标准银行编码，如 BDO、BPI、UBPH';
+COMMENT ON COLUMN psp_bank_mapping.psp_bank_code IS 'PSP侧银行编码';
+COMMENT ON COLUMN psp_bank_mapping.status IS '状态：1启用 2暂停 3禁用';
+COMMENT ON COLUMN psp_bank_mapping.sort IS '排序';
+COMMENT ON COLUMN psp_bank_mapping.remark IS '备注';
+COMMENT ON COLUMN psp_bank_mapping.created_by IS '创建人';
+COMMENT ON COLUMN psp_bank_mapping.created_at IS '创建时间';
+COMMENT ON COLUMN psp_bank_mapping.updated_by IS '更新人';
+COMMENT ON COLUMN psp_bank_mapping.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_bank_mapping_uk_psp_country_currency_bank ON psp_bank_mapping (psp_id, country_code, currency, bank_code);
 CREATE INDEX idx_psp_bank_mapping_idx_psp_bank_code ON psp_bank_mapping (psp_id, psp_bank_code);
 CREATE INDEX idx_psp_bank_mapping_idx_bank ON psp_bank_mapping (bank_code, country_code, currency);
@@ -61,6 +92,17 @@ CREATE TABLE psp_callback_ip_whitelist (
   CONSTRAINT pk_psp_callback_ip_whitelist PRIMARY KEY (id),
   CONSTRAINT chk_psp_callback_ip_whitelist_1 CHECK (status in (1,2,3))
 );
+COMMENT ON TABLE psp_callback_ip_whitelist IS 'PSP callback IP whitelist';
+COMMENT ON COLUMN psp_callback_ip_whitelist.id IS 'primary key';
+COMMENT ON COLUMN psp_callback_ip_whitelist.psp_code IS 'PSP code';
+COMMENT ON COLUMN psp_callback_ip_whitelist.rule_name IS 'rule name';
+COMMENT ON COLUMN psp_callback_ip_whitelist.ip_pattern IS 'IPv4, CIDR, or *';
+COMMENT ON COLUMN psp_callback_ip_whitelist.status IS '1 normal, 2 pause, 3 stop';
+COMMENT ON COLUMN psp_callback_ip_whitelist.remark IS 'remark';
+COMMENT ON COLUMN psp_callback_ip_whitelist.created_by IS 'created by';
+COMMENT ON COLUMN psp_callback_ip_whitelist.created_at IS 'created at';
+COMMENT ON COLUMN psp_callback_ip_whitelist.updated_by IS 'updated by';
+COMMENT ON COLUMN psp_callback_ip_whitelist.updated_at IS 'updated at';
 CREATE INDEX idx_psp_callback_ip_whitelist_idx_psp_callback_ip_scope ON psp_callback_ip_whitelist (psp_code, status);
 CREATE INDEX idx_psp_callback_ip_whitelist_idx_psp_callback_ip_status ON psp_callback_ip_whitelist (status, created_at);
 
@@ -95,6 +137,34 @@ CREATE TABLE psp_callback_log (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_callback_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_callback_log IS 'PSP回调日志';
+COMMENT ON COLUMN psp_callback_log.id IS '主键ID';
+COMMENT ON COLUMN psp_callback_log.tenant_id IS '租户ID';
+COMMENT ON COLUMN psp_callback_log.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN psp_callback_log.psp_id IS 'PSP ID';
+COMMENT ON COLUMN psp_callback_log.psp_code IS 'PSP编码快照';
+COMMENT ON COLUMN psp_callback_log.biz_type IS '业务类型: PAY_ORDER/PAYOUT_ORDER/REFUND等';
+COMMENT ON COLUMN psp_callback_log.biz_id IS '业务ID';
+COMMENT ON COLUMN psp_callback_log.biz_no IS '业务编号';
+COMMENT ON COLUMN psp_callback_log.psp_order_no IS 'PSP订单号';
+COMMENT ON COLUMN psp_callback_log.callback_type IS '回调类型';
+COMMENT ON COLUMN psp_callback_log.callback_id IS 'PSP回调ID';
+COMMENT ON COLUMN psp_callback_log.callback_key IS '回调幂等键，有callback_id时使用PSP回调ID，否则使用callback_type+body_hash';
+COMMENT ON COLUMN psp_callback_log.body_hash IS '回调报文哈希，用于无callback_id时幂等';
+COMMENT ON COLUMN psp_callback_log.headers_json IS '回调请求头JSON';
+COMMENT ON COLUMN psp_callback_log.body_json IS '回调请求体JSON';
+COMMENT ON COLUMN psp_callback_log.raw_body IS '原始回调体';
+COMMENT ON COLUMN psp_callback_log.signature IS '回调签名';
+COMMENT ON COLUMN psp_callback_log.verify_status IS '验签状态: INIT/SUCCESS/FAILED/SKIPPED';
+COMMENT ON COLUMN psp_callback_log.process_status IS '处理状态: INIT/SUCCESS/FAILED/IGNORED';
+COMMENT ON COLUMN psp_callback_log.error_msg IS '错误信息';
+COMMENT ON COLUMN psp_callback_log.received_at IS '接收时间';
+COMMENT ON COLUMN psp_callback_log.processed_at IS '处理时间';
+COMMENT ON COLUMN psp_callback_log.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN psp_callback_log.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_callback_log.created_at IS '创建时间';
+COMMENT ON COLUMN psp_callback_log.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_callback_log.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_callback_log_uk_psp_callback_key ON psp_callback_log (psp_id, callback_key);
 CREATE INDEX idx_psp_callback_log_idx_psp_callback_biz ON psp_callback_log (tenant_id, biz_type, biz_no);
 CREATE INDEX idx_psp_callback_log_idx_psp_callback_order ON psp_callback_log (psp_id, psp_order_no);
@@ -131,6 +201,34 @@ CREATE TABLE psp_fee_rule (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_fee_rule PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_fee_rule IS 'PSP成本手续费规则';
+COMMENT ON COLUMN psp_fee_rule.id IS '主键ID';
+COMMENT ON COLUMN psp_fee_rule.tenant_id IS '租户ID';
+COMMENT ON COLUMN psp_fee_rule.psp_id IS 'PSP ID';
+COMMENT ON COLUMN psp_fee_rule.psp_account_id IS 'PSP账户配置ID，NULL表示不限账户';
+COMMENT ON COLUMN psp_fee_rule.psp_method_id IS 'PSP支付方式ID，NULL表示不限PSP支付方式';
+COMMENT ON COLUMN psp_fee_rule.method_code IS '平台统一支付方式编码，NULL表示不限支付方式';
+COMMENT ON COLUMN psp_fee_rule.psp_method_code IS 'PSP支付方式编码快照';
+COMMENT ON COLUMN psp_fee_rule.rule_name IS '规则名称';
+COMMENT ON COLUMN psp_fee_rule.direction IS '方向: PAYIN/PAYOUT';
+COMMENT ON COLUMN psp_fee_rule.country_code IS '国家编码，NULL表示不限国家';
+COMMENT ON COLUMN psp_fee_rule.currency IS '币种';
+COMMENT ON COLUMN psp_fee_rule.min_amount IS '订单最小金额';
+COMMENT ON COLUMN psp_fee_rule.max_amount IS '订单最大金额';
+COMMENT ON COLUMN psp_fee_rule.fee_mode IS '手续费模式: RATE/FIXED/RATE_FIXED';
+COMMENT ON COLUMN psp_fee_rule.fee_rate IS '比例费率，例如0.012表示1.2%';
+COMMENT ON COLUMN psp_fee_rule.fee_fixed IS '固定手续费';
+COMMENT ON COLUMN psp_fee_rule.min_fee IS '最低手续费';
+COMMENT ON COLUMN psp_fee_rule.max_fee IS '最高手续费';
+COMMENT ON COLUMN psp_fee_rule.priority IS '优先级，数字越小越优先';
+COMMENT ON COLUMN psp_fee_rule.effective_at IS '生效时间';
+COMMENT ON COLUMN psp_fee_rule.expire_at IS '失效时间';
+COMMENT ON COLUMN psp_fee_rule.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN psp_fee_rule.remark IS '备注';
+COMMENT ON COLUMN psp_fee_rule.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_fee_rule.created_at IS '创建时间';
+COMMENT ON COLUMN psp_fee_rule.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_fee_rule.updated_at IS '更新时间';
 CREATE INDEX idx_psp_fee_rule_idx_psp_fee_rule_psp ON psp_fee_rule (tenant_id, psp_id, direction, currency, status);
 CREATE INDEX idx_psp_fee_rule_idx_psp_fee_rule_account ON psp_fee_rule (tenant_id, psp_account_id, direction, currency, status);
 CREATE INDEX idx_psp_fee_rule_idx_psp_fee_rule_method ON psp_fee_rule (tenant_id, psp_method_id, direction, currency, status);
@@ -161,6 +259,25 @@ CREATE TABLE psp_method (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_method PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_method IS 'PSP支付方式映射';
+COMMENT ON COLUMN psp_method.id IS '主键ID';
+COMMENT ON COLUMN psp_method.psp_id IS 'PSP ID';
+COMMENT ON COLUMN psp_method.psp_code IS 'PSP编码快照';
+COMMENT ON COLUMN psp_method.method_code IS '平台统一支付方式编码';
+COMMENT ON COLUMN psp_method.psp_method_code IS 'PSP支付方式编码';
+COMMENT ON COLUMN psp_method.method_name IS '支付方式名称';
+COMMENT ON COLUMN psp_method.country_code IS '国家编码';
+COMMENT ON COLUMN psp_method.currency IS '币种';
+COMMENT ON COLUMN psp_method.direction IS '方向: PAYIN/PAYOUT';
+COMMENT ON COLUMN psp_method.min_amount IS '最小金额';
+COMMENT ON COLUMN psp_method.max_amount IS '最大金额';
+COMMENT ON COLUMN psp_method.daily_limit IS '日限额';
+COMMENT ON COLUMN psp_method.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN psp_method.remark IS '备注';
+COMMENT ON COLUMN psp_method.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_method.created_at IS '创建时间';
+COMMENT ON COLUMN psp_method.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_method.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_method_uk_psp_method_scope ON psp_method (psp_id, country_code, currency, method_code, direction);
 CREATE INDEX idx_psp_method_idx_psp_method_match ON psp_method (country_code, currency, method_code, direction, status);
 CREATE INDEX idx_psp_method_idx_psp_method_psp ON psp_method (psp_id, status);
@@ -185,6 +302,23 @@ CREATE TABLE psp_provider (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_provider PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_provider IS 'PSP三方支付公司';
+COMMENT ON COLUMN psp_provider.id IS '主键ID';
+COMMENT ON COLUMN psp_provider.tenant_id IS '租户ID';
+COMMENT ON COLUMN psp_provider.psp_code IS 'PSP编码';
+COMMENT ON COLUMN psp_provider.psp_name IS 'PSP名称';
+COMMENT ON COLUMN psp_provider.country_code IS '主要国家编码';
+COMMENT ON COLUMN psp_provider.status IS '状态: 0禁用 1启用';
+COMMENT ON COLUMN psp_provider.base_url IS '基础URL';
+COMMENT ON COLUMN psp_provider.api_version IS 'API版本';
+COMMENT ON COLUMN psp_provider.support_payin IS '是否支持代收: 0否 1是';
+COMMENT ON COLUMN psp_provider.support_payout IS '是否支持代付: 0否 1是';
+COMMENT ON COLUMN psp_provider.config_json IS 'PSP扩展配置JSON';
+COMMENT ON COLUMN psp_provider.remark IS '备注';
+COMMENT ON COLUMN psp_provider.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_provider.created_at IS '创建时间';
+COMMENT ON COLUMN psp_provider.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_provider.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_provider_uk_psp_provider_tenant_code ON psp_provider (tenant_id, psp_code);
 CREATE INDEX idx_psp_provider_idx_psp_provider_country_status ON psp_provider (tenant_id, country_code, status);
 CREATE INDEX idx_psp_provider_idx_psp_provider_status ON psp_provider (tenant_id, status);
@@ -219,6 +353,33 @@ CREATE TABLE psp_request_log (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_psp_request_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE psp_request_log IS 'PSP请求响应日志';
+COMMENT ON COLUMN psp_request_log.id IS '主键ID';
+COMMENT ON COLUMN psp_request_log.tenant_id IS '租户ID';
+COMMENT ON COLUMN psp_request_log.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN psp_request_log.psp_id IS 'PSP ID';
+COMMENT ON COLUMN psp_request_log.psp_code IS 'PSP编码快照';
+COMMENT ON COLUMN psp_request_log.biz_type IS '业务类型: PAY_ORDER/PAYOUT_ORDER/QUERY/REFUND等';
+COMMENT ON COLUMN psp_request_log.biz_id IS '业务ID';
+COMMENT ON COLUMN psp_request_log.biz_no IS '业务编号';
+COMMENT ON COLUMN psp_request_log.request_no IS '平台请求编号';
+COMMENT ON COLUMN psp_request_log.psp_request_no IS 'PSP请求编号';
+COMMENT ON COLUMN psp_request_log.psp_order_no IS 'PSP订单号';
+COMMENT ON COLUMN psp_request_log.request_url IS '请求URL';
+COMMENT ON COLUMN psp_request_log.http_method IS 'HTTP方法';
+COMMENT ON COLUMN psp_request_log.request_headers_json IS '请求头JSON，敏感字段需要脱敏';
+COMMENT ON COLUMN psp_request_log.request_body IS '请求体，敏感字段需要脱敏';
+COMMENT ON COLUMN psp_request_log.response_status IS 'HTTP响应状态码';
+COMMENT ON COLUMN psp_request_log.response_body IS '响应体，敏感字段需要脱敏';
+COMMENT ON COLUMN psp_request_log.success IS '是否成功: 0否 1是';
+COMMENT ON COLUMN psp_request_log.error_code IS '错误码';
+COMMENT ON COLUMN psp_request_log.error_msg IS '错误信息';
+COMMENT ON COLUMN psp_request_log.cost_ms IS '耗时毫秒';
+COMMENT ON COLUMN psp_request_log.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN psp_request_log.created_by IS '创建人ID';
+COMMENT ON COLUMN psp_request_log.created_at IS '创建时间';
+COMMENT ON COLUMN psp_request_log.updated_by IS '更新人ID';
+COMMENT ON COLUMN psp_request_log.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_psp_request_log_uk_psp_request_no ON psp_request_log (request_no);
 CREATE INDEX idx_psp_request_log_idx_psp_request_biz ON psp_request_log (tenant_id, biz_type, biz_no);
 CREATE INDEX idx_psp_request_log_idx_psp_request_psp_order ON psp_request_log (psp_id, psp_order_no);

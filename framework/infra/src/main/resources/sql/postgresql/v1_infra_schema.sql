@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS mq_consume_record CASCADE;
 CREATE TABLE mq_consume_record (
@@ -26,6 +26,28 @@ CREATE TABLE mq_consume_record (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_mq_consume_record PRIMARY KEY (id)
 );
+COMMENT ON TABLE mq_consume_record IS '消息消费幂等记录表';
+COMMENT ON COLUMN mq_consume_record.id IS '主键ID';
+COMMENT ON COLUMN mq_consume_record.tenant_id IS '租户ID';
+COMMENT ON COLUMN mq_consume_record.event_id IS '事件ID';
+COMMENT ON COLUMN mq_consume_record.topic IS 'Topic';
+COMMENT ON COLUMN mq_consume_record.tag IS 'Tag';
+COMMENT ON COLUMN mq_consume_record.message_key IS '消息Key';
+COMMENT ON COLUMN mq_consume_record.consumer_group IS '消费者组';
+COMMENT ON COLUMN mq_consume_record.consumer_name IS '消费者名称/处理器名称';
+COMMENT ON COLUMN mq_consume_record.consume_status IS '消费状态: PROCESSING/SUCCESS/FAILED/DEAD';
+COMMENT ON COLUMN mq_consume_record.retry_count IS '消费重试次数';
+COMMENT ON COLUMN mq_consume_record.first_consumed_at IS '首次消费时间';
+COMMENT ON COLUMN mq_consume_record.last_consumed_at IS '最后消费时间';
+COMMENT ON COLUMN mq_consume_record.success_at IS '消费成功时间';
+COMMENT ON COLUMN mq_consume_record.last_error_code IS '最后错误码';
+COMMENT ON COLUMN mq_consume_record.last_error_msg IS '最后错误信息';
+COMMENT ON COLUMN mq_consume_record.rocketmq_msg_id IS 'RocketMQ消息ID';
+COMMENT ON COLUMN mq_consume_record.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN mq_consume_record.created_by IS '创建人ID';
+COMMENT ON COLUMN mq_consume_record.created_at IS '创建时间';
+COMMENT ON COLUMN mq_consume_record.updated_by IS '更新人ID';
+COMMENT ON COLUMN mq_consume_record.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_mq_consume_record_uk_mq_consume_event_group ON mq_consume_record (event_id, consumer_group);
 CREATE INDEX idx_mq_consume_record_idx_mq_consume_message_group ON mq_consume_record (message_key, consumer_group);
 CREATE INDEX idx_mq_consume_record_idx_mq_consume_status ON mq_consume_record (consume_status, last_consumed_at);
@@ -76,6 +98,48 @@ CREATE TABLE mq_outbox (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_mq_outbox PRIMARY KEY (id)
 );
+COMMENT ON TABLE mq_outbox IS '消息Outbox事件表';
+COMMENT ON COLUMN mq_outbox.id IS '主键ID';
+COMMENT ON COLUMN mq_outbox.tenant_id IS '租户ID';
+COMMENT ON COLUMN mq_outbox.event_id IS '事件ID，全局唯一，建议雪花ID或UUID';
+COMMENT ON COLUMN mq_outbox.event_type IS '事件类型: PAY_SUCCESS/PAYOUT_FAILED/LEDGER_POSTED等';
+COMMENT ON COLUMN mq_outbox.event_version IS '事件版本';
+COMMENT ON COLUMN mq_outbox.source_service IS '事件来源模块: gk-ledger/gk-notify/gk-admin等';
+COMMENT ON COLUMN mq_outbox.aggregate_type IS '聚合类型: PAYIN_ORDER/PAYOUT_ORDER/LEDGER_JOURNAL/SETTLE_BATCH等';
+COMMENT ON COLUMN mq_outbox.aggregate_id IS '聚合ID';
+COMMENT ON COLUMN mq_outbox.aggregate_no IS '聚合编号/业务编号';
+COMMENT ON COLUMN mq_outbox.biz_type IS '业务类型';
+COMMENT ON COLUMN mq_outbox.biz_id IS '业务ID';
+COMMENT ON COLUMN mq_outbox.biz_no IS '业务编号';
+COMMENT ON COLUMN mq_outbox.topic IS 'RocketMQ Topic，V1也按该字段分类';
+COMMENT ON COLUMN mq_outbox.tag IS 'RocketMQ Tag，通常等于event_type';
+COMMENT ON COLUMN mq_outbox.message_key IS 'RocketMQ Key，建议tenantId:bizNo:eventType';
+COMMENT ON COLUMN mq_outbox.sharding_key IS '顺序消息分片键，如订单号或商户号';
+COMMENT ON COLUMN mq_outbox.producer_group IS 'RocketMQ Producer Group';
+COMMENT ON COLUMN mq_outbox.delay_level IS 'RocketMQ延迟级别，NULL表示立即投递';
+COMMENT ON COLUMN mq_outbox.deliver_at IS '期望投递时间，V1定时任务可按该字段延迟处理';
+COMMENT ON COLUMN mq_outbox.headers_json IS '消息头JSON';
+COMMENT ON COLUMN mq_outbox.payload_json IS '消息体JSON';
+COMMENT ON COLUMN mq_outbox.publish_status IS '发布状态: INIT/LOCKED/SENT/FAILED/DEAD';
+COMMENT ON COLUMN mq_outbox.consume_status IS 'V1本地消费状态: INIT/LOCKED/DONE/FAILED/DEAD/SKIPPED';
+COMMENT ON COLUMN mq_outbox.retry_count IS '发布或本地消费重试次数';
+COMMENT ON COLUMN mq_outbox.max_retry_count IS '最大重试次数';
+COMMENT ON COLUMN mq_outbox.next_retry_at IS '下次重试时间';
+COMMENT ON COLUMN mq_outbox.locked_by IS '锁定节点';
+COMMENT ON COLUMN mq_outbox.locked_at IS '锁定时间';
+COMMENT ON COLUMN mq_outbox.lock_until IS '锁定过期时间';
+COMMENT ON COLUMN mq_outbox.rocketmq_msg_id IS 'RocketMQ消息ID';
+COMMENT ON COLUMN mq_outbox.sent_at IS '发送RocketMQ成功时间';
+COMMENT ON COLUMN mq_outbox.consumed_at IS 'V1本地消费完成时间';
+COMMENT ON COLUMN mq_outbox.dead_at IS '进入死信时间';
+COMMENT ON COLUMN mq_outbox.last_error_code IS '最后错误码';
+COMMENT ON COLUMN mq_outbox.last_error_msg IS '最后错误信息';
+COMMENT ON COLUMN mq_outbox.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN mq_outbox.remark IS '备注';
+COMMENT ON COLUMN mq_outbox.created_by IS '创建人ID';
+COMMENT ON COLUMN mq_outbox.created_at IS '创建时间';
+COMMENT ON COLUMN mq_outbox.updated_by IS '更新人ID';
+COMMENT ON COLUMN mq_outbox.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_mq_outbox_uk_mq_outbox_event ON mq_outbox (event_id);
 CREATE UNIQUE INDEX uk_mq_outbox_uk_mq_outbox_biz_event ON mq_outbox (tenant_id, biz_type, biz_no, event_type);
 CREATE INDEX idx_mq_outbox_idx_mq_outbox_publish_scan ON mq_outbox (publish_status, next_retry_at, id);
@@ -104,5 +168,19 @@ CREATE TABLE sys_login_ip_whitelist (
   CONSTRAINT chk_sys_login_ip_whitelist_1 CHECK (status in (1,2,3)),
   CONSTRAINT chk_sys_login_ip_whitelist_2 CHECK (subject_type in ('PLATFORM','TENANT','MERCHANT'))
 );
+COMMENT ON TABLE sys_login_ip_whitelist IS 'login IP whitelist';
+COMMENT ON COLUMN sys_login_ip_whitelist.id IS 'primary key';
+COMMENT ON COLUMN sys_login_ip_whitelist.subject_type IS 'login subject type: PLATFORM/TENANT/MERCHANT';
+COMMENT ON COLUMN sys_login_ip_whitelist.tenant_id IS 'tenant id, null means no tenant restriction';
+COMMENT ON COLUMN sys_login_ip_whitelist.merchant_id IS 'merchant id, null means no merchant restriction';
+COMMENT ON COLUMN sys_login_ip_whitelist.subject_id IS 'sys_user_subject id, null means all subjects in the scope';
+COMMENT ON COLUMN sys_login_ip_whitelist.rule_name IS 'rule name';
+COMMENT ON COLUMN sys_login_ip_whitelist.ip_pattern IS 'IPv4, CIDR, or *';
+COMMENT ON COLUMN sys_login_ip_whitelist.status IS '1 normal, 2 pause, 3 stop';
+COMMENT ON COLUMN sys_login_ip_whitelist.remark IS 'remark';
+COMMENT ON COLUMN sys_login_ip_whitelist.created_by IS 'created by';
+COMMENT ON COLUMN sys_login_ip_whitelist.created_at IS 'created at';
+COMMENT ON COLUMN sys_login_ip_whitelist.updated_by IS 'updated by';
+COMMENT ON COLUMN sys_login_ip_whitelist.updated_at IS 'updated at';
 CREATE INDEX idx_sys_login_ip_whitelist_idx_login_ip_subject ON sys_login_ip_whitelist (subject_type, tenant_id, merchant_id, subject_id, status);
 CREATE INDEX idx_sys_login_ip_whitelist_idx_login_ip_status ON sys_login_ip_whitelist (status, created_at);

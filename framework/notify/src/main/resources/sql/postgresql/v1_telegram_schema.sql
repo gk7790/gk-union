@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS tg_account CASCADE;
 CREATE TABLE tg_account (
@@ -17,6 +17,19 @@ CREATE TABLE tg_account (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_account PRIMARY KEY (id)
 );
+COMMENT ON TABLE tg_account IS 'Telegram账号绑定';
+COMMENT ON COLUMN tg_account.id IS '主键ID';
+COMMENT ON COLUMN tg_account.tenant_id IS '租户ID, 冗余自sys_user_subject.tenant_id, 用于租户隔离和列表查询';
+COMMENT ON COLUMN tg_account.bot_id IS '绑定时所用机器人ID, 关联tg_bot.id';
+COMMENT ON COLUMN tg_account.tg_user_id IS 'Telegram用户ID';
+COMMENT ON COLUMN tg_account.tg_username IS 'Telegram用户名';
+COMMENT ON COLUMN tg_account.language_code IS 'Telegram语言';
+COMMENT ON COLUMN tg_account.user_id IS '系统用户ID, 关联sys_user.id';
+COMMENT ON COLUMN tg_account.subject_id IS '系统用户主体ID, 关联sys_user_subject.id, 通过该主体确定tenant/merchant范围';
+COMMENT ON COLUMN tg_account.status IS '状态: 0解绑 1已绑定';
+COMMENT ON COLUMN tg_account.bound_at IS '绑定时间';
+COMMENT ON COLUMN tg_account.created_at IS '创建时间';
+COMMENT ON COLUMN tg_account.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_tg_account_uk_tg_account_bot_user ON tg_account (bot_id, tg_user_id);
 CREATE INDEX idx_tg_account_idx_tg_account_user ON tg_account (user_id, status);
 CREATE INDEX idx_tg_account_idx_tg_account_subject ON tg_account (subject_id, status);
@@ -46,6 +59,25 @@ CREATE TABLE tg_bot (
   CONSTRAINT chk_tg_bot_1 CHECK (owner_scope in ('PLATFORM','TENANT')),
   CONSTRAINT chk_tg_bot_2 CHECK ((owner_scope <> 'TENANT') or (tenant_id is not null))
 );
+COMMENT ON TABLE tg_bot IS 'Telegram机器人配置';
+COMMENT ON COLUMN tg_bot.id IS '主键ID';
+COMMENT ON COLUMN tg_bot.owner_scope IS '归属: PLATFORM/TENANT';
+COMMENT ON COLUMN tg_bot.tenant_id IS '租户ID; TENANT必填, PLATFORM为空';
+COMMENT ON COLUMN tg_bot.bot_no IS '内部机器人编号';
+COMMENT ON COLUMN tg_bot.name IS '机器人显示名称';
+COMMENT ON COLUMN tg_bot.username IS 'Bot @username';
+COMMENT ON COLUMN tg_bot.bot_user_id IS 'Telegram BotUserId(getMe)';
+COMMENT ON COLUMN tg_bot.token_cipher IS 'BotToken密文(对称加密, 禁止明文)';
+COMMENT ON COLUMN tg_bot.token_hash IS 'Token哈希(查重/校验)';
+COMMENT ON COLUMN tg_bot.secret_token IS 'Webhook secret_token';
+COMMENT ON COLUMN tg_bot.webhook_url IS '已设置的Webhook地址';
+COMMENT ON COLUMN tg_bot.mode IS '模式: WEBHOOK/POLLING';
+COMMENT ON COLUMN tg_bot.status IS '状态: 1正常 2暂停 3停用';
+COMMENT ON COLUMN tg_bot.remark IS '备注';
+COMMENT ON COLUMN tg_bot.created_by IS '创建人ID';
+COMMENT ON COLUMN tg_bot.created_at IS '创建时间';
+COMMENT ON COLUMN tg_bot.updated_by IS '更新人ID';
+COMMENT ON COLUMN tg_bot.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_tg_bot_uk_tg_bot_no ON tg_bot (bot_no);
 CREATE UNIQUE INDEX uk_tg_bot_uk_tg_bot_token ON tg_bot (token_hash);
 CREATE INDEX idx_tg_bot_idx_tg_bot_tenant ON tg_bot (tenant_id, status);
@@ -71,6 +103,23 @@ CREATE TABLE tg_chat (
   CONSTRAINT pk_tg_chat PRIMARY KEY (id),
   CONSTRAINT chk_tg_chat_1 CHECK (chat_type in ('PRIVATE','GROUP','SUPERGROUP','CHANNEL'))
 );
+COMMENT ON TABLE tg_chat IS 'Telegram会话/群组(内嵌事件订阅)';
+COMMENT ON COLUMN tg_chat.id IS '主键ID';
+COMMENT ON COLUMN tg_chat.tenant_id IS '租户ID';
+COMMENT ON COLUMN tg_chat.merchant_id IS '商户ID(可选, 精细到商户)';
+COMMENT ON COLUMN tg_chat.bot_id IS '所属机器人ID, 关联tg_bot.id';
+COMMENT ON COLUMN tg_chat.chat_id IS 'Telegram ChatId(群为负数)';
+COMMENT ON COLUMN tg_chat.chat_type IS '类型: PRIVATE/GROUP/SUPERGROUP/CHANNEL';
+COMMENT ON COLUMN tg_chat.title IS '群/频道名称';
+COMMENT ON COLUMN tg_chat.purpose IS '用途: NOTIFY/OPS/CUSTOMER';
+COMMENT ON COLUMN tg_chat.event_types IS '订阅事件(逗号分隔, 空=全部): SYSTEM_ERROR,SYSTEM_WARN,PAY_SUCCESS,PAYOUT_SUCCESS,PAYOUT_FAILED,RISK_ALERT';
+COMMENT ON COLUMN tg_chat.lang IS '消息语言';
+COMMENT ON COLUMN tg_chat.status IS '状态: 1正常 2暂停 3停用';
+COMMENT ON COLUMN tg_chat.remark IS '备注';
+COMMENT ON COLUMN tg_chat.created_by IS '创建人ID';
+COMMENT ON COLUMN tg_chat.created_at IS '创建时间';
+COMMENT ON COLUMN tg_chat.updated_by IS '更新人ID';
+COMMENT ON COLUMN tg_chat.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_tg_chat_uk_tg_chat_bot_chat ON tg_chat (bot_id, chat_id);
 CREATE INDEX idx_tg_chat_idx_tg_chat_tenant ON tg_chat (tenant_id, merchant_id, status);
 
@@ -108,6 +157,37 @@ CREATE TABLE tg_message_task (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_message_task PRIMARY KEY (id)
 );
+COMMENT ON TABLE tg_message_task IS 'Telegram出站消息任务';
+COMMENT ON COLUMN tg_message_task.id IS '主键ID';
+COMMENT ON COLUMN tg_message_task.tenant_id IS '租户ID; 平台级消息为0';
+COMMENT ON COLUMN tg_message_task.merchant_id IS '商户ID; 0=非商户级消息';
+COMMENT ON COLUMN tg_message_task.bot_id IS '机器人ID, 关联tg_bot.id';
+COMMENT ON COLUMN tg_message_task.chat_id IS '目标ChatId';
+COMMENT ON COLUMN tg_message_task.task_no IS '消息任务编号';
+COMMENT ON COLUMN tg_message_task.biz_type IS '业务类型: PAYIN_ORDER/PAYOUT_ORDER等';
+COMMENT ON COLUMN tg_message_task.biz_no IS '业务编号';
+COMMENT ON COLUMN tg_message_task.event_type IS '触发事件';
+COMMENT ON COLUMN tg_message_task.source_event_id IS '来源Outbox事件ID(幂等)';
+COMMENT ON COLUMN tg_message_task.parse_mode IS '解析模式: HTML/MarkdownV2/NONE';
+COMMENT ON COLUMN tg_message_task.content IS '最终发送内容，已按parse_mode渲染完成';
+COMMENT ON COLUMN tg_message_task.payload_json IS '扩展消息载荷，如reply_markup按钮等';
+COMMENT ON COLUMN tg_message_task.status IS '状态: INIT/PROCESSING/SUCCESS/FAILED/DEAD';
+COMMENT ON COLUMN tg_message_task.retry_count IS '已重试次数';
+COMMENT ON COLUMN tg_message_task.max_retry_count IS '最大重试次数';
+COMMENT ON COLUMN tg_message_task.next_retry_at IS '下次重试时间';
+COMMENT ON COLUMN tg_message_task.tg_message_id IS '发送成功后TG返回的message_id';
+COMMENT ON COLUMN tg_message_task.last_error_code IS '最后TG错误码(如429限流)';
+COMMENT ON COLUMN tg_message_task.last_error_msg IS '最后错误信息';
+COMMENT ON COLUMN tg_message_task.last_attempt_at IS '最后尝试时间';
+COMMENT ON COLUMN tg_message_task.locked_by IS '锁定节点';
+COMMENT ON COLUMN tg_message_task.lock_until IS '锁定过期时间';
+COMMENT ON COLUMN tg_message_task.success_at IS '成功时间';
+COMMENT ON COLUMN tg_message_task.dead_at IS '进入死信时间';
+COMMENT ON COLUMN tg_message_task.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN tg_message_task.created_by IS '创建人ID';
+COMMENT ON COLUMN tg_message_task.created_at IS '创建时间';
+COMMENT ON COLUMN tg_message_task.updated_by IS '更新人ID';
+COMMENT ON COLUMN tg_message_task.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_tg_message_task_uk_tg_msg_task_no ON tg_message_task (tenant_id, task_no);
 CREATE UNIQUE INDEX uk_tg_message_task_uk_tg_msg_source ON tg_message_task (bot_id, chat_id, source_event_id);
 CREATE INDEX idx_tg_message_task_idx_tg_msg_scan ON tg_message_task (status, next_retry_at, id);
@@ -129,5 +209,17 @@ CREATE TABLE tg_update_log (
   created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_update_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE tg_update_log IS 'Telegram入站更新日志';
+COMMENT ON COLUMN tg_update_log.id IS '主键ID';
+COMMENT ON COLUMN tg_update_log.bot_id IS '机器人ID, 关联tg_bot.id';
+COMMENT ON COLUMN tg_update_log.update_id IS 'Telegram update_id(幂等键)';
+COMMENT ON COLUMN tg_update_log.tg_user_id IS '来源TG用户ID';
+COMMENT ON COLUMN tg_update_log.chat_id IS '来源ChatId';
+COMMENT ON COLUMN tg_update_log.update_type IS '类型: message/callback_query等';
+COMMENT ON COLUMN tg_update_log.command IS '命令(如/balance /order)';
+COMMENT ON COLUMN tg_update_log.raw_json IS '原始Update报文';
+COMMENT ON COLUMN tg_update_log.handle_status IS '处理状态: 0待处理 1成功 2失败';
+COMMENT ON COLUMN tg_update_log.error_msg IS '处理错误信息';
+COMMENT ON COLUMN tg_update_log.created_at IS '创建时间';
 CREATE UNIQUE INDEX uk_tg_update_log_uk_tg_update ON tg_update_log (bot_id, update_id);
 CREATE INDEX idx_tg_update_log_idx_tg_update_chat ON tg_update_log (chat_id, created_at);

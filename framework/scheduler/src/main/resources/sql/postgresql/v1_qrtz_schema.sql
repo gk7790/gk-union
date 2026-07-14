@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS qrtz_blob_triggers CASCADE;
 CREATE TABLE qrtz_blob_triggers (
@@ -9,6 +9,7 @@ CREATE TABLE qrtz_blob_triggers (
   blob_data bytea NULL,
   CONSTRAINT pk_qrtz_blob_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_blob_triggers IS 'Qrtz定时任务';
 CREATE INDEX idx_qrtz_blob_triggers_sched_name ON qrtz_blob_triggers (sched_name, trigger_name, trigger_group);
 
 DROP TABLE IF EXISTS qrtz_calendars CASCADE;
@@ -18,6 +19,7 @@ CREATE TABLE qrtz_calendars (
   calendar bytea NOT NULL,
   CONSTRAINT pk_qrtz_calendars PRIMARY KEY (sched_name, calendar_name)
 );
+COMMENT ON TABLE qrtz_calendars IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_cron_triggers CASCADE;
 CREATE TABLE qrtz_cron_triggers (
@@ -28,6 +30,7 @@ CREATE TABLE qrtz_cron_triggers (
   time_zone_id varchar(80) NULL,
   CONSTRAINT pk_qrtz_cron_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_cron_triggers IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_fired_triggers CASCADE;
 CREATE TABLE qrtz_fired_triggers (
@@ -46,6 +49,7 @@ CREATE TABLE qrtz_fired_triggers (
   requests_recovery varchar(1) NULL,
   CONSTRAINT pk_qrtz_fired_triggers PRIMARY KEY (sched_name, entry_id)
 );
+COMMENT ON TABLE qrtz_fired_triggers IS 'Qrtz定时任务';
 CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_trig_inst_name ON qrtz_fired_triggers (sched_name, instance_name);
 CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
 CREATE INDEX idx_qrtz_fired_triggers_idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
@@ -67,6 +71,7 @@ CREATE TABLE qrtz_job_details (
   job_data bytea NULL,
   CONSTRAINT pk_qrtz_job_details PRIMARY KEY (sched_name, job_name, job_group)
 );
+COMMENT ON TABLE qrtz_job_details IS 'Qrtz定时任务';
 CREATE INDEX idx_qrtz_job_details_idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
 CREATE INDEX idx_qrtz_job_details_idx_qrtz_j_grp ON qrtz_job_details (sched_name, job_group);
 
@@ -76,6 +81,7 @@ CREATE TABLE qrtz_locks (
   lock_name varchar(40) NOT NULL,
   CONSTRAINT pk_qrtz_locks PRIMARY KEY (sched_name, lock_name)
 );
+COMMENT ON TABLE qrtz_locks IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_paused_trigger_grps CASCADE;
 CREATE TABLE qrtz_paused_trigger_grps (
@@ -83,6 +89,7 @@ CREATE TABLE qrtz_paused_trigger_grps (
   trigger_group varchar(200) NOT NULL,
   CONSTRAINT pk_qrtz_paused_trigger_grps PRIMARY KEY (sched_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_paused_trigger_grps IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_scheduler_state CASCADE;
 CREATE TABLE qrtz_scheduler_state (
@@ -92,6 +99,7 @@ CREATE TABLE qrtz_scheduler_state (
   checkin_interval bigint NOT NULL,
   CONSTRAINT pk_qrtz_scheduler_state PRIMARY KEY (sched_name, instance_name)
 );
+COMMENT ON TABLE qrtz_scheduler_state IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_simple_triggers CASCADE;
 CREATE TABLE qrtz_simple_triggers (
@@ -103,6 +111,7 @@ CREATE TABLE qrtz_simple_triggers (
   times_triggered bigint NOT NULL,
   CONSTRAINT pk_qrtz_simple_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_simple_triggers IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_simprop_triggers CASCADE;
 CREATE TABLE qrtz_simprop_triggers (
@@ -122,6 +131,7 @@ CREATE TABLE qrtz_simprop_triggers (
   bool_prop_2 varchar(1) NULL,
   CONSTRAINT pk_qrtz_simprop_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_simprop_triggers IS 'Qrtz定时任务';
 
 DROP TABLE IF EXISTS qrtz_triggers CASCADE;
 CREATE TABLE qrtz_triggers (
@@ -143,6 +153,7 @@ CREATE TABLE qrtz_triggers (
   job_data bytea NULL,
   CONSTRAINT pk_qrtz_triggers PRIMARY KEY (sched_name, trigger_name, trigger_group)
 );
+COMMENT ON TABLE qrtz_triggers IS 'Qrtz定时任务';
 CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
 CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_jg ON qrtz_triggers (sched_name, job_group);
 CREATE INDEX idx_qrtz_triggers_idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
@@ -171,6 +182,18 @@ CREATE TABLE schedule_job (
   updated_at timestamp NULL,
   CONSTRAINT pk_schedule_job PRIMARY KEY (id)
 );
+COMMENT ON TABLE schedule_job IS '定时任务';
+COMMENT ON COLUMN schedule_job.id IS 'id';
+COMMENT ON COLUMN schedule_job.schedule_group IS '任务分组';
+COMMENT ON COLUMN schedule_job.bean_name IS 'spring bean名称';
+COMMENT ON COLUMN schedule_job.params IS '参数';
+COMMENT ON COLUMN schedule_job.cron_expression IS 'cron表达式';
+COMMENT ON COLUMN schedule_job.status IS '任务状态  0：暂停  1：正常';
+COMMENT ON COLUMN schedule_job.remark IS '备注';
+COMMENT ON COLUMN schedule_job.created_by IS '创建者';
+COMMENT ON COLUMN schedule_job.created_at IS '创建时间';
+COMMENT ON COLUMN schedule_job.updated_by IS '更新者';
+COMMENT ON COLUMN schedule_job.updated_at IS '更新时间';
 CREATE INDEX idx_schedule_job_idx_created_at ON schedule_job (created_at);
 
 DROP TABLE IF EXISTS schedule_job_log CASCADE;
@@ -186,6 +209,16 @@ CREATE TABLE schedule_job_log (
   created_at timestamp NULL,
   CONSTRAINT pk_schedule_job_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE schedule_job_log IS '定时任务日志';
+COMMENT ON COLUMN schedule_job_log.id IS 'id';
+COMMENT ON COLUMN schedule_job_log.job_id IS '任务id';
+COMMENT ON COLUMN schedule_job_log.bean_name IS 'spring bean名称';
+COMMENT ON COLUMN schedule_job_log.params IS '参数';
+COMMENT ON COLUMN schedule_job_log.status IS '任务状态    0：失败    1：成功';
+COMMENT ON COLUMN schedule_job_log.result IS '结果';
+COMMENT ON COLUMN schedule_job_log.error IS '失败信息';
+COMMENT ON COLUMN schedule_job_log.times IS '耗时(单位：毫秒)';
+COMMENT ON COLUMN schedule_job_log.created_at IS '创建时间';
 CREATE INDEX idx_schedule_job_log_idx_job_id ON schedule_job_log (job_id);
 CREATE INDEX idx_schedule_job_log_idx_created_at ON schedule_job_log (created_at);
 

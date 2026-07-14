@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS merchant_balance_adjust_order CASCADE;
 CREATE TABLE merchant_balance_adjust_order (
@@ -30,6 +30,32 @@ CREATE TABLE merchant_balance_adjust_order (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_merchant_balance_adjust_order PRIMARY KEY (id)
 );
+COMMENT ON TABLE merchant_balance_adjust_order IS '商户余额调整单';
+COMMENT ON COLUMN merchant_balance_adjust_order.id IS '主键ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.tenant_id IS '租户ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.merchant_id IS '商户ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.merchant_no IS '商户号快照';
+COMMENT ON COLUMN merchant_balance_adjust_order.adjust_order_no IS '余额调整单号';
+COMMENT ON COLUMN merchant_balance_adjust_order.adjust_type IS '调整类型: RECHARGE/DEDUCT/REVERSE/SUPPLEMENT';
+COMMENT ON COLUMN merchant_balance_adjust_order.source_type IS '来源: MANUAL/SYSTEM/API';
+COMMENT ON COLUMN merchant_balance_adjust_order.currency IS '币种';
+COMMENT ON COLUMN merchant_balance_adjust_order.amount IS '调整金额，永远为正数';
+COMMENT ON COLUMN merchant_balance_adjust_order.status IS '状态: CREATED/POSTED/FAILED';
+COMMENT ON COLUMN merchant_balance_adjust_order.reason IS '调整原因';
+COMMENT ON COLUMN merchant_balance_adjust_order.related_order_no IS '关联业务单号';
+COMMENT ON COLUMN merchant_balance_adjust_order.reverse_of_journal_no IS '冲正来源凭证号';
+COMMENT ON COLUMN merchant_balance_adjust_order.ledger_journal_no IS '账本凭证号';
+COMMENT ON COLUMN merchant_balance_adjust_order.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.posted_at IS '入账时间';
+COMMENT ON COLUMN merchant_balance_adjust_order.operator_type IS '操作方类型: ADMIN/SYSTEM/API';
+COMMENT ON COLUMN merchant_balance_adjust_order.operator_id IS '操作方ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.extra_json IS '扩展JSON';
+COMMENT ON COLUMN merchant_balance_adjust_order.version IS '乐观锁版本';
+COMMENT ON COLUMN merchant_balance_adjust_order.remark IS '备注';
+COMMENT ON COLUMN merchant_balance_adjust_order.created_by IS '创建人ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.created_at IS '创建时间';
+COMMENT ON COLUMN merchant_balance_adjust_order.updated_by IS '更新人ID';
+COMMENT ON COLUMN merchant_balance_adjust_order.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_merchant_balance_adjust_order_uk_mba_order_no ON merchant_balance_adjust_order (tenant_id, adjust_order_no);
 CREATE INDEX idx_merchant_balance_adjust_order_idx_mba_merchant_created ON merchant_balance_adjust_order (tenant_id, merchant_id, created_at);
 CREATE INDEX idx_merchant_balance_adjust_order_idx_mba_type_status ON merchant_balance_adjust_order (tenant_id, adjust_type, status, created_at);

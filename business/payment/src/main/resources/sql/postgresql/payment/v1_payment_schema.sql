@@ -1,5 +1,5 @@
 -- gk-union PostgreSQL schema generated from the provided MySQL dump.
--- Source: pasted-text.txt. MySQL comments and Navicat metadata are intentionally omitted.
+-- Source: pasted-text.txt. Navicat metadata is intentionally omitted.
 
 DROP TABLE IF EXISTS order_status_log CASCADE;
 CREATE TABLE order_status_log (
@@ -25,6 +25,27 @@ CREATE TABLE order_status_log (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_order_status_log PRIMARY KEY (id)
 );
+COMMENT ON TABLE order_status_log IS '订单状态流转日志';
+COMMENT ON COLUMN order_status_log.id IS '主键ID';
+COMMENT ON COLUMN order_status_log.tenant_id IS '租户ID';
+COMMENT ON COLUMN order_status_log.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN order_status_log.log_no IS '状态日志编号';
+COMMENT ON COLUMN order_status_log.direction IS 'Direction: PAYIN/PAYOUT';
+COMMENT ON COLUMN order_status_log.order_id IS '订单ID';
+COMMENT ON COLUMN order_status_log.order_no IS '订单号';
+COMMENT ON COLUMN order_status_log.from_status IS '变更前状态';
+COMMENT ON COLUMN order_status_log.to_status IS '变更后状态';
+COMMENT ON COLUMN order_status_log.event_type IS '触发事件';
+COMMENT ON COLUMN order_status_log.reason IS '变更原因';
+COMMENT ON COLUMN order_status_log.operator_type IS '操作方: SYSTEM/MERCHANT/PSP/ADMIN/SCHEDULER';
+COMMENT ON COLUMN order_status_log.operator_id IS '操作方ID';
+COMMENT ON COLUMN order_status_log.request_id IS '请求ID/链路请求号';
+COMMENT ON COLUMN order_status_log.trace_id IS '链路追踪ID';
+COMMENT ON COLUMN order_status_log.metadata_json IS '状态变更上下文JSON';
+COMMENT ON COLUMN order_status_log.created_by IS '创建人ID';
+COMMENT ON COLUMN order_status_log.created_at IS '创建时间';
+COMMENT ON COLUMN order_status_log.updated_by IS '更新人ID';
+COMMENT ON COLUMN order_status_log.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_order_status_log_uk_order_status_log_no ON order_status_log (tenant_id, log_no);
 CREATE INDEX idx_order_status_log_idx_order_status_event ON order_status_log (tenant_id, event_type, created_at);
 CREATE INDEX idx_order_status_log_idx_order_status_order ON order_status_log (tenant_id, direction, order_no, created_at);
@@ -109,6 +130,83 @@ CREATE TABLE payin_order (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payin_order PRIMARY KEY (id)
 );
+COMMENT ON TABLE payin_order IS '代收订单';
+COMMENT ON COLUMN payin_order.id IS '主键ID';
+COMMENT ON COLUMN payin_order.tenant_id IS '租户ID';
+COMMENT ON COLUMN payin_order.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN payin_order.merchant_no IS '平台商户号快照';
+COMMENT ON COLUMN payin_order.merchant_app_id IS '商户应用ID';
+COMMENT ON COLUMN payin_order.app_id IS '商户应用ID快照';
+COMMENT ON COLUMN payin_order.payin_order_no IS '平台代收订单号';
+COMMENT ON COLUMN payin_order.merchant_order_no IS '商户订单号';
+COMMENT ON COLUMN payin_order.idempotency_key IS '商户请求幂等键';
+COMMENT ON COLUMN payin_order.request_id IS '请求ID/链路请求号';
+COMMENT ON COLUMN payin_order.order_source IS '订单来源: API/ADMIN/SYSTEM';
+COMMENT ON COLUMN payin_order.country_code IS '国家编码';
+COMMENT ON COLUMN payin_order.currency IS '币种';
+COMMENT ON COLUMN payin_order.method_code IS '平台统一支付方式编码';
+COMMENT ON COLUMN payin_order.amount IS '订单金额';
+COMMENT ON COLUMN payin_order.paid_amount IS '实际支付金额';
+COMMENT ON COLUMN payin_order.merchant_fee_amount IS '商户手续费';
+COMMENT ON COLUMN payin_order.merchant_fee_rule_id IS '商户手续费规则ID';
+COMMENT ON COLUMN payin_order.merchant_fee_snapshot_json IS '商户手续费规则快照JSON';
+COMMENT ON COLUMN payin_order.psp_fee_amount IS 'PSP成本手续费';
+COMMENT ON COLUMN payin_order.psp_fee_rule_id IS 'PSP成本手续费规则ID';
+COMMENT ON COLUMN payin_order.psp_fee_snapshot_json IS 'PSP成本手续费规则快照JSON';
+COMMENT ON COLUMN payin_order.settle_amount IS '商户待结算金额';
+COMMENT ON COLUMN payin_order.subject IS '订单标题';
+COMMENT ON COLUMN payin_order.description IS '订单描述';
+COMMENT ON COLUMN payin_order.client_ip IS '商户侧用户IP';
+COMMENT ON COLUMN payin_order.payer_json IS '付款人扩展信息JSON，敏感信息需要脱敏或加密';
+COMMENT ON COLUMN payin_order.notify_url IS '商户异步通知地址';
+COMMENT ON COLUMN payin_order.return_url IS '商户同步跳转地址';
+COMMENT ON COLUMN payin_order.merchant_notify_status IS '下游商户通知状态: NONE/PENDING/SUCCESS/FAILED';
+COMMENT ON COLUMN payin_order.merchant_notify_at IS '下游商户通知完成/最近尝试时间';
+COMMENT ON COLUMN payin_order.merchant_notify_task_id IS '关联商户通知任务ID';
+COMMENT ON COLUMN payin_order.status IS '状态: CREATED/PROCESSING/SUCCESS/FAILED/CLOSED';
+COMMENT ON COLUMN payin_order.status_reason IS '当前状态原因';
+COMMENT ON COLUMN payin_order.merchant_status_code IS 'Merchant visible status reason code';
+COMMENT ON COLUMN payin_order.merchant_status_reason IS 'Merchant visible status reason message';
+COMMENT ON COLUMN payin_order.expire_at IS '订单过期时间';
+COMMENT ON COLUMN payin_order.paid_at IS '支付成功时间';
+COMMENT ON COLUMN payin_order.closed_at IS '关闭时间';
+COMMENT ON COLUMN payin_order.failed_at IS '失败时间';
+COMMENT ON COLUMN payin_order.payment_plan_catalog_id IS '命中的支付方案目录ID';
+COMMENT ON COLUMN payin_order.payment_plan_version IS '命中的支付方案版本号';
+COMMENT ON COLUMN payin_order.payment_plan_bucket_id IS '命中的支付方案金额段ID';
+COMMENT ON COLUMN payin_order.payment_plan_route_option_id IS '命中的支付方案路由候选ID';
+COMMENT ON COLUMN payin_order.route_rule_id IS '命中的PSP路由规则ID';
+COMMENT ON COLUMN payin_order.route_group_id IS '命中的支付路由组ID';
+COMMENT ON COLUMN payin_order.route_channel_id IS '命中的支付路由通道ID';
+COMMENT ON COLUMN payin_order.route_snapshot_json IS 'PSP路由快照JSON';
+COMMENT ON COLUMN payin_order.psp_id IS 'PSP ID';
+COMMENT ON COLUMN payin_order.psp_code IS 'PSP编码快照';
+COMMENT ON COLUMN payin_order.psp_method_id IS 'PSP支付方式ID';
+COMMENT ON COLUMN payin_order.psp_method_code IS 'PSP支付方式编码';
+COMMENT ON COLUMN payin_order.psp_account_id IS 'PSP账户配置ID';
+COMMENT ON COLUMN payin_order.psp_account_no IS 'PSP账户号快照';
+COMMENT ON COLUMN payin_order.psp_request_no IS '请求PSP的平台请求编号';
+COMMENT ON COLUMN payin_order.psp_order_no IS 'PSP订单号';
+COMMENT ON COLUMN payin_order.psp_status IS 'PSP状态';
+COMMENT ON COLUMN payin_order.psp_raw_status IS 'PSP原始状态';
+COMMENT ON COLUMN payin_order.psp_pay_url IS 'PSP收银台/支付链接';
+COMMENT ON COLUMN payin_order.psp_pay_params_json IS 'PSP支付参数JSON';
+COMMENT ON COLUMN payin_order.next_query_at IS 'next PSP status query time';
+COMMENT ON COLUMN payin_order.query_count IS 'PSP status query count';
+COMMENT ON COLUMN payin_order.submitted_at IS '提交PSP时间';
+COMMENT ON COLUMN payin_order.ledger_journal_no IS '入账凭证号';
+COMMENT ON COLUMN payin_order.settle_status IS '结算状态: PENDING/RELEASED/HELD/CANCELLED';
+COMMENT ON COLUMN payin_order.settle_release_at IS '计划结算释放时间';
+COMMENT ON COLUMN payin_order.settle_at IS '结算释放时间';
+COMMENT ON COLUMN payin_order.settle_journal_no IS '结算释放凭证号';
+COMMENT ON COLUMN payin_order.outbox_event_id IS '订单成功事件ID';
+COMMENT ON COLUMN payin_order.extra_json IS '订单扩展JSON';
+COMMENT ON COLUMN payin_order.version IS '乐观锁版本号';
+COMMENT ON COLUMN payin_order.remark IS '备注';
+COMMENT ON COLUMN payin_order.created_by IS '创建人ID';
+COMMENT ON COLUMN payin_order.created_at IS '创建时间';
+COMMENT ON COLUMN payin_order.updated_by IS '更新人ID';
+COMMENT ON COLUMN payin_order.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payin_order_uk_pay_order_no ON payin_order (tenant_id, payin_order_no);
 CREATE UNIQUE INDEX uk_payin_order_uk_pay_merchant_order ON payin_order (tenant_id, merchant_id, merchant_order_no);
 CREATE UNIQUE INDEX uk_payin_order_uk_pay_idempotency ON payin_order (tenant_id, merchant_id, idempotency_key);
@@ -147,6 +245,18 @@ CREATE TABLE payment_method (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_method PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_method IS '系统标准支付方式';
+COMMENT ON COLUMN payment_method.id IS '主键ID';
+COMMENT ON COLUMN payment_method.method_code IS '系统支付方式编码';
+COMMENT ON COLUMN payment_method.method_name IS '支付方式名称';
+COMMENT ON COLUMN payment_method.method_type IS '类型: WALLET/BANK_CARD/QR/CASH/CARD';
+COMMENT ON COLUMN payment_method.direction IS '方向: PAYIN/PAYOUT/BOTH，NULL表示不限';
+COMMENT ON COLUMN payment_method.country_code IS '国家/地区，NULL表示通用';
+COMMENT ON COLUMN payment_method.currency IS '币种，NULL表示通用';
+COMMENT ON COLUMN payment_method.status IS '状态: 1正常 2暂停 3停用';
+COMMENT ON COLUMN payment_method.sort IS '排序';
+COMMENT ON COLUMN payment_method.icon_url IS '图标';
+COMMENT ON COLUMN payment_method.remark IS '备注';
 CREATE UNIQUE INDEX uk_payment_method_uk_payment_method_scope ON payment_method (method_code, country_code, currency, direction);
 CREATE INDEX idx_payment_method_idx_payment_method_query ON payment_method (country_code, currency, direction, status, sort);
 
@@ -164,6 +274,17 @@ CREATE TABLE payment_plan_bucket (
   created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_plan_bucket PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_plan_bucket IS '支付方案金额分段';
+COMMENT ON COLUMN payment_plan_bucket.id IS '主键ID';
+COMMENT ON COLUMN payment_plan_bucket.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_plan_bucket.catalog_id IS '支付方案目录ID';
+COMMENT ON COLUMN payment_plan_bucket.bucket_start_amount IS '金额区间开始，包含';
+COMMENT ON COLUMN payment_plan_bucket.bucket_end_amount IS '金额区间结束，不包含；NULL表示无上限';
+COMMENT ON COLUMN payment_plan_bucket.merchant_fee_rule_id IS '商户费率规则ID';
+COMMENT ON COLUMN payment_plan_bucket.merchant_fee_snapshot_json IS '商户费率规则快照JSON';
+COMMENT ON COLUMN payment_plan_bucket.sort IS '排序值';
+COMMENT ON COLUMN payment_plan_bucket.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_plan_bucket.created_at IS '创建时间';
 CREATE INDEX idx_payment_plan_bucket_idx_payment_plan_bucket_catalog ON payment_plan_bucket (tenant_id, catalog_id, sort);
 CREATE INDEX idx_payment_plan_bucket_idx_payment_plan_bucket_amount ON payment_plan_bucket (tenant_id, catalog_id, bucket_start_amount, bucket_end_amount);
 
@@ -191,6 +312,27 @@ CREATE TABLE payment_plan_catalog (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_plan_catalog PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_plan_catalog IS '支付方案目录';
+COMMENT ON COLUMN payment_plan_catalog.id IS '主键ID';
+COMMENT ON COLUMN payment_plan_catalog.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_plan_catalog.merchant_id IS '商户ID';
+COMMENT ON COLUMN payment_plan_catalog.merchant_app_id IS '商户应用ID，0表示不区分应用';
+COMMENT ON COLUMN payment_plan_catalog.direction IS '交易方向：PAYIN代收，PAYOUT代付';
+COMMENT ON COLUMN payment_plan_catalog.country_code IS '国家/地区编码，空字符串表示通用';
+COMMENT ON COLUMN payment_plan_catalog.currency IS '币种';
+COMMENT ON COLUMN payment_plan_catalog.method_code IS '平台统一支付方式编码';
+COMMENT ON COLUMN payment_plan_catalog.version IS '支付方案版本号';
+COMMENT ON COLUMN payment_plan_catalog.status IS '状态：STAGING待发布，ACTIVE生效中，RETIRED已退役';
+COMMENT ON COLUMN payment_plan_catalog.bucket_count IS '金额分段数量';
+COMMENT ON COLUMN payment_plan_catalog.route_option_count IS '路由候选数量';
+COMMENT ON COLUMN payment_plan_catalog.config_hash IS '编译后支付方案指纹';
+COMMENT ON COLUMN payment_plan_catalog.compiled_at IS '编译时间';
+COMMENT ON COLUMN payment_plan_catalog.activated_at IS '生效时间';
+COMMENT ON COLUMN payment_plan_catalog.remark IS '备注';
+COMMENT ON COLUMN payment_plan_catalog.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_plan_catalog.created_at IS '创建时间';
+COMMENT ON COLUMN payment_plan_catalog.updated_by IS '更新人ID';
+COMMENT ON COLUMN payment_plan_catalog.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payment_plan_catalog_uk_payment_plan_catalog_version ON payment_plan_catalog (tenant_id, merchant_id, merchant_app_id, direction, country_code, currency, method_code, version);
 CREATE INDEX idx_payment_plan_catalog_idx_payment_plan_catalog_active ON payment_plan_catalog (tenant_id, merchant_id, merchant_app_id, direction, country_code, currency, method_code, status);
 CREATE INDEX idx_payment_plan_catalog_idx_payment_plan_catalog_created ON payment_plan_catalog (tenant_id, created_at);
@@ -227,6 +369,35 @@ CREATE TABLE payment_plan_route_option (
   created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_plan_route_option PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_plan_route_option IS '支付方案PSP路由候选';
+COMMENT ON COLUMN payment_plan_route_option.id IS '主键ID';
+COMMENT ON COLUMN payment_plan_route_option.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_plan_route_option.catalog_id IS '支付方案目录ID';
+COMMENT ON COLUMN payment_plan_route_option.bucket_id IS '金额分段ID';
+COMMENT ON COLUMN payment_plan_route_option.route_rule_id IS '来源路由规则ID，对应payment_route_rule.id';
+COMMENT ON COLUMN payment_plan_route_option.route_group_id IS '来源路由组ID，对应payment_route_group.id';
+COMMENT ON COLUMN payment_plan_route_option.route_channel_id IS '来源路由通道ID，对应payment_route_channel.id';
+COMMENT ON COLUMN payment_plan_route_option.psp_id IS '支付服务商ID';
+COMMENT ON COLUMN payment_plan_route_option.psp_code IS '支付服务商编码快照';
+COMMENT ON COLUMN payment_plan_route_option.psp_method_id IS '支付服务商方法ID';
+COMMENT ON COLUMN payment_plan_route_option.psp_method_code IS '支付服务商方法编码快照';
+COMMENT ON COLUMN payment_plan_route_option.psp_account_id IS '支付服务商账户ID';
+COMMENT ON COLUMN payment_plan_route_option.psp_account_no IS '支付服务商账户编号快照';
+COMMENT ON COLUMN payment_plan_route_option.psp_fee_rule_id IS '支付服务商成本费率规则ID';
+COMMENT ON COLUMN payment_plan_route_option.psp_fee_snapshot_json IS '支付服务商成本费率规则快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.route_rule_snapshot_json IS '支付路由规则快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.route_group_snapshot_json IS '支付路由组快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.route_channel_snapshot_json IS '支付路由通道快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.psp_provider_snapshot_json IS '支付服务商快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.psp_method_snapshot_json IS '支付服务商方法快照JSON';
+COMMENT ON COLUMN payment_plan_route_option.psp_account_snapshot_json IS '支付服务商账户快照JSON，不包含密钥';
+COMMENT ON COLUMN payment_plan_route_option.priority IS '优先级，数值越小优先级越高';
+COMMENT ON COLUMN payment_plan_route_option.weight IS '同优先级下的权重';
+COMMENT ON COLUMN payment_plan_route_option.fallback_order IS '失败后的备用顺序';
+COMMENT ON COLUMN payment_plan_route_option.status IS '状态：ACTIVE可用，DISABLED禁用';
+COMMENT ON COLUMN payment_plan_route_option.sort IS '展示排序';
+COMMENT ON COLUMN payment_plan_route_option.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_plan_route_option.created_at IS '创建时间';
 CREATE INDEX idx_payment_plan_route_option_idx_payment_plan_route_bucket ON payment_plan_route_option (tenant_id, bucket_id, status, priority, fallback_order);
 CREATE INDEX idx_payment_plan_route_option_idx_payment_plan_route_catalog ON payment_plan_route_option (tenant_id, catalog_id, bucket_id, sort);
 CREATE INDEX idx_payment_plan_route_option_idx_payment_plan_route_psp ON payment_plan_route_option (tenant_id, psp_id, psp_account_id);
@@ -254,6 +425,25 @@ CREATE TABLE payment_route_channel (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_route_channel PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_route_channel IS '支付路由通道';
+COMMENT ON COLUMN payment_route_channel.id IS '主键ID';
+COMMENT ON COLUMN payment_route_channel.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_route_channel.group_id IS '支付路由组ID，对应payment_route_group.id';
+COMMENT ON COLUMN payment_route_channel.psp_id IS '支付服务商ID，对应psp_provider.id';
+COMMENT ON COLUMN payment_route_channel.psp_method_id IS '支付服务商方法ID，对应psp_method.id';
+COMMENT ON COLUMN payment_route_channel.psp_account_id IS '支付服务商账户ID，对应psp_account.id';
+COMMENT ON COLUMN payment_route_channel.psp_fee_rule_id IS '支付服务商成本费率规则ID，对应psp_fee_rule.id；为空时发布阶段自动匹配';
+COMMENT ON COLUMN payment_route_channel.priority IS '优先级，数值越小优先级越高';
+COMMENT ON COLUMN payment_route_channel.weight IS '同优先级下的权重';
+COMMENT ON COLUMN payment_route_channel.fallback_order IS '失败后的备用顺序';
+COMMENT ON COLUMN payment_route_channel.min_amount IS '最小金额';
+COMMENT ON COLUMN payment_route_channel.max_amount IS '最大金额';
+COMMENT ON COLUMN payment_route_channel.status IS '状态：1正常，2暂停，3停用';
+COMMENT ON COLUMN payment_route_channel.remark IS '备注';
+COMMENT ON COLUMN payment_route_channel.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_route_channel.created_at IS '创建时间';
+COMMENT ON COLUMN payment_route_channel.updated_by IS '更新人ID';
+COMMENT ON COLUMN payment_route_channel.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payment_route_channel_uk_payment_route_channel_resource ON payment_route_channel (tenant_id, group_id, psp_id, psp_method_id, psp_account_id);
 CREATE INDEX idx_payment_route_channel_idx_payment_route_channel_group ON payment_route_channel (tenant_id, group_id, status, priority, fallback_order);
 CREATE INDEX idx_payment_route_channel_idx_payment_route_channel_psp ON payment_route_channel (tenant_id, psp_id, psp_method_id, psp_account_id);
@@ -279,6 +469,22 @@ CREATE TABLE payment_route_group (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_route_group PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_route_group IS '支付路由组';
+COMMENT ON COLUMN payment_route_group.id IS '主键ID';
+COMMENT ON COLUMN payment_route_group.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_route_group.group_code IS '路由组编码，例如PH_GCASH_PAYIN';
+COMMENT ON COLUMN payment_route_group.group_name IS '路由组名称';
+COMMENT ON COLUMN payment_route_group.direction IS '交易方向：PAYIN代收，PAYOUT代付';
+COMMENT ON COLUMN payment_route_group.country_code IS '国家/地区编码，空字符串表示通用';
+COMMENT ON COLUMN payment_route_group.currency IS '币种';
+COMMENT ON COLUMN payment_route_group.method_code IS '平台统一支付方式编码';
+COMMENT ON COLUMN payment_route_group.strategy IS '组内策略：PRIORITY_WEIGHT优先级加权，FAILOVER故障转移，LOWEST_COST最低成本，SUCCESS_RATE成功率优先';
+COMMENT ON COLUMN payment_route_group.status IS '状态：1正常，2暂停，3停用';
+COMMENT ON COLUMN payment_route_group.remark IS '备注';
+COMMENT ON COLUMN payment_route_group.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_route_group.created_at IS '创建时间';
+COMMENT ON COLUMN payment_route_group.updated_by IS '更新人ID';
+COMMENT ON COLUMN payment_route_group.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payment_route_group_uk_payment_route_group_code ON payment_route_group (tenant_id, group_code);
 CREATE INDEX idx_payment_route_group_idx_payment_route_group_dimension ON payment_route_group (tenant_id, direction, country_code, currency, method_code, status);
 
@@ -307,6 +513,28 @@ CREATE TABLE payment_route_rule (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payment_route_rule PRIMARY KEY (id)
 );
+COMMENT ON TABLE payment_route_rule IS '支付路由规则';
+COMMENT ON COLUMN payment_route_rule.id IS '主键ID';
+COMMENT ON COLUMN payment_route_rule.tenant_id IS '租户ID';
+COMMENT ON COLUMN payment_route_rule.rule_name IS '路由规则名称';
+COMMENT ON COLUMN payment_route_rule.merchant_id IS '商户ID，NULL表示租户级默认规则';
+COMMENT ON COLUMN payment_route_rule.merchant_app_id IS '商户应用ID，NULL表示不区分应用';
+COMMENT ON COLUMN payment_route_rule.direction IS '交易方向：PAYIN代收，PAYOUT代付';
+COMMENT ON COLUMN payment_route_rule.country_code IS '国家/地区编码，空字符串表示通用';
+COMMENT ON COLUMN payment_route_rule.currency IS '币种';
+COMMENT ON COLUMN payment_route_rule.method_code IS '平台统一支付方式编码';
+COMMENT ON COLUMN payment_route_rule.min_amount IS '最小金额';
+COMMENT ON COLUMN payment_route_rule.max_amount IS '最大金额';
+COMMENT ON COLUMN payment_route_rule.group_id IS '命中的支付路由组ID，对应payment_route_group.id';
+COMMENT ON COLUMN payment_route_rule.priority IS '规则优先级，数值越小优先级越高';
+COMMENT ON COLUMN payment_route_rule.effective_at IS '生效时间';
+COMMENT ON COLUMN payment_route_rule.expire_at IS '失效时间';
+COMMENT ON COLUMN payment_route_rule.status IS '状态：1正常，2暂停，3停用';
+COMMENT ON COLUMN payment_route_rule.remark IS '备注';
+COMMENT ON COLUMN payment_route_rule.created_by IS '创建人ID';
+COMMENT ON COLUMN payment_route_rule.created_at IS '创建时间';
+COMMENT ON COLUMN payment_route_rule.updated_by IS '更新人ID';
+COMMENT ON COLUMN payment_route_rule.updated_at IS '更新时间';
 CREATE INDEX idx_payment_route_rule_idx_payment_route_rule_match ON payment_route_rule (tenant_id, merchant_id, merchant_app_id, direction, country_code, currency, method_code, status, priority);
 CREATE INDEX idx_payment_route_rule_idx_payment_route_rule_group ON payment_route_rule (tenant_id, group_id);
 CREATE INDEX idx_payment_route_rule_idx_payment_route_rule_amount ON payment_route_rule (tenant_id, direction, currency, method_code, min_amount, max_amount);
@@ -391,6 +619,83 @@ CREATE TABLE payout_order (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payout_order PRIMARY KEY (id)
 );
+COMMENT ON TABLE payout_order IS '代付订单';
+COMMENT ON COLUMN payout_order.id IS '主键ID';
+COMMENT ON COLUMN payout_order.tenant_id IS '租户ID';
+COMMENT ON COLUMN payout_order.merchant_id IS '平台商户ID';
+COMMENT ON COLUMN payout_order.merchant_no IS '平台商户号快照';
+COMMENT ON COLUMN payout_order.merchant_app_id IS '商户应用ID';
+COMMENT ON COLUMN payout_order.app_id IS '商户应用ID快照';
+COMMENT ON COLUMN payout_order.payout_order_no IS '平台代付订单号';
+COMMENT ON COLUMN payout_order.merchant_order_no IS '商户订单号';
+COMMENT ON COLUMN payout_order.idempotency_key IS '商户请求幂等键';
+COMMENT ON COLUMN payout_order.request_id IS '请求ID/链路请求号';
+COMMENT ON COLUMN payout_order.order_source IS '订单来源: API/ADMIN/SYSTEM';
+COMMENT ON COLUMN payout_order.country_code IS '国家编码';
+COMMENT ON COLUMN payout_order.currency IS '币种';
+COMMENT ON COLUMN payout_order.method_code IS '平台统一代付方式编码';
+COMMENT ON COLUMN payout_order.amount IS '代付金额';
+COMMENT ON COLUMN payout_order.merchant_fee_amount IS '商户手续费';
+COMMENT ON COLUMN payout_order.merchant_fee_rule_id IS '商户手续费规则ID';
+COMMENT ON COLUMN payout_order.merchant_fee_snapshot_json IS '商户手续费规则快照JSON';
+COMMENT ON COLUMN payout_order.total_debit_amount IS '商户扣减总额，通常为amount+fee';
+COMMENT ON COLUMN payout_order.psp_fee_amount IS 'PSP成本手续费';
+COMMENT ON COLUMN payout_order.psp_fee_rule_id IS 'PSP成本手续费规则ID';
+COMMENT ON COLUMN payout_order.psp_fee_snapshot_json IS 'PSP成本手续费规则快照JSON';
+COMMENT ON COLUMN payout_order.payee_name IS '收款人姓名';
+COMMENT ON COLUMN payout_order.payee_account_no IS '收款账号/钱包号';
+COMMENT ON COLUMN payout_order.payee_bank_code IS '收款银行编码';
+COMMENT ON COLUMN payout_order.payee_wallet_type IS '收款钱包类型';
+COMMENT ON COLUMN payout_order.payee_phone IS '收款人手机号';
+COMMENT ON COLUMN payout_order.payee_email IS '收款人邮箱';
+COMMENT ON COLUMN payout_order.payee_json IS '收款人扩展JSON';
+COMMENT ON COLUMN payout_order.purpose IS '代付用途';
+COMMENT ON COLUMN payout_order.notify_url IS '商户异步通知地址';
+COMMENT ON COLUMN payout_order.merchant_notify_status IS '下游商户通知状态: NONE/PENDING/SUCCESS/FAILED';
+COMMENT ON COLUMN payout_order.merchant_notify_at IS '下游商户通知完成/最近尝试时间';
+COMMENT ON COLUMN payout_order.merchant_notify_task_id IS '关联商户通知任务ID';
+COMMENT ON COLUMN payout_order.status IS '状态: CREATED/FROZEN/PROCESSING/MANUAL_REVIEW/SUCCESS/FAILED/CANCELLED';
+COMMENT ON COLUMN payout_order.status_reason IS '当前状态原因';
+COMMENT ON COLUMN payout_order.merchant_status_code IS 'Merchant visible status reason code';
+COMMENT ON COLUMN payout_order.merchant_status_reason IS 'Merchant visible status reason message';
+COMMENT ON COLUMN payout_order.submitted_at IS '提交PSP时间';
+COMMENT ON COLUMN payout_order.completed_at IS '完成时间';
+COMMENT ON COLUMN payout_order.failed_at IS '失败时间';
+COMMENT ON COLUMN payout_order.cancelled_at IS '取消时间';
+COMMENT ON COLUMN payout_order.fail_code IS '失败码';
+COMMENT ON COLUMN payout_order.fail_msg IS '失败原因';
+COMMENT ON COLUMN payout_order.hold_no IS '冻结编号';
+COMMENT ON COLUMN payout_order.freeze_journal_no IS '冻结凭证号';
+COMMENT ON COLUMN payout_order.success_journal_no IS '成功扣款凭证号';
+COMMENT ON COLUMN payout_order.release_journal_no IS '失败解冻凭证号';
+COMMENT ON COLUMN payout_order.payment_plan_catalog_id IS '命中的支付方案目录ID';
+COMMENT ON COLUMN payout_order.payment_plan_version IS '命中的支付方案版本号';
+COMMENT ON COLUMN payout_order.payment_plan_bucket_id IS '命中的支付方案金额段ID';
+COMMENT ON COLUMN payout_order.payment_plan_route_option_id IS '命中的支付方案路由候选ID';
+COMMENT ON COLUMN payout_order.route_rule_id IS '命中的PSP路由规则ID';
+COMMENT ON COLUMN payout_order.route_group_id IS '命中的支付路由组ID';
+COMMENT ON COLUMN payout_order.route_channel_id IS '命中的支付路由通道ID';
+COMMENT ON COLUMN payout_order.route_snapshot_json IS 'PSP路由快照JSON';
+COMMENT ON COLUMN payout_order.psp_id IS 'PSP ID';
+COMMENT ON COLUMN payout_order.psp_code IS 'PSP编码快照';
+COMMENT ON COLUMN payout_order.psp_method_id IS 'PSP支付方式ID';
+COMMENT ON COLUMN payout_order.psp_method_code IS 'PSP支付方式编码';
+COMMENT ON COLUMN payout_order.psp_account_id IS 'PSP账户配置ID';
+COMMENT ON COLUMN payout_order.psp_account_no IS 'PSP账户号快照';
+COMMENT ON COLUMN payout_order.psp_request_no IS '请求PSP的平台请求编号';
+COMMENT ON COLUMN payout_order.psp_order_no IS 'PSP订单号';
+COMMENT ON COLUMN payout_order.psp_status IS 'PSP状态';
+COMMENT ON COLUMN payout_order.psp_raw_status IS 'PSP原始状态';
+COMMENT ON COLUMN payout_order.next_query_at IS '下一次主动查询PSP状态时间';
+COMMENT ON COLUMN payout_order.query_count IS '主动查询次数';
+COMMENT ON COLUMN payout_order.outbox_event_id IS '订单终态事件ID';
+COMMENT ON COLUMN payout_order.extra_json IS '订单扩展JSON';
+COMMENT ON COLUMN payout_order.version IS '乐观锁版本号';
+COMMENT ON COLUMN payout_order.remark IS '备注';
+COMMENT ON COLUMN payout_order.created_by IS '创建人ID';
+COMMENT ON COLUMN payout_order.created_at IS '创建时间';
+COMMENT ON COLUMN payout_order.updated_by IS '更新人ID';
+COMMENT ON COLUMN payout_order.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payout_order_uk_payout_order_no ON payout_order (tenant_id, payout_order_no);
 CREATE UNIQUE INDEX uk_payout_order_uk_payout_merchant_order ON payout_order (tenant_id, merchant_id, merchant_order_no);
 CREATE UNIQUE INDEX uk_payout_order_uk_payout_idempotency ON payout_order (tenant_id, merchant_id, idempotency_key);
@@ -443,6 +748,38 @@ CREATE TABLE payout_route_attempt (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_payout_route_attempt PRIMARY KEY (id)
 );
+COMMENT ON TABLE payout_route_attempt IS '代付路由提交尝试记录';
+COMMENT ON COLUMN payout_route_attempt.id IS '主键ID';
+COMMENT ON COLUMN payout_route_attempt.tenant_id IS '租户ID';
+COMMENT ON COLUMN payout_route_attempt.payout_order_id IS '平台代付订单ID';
+COMMENT ON COLUMN payout_route_attempt.payout_order_no IS '平台代付订单号';
+COMMENT ON COLUMN payout_route_attempt.attempt_no IS '路由提交尝试次数，从1开始';
+COMMENT ON COLUMN payout_route_attempt.route_option_id IS '命中的支付方案路由候选ID';
+COMMENT ON COLUMN payout_route_attempt.route_rule_id IS '命中的支付路由规则ID';
+COMMENT ON COLUMN payout_route_attempt.route_group_id IS '命中的支付路由组ID';
+COMMENT ON COLUMN payout_route_attempt.route_channel_id IS '命中的支付路由通道ID';
+COMMENT ON COLUMN payout_route_attempt.psp_id IS '支付服务商ID';
+COMMENT ON COLUMN payout_route_attempt.psp_code IS '支付服务商编码快照';
+COMMENT ON COLUMN payout_route_attempt.psp_method_id IS '支付服务商方法ID';
+COMMENT ON COLUMN payout_route_attempt.psp_method_code IS '支付服务商方法编码快照';
+COMMENT ON COLUMN payout_route_attempt.psp_account_id IS '支付服务商账号ID';
+COMMENT ON COLUMN payout_route_attempt.psp_account_no IS '支付服务商账号号快照';
+COMMENT ON COLUMN payout_route_attempt.psp_bank_code IS '提交给PSP的银行编码';
+COMMENT ON COLUMN payout_route_attempt.submit_result_status IS 'PSP提交归一结果: ACCEPTED/REJECTED/UNKNOWN/ROUTE_UNAVAILABLE';
+COMMENT ON COLUMN payout_route_attempt.error_code IS '归一错误码';
+COMMENT ON COLUMN payout_route_attempt.error_message IS '归一错误信息';
+COMMENT ON COLUMN payout_route_attempt.psp_request_no IS '平台请求PSP编号';
+COMMENT ON COLUMN payout_route_attempt.psp_order_no IS 'PSP订单号';
+COMMENT ON COLUMN payout_route_attempt.raw_status IS 'PSP原始状态';
+COMMENT ON COLUMN payout_route_attempt.response_status IS 'PSP HTTP响应状态码';
+COMMENT ON COLUMN payout_route_attempt.response_code IS 'PSP响应业务码';
+COMMENT ON COLUMN payout_route_attempt.response_message IS 'PSP响应业务信息';
+COMMENT ON COLUMN payout_route_attempt.raw_response_json IS 'PSP原始响应JSON';
+COMMENT ON COLUMN payout_route_attempt.remark IS '备注';
+COMMENT ON COLUMN payout_route_attempt.created_by IS '创建人ID';
+COMMENT ON COLUMN payout_route_attempt.created_at IS '创建时间';
+COMMENT ON COLUMN payout_route_attempt.updated_by IS '更新人ID';
+COMMENT ON COLUMN payout_route_attempt.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_payout_route_attempt_uk_payout_route_attempt_no ON payout_route_attempt (tenant_id, payout_order_id, attempt_no);
 CREATE INDEX idx_payout_route_attempt_idx_payout_route_attempt_order ON payout_route_attempt (tenant_id, payout_order_no, attempt_no);
 CREATE INDEX idx_payout_route_attempt_idx_payout_route_attempt_psp ON payout_route_attempt (tenant_id, psp_id, psp_account_id, created_at);
@@ -464,6 +801,17 @@ CREATE TABLE sys_tenant_currency (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_sys_tenant_currency PRIMARY KEY (id)
 );
+COMMENT ON TABLE sys_tenant_currency IS '租户可用币种配置表';
+COMMENT ON COLUMN sys_tenant_currency.id IS '主键ID';
+COMMENT ON COLUMN sys_tenant_currency.tenant_id IS '租户ID';
+COMMENT ON COLUMN sys_tenant_currency.currency IS '币种代码，如 PHP、IDR、VND、USD';
+COMMENT ON COLUMN sys_tenant_currency.status IS '状态：1启用 2暂停 3禁用';
+COMMENT ON COLUMN sys_tenant_currency.sort IS '排序';
+COMMENT ON COLUMN sys_tenant_currency.remark IS '备注';
+COMMENT ON COLUMN sys_tenant_currency.created_by IS '创建人';
+COMMENT ON COLUMN sys_tenant_currency.created_at IS '创建时间';
+COMMENT ON COLUMN sys_tenant_currency.updated_by IS '更新人';
+COMMENT ON COLUMN sys_tenant_currency.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_sys_tenant_currency_uk_tenant_currency ON sys_tenant_currency (tenant_id, currency);
 CREATE INDEX idx_sys_tenant_currency_idx_tenant_status ON sys_tenant_currency (tenant_id, status);
 CREATE INDEX idx_sys_tenant_currency_idx_currency ON sys_tenant_currency (currency);

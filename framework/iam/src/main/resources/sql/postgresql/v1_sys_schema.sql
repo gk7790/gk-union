@@ -133,23 +133,6 @@ COMMENT ON COLUMN sys_i18n.created_at IS '创建时间';
 COMMENT ON COLUMN sys_i18n.updated_by IS '修改者';
 COMMENT ON COLUMN sys_i18n.updated_at IS '修改时间';
 
-DROP TABLE IF EXISTS sys_language CASCADE;
-CREATE TABLE sys_language (
-  table_id bigint NOT NULL,
-  table_name varchar(32) NOT NULL,
-  field_name varchar(32) NOT NULL,
-  field_value varchar(200) NOT NULL,
-  language varchar(10) NOT NULL,
-  CONSTRAINT pk_sys_language PRIMARY KEY (table_id, table_name, field_name, language)
-);
-COMMENT ON TABLE sys_language IS '国际化';
-COMMENT ON COLUMN sys_language.table_id IS '表主键';
-COMMENT ON COLUMN sys_language.table_name IS '表名';
-COMMENT ON COLUMN sys_language.field_name IS '字段名';
-COMMENT ON COLUMN sys_language.field_value IS '字段值';
-COMMENT ON COLUMN sys_language.language IS '语言';
-CREATE INDEX idx_sys_language_idx_table_id ON sys_language (table_id);
-
 DROP TABLE IF EXISTS sys_log_error CASCADE;
 CREATE TABLE sys_log_error (
   id bigint NOT NULL,

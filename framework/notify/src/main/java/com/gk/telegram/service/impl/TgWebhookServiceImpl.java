@@ -195,7 +195,7 @@ public class TgWebhookServiceImpl implements TgWebhookService {
                 ? sysUserSubjectService.selectById(account.getSubjectId())
                 : null;
         Long targetTenantId = subject != null ? subject.getTenantId() : (boundChat == null ? null : boundChat.getTenantId());
-        Long targetMerchantId = subject != null ? subject.getMerchantId() : (boundChat == null ? null : boundChat.getMerchantId());
+        Long targetMerchantId = subject != null ? subject.getSubjectId() : (boundChat == null ? null : boundChat.getMerchantId());
 
         return TgCommandContext.builder()
                 .bot(bot)

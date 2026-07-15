@@ -532,7 +532,7 @@ CREATE TABLE sys_user_subject (
   user_id bigint NOT NULL,
   subject_type varchar(32) NOT NULL,
   tenant_id bigint NULL,
-  merchant_id bigint NULL,
+  subject_id bigint NULL,
   dept_id bigint NULL,
   status smallint NOT NULL DEFAULT 1,
   remark varchar(512) NULL,
@@ -542,7 +542,7 @@ CREATE TABLE sys_user_subject (
   updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_sys_user_subject PRIMARY KEY (id),
   CONSTRAINT chk_sys_user_subject_1 CHECK (status in (0,1)),
-  CONSTRAINT chk_sys_user_subject_2 CHECK ((subject_type <> 'TENANT') or ((tenant_id is not null) and (merchant_id is null))),
+  CONSTRAINT chk_sys_user_subject_2 CHECK ((subject_type <> 'TENANT') or ((tenant_id is not null) and (subject_id is null))),
   CONSTRAINT chk_sys_user_subject_3 CHECK (subject_type in ('PLATFORM','TENANT','MERCHANT'))
 );
 COMMENT ON TABLE sys_user_subject IS '用户唯一主体身份表';
@@ -550,7 +550,7 @@ COMMENT ON COLUMN sys_user_subject.id IS '主键ID';
 COMMENT ON COLUMN sys_user_subject.user_id IS '用户ID，关联sys_user.id';
 COMMENT ON COLUMN sys_user_subject.subject_type IS '主体类型: PLATFORM/TENANT/MERCHANT';
 COMMENT ON COLUMN sys_user_subject.tenant_id IS '租户ID；TENANT/MERCHANT主体必填';
-COMMENT ON COLUMN sys_user_subject.merchant_id IS '商户ID；MERCHANT主体必填';
+COMMENT ON COLUMN sys_user_subject.subject_id IS '主体ID；TENANT主体为空，MERCHANT主体为商户ID';
 COMMENT ON COLUMN sys_user_subject.dept_id IS '租户内部门ID；TENANT主体可填';
 COMMENT ON COLUMN sys_user_subject.status IS '状态: 0禁用 1启用';
 COMMENT ON COLUMN sys_user_subject.remark IS '备注';
@@ -561,4 +561,4 @@ COMMENT ON COLUMN sys_user_subject.updated_at IS '更新时间';
 CREATE UNIQUE INDEX uk_sys_user_subject_uk_sys_user_subject_user ON sys_user_subject (user_id);
 CREATE INDEX idx_sys_user_subject_idx_sys_user_subject_type ON sys_user_subject (subject_type, status);
 CREATE INDEX idx_sys_user_subject_idx_sys_user_subject_tenant ON sys_user_subject (tenant_id, status);
-CREATE INDEX idx_sys_user_subject_idx_sys_user_subject_merchant ON sys_user_subject (tenant_id, merchant_id, status);
+CREATE INDEX idx_sys_user_subject_idx_sys_user_subject_subject ON sys_user_subject (tenant_id, subject_id, status);

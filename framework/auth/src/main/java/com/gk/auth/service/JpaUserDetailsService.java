@@ -103,10 +103,11 @@ public class JpaUserDetailsService implements UserDetailsService {
     public Set<String> getUserPermissions(Long userSubjectId, boolean isAdmin) {
         //系统管理员，拥有最高权限
         List<String> permissionsList;
+        List<String> authMenuTypes = toTypeCodes(MenuTypeEnum.auth());
         if (isAdmin) {
-            permissionsList = securityDao.getPermissionsList(MenuTypeEnum.auth());
+            permissionsList = securityDao.getPermissionsList(authMenuTypes);
         } else {
-            permissionsList = securityDao.getUserPermissionsList(userSubjectId,  MenuTypeEnum.auth());
+            permissionsList = securityDao.getUserPermissionsList(userSubjectId, authMenuTypes);
         }
 
         //用户权限列表
@@ -118,6 +119,16 @@ public class JpaUserDetailsService implements UserDetailsService {
             permsSet.addAll(Arrays.asList(permissions.trim().split(",")));
         }
         return permsSet;
+    }
+
+    private List<String> toTypeCodes(List<Integer> typeList) {
+        if (CollectionUtils.isEmpty(typeList)) {
+            return null;
+        }
+        return typeList.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .toList();
     }
 
     /**
@@ -185,7 +196,7 @@ public class JpaUserDetailsService implements UserDetailsService {
     }
 
     private void repopulateAuthorities(SysUser user) {
-        Set<String> permissions = getUserPermissions(user.getSubjectId(), user.isSuperAdmin());
+        Set<String> permissions = getUserPermissions(user.getUserSubjectId(), user.isSuperAdmin());
         user.setAuthList(permissions);
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -196,15 +207,15 @@ public class JpaUserDetailsService implements UserDetailsService {
     }
 
     private void refreshRoleAuths(SysUser user) {
-        if (user.getSubjectId() == null) {
+        if (user.getUserSubjectId() == null) {
             return;
         }
-        Set<String> roleAuth = getRoleAuthList(user.getSubjectId());
+        Set<String> roleAuth = getRoleAuthList(user.getUserSubjectId());
         user.setRoleList(roleAuth);
-        List<Long> roleIds = securityDao.getRoleIdList(user.getSubjectId());
+        List<Long> roleIds = securityDao.getRoleIdList(user.getUserSubjectId());
         user.setRoleIdList(roleIds);
         if ((user.getRoleId() == null) && roleIds != null && !roleIds.isEmpty()) {
-            user.setRoleId(roleIds.get(0));
+            user.setRoleId(roleIds.getFirst());
         }
         if (roleAuth != null && !roleAuth.isEmpty()) {
             user.setRoleAuth(roleAuth.stream()
@@ -215,8 +226,7 @@ public class JpaUserDetailsService implements UserDetailsService {
     }
 
     private boolean isSuperAdminAuth(String auth) {
-        return auth != null
-                && (Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
-                || "SUPER_ADMIN".equalsIgnoreCase(auth));
+        return Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
+                || "SUPER_ADMIN".equalsIgnoreCase(auth);
     }
 }

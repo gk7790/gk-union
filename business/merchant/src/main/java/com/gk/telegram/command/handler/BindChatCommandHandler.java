@@ -78,7 +78,7 @@ public class BindChatCommandHandler implements TgCommandHandler {
         validateSubject(subject, ctx.getBot());
         MerchantEntity merchant = null;
         if (SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
-            merchant = merchantDao.selectById(subject.getMerchantId());
+            merchant = merchantDao.selectById(subject.getSubjectId());
             validateMerchant(subject, merchant);
         }
         return new BindingTarget(subject, merchant);
@@ -98,7 +98,7 @@ public class BindChatCommandHandler implements TgCommandHandler {
             return;
         }
         if (!Objects.equals(ticket.getTenantId(), subject.getTenantId())
-                || !Objects.equals(ticket.getMerchantId(), subject.getMerchantId())
+                || !Objects.equals(ticket.getMerchantId(), subject.getSubjectId())
                 || !Objects.equals(ticket.getSubjectId(), subject.getId())
                 || !Objects.equals(ticket.getUserId(), subject.getUserId())
                 || !Objects.equals(ticket.getSubjectType(), subject.getSubjectType())) {
@@ -124,7 +124,7 @@ public class BindChatCommandHandler implements TgCommandHandler {
             throw new GkException("租户主体信息不完整，无法绑定");
         }
         if (SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())
-                && (subject.getTenantId() == null || subject.getMerchantId() == null)) {
+                && (subject.getTenantId() == null || subject.getSubjectId() == null)) {
             throw new GkException("商户主体信息不完整，无法绑定");
         }
         if (bot != null && SubjectTypeEnum.TENANT.matches(bot.getOwnerScope())

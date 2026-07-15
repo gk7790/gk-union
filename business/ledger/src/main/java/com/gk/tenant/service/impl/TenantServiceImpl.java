@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -233,7 +232,7 @@ public class TenantServiceImpl extends CrudServiceImpl<TenantDao, TenantEntity, 
     private SysUserDTO createTenantAdminUser(SysUserDTO adminUser, Long tenantId, Long deptId, Long roleId) {
         adminUser.setId(null);
         adminUser.setTenantId(tenantId);
-        adminUser.setMerchantId(null);
+        adminUser.setSubjectId(null);
         adminUser.setDeptId(deptId);
         adminUser.setSubjectType(SubjectTypeEnum.TENANT.code());
         adminUser.setRoleId(roleId);

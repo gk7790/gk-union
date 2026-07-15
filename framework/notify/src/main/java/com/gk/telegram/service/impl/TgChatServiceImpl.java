@@ -176,7 +176,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         if (existed == null) {
             TgChatEntity entity = new TgChatEntity();
             entity.setTenantId(defaultId(subject.getTenantId()));
-            entity.setMerchantId(defaultId(subject.getMerchantId()));
+            entity.setMerchantId(defaultId(subject.getSubjectId()));
             entity.setBotId(botId);
             entity.setChatId(chatId);
             entity.setChatType(normalizedType);
@@ -194,7 +194,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         TgChatEntity update = new TgChatEntity();
         update.setId(existed.getId());
         update.setTenantId(defaultId(subject.getTenantId()));
-        update.setMerchantId(defaultId(subject.getMerchantId()));
+        update.setMerchantId(defaultId(subject.getSubjectId()));
         update.setChatType(normalizedType);
         update.setTitle(title);
         update.setLang(lang);
@@ -209,7 +209,7 @@ public class TgChatServiceImpl extends CrudServiceImpl<TgChatDao, TgChatEntity, 
         baseDao.updateById(update);
 
         existed.setTenantId(defaultId(subject.getTenantId()));
-        existed.setMerchantId(defaultId(subject.getMerchantId()));
+        existed.setMerchantId(defaultId(subject.getSubjectId()));
         existed.setChatType(normalizedType);
         existed.setTitle(title);
         existed.setLang(lang);

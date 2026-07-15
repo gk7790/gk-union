@@ -101,7 +101,7 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
         SysUserSubjectEntity subject = sysUserSubjectService.selectById(ticket.getSubjectId());
         validateTicket(ticket, subject);
         validateSubject(subject, ctx.getBot());
-        MerchantEntity merchant = merchantDao.selectById(subject.getMerchantId());
+        MerchantEntity merchant = merchantDao.selectById(subject.getSubjectId());
         validateMerchant(subject, merchant);
         return new BindingTarget(subject, merchant);
     }
@@ -120,7 +120,7 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
             return;
         }
         if (!Objects.equals(ticket.getTenantId(), subject.getTenantId())
-                || !Objects.equals(ticket.getMerchantId(), subject.getMerchantId())
+                || !Objects.equals(ticket.getMerchantId(), subject.getSubjectId())
                 || !Objects.equals(ticket.getUserId(), subject.getUserId())
                 || !Objects.equals(ticket.getSubjectType(), subject.getSubjectType())) {
             throw new GkException("绑定码与商户主体不匹配，请重新生成");
@@ -137,7 +137,7 @@ public class BindMerchantCommandHandler implements TgCommandHandler {
         if (!SubjectTypeEnum.MERCHANT.matches(subject.getSubjectType())) {
             throw new GkException("绑定码不是商户主体，无法绑定");
         }
-        if (subject.getTenantId() == null || subject.getMerchantId() == null || subject.getUserId() == null) {
+        if (subject.getTenantId() == null || subject.getSubjectId() == null || subject.getUserId() == null) {
             throw new GkException("商户主体信息不完整，无法绑定");
         }
         if (bot != null && SubjectTypeEnum.TENANT.matches(bot.getOwnerScope())

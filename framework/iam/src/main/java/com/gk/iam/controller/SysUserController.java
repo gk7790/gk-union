@@ -186,11 +186,11 @@ public class SysUserController {
     }
 
     /**
-     * 按当前登录主体范围约束 tenantId / merchantId。
+     * 按当前登录主体范围约束 tenantId / subjectId。
      * <ul>
      *     <li>平台：以前端传入为准</li>
-     *     <li>租户：tenantId 固定为当前租户，merchantId 以前端传入为准</li>
-     *     <li>商户：tenantId、merchantId 均固定为当前登录主体</li>
+     *     <li>租户：tenantId 固定为当前租户，subjectId 以前端传入为准</li>
+     *     <li>商户：tenantId、subjectId 均固定为当前登录主体</li>
      * </ul>
      */
     private void applySubjectContext(SysUserDTO dto) {
@@ -199,7 +199,7 @@ public class SysUserController {
         }
         if (SubjectTypeEnum.MERCHANT.matches(ReqContextHolder.getSubjectType())) {
             dto.setTenantId(ReqContextHolder.getTenantId());
-            dto.setMerchantId(ReqContextHolder.getMerchantId());
+            dto.setSubjectId(ReqContextHolder.getMerchantId());
             return;
         }
         dto.setTenantId(ReqContextHolder.getTenantId());
@@ -218,16 +218,16 @@ public class SysUserController {
             return;
         }
 
-        data.setSubjectId(userSubject.getId());
+        data.setUserSubjectId(userSubject.getId());
         data.setSubjectType(userSubject.getSubjectType());
         data.setDeptId(userSubject.getDeptId());
         data.setTenantId(userSubject.getTenantId());
-        data.setMerchantId(userSubject.getMerchantId());
+        data.setSubjectId(userSubject.getSubjectId());
 
         List<Long> roleIdList = sysRoleUserService.getRoleIdListBySubjectId(userSubject.getId());
         data.setRoleIdList(roleIdList);
         if (roleIdList != null && !roleIdList.isEmpty()) {
-            data.setRoleId(roleIdList.get(0));
+            data.setRoleId(roleIdList.getFirst());
         }
     }
 
@@ -235,7 +235,7 @@ public class SysUserController {
         if (data == null || ReqContextHolder.getSubjectId() == null) {
             return;
         }
-        data.setSubjectId(ReqContextHolder.getSubjectId());
+        data.setUserSubjectId(ReqContextHolder.getSubjectId());
         data.setSubjectType(ReqContextHolder.getSubjectType());
     }
 }

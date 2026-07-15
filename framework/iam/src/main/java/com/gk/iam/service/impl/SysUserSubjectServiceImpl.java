@@ -18,15 +18,15 @@ public class SysUserSubjectServiceImpl extends BaseServiceImpl<SysUserSubjectDao
     }
 
     @Override
-    public SysUserSubjectEntity getActiveSubject(String subjectType, Long tenantId, Long merchantId,
-                                                 Long subjectId, Long userId) {
+    public SysUserSubjectEntity getActiveSubject(String subjectType, Long tenantId, Long businessSubjectId,
+                                                 Long userSubjectId, Long userId) {
         QueryWrapper<SysUserSubjectEntity> wrapper = new QueryWrapper<SysUserSubjectEntity>()
                 .eq("subject_type", subjectType)
                 .eq("status", StatusEnum.NORMAL.code())
-                .eq(subjectId != null, "id", subjectId)
+                .eq(userSubjectId != null, "id", userSubjectId)
                 .eq(userId != null, "user_id", userId)
                 .eq(tenantId != null, "tenant_id", tenantId)
-                .eq(merchantId != null, "merchant_id", merchantId)
+                .eq(businessSubjectId != null, "subject_id", businessSubjectId)
                 .last("limit 1");
         return baseDao.selectOne(wrapper);
     }

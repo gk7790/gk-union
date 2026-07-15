@@ -61,7 +61,7 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
                 user.getSubjectType(),
                 user.getTenantId(),
                 user.getMerchantId(),
-                user.getSubjectId(),
+                user.getUserSubjectId(),
                 clientIp
         );
         if (!allowed) {

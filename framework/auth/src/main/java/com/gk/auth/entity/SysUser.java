@@ -16,9 +16,9 @@ import java.util.Set;
 public class SysUser implements UserDetails {
 
     private Long  id;
+    private Long userSubjectId;
     private Long subjectId;
     private Long tenantId;
-    private Long merchantId;
     private Long deptId;
     private Long roleId;
     private List<Long> roleIdList;
@@ -58,6 +58,13 @@ public class SysUser implements UserDetails {
     @JsonIgnore
     private List<SimpleGrantedAuthority> authorities;
 
+    /**
+     * 兼容旧商户上下文：MERCHANT 主体下 subjectId 即商户ID。
+     */
+    public Long getMerchantId() {
+        return subjectId;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
@@ -81,17 +88,16 @@ public class SysUser implements UserDetails {
     }
 
     private boolean isSuperAdminAuth(String auth) {
-        return auth != null
-                && (Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
-                || "SUPER_ADMIN".equalsIgnoreCase(auth));
+        return Constant.ROLE_AUTH_SADMIN.equalsIgnoreCase(auth)
+                || "SUPER_ADMIN".equalsIgnoreCase(auth);
     }
 
     public AuthUser toAuthUser() {
         AuthUser authUser = new AuthUser();
         authUser.setId(this.id);
-        authUser.setSubjectId(this.subjectId);
+        authUser.setSubjectId(this.userSubjectId);
         authUser.setTenantId(this.tenantId);
-        authUser.setMerchantId(this.merchantId);
+        authUser.setMerchantId(this.getMerchantId());
         authUser.setDeptId(this.deptId);
         authUser.setRoleId(this.roleId);
         authUser.setRoleIdList(this.roleIdList);

@@ -226,7 +226,7 @@ public class SecurityConfig {
     public LogoutSuccessHandler logoutSuccessHandler() {
         return (request, response, authentication) -> {
             if (authentication != null && authentication.getPrincipal() instanceof SysUser user) {
-                userDetailsService.evictLoginCache(user.getId(), user.getSubjectId(), user.getDeptId());
+                userDetailsService.evictLoginCache(user.getId(), user.getUserSubjectId(), user.getDeptId());
             }
             SecurityContextHolder.clearContext();
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);

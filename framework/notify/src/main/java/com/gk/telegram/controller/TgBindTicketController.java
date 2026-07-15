@@ -51,7 +51,7 @@ public class TgBindTicketController {
         TargetRequest target = resolveChatTarget(params, subjectType);
         SysUserSubjectEntity subject = resolveSubject(target);
         TgBindTicket ticket = tgBindTicketService.generate(bindPurpose, subject.getSubjectType(),
-                subject.getTenantId(), subject.getMerchantId(), subject.getId(), subject.getUserId());
+                subject.getTenantId(), subject.getSubjectId(), subject.getId(), subject.getUserId());
         DynMap result = new DynMap();
         result.put("code", ticket.getCode());
         result.put("purpose", ticket.getPurpose());
@@ -81,7 +81,7 @@ public class TgBindTicketController {
                 throw new GkException("租户只能生成租户或商户主体绑定码");
             }
             if (SubjectTypeEnum.TENANT.matches(target.subjectType())) {
-                return new TargetRequest(target.subjectType(), target.tenantId(), null, target.subjectId());
+                return new TargetRequest(target.subjectType(), target.tenantId(), null, target.userSubjectId());
             }
             return target;
         }
@@ -146,13 +146,13 @@ public class TgBindTicketController {
 
     private SysUserSubjectEntity resolveSubject(TargetRequest target) {
         SysUserSubjectEntity subject = sysUserSubjectService.getActiveSubject(target.subjectType(),
-                target.tenantId(), target.merchantId(), target.subjectId(), null);
+                target.tenantId(), target.merchantId(), target.userSubjectId(), null);
         if (subject == null || subject.getId() == null) {
             throw new GkException("绑定主体不存在或已禁用");
         }
         return subject;
     }
 
-    private record TargetRequest(String subjectType, Long tenantId, Long merchantId, Long subjectId) {
+    private record TargetRequest(String subjectType, Long tenantId, Long merchantId, Long userSubjectId) {
     }
 }

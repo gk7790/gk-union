@@ -13,7 +13,7 @@ public class SysUserSubjectEntity extends SimpleEntity {
     private Long userId;
     private String subjectType;
     private Long tenantId;
-    private Long merchantId;
+    private Long subjectId;
     private Long deptId;
     private Integer status;
     private String remark;

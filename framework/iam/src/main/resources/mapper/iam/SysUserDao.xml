@@ -6,9 +6,9 @@
 	<select id="getList" resultType="com.gk.iam.entity.SysUserEntity">
 		select t1.*,
 			   s.subject_type as subjectType,
-			   s.id as subjectId,
+			   s.id as userSubjectId,
 			   s.tenant_id as tenantId,
-			   s.merchant_id as merchantId,
+			   s.subject_id as subjectId,
 			   s.dept_id as deptId,
 			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
 			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName,
@@ -26,7 +26,7 @@
             and s.tenant_id = #{tenantId}
         </if>
         <if test="merchantId != null">
-            and s.merchant_id = #{merchantId}
+            and s.subject_id = #{merchantId}
         </if>
 		<if test="gender != null and gender.trim() != ''">
 			and t1.gender = #{gender}
@@ -51,9 +51,9 @@
 	<select id="getById" resultType="com.gk.iam.entity.SysUserEntity">
 		select t1.*,
 			   s.subject_type as subjectType,
-			   s.id as subjectId,
+			   s.id as userSubjectId,
 			   s.tenant_id as tenantId,
-			   s.merchant_id as merchantId,
+			   s.subject_id as subjectId,
 			   s.dept_id as deptId,
 			   (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) as roleId,
 			   (select t2.name from sys_dept t2 where t2.id=s.dept_id) deptName

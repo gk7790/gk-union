@@ -69,6 +69,9 @@ public class SysUserEntity extends SimpleEntity {
     private String tenantName;
 
     @TableField(exist=false)
+    private Long userSubjectId;
+
+    @TableField(exist=false)
     private Long subjectId;
 
     @TableField(exist=false)
@@ -76,9 +79,6 @@ public class SysUserEntity extends SimpleEntity {
 
     @TableField(exist=false)
     private Long tenantId;
-
-    @TableField(exist=false)
-    private Long merchantId;
 
     @TableField(exist=false)
     private Long deptId;

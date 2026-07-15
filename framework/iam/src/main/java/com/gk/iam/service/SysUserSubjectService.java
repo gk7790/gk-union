@@ -6,8 +6,8 @@ import com.gk.iam.entity.SysUserSubjectEntity;
 public interface SysUserSubjectService extends BaseService<SysUserSubjectEntity> {
     SysUserSubjectEntity getByUserId(Long userId);
 
-    SysUserSubjectEntity getActiveSubject(String subjectType, Long tenantId, Long merchantId,
-                                          Long subjectId, Long userId);
+    SysUserSubjectEntity getActiveSubject(String subjectType, Long tenantId, Long businessSubjectId,
+                                          Long userSubjectId, Long userId);
 
     SysUserSubjectEntity saveOrUpdate(Long userId, SysUserSubjectEntity subject);
 

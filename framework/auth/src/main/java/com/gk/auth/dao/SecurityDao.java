@@ -31,13 +31,12 @@ public interface SecurityDao {
     /**
      * 查询所有权限列表
      */
-    List<String> getPermissionsList(@Param("typeList") List<Integer> typeList);
+    List<String> getPermissionsList(@Param("typeList") List<String> typeList);
 
     /**
      * 查询用户权限列表
-     * @param userId  用户ID
      */
-    List<String> getUserPermissionsList(@Param("userSubjectId") Long userSubjectId, @Param("typeList") List<Integer> typeList);
+    List<String> getUserPermissionsList(@Param("userSubjectId") Long userSubjectId, @Param("typeList") List<String> typeList);
 
     Set<Long> getDataScopeList(@Param("userSubjectId") Long userSubjectId);
 

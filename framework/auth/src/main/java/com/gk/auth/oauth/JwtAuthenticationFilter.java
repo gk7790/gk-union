@@ -28,6 +28,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -45,12 +46,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         return publicEndpoints.matches(request);
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain) throws IOException {
         try {
             authenticate(request);
             filterChain.doFilter(request, response);
@@ -86,7 +89,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     context.setSAdmin(true);
                 }
 
-                Set<Long> roleDeptIds = userDetailsService.getDataScopeList(userDetails.getSubjectId());
+                Set<Long> roleDeptIds = userDetailsService.getDataScopeList(userDetails.getUserSubjectId());
                 if (roleDeptIds != null && !roleDeptIds.isEmpty()) {
                     context.setDeptIdList(roleDeptIds);
                 } else if (ObjUtil.isNotEmpty(userDetails.getDeptId())) {

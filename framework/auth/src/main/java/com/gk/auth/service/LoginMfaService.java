@@ -61,7 +61,8 @@ public class LoginMfaService {
 
         Map<String, Object> userMap = new HashMap<>();
         userMap.put("id", user.getId());
-        userMap.put("subjectId", user.getSubjectId());
+        userMap.put("subjectId", user.getUserSubjectId());
+        userMap.put("userSubjectId", user.getUserSubjectId());
         userMap.put("username", user.getUsername());
         userMap.put("realName", user.getNickName());
         userMap.put("subjectType", user.getSubjectType());
@@ -86,7 +87,7 @@ public class LoginMfaService {
     private Map<String, Object> buildClaims(SysUser user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(JwtUtils.USER_ID, user.getId());
-        claims.put(JwtUtils.SUBJECT_ID, user.getSubjectId());
+        claims.put(JwtUtils.SUBJECT_ID, user.getUserSubjectId());
         claims.put(JwtUtils.TENANT_ID, user.getTenantId());
         claims.put(JwtUtils.MERCHANT_ID, user.getMerchantId());
         claims.put(JwtUtils.DEPT_ID, user.getDeptId());

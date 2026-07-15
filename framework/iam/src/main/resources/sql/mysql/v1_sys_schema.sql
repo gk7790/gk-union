@@ -331,7 +331,7 @@ CREATE TABLE `sys_user_subject` (
   `user_id` bigint NOT NULL COMMENT '用户ID，关联sys_user.id',
   `subject_type` varchar(32) NOT NULL COMMENT '主体类型: PLATFORM/TENANT/MERCHANT',
   `tenant_id` bigint NULL DEFAULT NULL COMMENT '租户ID；TENANT/MERCHANT主体必填',
-  `merchant_id` bigint NULL DEFAULT NULL COMMENT '商户ID；MERCHANT主体必填',
+  `subject_id` bigint NULL DEFAULT NULL COMMENT '主体ID；TENANT主体为空，MERCHANT主体为商户ID',
   `dept_id` bigint NULL DEFAULT NULL COMMENT '租户内部门ID；TENANT主体可填',
   `status` tinyint NOT NULL DEFAULT 1 COMMENT '状态: 0禁用 1启用',
   `remark` varchar(512) NULL DEFAULT NULL COMMENT '备注',
@@ -343,9 +343,9 @@ CREATE TABLE `sys_user_subject` (
   UNIQUE INDEX `uk_sys_user_subject_user`(`user_id` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_type`(`subject_type` ASC, `status` ASC) USING BTREE,
   INDEX `idx_sys_user_subject_tenant`(`tenant_id` ASC, `status` ASC) USING BTREE,
-  INDEX `idx_sys_user_subject_merchant`(`tenant_id` ASC, `merchant_id` ASC, `status` ASC) USING BTREE,
+  INDEX `idx_sys_user_subject_subject`(`tenant_id` ASC, `subject_id` ASC, `status` ASC) USING BTREE,
   CONSTRAINT `chk_sys_user_subject_status` CHECK (`status` in (0,1)),
-  CONSTRAINT `chk_sys_user_subject_tenant` CHECK ((`subject_type` <> 'TENANT') or ((`tenant_id` is not null) and (`merchant_id` is null))),
+  CONSTRAINT `chk_sys_user_subject_tenant` CHECK ((`subject_type` <> 'TENANT') or ((`tenant_id` is not null) and (`subject_id` is null))),
   CONSTRAINT `chk_sys_user_subject_type` CHECK (`subject_type` in ('PLATFORM','TENANT','MERCHANT'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户唯一主体身份表';
 

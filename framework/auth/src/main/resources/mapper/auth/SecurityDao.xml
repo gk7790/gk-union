@@ -5,10 +5,10 @@
 
     <sql id="userSubjectColumns">
         u.id AS id,
-        s.id AS subjectId,
+        s.id AS userSubjectId,
         s.dept_id AS deptId,
         s.tenant_id AS tenantId,
-        s.merchant_id AS merchantId,
+        s.subject_id AS subjectId,
         (select ru.role_id from sys_role_user ru where ru.user_subject_id = s.id order by ru.id asc limit 1) AS roleId,
         s.subject_type AS subjectType,
         (select r.auth from sys_role_user ru inner join sys_role r on r.id = ru.role_id where ru.user_subject_id = s.id order by ru.id asc limit 1) AS roleAuth,

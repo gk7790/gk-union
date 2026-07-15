@@ -53,7 +53,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         }
 
         List<SysUserEntity> list = baseDao.getList(params);
-        PageData<SysUserDTO> pageData = getPageData(list, page.getTotal(), SysUserDTO.class);
+        PageData<SysUserDTO> pageData = new PageData<>(toDtoList(list), page.getTotal());
         fillAuthenticatorBound(pageData.getItems());
         return pageData;
     }
@@ -67,7 +67,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         }
 
         List<SysUserEntity> entityList = baseDao.getList(params);
-        List<SysUserDTO> result = ConvertUtils.sourceToTarget(entityList, SysUserDTO.class);
+        List<SysUserDTO> result = toDtoList(entityList);
         fillAuthenticatorBound(result);
         return result;
     }
@@ -75,7 +75,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     @Override
     public SysUserDTO getById(Long id) {
         SysUserEntity entity = baseDao.selectById(id);
-        SysUserDTO dto = ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        SysUserDTO dto = toDto(entity);
         fillAuthenticatorBound(dto);
         return dto;
     }
@@ -83,7 +83,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     @Override
     public SysUserDTO getByUsername(String username) {
         SysUserEntity entity = baseDao.getByUsername(username);
-        SysUserDTO dto = ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        SysUserDTO dto = toDto(entity);
         fillAuthenticatorBound(dto);
         return dto;
     }
@@ -147,7 +147,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long[] ids) {
-        baseDao.deleteBatchIds(Arrays.asList(ids));
+        baseDao.deleteByIds(Arrays.asList(ids));
         sysUserSubjectService.deleteByUserIds(ids);
         sysRoleUserService.deleteByUserIds(ids);
     }
@@ -173,22 +173,42 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
         return baseDao.getUserIdListByDeptId(deptIdList);
     }
 
+    private List<SysUserDTO> toDtoList(List<SysUserEntity> entities) {
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream().map(this::toDto).toList();
+    }
+
+    private SysUserDTO toDto(SysUserEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        SysUserDTO dto = ConvertUtils.sourceToTarget(entity, SysUserDTO.class);
+        dto.setUserSubjectId(entity.getUserSubjectId());
+        dto.setSubjectId(entity.getSubjectId());
+        return dto;
+    }
+
     private void saveSubjectAndRoles(Long userId, SysUserDTO dto) {
         SysUserSubjectEntity subject = buildSubject(dto);
         List<Long> roleIds = resolveAssignableRoleIds(dto, subject);
         subject = sysUserSubjectService.saveOrUpdate(userId, subject);
-        dto.setSubjectId(subject.getId());
-        dto.setRoleId(roleIds.get(0));
+        dto.setUserSubjectId(subject.getId());
+        dto.setRoleId(roleIds.getFirst());
         sysRoleUserService.saveOrUpdate(subject.getId(), userId, roleIds);
     }
 
     private SysUserSubjectEntity buildSubject(SysUserDTO dto) {
-        String subjectType = Optional.ofNullable(dto).map(SysUserDTO::getSubjectType).orElse(SubjectTypeEnum.TENANT.code());
-        Integer status = Optional.ofNullable(dto).map(SysUserDTO::getStatus).orElse(StatusEnum.NORMAL.code());
+        if (dto == null) {
+            throw new GkException(ErrorCode.NOT_NULL, "user");
+        }
+        String subjectType = Optional.of(dto).map(SysUserDTO::getSubjectType).orElse(SubjectTypeEnum.TENANT.code());
+        Integer status = Optional.of(dto).map(SysUserDTO::getStatus).orElse(StatusEnum.NORMAL.code());
         SysUserSubjectEntity subject = new SysUserSubjectEntity();
         subject.setSubjectType(subjectType);
         subject.setTenantId(dto.getTenantId());
-        subject.setMerchantId(dto.getMerchantId());
+        subject.setSubjectId(dto.getSubjectId());
         subject.setDeptId(dto.getDeptId());
         subject.setStatus(status);
         return subject;
@@ -200,14 +220,14 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserDao, SysUserEntit
             roleIds = List.of(dto.getRoleId());
         }
         if (roleIds == null || roleIds.isEmpty()) {
-            AssertUtils.isNull(null, "roleId");
+            throw new GkException(ErrorCode.NOT_NULL, "roleId");
         }
         for (Long roleId : roleIds) {
             sysRoleService.assertRoleAssignable(
                     roleId,
                     subject.getSubjectType(),
                     subject.getTenantId(),
-                    subject.getMerchantId()
+                    subject.getSubjectId()
             );
         }
         return roleIds;

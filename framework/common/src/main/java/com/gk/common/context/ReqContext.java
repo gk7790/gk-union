@@ -118,6 +118,11 @@ public class ReqContext {
     private String device;
 
     /**
+     * 会话
+     */
+    private String session;
+
+    /**
      * 浏览器
      */
     private String browser;

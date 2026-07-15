@@ -32,6 +32,8 @@ public class JwtUtils {
     public static final String UNAME = "uname";
     public static final String SUPER_Admin = "sAdmin";
     public static final String DOMAIN = "domain";
+    public static  final String DEVICE = "device";
+    public static  final String SESSION = "session";
 
 
     // JWT 签名密钥（生产环境应从配置读取）

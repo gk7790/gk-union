@@ -167,6 +167,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String subjectType = claims.get(JwtUtils.SUBJECT_TYPE, String.class);
         String username = claims.get(JwtUtils.UNAME, String.class);
         Integer domain = claims.get(JwtUtils.DOMAIN, Integer.class);
+        String device = claims.get(JwtUtils.DEVICE, String.class);
+        String session = claims.get(JwtUtils.SESSION, String.class);
 
         if (ObjUtil.isEmpty(userId)) {
             userId = 0L;
@@ -180,12 +182,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return ReqContext.builder().model(claims.getSubject())
-                // 用户信息
                 .userId(userId).subjectId(subjectId).username(username)
                 .tenantId(tenantId).merchantId(merchantId).deptId(deptId)
                 .roleId(roleId).roleIdList(roleIds).subjectType(subjectType)
-                .domain(domain)
-                // 请求信息
+                .domain(domain).device(device).session(session)
                 .ip(IpUtils.getIpAddr(request))
                 .uri(request.getRequestURI())
                 .method(request.getMethod())

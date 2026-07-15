@@ -10,5 +10,8 @@ import java.util.List;
 
 @Mapper
 public interface SysCurrencyDao extends BaseDao<SysCurrencyEntity> {
-    List<SysCurrencyDTO> selectOptions(@Param("statusList") List<Integer> statusList);
+    List<SysCurrencyDTO> selectOptions(
+            @Param("statusList") List<Integer> statusList,
+            @Param("tenantStatusList") List<Integer> tenantStatusList
+    );
 }

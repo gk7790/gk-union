@@ -34,7 +34,7 @@ public class SysCurrencyServiceImpl extends CrudServiceImpl<SysCurrencyDao, SysC
     @Override
     public List<SysCurrencyDTO> getOptions(DynMap params) {
         List<Integer> statusList = statusList(params);
-        List<SysCurrencyDTO> options = baseDao.selectOptions(statusList);
+        List<SysCurrencyDTO> options = baseDao.selectOptions(statusList, StatusEnum.defaultStatus());
         options.forEach(item -> {
             if (item.getTenantIds() == null) {
                 item.setTenantIds(List.of());

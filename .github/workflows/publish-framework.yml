@@ -1,4 +1,4 @@
-﻿name: Publish Framework
+name: Publish Framework
 
 on:
   workflow_dispatch:
@@ -27,7 +27,6 @@ jobs:
           server-password: GITHUB_TOKEN
 
       - name: Publish framework
-        run: mvn -B -pl framework,framework/common,framework/infra,framework/meta,framework/auth,framework/devtools,framework/iam,framework/notify,framework/scheduler -am clean deploy
+        run: mvn -B -pl framework,framework/common,framework/infra,framework/meta,framework/auth,framework/devtools,framework/iam,framework/notify,framework/scheduler -am clean deploy -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/gk7790/gk-union
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

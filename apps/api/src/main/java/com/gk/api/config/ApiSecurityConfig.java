@@ -20,9 +20,8 @@ public class ApiSecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.OPTIONS, "/api/v1/**", "/psp/callback/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/tools/deeplink-test/*").permitAll()
-                        .requestMatchers("/api/v1/**", "/psp/callback/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/demo/**").permitAll()
+                        .requestMatchers("/demo/public/**").permitAll()
                         .anyRequest().denyAll()
                 )
                 .build();

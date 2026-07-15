@@ -33,49 +33,7 @@ public class RuntimeParamServiceImpl implements RuntimeParamService {
                     "sys:runtime-param:domain-config",
                     "域名配置",
                     "Platform domain config",
-                    "{\"apiBaseUrl\":\"https://api.example.com\",\"adminBaseUrl\":\"https://admin.example.com\",\"cashierBaseUrl\":\"https://cashier.example.com\",\"merchantPortalBaseUrl\":\"https://merchant.example.com\",\"deeplinkBaseUrl\":\"https://api.example.com\"}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.PSP_BALANCE_CONFIG_KEY,
-                    "sys:runtime-param:psp-balance",
-                    "PSP 余额缓存时间",
-                    "PSP balance config",
-                    "{\"cacheSeconds\":300}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.PAYOUT_SUBMIT_CONFIG_KEY,
-                    "sys:runtime-param:payout-submit",
-                    "代付提交配置",
-                    "Payout submit config",
-                    "{\"asyncSubmit\":true,\"defaultBatchSize\":20,\"firstQueryDelaySeconds\":60,\"maxRouteAttempts\":2}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.PSP_QUERY_CONFIG_KEY,
-                    "sys:runtime-param:psp-query",
-                    "PSP 主动查单补偿配置",
-                    "PSP query compensation config",
-                    "{\"maxQueryCount\":30,\"backoffSeconds\":[60,120,300,600,900,1800]}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.MERCHANT_NOTIFY_CONFIG_KEY,
-                    "sys:runtime-param:merchant-notify",
-                    "商户通知配置",
-                    "Merchant notify config",
-                    "{\"connectTimeoutMs\":3000,\"readTimeoutMs\":5000,\"successTokens\":[\"success\",\"ok\"],\"maxRetryCount\":16}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.PSP_CALLBACK_CONFIG_KEY,
-                    "sys:runtime-param:psp-callback",
-                    "PSP 回调基础域名配置",
-                    "PSP callback config",
-                    "{\"baseUrl\":\"http://mqmq.vip.cpolar.cn\"}"
-            ),
-            new RuntimeParamDefinition(
-                    Constant.GK_OPENAPI_CONFIG_KEY,
-                    "sys:runtime-param:gk-openapi",
-                    "OpenAPI 接口参数",
-                    "OpenAPI runtime config",
-                    "{\"requireNonce\":true,\"defaultSignType\":\"HMAC_SHA256\",\"sandboxPayUrl\":\"https://xxx.com/sandbox/pay?payinOrderNo={payinOrderNo}\"}"
+                    "{\"apiBaseUrl\":\"https://api.example.com\",\"adminBaseUrl\":\"https://admin.example.com\"}"
             ),
             new RuntimeParamDefinition(
                     Constant.TELEGRAM_BASE_CONFIG_KEY,

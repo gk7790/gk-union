@@ -20,11 +20,6 @@
     </properties>
     <dependencies>
         <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>payment-domain</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -50,33 +45,18 @@
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>ledger</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>merchant</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>payment</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
             <artifactId>notify</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>psp</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
             <artifactId>scheduler</artifactId>
             <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
+            <artifactId>demo</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 

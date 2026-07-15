@@ -12,7 +12,7 @@
     <artifactId>api</artifactId>
     <version>1.0.0</version>
     <name>api</name>
-    <description>Public merchant OpenAPI and PSP callback application</description>
+    <description>Public demo API application</description>
     <packaging>jar</packaging>
 
     <properties>
@@ -25,23 +25,17 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>openapi</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
-            <artifactId>psp</artifactId>
+            <artifactId>demo</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.gk</groupId>
             <artifactId>common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.gk</groupId>
-            <artifactId>payment</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

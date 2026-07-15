@@ -157,41 +157,6 @@ public interface Constant {
     String TELEGRAM_BASE_CONFIG_KEY = "TELEGRAM_BASE_CONFIG_KEY";
 
     /**
-     * OpenAPI 运行配置
-     */
-    String GK_OPENAPI_CONFIG_KEY = "GK_OPENAPI_CONFIG_KEY";
-
-    /**
-     * PSP 回调配置
-     */
-    String PSP_CALLBACK_CONFIG_KEY = "PSP_CALLBACK_CONFIG_KEY";
-
-    /**
-     * 商户默认配置
-     */
-    String MERCHANT_DEFAULT_CONFIG_KEY = "MERCHANT_DEFAULT_CONFIG_KEY";
-
-    /**
-     * 商户通知配置
-     */
-    String MERCHANT_NOTIFY_CONFIG_KEY = "MERCHANT_NOTIFY_CONFIG_KEY";
-
-    /**
-     * PSP 主动查单配置
-     */
-    String PSP_QUERY_CONFIG_KEY = "PSP_QUERY_CONFIG_KEY";
-
-    /**
-     * 代付提交配置
-     */
-    String PAYOUT_SUBMIT_CONFIG_KEY = "PAYOUT_SUBMIT_CONFIG_KEY";
-
-    /**
-     * PSP balance config
-     */
-    String PSP_BALANCE_CONFIG_KEY = "PSP_BALANCE_CONFIG_KEY";
-
-    /**
      * Domain config
      */
     String DOMAIN_CONFIG_KEY = "DOMAIN_CONFIG_KEY";

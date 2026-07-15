@@ -18,7 +18,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("GK Union Admin API")
                         .version("1.0.0")
-                        .description("后台管理接口文档。除登录、OpenAPI、PSP回调等公开接口外，业务接口默认需要在 Swagger UI 中点击 Authorize 并填写 Bearer Token。"))
+                        .description("后台管理接口文档。业务接口默认需要在 Swagger UI 中点击 Authorize 并填写 Bearer Token。"))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
                 .components(new Components().addSecuritySchemes(BEARER_AUTH,
                         new SecurityScheme()

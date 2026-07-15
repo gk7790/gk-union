@@ -15,12 +15,6 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>payment-domain</module>
-        <module>reference-data</module>
-        <module>merchant</module>
-        <module>psp</module>
-        <module>ledger</module>
-        <module>payment</module>
-        <module>openapi</module>
+        <module>demo</module>
     </modules>
 </project>

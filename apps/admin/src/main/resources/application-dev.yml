@@ -42,7 +42,7 @@ mybatis-plus:
 
 gk:
   datasource:
-    type: ${DB_TYPE:mysql}
+    type: ${DB_TYPE:postgresql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   openapi:
@@ -62,6 +62,7 @@ logging:
     org.mybatis.spring: ERROR
     org.apache.ibatis: ERROR
     com.mysql: ERROR
+    org.postgresql: ERROR
     com.gk: INFO
   file:
     name: ${LOG_FILE:logs/gk-admin-dev.log}

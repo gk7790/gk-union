@@ -1,5 +1,7 @@
 package com.gk.quartz.config;
 
+import com.gk.common.database.DatabaseProperties;
+import com.gk.common.database.DatabaseType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,8 +21,14 @@ import java.util.Properties;
 @Configuration
 public class ScheduleConfig {
 
+    private final DatabaseProperties databaseProperties;
+
     @Value("${gk.quartz.thread-count:8}")
     private int quartzThreadCount;
+
+    public ScheduleConfig(DatabaseProperties databaseProperties) {
+        this.databaseProperties = databaseProperties;
+    }
 
     @Bean
     public SchedulerFactoryBean schedulerFactoryBean(DataSource dataSource) {
@@ -49,11 +57,13 @@ public class ScheduleConfig {
         // 超过该时间未触发的任务会被 Quartz 识别为 misfire。
         prop.put("org.quartz.jobStore.misfireThreshold", "12000");
 
-        // RDS/Linux MySQL 通常区分表名大小写，Quartz 表使用官方默认大写 QRTZ_ 前缀。
-        prop.put("org.quartz.jobStore.tablePrefix", "QRTZ_");
-
-        // PostgreSQL 数据库需要打开下面配置。
-        //prop.put("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");
+        if (databaseProperties.getType() == DatabaseType.POSTGRESQL) {
+            prop.put("org.quartz.jobStore.tablePrefix", "qrtz_");
+            prop.put("org.quartz.jobStore.driverDelegateClass",
+                    "org.quartz.impl.jdbcjobstore.PostgreSQLDelegate");
+        } else {
+            prop.put("org.quartz.jobStore.tablePrefix", "QRTZ_");
+        }
 
         factory.setQuartzProperties(prop);
         factory.setSchedulerName("GkScheduler");

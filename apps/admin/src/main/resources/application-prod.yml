@@ -78,7 +78,7 @@ knife4j:
 
 gk:
   datasource:
-    type: ${DB_TYPE:mysql}
+    type: ${DB_TYPE:postgresql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:
@@ -98,6 +98,7 @@ logging:
     org.mybatis.spring: ERROR
     org.apache.ibatis: ERROR
     com.mysql: ERROR
+    org.postgresql: ERROR
   file:
     name: ${LOG_FILE:logs/gk-admin.log}
   logback:

@@ -6,7 +6,7 @@ spring:
     name: ${APP_NAME:gk-api-dev}
 
   datasource:
-    url: ${DB_URL:jdbc:mysql://rm-j6c0gts524084546n5o.mysql.rds.aliyuncs.com:3306/gk-union?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&nullCatalogMeansCurrent=true}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/gk_union}
     username: ${DB_USERNAME:survey01}
     password: ${DB_PASSWORD:Abc!@#45}
     hikari:
@@ -35,7 +35,7 @@ spring:
 
 gk:
   datasource:
-    type: ${DB_TYPE:mysql}
+    type: ${DB_TYPE:postgresql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:
@@ -52,5 +52,6 @@ logging:
     org.mybatis.spring: ERROR
     org.apache.ibatis: ERROR
     com.mysql: ERROR
+    org.postgresql: ERROR
   file:
     name: ${LOG_FILE:logs/gk-api-dev.log}

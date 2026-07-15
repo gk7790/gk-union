@@ -21,6 +21,11 @@
     <dependencies>
         <dependency>
             <groupId>com.gk</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.gk</groupId>
             <artifactId>infra</artifactId>
             <version>1.0.0</version>
         </dependency>

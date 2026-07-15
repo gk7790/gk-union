@@ -90,6 +90,7 @@ logging:
     org.mybatis.spring: ERROR
     org.apache.ibatis: ERROR
     com.mysql: ERROR
+    org.postgresql: ERROR
   file:
     name: ${LOG_FILE:logs/gk-api.log}
   logback:

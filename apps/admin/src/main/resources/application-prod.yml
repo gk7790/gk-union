@@ -84,9 +84,6 @@ gk:
   redis:
     open: true
   time-zone: ${APP_TIME_ZONE:UTC}
-  psp:
-    callback:
-      base-url: ${PSP_CALLBACK_BASE_URL:}
   quartz:
     thread-count: ${QUARTZ_THREAD_COUNT:8}
 

@@ -64,23 +64,12 @@ knife4j:
 gk:
   security:
     public-endpoints:
-      - /api/v1/**
-      - /open-api/**
-      - /psp/callback/**
+      - /demo/public/**
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
   redis:
     open: true
   time-zone: ${APP_TIME_ZONE:UTC}
-  psp:
-    callback:
-      base-url: ${PSP_CALLBACK_BASE_URL:}
-  merchant:
-    defaults:
-      timezone: ${MERCHANT_DEFAULT_TIMEZONE:UTC}
-      lang: ${MERCHANT_DEFAULT_LANG:zh-CN}
-      countryCode: ${MERCHANT_DEFAULT_COUNTRY_CODE:PH}
-      config-json: '${MERCHANT_DEFAULT_CONFIG_JSON:{}}'
 
 logging:
   level:

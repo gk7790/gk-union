@@ -45,15 +45,9 @@ gk:
     type: ${DB_TYPE:postgresql}
   lifecycle-alert:
     enabled: ${LIFECYCLE_ALERT_ENABLED:true}
-  openapi:
-    payout:
-      async-submit: true
   redis:
     open: true
   time-zone: UTC
-  psp:
-    callback:
-      base-url: ${PSP_CALLBACK_BASE_URL:http://localhost:8082}
   quartz:
     thread-count: ${QUARTZ_THREAD_COUNT:4}
 

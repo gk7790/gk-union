@@ -20,13 +20,13 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
     /**
      * 菜单目录（管理端 / 角色授权树），按主体类型过滤。
      */
-    List<SysMenuEntity> getCatalogMenuList(@Param("typeList") List<Integer> typeList,
+    List<SysMenuEntity> getCatalogMenuList(@Param("typeList") List<String> typeList,
                                            @Param("subjectType") String subjectType);
 
     /**
      * 导航菜单目录，只返回启用状态的菜单。
      */
-    List<SysMenuEntity> getNavCatalogMenuList(@Param("typeList") List<Integer> typeList,
+    List<SysMenuEntity> getNavCatalogMenuList(@Param("typeList") List<String> typeList,
                                               @Param("subjectType") String subjectType,
                                               @Param("normalStatus") Integer normalStatus);
 
@@ -35,7 +35,7 @@ public interface SysMenuDao extends BaseDao<SysMenuEntity> {
      */
     List<SysMenuEntity> getNavMenuList(@Param("userSubjectId") Long userSubjectId,
                                        @Param("subjectType") String subjectType,
-                                       @Param("typeList") List<Integer> typeList,
+                                       @Param("typeList") List<String> typeList,
                                        @Param("normalStatus") Integer normalStatus);
 
     /**

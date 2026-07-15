@@ -73,7 +73,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	@Override
 	public List<SysMenuDTO> getAdminMenuList(List<Integer> typeList) {
         String subjectType = ReqContextHolder.isSuperAdmin() ? null : ReqContextHolder.getSubjectType();
-        List<SysMenuEntity> menuList = baseDao.getCatalogMenuList(typeList, subjectType);
+        List<SysMenuEntity> menuList = baseDao.getCatalogMenuList(toTypeCodes(typeList), subjectType);
 		return TreeUtils.build(ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class));
 	}
 
@@ -81,7 +81,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 	public List<SysMenuDTO> getRoleSelectMenuList(String roleScope, List<Integer> typeList) {
         AssertUtils.isBlank(roleScope, "roleScope");
         List<SysMenuEntity> menuList = ReqContextHolder.isSuperAdmin()
-                ? baseDao.getCatalogMenuList(typeList, roleScope)
+                ? baseDao.getCatalogMenuList(toTypeCodes(typeList), roleScope)
                 : loadAuthorizedMenus(roleScope, typeList);
         stripInternalFields(menuList);
 		return TreeUtils.build(ConvertUtils.sourceToTarget(menuList, SysMenuDTO.class));
@@ -114,7 +114,7 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
 
     private List<SysMenuEntity> loadNavMenus(List<Integer> typeList) {
         if (ReqContextHolder.isSuperAdmin()) {
-            return baseDao.getNavCatalogMenuList(typeList, null, StatusEnum.NORMAL.code());
+            return baseDao.getNavCatalogMenuList(toTypeCodes(typeList), null, StatusEnum.NORMAL.code());
         }
         return loadAuthorizedMenus(ReqContextHolder.getSubjectType(), typeList);
     }
@@ -124,7 +124,17 @@ public class SysMenuServiceImpl extends BaseServiceImpl<SysMenuDao, SysMenuEntit
         if (userSubjectId == null) {
             throw new GkException(ErrorCode.UNAUTHORIZED);
         }
-        return baseDao.getNavMenuList(userSubjectId, subjectType, typeList, StatusEnum.NORMAL.code());
+        return baseDao.getNavMenuList(userSubjectId, subjectType, toTypeCodes(typeList), StatusEnum.NORMAL.code());
+    }
+
+    private List<String> toTypeCodes(List<Integer> typeList) {
+        if (CollectionUtils.isEmpty(typeList)) {
+            return null;
+        }
+        return typeList.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .toList();
     }
 
     private List<SysMenuEntity> filterEnabledNavMenus(List<SysMenuEntity> menuList) {

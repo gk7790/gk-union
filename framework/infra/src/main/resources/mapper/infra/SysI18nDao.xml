@@ -26,20 +26,20 @@
     </select>
 
     <select id="getPageList" resultType="com.gk.infra.i18n.entity.SysI18nEntity">
-        SELECT t1.tenant_id, t1.biz_type, t1.biz_id, t1.i18n_key, t1.lang, t1.`value` FROM sys_i18n t1
+        SELECT t1.tenant_id, t1.biz_type, t1.biz_id, t1.i18n_key, t1.lang, t1.value FROM sys_i18n t1
         INNER JOIN ( SELECT i18n_key, MAX(tenant_id) AS max_tenant_id
             FROM sys_i18n
             WHERE lang = #{lang}
             AND tenant_id IN (0, #{tenantId})
             <if test="i18nKey != null and i18nKey.trim() != ''">
-                AND i18n_key like concat("%", #{i18nKey}, "%")
+                AND i18n_key like concat('%', #{i18nKey}, '%')
             </if>
             GROUP BY i18n_key
         ) t2 ON t1.i18n_key = t2.i18n_key
         AND t1.tenant_id = t2.max_tenant_id
         AND t1.lang = #{lang}
         <if test="i18nKey != null and i18nKey.trim() != ''">
-            AND t1.i18n_key like concat("%", #{i18nKey}, "%")
+            AND t1.i18n_key like concat('%', #{i18nKey}, '%')
         </if>
     </select>
 

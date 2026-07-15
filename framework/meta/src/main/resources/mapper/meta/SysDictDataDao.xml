@@ -21,17 +21,17 @@
         <where>
             d.dict_type_id = #{dictTypeId}
             <if test="dictLabel != null and dictLabel.trim() != ''">
-                AND d.dict_label like concat("%", #{dictLabel}, "%")
+                AND d.dict_label like concat('%', #{dictLabel}, '%')
             </if>
             <if test="dictValue != null and dictValue.trim() != ''">
-                AND d.dict_value like concat("%", #{dictValue}, "%")
+                AND d.dict_value like concat('%', #{dictValue}, '%')
             </if>
         </where>
         ORDER BY d.sort ASC
     </select>
 
     <select id="getDictDataList" resultType="com.gk.meta.entity.DictData">
-        SELECT d.dict_type_id, d.dict_label as 'dictLabel', d.dict_value, d.attr_type, d.i18n_key
+        SELECT d.dict_type_id, d.dict_label AS dictLabel, d.dict_value, d.attr_type, d.i18n_key
         FROM sys_dict_data d
         <if test="dictType != null and dictType != ''">
             LEFT JOIN sys_dict_type t ON d.dict_type_id = t.id

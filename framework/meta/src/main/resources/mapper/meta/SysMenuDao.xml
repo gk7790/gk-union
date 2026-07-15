@@ -19,11 +19,33 @@
         <result column="meta" property="meta" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
     </resultMap>
 
-    <sql id="subjectTypeFilter">
+    <sql id="subjectTypeFilter" databaseId="mysql">
         <if test="subjectType != null and subjectType != ''">
             and t1.subject_types is not null
             and json_valid(t1.subject_types)
             and json_contains(t1.subject_types, json_quote(#{subjectType}))
+        </if>
+    </sql>
+
+    <sql id="subjectTypeFilter" databaseId="postgresql">
+        <if test="subjectType != null and subjectType != ''">
+            and t1.subject_types is not null
+            and jsonb_exists(t1.subject_types::jsonb, #{subjectType})
+        </if>
+    </sql>
+
+    <sql id="subjectTypeFilterT3" databaseId="mysql">
+        <if test="subjectType != null and subjectType != ''">
+            and t3.subject_types is not null
+            and json_valid(t3.subject_types)
+            and json_contains(t3.subject_types, json_quote(#{subjectType}))
+        </if>
+    </sql>
+
+    <sql id="subjectTypeFilterT3" databaseId="postgresql">
+        <if test="subjectType != null and subjectType != ''">
+            and t3.subject_types is not null
+            and jsonb_exists(t3.subject_types::jsonb, #{subjectType})
         </if>
     </sql>
 
@@ -74,15 +96,11 @@
                 #{type}
             </foreach>
         </if>
-        <if test="subjectType != null and subjectType != ''">
-            and t3.subject_types is not null
-            and json_valid(t3.subject_types)
-            and json_contains(t3.subject_types, json_quote(#{subjectType}))
-        </if>
+        <include refid="subjectTypeFilterT3"/>
 		order by t3.sort asc
 	</select>
 
-    <select id="countMenusNotInSubjectType" resultType="long">
+    <select id="countMenusNotInSubjectType" databaseId="mysql" resultType="long">
         select count(1) from sys_menu
         where id in
         <foreach item="menuId" collection="menuIds" open="(" separator="," close=")">
@@ -92,6 +110,18 @@
             subject_types is null
             or not json_valid(subject_types)
             or not json_contains(subject_types, json_quote(#{subjectType}))
+        )
+    </select>
+
+    <select id="countMenusNotInSubjectType" databaseId="postgresql" resultType="long">
+        select count(1) from sys_menu
+        where id in
+        <foreach item="menuId" collection="menuIds" open="(" separator="," close=")">
+            #{menuId}
+        </foreach>
+        and (
+            subject_types is null
+            or not jsonb_exists(subject_types::jsonb, #{subjectType})
         )
     </select>
 

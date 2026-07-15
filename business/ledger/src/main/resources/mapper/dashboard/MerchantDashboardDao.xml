@@ -129,7 +129,7 @@
             ) AS processingPayout
     </select>
 
-    <select id="selectPayTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+    <select id="selectPayTrend" databaseId="mysql" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
         SELECT
             DATE_FORMAT(CONVERT_TZ(paid_at, '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
             COUNT(1) AS payInCount,
@@ -145,7 +145,23 @@
         ORDER BY date ASC
     </select>
 
-    <select id="selectPayoutTrend" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+    <select id="selectPayTrend" databaseId="postgresql" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            TO_CHAR(paid_at + CAST(#{tzOffset} AS interval), 'YYYY-MM-DD') AS date,
+            COUNT(1) AS payInCount,
+            COALESCE(SUM(COALESCE(paid_amount, amount)), 0) AS payInAmount
+        FROM payin_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND paid_at &gt;= #{rangeStart}
+          AND paid_at &lt; #{rangeEnd}
+        GROUP BY TO_CHAR(paid_at + CAST(#{tzOffset} AS interval), 'YYYY-MM-DD')
+        ORDER BY date ASC
+    </select>
+
+    <select id="selectPayoutTrend" databaseId="mysql" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
         SELECT
             DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d') AS date,
             COUNT(1) AS payOutCount,
@@ -158,6 +174,22 @@
           AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
           AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
         GROUP BY DATE_FORMAT(CONVERT_TZ(COALESCE(completed_at, updated_at), '+00:00', #{tzOffset}), '%Y-%m-%d')
+        ORDER BY date ASC
+    </select>
+
+    <select id="selectPayoutTrend" databaseId="postgresql" resultType="com.gk.dashboard.dto.TenantDashboardTrendDTO$TrendPoint">
+        SELECT
+            TO_CHAR(COALESCE(completed_at, updated_at) + CAST(#{tzOffset} AS interval), 'YYYY-MM-DD') AS date,
+            COUNT(1) AS payOutCount,
+            COALESCE(SUM(amount), 0) AS payOutAmount
+        FROM payout_order
+        WHERE tenant_id = #{tenantId}
+          AND merchant_id = #{merchantId}
+          AND currency = #{currency}
+          AND status = 'SUCCESS'
+          AND COALESCE(completed_at, updated_at) &gt;= #{rangeStart}
+          AND COALESCE(completed_at, updated_at) &lt; #{rangeEnd}
+        GROUP BY TO_CHAR(COALESCE(completed_at, updated_at) + CAST(#{tzOffset} AS interval), 'YYYY-MM-DD')
         ORDER BY date ASC
     </select>
 

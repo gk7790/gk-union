@@ -160,7 +160,8 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
 
     private void prepareForUpsert(PspBankMappingEntity entity) {
         if (entity.getId() == null) {
-            entity.setId(IdWorker.getId());
+            Long existingId = findExistingMappingId(entity);
+            entity.setId(existingId == null ? IdWorker.getId() : existingId);
         }
         if (entity.getStatus() == null) {
             entity.setStatus(StatusEnum.NORMAL.code());
@@ -177,6 +178,21 @@ public class PspBankMappingServiceImpl extends CrudServiceImpl<PspBankMappingDao
         }
         entity.setUpdatedBy(userId);
         entity.setUpdatedAt(now);
+    }
+
+    private Long findExistingMappingId(PspBankMappingEntity entity) {
+        QueryWrapper<PspBankMappingEntity> wrapper = new QueryWrapper<>();
+        wrapper.select("id");
+        wrapper.eq("psp_id", entity.getPspId());
+        wrapper.eq("country_code", entity.getCountryCode());
+        if (entity.getCurrency() == null) {
+            wrapper.isNull("currency");
+        } else {
+            wrapper.eq("currency", entity.getCurrency());
+        }
+        wrapper.eq("bank_code", entity.getBankCode());
+        PspBankMappingEntity existing = baseDao.selectOne(wrapper);
+        return existing == null ? null : existing.getId();
     }
 
     private PspBankMappingDTO toDto(PspBankMappingEntity entity) {

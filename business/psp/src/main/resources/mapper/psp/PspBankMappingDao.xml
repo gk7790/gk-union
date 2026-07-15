@@ -30,35 +30,43 @@
         ORDER BY b.sort ASC, b.bank_code ASC
     </select>
 
-    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+    <sql id="upsertColumns">
+        id,
+        psp_id,
+        country_code,
+        currency,
+        bank_code,
+        psp_bank_code,
+        status,
+        sort,
+        remark,
+        created_by,
+        created_at,
+        updated_by,
+        updated_at
+    </sql>
+
+    <sql id="upsertValues">
+        #{id},
+        #{pspId},
+        #{countryCode},
+        #{currency},
+        #{bankCode},
+        #{pspBankCode},
+        #{status},
+        #{sort},
+        #{remark},
+        #{createdBy},
+        #{createdAt},
+        #{updatedBy},
+        #{updatedAt}
+    </sql>
+
+    <insert id="upsert" databaseId="mysql" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO psp_bank_mapping (
-            id,
-            psp_id,
-            country_code,
-            currency,
-            bank_code,
-            psp_bank_code,
-            status,
-            sort,
-            remark,
-            created_by,
-            created_at,
-            updated_by,
-            updated_at
+            <include refid="upsertColumns"/>
         ) VALUES (
-            #{id},
-            #{pspId},
-            #{countryCode},
-            #{currency},
-            #{bankCode},
-            #{pspBankCode},
-            #{status},
-            #{sort},
-            #{remark},
-            #{createdBy},
-            #{createdAt},
-            #{updatedBy},
-            #{updatedAt}
+            <include refid="upsertValues"/>
         )
         ON DUPLICATE KEY UPDATE
             id = LAST_INSERT_ID(id),
@@ -68,6 +76,21 @@
             remark = #{remark},
             updated_by = #{updatedBy},
             updated_at = #{updatedAt}
+    </insert>
+
+    <insert id="upsert" databaseId="postgresql" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO psp_bank_mapping (
+            <include refid="upsertColumns"/>
+        ) VALUES (
+            <include refid="upsertValues"/>
+        )
+        ON CONFLICT (psp_id, country_code, currency, bank_code) DO UPDATE SET
+            psp_bank_code = EXCLUDED.psp_bank_code,
+            status = EXCLUDED.status,
+            sort = EXCLUDED.sort,
+            remark = EXCLUDED.remark,
+            updated_by = EXCLUDED.updated_by,
+            updated_at = EXCLUDED.updated_at
     </insert>
 
 </mapper>

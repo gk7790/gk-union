@@ -104,7 +104,8 @@ public final class DashboardSupport {
     }
 
     public static String resolveTzOffset(ZoneId zoneId, LocalDate date) {
-        return date.atStartOfDay(zoneId).getOffset().getId();
+        String offset = date.atStartOfDay(zoneId).getOffset().getId();
+        return "Z".equals(offset) ? "+00:00" : offset;
     }
 
     public static List<TenantDashboardTrendDTO.TrendPoint> mergeTrendPoints(RangeWindow window,

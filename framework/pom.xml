@@ -24,4 +24,12 @@
         <module>notify</module>
         <module>scheduler</module>
     </modules>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/gk7790/gk-union</url>
+        </repository>
+    </distributionManagement>
 </project>

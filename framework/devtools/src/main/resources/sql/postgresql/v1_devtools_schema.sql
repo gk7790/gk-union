@@ -8,7 +8,7 @@ CREATE TABLE gen_base_class (
   code varchar(200) NULL,
   fields varchar(500) NULL,
   remark varchar(200) NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_gen_base_class PRIMARY KEY (id)
 );
 COMMENT ON TABLE gen_base_class IS '基类管理';
@@ -28,7 +28,7 @@ CREATE TABLE gen_datasource (
   username varchar(200) NULL,
   password varchar(200) NULL,
   status smallint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_gen_datasource PRIMARY KEY (id)
 );
 COMMENT ON TABLE gen_datasource IS '数据源管理';
@@ -48,7 +48,7 @@ CREATE TABLE gen_field_type (
   attr_type varchar(200) NULL,
   ui_type varchar(255) NULL,
   package_name varchar(200) NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_gen_field_type PRIMARY KEY (id)
 );
 COMMENT ON TABLE gen_field_type IS '字段类型管理';
@@ -123,7 +123,7 @@ CREATE TABLE gen_table_info (
   sub_module_name varchar(200) NULL,
   datasource_id bigint NULL,
   baseclass_id bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_gen_table_info PRIMARY KEY (id)
 );
 COMMENT ON TABLE gen_table_info IS '代码生成表';
@@ -152,7 +152,7 @@ CREATE TABLE gen_template (
   content text NOT NULL,
   path varchar(500) NULL,
   status smallint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_gen_template PRIMARY KEY (id)
 );
 COMMENT ON TABLE gen_template IS '模板管理';

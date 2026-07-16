@@ -15,10 +15,12 @@ import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.expression.Expression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 
 @Aspect
+@Component
 @RequiredArgsConstructor
 public class RateLimitAspect {
 

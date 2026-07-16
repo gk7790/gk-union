@@ -12,9 +12,9 @@ CREATE TABLE tg_account (
   user_id bigint NOT NULL,
   subject_id bigint NOT NULL,
   status smallint NOT NULL DEFAULT 1,
-  bound_at timestamp(3) NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  bound_at timestamptz(3) NULL,
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_account PRIMARY KEY (id)
 );
 COMMENT ON TABLE tg_account IS 'Telegram账号绑定';
@@ -52,9 +52,9 @@ CREATE TABLE tg_bot (
   status smallint NOT NULL DEFAULT 1,
   remark varchar(512) NULL,
   created_by bigint NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_by bigint NULL,
-  updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_bot PRIMARY KEY (id),
   CONSTRAINT chk_tg_bot_1 CHECK (owner_scope in ('PLATFORM','TENANT')),
   CONSTRAINT chk_tg_bot_2 CHECK ((owner_scope <> 'TENANT') or (tenant_id is not null))
@@ -97,9 +97,9 @@ CREATE TABLE tg_chat (
   status smallint NOT NULL DEFAULT 1,
   remark varchar(512) NULL,
   created_by bigint NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_by bigint NULL,
-  updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_chat PRIMARY KEY (id),
   CONSTRAINT chk_tg_chat_1 CHECK (chat_type in ('PRIVATE','GROUP','SUPERGROUP','CHANNEL'))
 );
@@ -141,20 +141,20 @@ CREATE TABLE tg_message_task (
   status varchar(32) NOT NULL DEFAULT 'INIT',
   retry_count integer NOT NULL DEFAULT 0,
   max_retry_count integer NOT NULL DEFAULT 8,
-  next_retry_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  next_retry_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   tg_message_id bigint NULL,
   last_error_code integer NULL,
   last_error_msg varchar(1024) NULL,
-  last_attempt_at timestamp(3) NULL,
+  last_attempt_at timestamptz(3) NULL,
   locked_by varchar(128) NULL,
-  lock_until timestamp(3) NULL,
-  success_at timestamp(3) NULL,
-  dead_at timestamp(3) NULL,
+  lock_until timestamptz(3) NULL,
+  success_at timestamptz(3) NULL,
+  dead_at timestamptz(3) NULL,
   trace_id varchar(128) NULL,
   created_by bigint NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_by bigint NULL,
-  updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_message_task PRIMARY KEY (id)
 );
 COMMENT ON TABLE tg_message_task IS 'Telegram出站消息任务';
@@ -206,7 +206,7 @@ CREATE TABLE tg_update_log (
   raw_json json NOT NULL,
   handle_status smallint NOT NULL DEFAULT 0,
   error_msg varchar(1024) NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_tg_update_log PRIMARY KEY (id)
 );
 COMMENT ON TABLE tg_update_log IS 'Telegram入站更新日志';

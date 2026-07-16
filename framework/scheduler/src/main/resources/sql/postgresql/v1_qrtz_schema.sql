@@ -177,9 +177,9 @@ CREATE TABLE schedule_job (
   status smallint NULL,
   remark varchar(255) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_schedule_job PRIMARY KEY (id)
 );
 COMMENT ON TABLE schedule_job IS '定时任务';
@@ -206,7 +206,7 @@ CREATE TABLE schedule_job_log (
   result text NULL,
   error varchar(2000) NULL,
   times integer NOT NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_schedule_job_log PRIMARY KEY (id)
 );
 COMMENT ON TABLE schedule_job_log IS '定时任务日志';

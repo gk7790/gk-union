@@ -12,9 +12,9 @@ CREATE TABLE sys_dept (
   sort integer NULL DEFAULT 0,
   remark varchar(255) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_dept PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_dept IS '部门管理';
@@ -50,9 +50,9 @@ CREATE TABLE sys_dict_data (
   ext json NULL,
   is_default smallint NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_dict_data PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_dict_data IS '字典数据';
@@ -87,9 +87,9 @@ CREATE TABLE sys_dict_type (
   sort integer NULL DEFAULT 0,
   scope varchar(255) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_dict_type PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_dict_type IS '字典类型';
@@ -116,9 +116,9 @@ CREATE TABLE sys_i18n (
   lang varchar(16) NOT NULL,
   value varchar(255) NULL,
   created_by bigint NOT NULL,
-  created_at timestamp NOT NULL,
+  created_at timestamptz(3) NOT NULL,
   updated_by bigint NOT NULL,
-  updated_at timestamp NOT NULL,
+  updated_at timestamptz(3) NOT NULL,
   CONSTRAINT pk_sys_i18n PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_i18n IS '系统-国际化';
@@ -165,7 +165,7 @@ CREATE TABLE sys_log_error (
   resolved smallint NULL DEFAULT 0,
   alarmed smallint NULL DEFAULT 0,
   env varchar(32) NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_log_error PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_log_error IS '系统异常日志';
@@ -216,7 +216,7 @@ CREATE TABLE sys_log_login (
   ip varchar(32) NULL,
   created_by_name varchar(50) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_log_login PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_log_login IS '登录日志';
@@ -244,7 +244,7 @@ CREATE TABLE sys_log_operation (
   status smallint NOT NULL,
   created_by_name varchar(50) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_log_operation PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_log_operation IS '操作日志';
@@ -279,9 +279,9 @@ CREATE TABLE sys_menu (
   subject_types json NULL,
   domain json NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_menu PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_menu IS '菜单管理';
@@ -315,9 +315,9 @@ CREATE TABLE sys_params (
   param_type smallint NULL DEFAULT 1,
   remark varchar(200) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_params PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_params IS '参数管理';
@@ -342,9 +342,9 @@ CREATE TABLE sys_region (
   leaf smallint NULL,
   sort bigint NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_region PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_region IS '行政区域';
@@ -371,9 +371,9 @@ CREATE TABLE sys_role (
   status smallint NULL DEFAULT 1,
   remark varchar(100) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_role PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_role IS '角色管理';
@@ -399,7 +399,7 @@ CREATE TABLE sys_role_data_scope (
   role_id bigint NULL,
   dept_id bigint NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_role_data_scope PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_role_data_scope IS '角色数据权限';
@@ -416,7 +416,7 @@ CREATE TABLE sys_role_menu (
   role_id bigint NULL,
   menu_id bigint NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_role_menu PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_role_menu IS '角色菜单关系';
@@ -435,7 +435,7 @@ CREATE TABLE sys_role_user (
   role_id bigint NULL,
   user_id bigint NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   CONSTRAINT pk_sys_role_user PRIMARY KEY (id)
 );
 COMMENT ON TABLE sys_role_user IS '角色用户关系';
@@ -462,9 +462,9 @@ CREATE TABLE sys_tenant (
   api_secret varchar(255) NULL,
   remark varchar(255) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL
+  updated_at timestamptz(3) NULL
 );
 COMMENT ON TABLE sys_tenant IS '租户信息表';
 COMMENT ON COLUMN sys_tenant.name IS '租户公司名称';
@@ -496,9 +496,9 @@ CREATE TABLE sys_user (
   status smallint NOT NULL DEFAULT 1,
   remark varchar(255) NULL,
   created_by bigint NULL,
-  created_at timestamp NULL,
+  created_at timestamptz(3) NULL,
   updated_by bigint NULL,
-  updated_at timestamp NULL,
+  updated_at timestamptz(3) NULL,
   auth_type smallint NULL DEFAULT 1,
   auth_secret varchar(255) NULL,
   CONSTRAINT pk_sys_user PRIMARY KEY (id)
@@ -537,9 +537,9 @@ CREATE TABLE sys_user_subject (
   status smallint NOT NULL DEFAULT 1,
   remark varchar(512) NULL,
   created_by bigint NULL,
-  created_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_by bigint NULL,
-  updated_at timestamp(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT pk_sys_user_subject PRIMARY KEY (id),
   CONSTRAINT chk_sys_user_subject_1 CHECK (status in (0,1)),
   CONSTRAINT chk_sys_user_subject_2 CHECK ((subject_type <> 'TENANT') or ((tenant_id is not null) and (subject_id is null))),

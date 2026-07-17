@@ -39,7 +39,7 @@ public class PayinOrderStateService {
      */
     public boolean applyProcessingResult(PspCallbackOrder order, PspCallbackResult result, OrderStateChangeContext context) {
         String toStatus = PayinOrderStatusEnum.PROCESSING.code();
-        boolean updated = updateActive(order.id(), wrapper -> {
+        boolean updated = updateProcessingEligible(order.id(), wrapper -> {
             applyCommon(wrapper, toStatus, result, order);
             applyMerchantStatus(wrapper, toStatus);
         });
@@ -151,6 +151,19 @@ public class PayinOrderStateService {
                         PayinOrderStatusEnum.CREATED.code(),
                         PayinOrderStatusEnum.PROCESSING.code(),
                         PayinOrderStatusEnum.MANUAL_REVIEW.code());
+        setter.accept(wrapper);
+        return payinOrderDao.update(null, wrapper) > 0;
+    }
+
+    /**
+     * 只允许非终态结果更新正常处理中的订单，禁止延迟查单把人工审核状态改回处理中。
+     */
+    private boolean updateProcessingEligible(Long orderId, Consumer<UpdateWrapper<PayinOrderEntity>> setter) {
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", orderId)
+                .in("status",
+                        PayinOrderStatusEnum.CREATED.code(),
+                        PayinOrderStatusEnum.PROCESSING.code());
         setter.accept(wrapper);
         return payinOrderDao.update(null, wrapper) > 0;
     }

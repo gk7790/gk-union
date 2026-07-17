@@ -17,6 +17,8 @@ import org.quartz.TriggerKey;
 import org.quartz.impl.jdbcjobstore.NoRecordFoundException;
 
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.SQLException;
+import java.util.Objects;
 
 /**
  * 定时任务工具类
@@ -98,7 +100,7 @@ public class ScheduleUtils {
 
             scheduler.rescheduleJob(triggerKey, trigger);
 
-            if (scheduleJob.getStatus() == StatusEnum.PAUSE.code()) {
+            if (Objects.equals(scheduleJob.getStatus(), StatusEnum.PAUSE.code())) {
                 pauseJob(scheduler, scheduleJob.getId());
             }
 
@@ -127,7 +129,7 @@ public class ScheduleUtils {
 
         scheduler.scheduleJob(jobDetail, trigger);
 
-        if (scheduleJob.getStatus() == StatusEnum.PAUSE.code()) {
+        if (Objects.equals(scheduleJob.getStatus(), StatusEnum.PAUSE.code())) {
             pauseJob(scheduler, scheduleJob.getId());
         }
     }
@@ -163,6 +165,9 @@ public class ScheduleUtils {
     private static boolean isDuplicateQuartzStateException(Throwable throwable) {
         while (throwable != null) {
             if (throwable instanceof SQLIntegrityConstraintViolationException) {
+                return true;
+            }
+            if (throwable instanceof SQLException sqlException && "23505".equals(sqlException.getSQLState())) {
                 return true;
             }
             String message = throwable.getMessage();

@@ -118,16 +118,20 @@ public class PspOrderQueryExecutor {
             PspOrderQueryResult result = payQueryService.query(PspOrderRequests.fromPayinOrder(order));
             resultHandler.handle(BizTypeEnum.PAYIN_ORDER.code(), orderResolver.fromPayinOrder(order, null), result);
             if (!PspCallbackUtils.isTerminal(result.getOrderStatus())) {
-                reschedulePay(order.getId(), attemptNo, null);
-                record.complete("Non-terminal result, query rescheduled");
+                boolean rescheduled = reschedulePay(order.getId(), attemptNo, null);
+                record.complete(rescheduled
+                        ? "Non-terminal result, query rescheduled"
+                        : "Non-terminal result ignored because order state changed concurrently");
             } else {
                 markPayQueryFinished(order.getId(), attemptNo);
                 record.complete("Terminal result applied");
             }
         } catch (Exception ex) {
             log.warn("Pay order query failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
-            reschedulePay(order.getId(), attemptNo, ex.getMessage());
-            record.error("QUERY", "PSP query failed and was rescheduled", ex);
+            boolean rescheduled = reschedulePay(order.getId(), attemptNo, ex.getMessage());
+            record.error("QUERY", rescheduled
+                    ? "PSP query failed and was rescheduled"
+                    : "PSP query failed after order state changed concurrently", ex);
         }
     }
 
@@ -140,16 +144,20 @@ public class PspOrderQueryExecutor {
             PspOrderQueryResult result = payoutQueryService.query(PspOrderRequests.fromPayoutOrder(order));
             resultHandler.handle(BizTypeEnum.PAYOUT_ORDER.code(), orderResolver.fromPayoutOrder(order, null), result);
             if (!PspCallbackUtils.isTerminal(result.getOrderStatus())) {
-                reschedulePayout(order.getId(), attemptNo, null);
-                record.complete("Non-terminal result, query rescheduled");
+                boolean rescheduled = reschedulePayout(order.getId(), attemptNo, null);
+                record.complete(rescheduled
+                        ? "Non-terminal result, query rescheduled"
+                        : "Non-terminal result ignored because order state changed concurrently");
             } else {
                 markPayoutQueryFinished(order.getId(), attemptNo);
                 record.complete("Terminal result applied");
             }
         } catch (Exception ex) {
             log.warn("Payout order query failed, orderNo={}, err={}", order.getPayoutOrderNo(), ex.getMessage());
-            reschedulePayout(order.getId(), attemptNo, ex.getMessage());
-            record.error("QUERY", "PSP query failed and was rescheduled", ex);
+            boolean rescheduled = reschedulePayout(order.getId(), attemptNo, ex.getMessage());
+            record.error("QUERY", rescheduled
+                    ? "PSP query failed and was rescheduled"
+                    : "PSP query failed after order state changed concurrently", ex);
         }
     }
 
@@ -185,7 +193,7 @@ public class PspOrderQueryExecutor {
         }
     }
 
-    private void reschedulePay(Long orderId, int attemptNo, String reason) {
+    private boolean reschedulePay(Long orderId, int attemptNo, String reason) {
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
                 .eq("status", PayinOrderStatusEnum.PROCESSING.code())
@@ -193,10 +201,10 @@ public class PspOrderQueryExecutor {
                 .set("query_count", attemptNo)
                 .set("next_query_at", nextQueryAt(attemptNo))
                 .set(StringUtils.isNotBlank(reason), "status_reason", StringUtils.left(reason, 512));
-        payinOrderDao.update(null, wrapper);
+        return payinOrderDao.update(null, wrapper) == 1;
     }
 
-    private void reschedulePayout(Long orderId, int attemptNo, String reason) {
+    private boolean reschedulePayout(Long orderId, int attemptNo, String reason) {
         UpdateWrapper<PayoutOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", orderId)
                 .eq("status", PayoutOrderStatusEnum.PROCESSING.code())
@@ -204,7 +212,7 @@ public class PspOrderQueryExecutor {
                 .set("query_count", attemptNo)
                 .set("next_query_at", nextQueryAt(attemptNo))
                 .set(StringUtils.isNotBlank(reason), "status_reason", StringUtils.left(reason, 512));
-        payoutOrderDao.update(null, wrapper);
+        return payoutOrderDao.update(null, wrapper) == 1;
     }
 
     private void markPayQueryFinished(Long orderId, int attemptNo) {

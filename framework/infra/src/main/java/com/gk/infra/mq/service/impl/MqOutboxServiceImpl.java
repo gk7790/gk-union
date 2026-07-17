@@ -99,13 +99,14 @@ public class MqOutboxServiceImpl implements MqOutboxService {
 
     @Override
     public void markDone(Long id, String workerId) {
-        mqOutboxDao.markConsumeDone(
+        int updated = mqOutboxDao.markConsumeDone(
                 id,
                 workerId,
                 Instant.now(),
                 MqOutboxConsumeStatusEnum.DONE.code(),
                 MqOutboxConsumeStatusEnum.LOCKED.code()
         );
+        requireLockOwner(updated, id, workerId, "done");
     }
 
     @Override
@@ -127,7 +128,7 @@ public class MqOutboxServiceImpl implements MqOutboxService {
 
     @Override
     public void markDead(Long id, String workerId, String errorCode, String errorMsg) {
-        mqOutboxDao.markConsumeDead(
+        int updated = mqOutboxDao.markConsumeDead(
                 id,
                 workerId,
                 Instant.now(),
@@ -136,6 +137,14 @@ public class MqOutboxServiceImpl implements MqOutboxService {
                 MqOutboxConsumeStatusEnum.DEAD.code(),
                 MqOutboxConsumeStatusEnum.LOCKED.code()
         );
+        requireLockOwner(updated, id, workerId, "dead");
+    }
+
+    private void requireLockOwner(int updated, Long id, String workerId, String operation) {
+        if (updated != 1) {
+            throw new IllegalStateException("MQ outbox lock lost while marking " + operation
+                    + ", id=" + id + ", workerId=" + workerId);
+        }
     }
 
     private String defaultWorkerId() {

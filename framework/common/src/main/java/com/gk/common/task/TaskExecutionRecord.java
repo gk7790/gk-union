@@ -7,23 +7,30 @@ import java.util.List;
  * A logical record handled during a task execution.
  */
 public final class TaskExecutionRecord {
-    private static final TaskExecutionRecord EMPTY = new TaskExecutionRecord("", false);
+    private static final TaskExecutionRecord EMPTY = new TaskExecutionRecord("", false, null);
 
     private final String name;
     private final boolean enabled;
+    private final Runnable firstErrorCallback;
     private final List<TaskExecutionStep> steps = new ArrayList<>();
+    private boolean error;
 
-    private TaskExecutionRecord(String name, boolean enabled) {
+    private TaskExecutionRecord(String name, boolean enabled, Runnable firstErrorCallback) {
         this.name = name;
         this.enabled = enabled;
+        this.firstErrorCallback = firstErrorCallback;
     }
 
     static TaskExecutionRecord create(String name) {
-        return new TaskExecutionRecord(name, true);
+        return new TaskExecutionRecord(name, true, null);
     }
 
     static TaskExecutionRecord empty() {
         return EMPTY;
+    }
+
+    static TaskExecutionRecord omitted(Runnable firstErrorCallback) {
+        return new TaskExecutionRecord("", false, firstErrorCallback);
     }
 
     public TaskExecutionRecord step(String name, String message) {
@@ -32,6 +39,7 @@ public final class TaskExecutionRecord {
     }
 
     public TaskExecutionRecord error(String name, String message, Throwable exception) {
+        markError();
         String errorMessage = exception == null
                 ? message
                 : message + ", error=" + exception.getClass().getSimpleName() + ": " + exception.getMessage();
@@ -49,7 +57,7 @@ public final class TaskExecutionRecord {
     }
 
     boolean hasError() {
-        return steps.stream().anyMatch(TaskExecutionStep::error);
+        return error;
     }
 
     int stepCount() {
@@ -65,6 +73,16 @@ public final class TaskExecutionRecord {
             return;
         }
         steps.add(new TaskExecutionStep(clean(stepName), clean(message), error));
+    }
+
+    private void markError() {
+        if (error || (!enabled && firstErrorCallback == null)) {
+            return;
+        }
+        error = true;
+        if (firstErrorCallback != null) {
+            firstErrorCallback.run();
+        }
     }
 
     private String clean(String value) {

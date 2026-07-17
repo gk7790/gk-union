@@ -136,9 +136,13 @@ public class TgMessageTaskExecutor {
             return false;
         }
         Instant now = Instant.now();
-        if (!claim(task, now, now.plusSeconds(LOCK_SECONDS))) {
+        Instant lockUntil = now.plusSeconds(LOCK_SECONDS);
+        if (!claim(task, now, lockUntil)) {
             return false;
         }
+        task.setStatus("PROCESSING");
+        task.setLockedBy(workerId);
+        task.setLockUntil(lockUntil);
         try {
             return attempt(task);
         } catch (Exception e) {
@@ -181,8 +185,13 @@ public class TgMessageTaskExecutor {
      */
     private List<TgMessageTaskEntity> findClaimable(Instant now, String bizType) {
         QueryWrapper<TgMessageTaskEntity> wrapper = new QueryWrapper<TgMessageTaskEntity>()
-                .in("status", "INIT", "FAILED")
-                .le("next_retry_at", now)
+                .and(status -> status
+                        .nested(ready -> ready
+                                .in("status", "INIT", "FAILED")
+                                .le("next_retry_at", now))
+                        .or(stale -> stale
+                                .eq("status", "PROCESSING")
+                                .le("lock_until", now)))
                 // 只处理仍有重试次数的任务，超过次数的任务会保持 DEAD/不再进入这里。
                 .apply("retry_count < max_retry_count")
                 // 锁为空或锁已过期才允许被当前节点抢占。

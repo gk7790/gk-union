@@ -91,7 +91,7 @@ public class PayoutPspSubmitService {
         }
         Long orderId = order.getId();
         if (route == null) {
-            markSubmitUnknown(orderId, new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
+            markRouteUnavailableFailed(orderId, null, context);
             return payoutOrderDao.selectById(orderId);
         }
         PayoutOrderEntity claimedOrder = claimForSubmit(orderId, context);

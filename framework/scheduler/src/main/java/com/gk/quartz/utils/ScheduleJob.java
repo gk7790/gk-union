@@ -12,6 +12,7 @@ import com.gk.quartz.entity.ScheduleJobLogEntity;
 import com.gk.quartz.service.ScheduleJobLogService;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.quartz.QuartzJobBean;
@@ -29,7 +30,7 @@ public class ScheduleJob extends QuartzJobBean {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Override
-    protected void executeInternal(JobExecutionContext context) {
+    protected void executeInternal(JobExecutionContext context) throws JobExecutionException {
         Object job = context.getMergedJobDataMap().get(ScheduleUtils.JOB_PARAM_KEY);
         ScheduleJobEntity scheduleJob = ConvertUtils.sourceToTarget(job, ScheduleJobEntity.class);
 
@@ -76,6 +77,7 @@ public class ScheduleJob extends QuartzJobBean {
                 log.setResult(execution.summary("FAILED"));
             }
             log.setError(ExceptionUtils.getErrorStackTrace(e));
+            throw new JobExecutionException("Scheduled task execution failed: " + scheduleJob.getBeanName(), e);
         } finally {
             TaskExecutions.clear();
             //获取spring bean

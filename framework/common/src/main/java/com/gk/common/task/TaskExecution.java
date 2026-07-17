@@ -14,6 +14,7 @@ public final class TaskExecution {
     private final boolean enabled;
     private final List<TaskExecutionRecord> records = new ArrayList<>();
     private int omittedRecords;
+    private int omittedErrors;
 
     private TaskExecution(String name, boolean enabled) {
         this.name = name;
@@ -34,7 +35,7 @@ public final class TaskExecution {
         }
         if (records.size() >= MAX_RECORDS) {
             omittedRecords++;
-            return TaskExecutionRecord.empty();
+            return TaskExecutionRecord.omitted(() -> omittedErrors++);
         }
         TaskExecutionRecord record = TaskExecutionRecord.create(name);
         records.add(record);
@@ -46,7 +47,7 @@ public final class TaskExecution {
             return taskResult;
         }
         StringBuilder builder = new StringBuilder("Execution: ").append(name).append('\n');
-        int errors = 0;
+        int errors = omittedErrors;
         int steps = 0;
         for (TaskExecutionRecord record : records) {
             builder.append("Record: ").append(record.name()).append('\n');
@@ -63,7 +64,8 @@ public final class TaskExecution {
             builder.append("Records omitted: ").append(omittedRecords).append('\n');
         }
         builder.append("Summary: records=").append(records.size() + omittedRecords)
-                .append(", recordsSucceeded=").append(records.size() - errors)
+                .append(", recordsLogged=").append(records.size())
+                .append(", recordsSucceeded=").append(records.size() + omittedRecords - errors)
                 .append(", recordsWithErrors=").append(errors)
                 .append(", steps=").append(steps);
         if (taskResult != null && !taskResult.isBlank()) {

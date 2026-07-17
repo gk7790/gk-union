@@ -34,10 +34,15 @@ public class MerchantNotifyRepository {
      */
     public List<MerchantNotifyTaskEntity> findClaimable(Instant now, int batchSize) {
         QueryWrapper<MerchantNotifyTaskEntity> wrapper = new QueryWrapper<>();
-        wrapper.in("status",
-                        MerchantNotifyTaskStatusEnum.INIT.code(),
-                        MerchantNotifyTaskStatusEnum.FAILED.code())
-                .le("next_retry_at", now)
+        wrapper.and(status -> status
+                        .nested(ready -> ready
+                                .in("status",
+                                        MerchantNotifyTaskStatusEnum.INIT.code(),
+                                        MerchantNotifyTaskStatusEnum.FAILED.code())
+                                .le("next_retry_at", now))
+                        .or(stale -> stale
+                                .eq("status", MerchantNotifyTaskStatusEnum.PROCESSING.code())
+                                .le("lock_until", now)))
                 .apply("retry_count < max_retry_count")
                 .and(w -> w.isNull("lock_until").or().le("lock_until", now))
                 .orderByAsc("next_retry_at")

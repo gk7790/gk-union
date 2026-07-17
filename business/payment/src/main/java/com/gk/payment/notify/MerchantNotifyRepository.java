@@ -2,6 +2,7 @@ package com.gk.payment.notify;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.payment.dao.MerchantNotifyRecordDao;
 import com.gk.payment.dao.MerchantNotifyTaskDao;
 import com.gk.payment.entity.MerchantNotifyRecordEntity;
@@ -97,12 +98,14 @@ public class MerchantNotifyRepository {
     @Transactional(rollbackFor = Exception.class)
     public void persistAttempt(MerchantNotifyRecordEntity record, MerchantNotifyTaskEntity task) {
         try {
-            merchantNotifyRecordDao.insert(record);
+            SavepointExecutor.run(() -> merchantNotifyRecordDao.insert(record));
         } catch (DuplicateKeyException ignored) {
             // 同一 attempt_no 已写并发/重复触发), 记录幂等跳过, 仍更新任务状态
         }
         UpdateWrapper<MerchantNotifyTaskEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", task.getId())
+                .eq("status", MerchantNotifyTaskStatusEnum.PROCESSING.code())
+                .eq("locked_by", task.getLockedBy())
                 .set("status", task.getStatus())
                 .set("retry_count", task.getRetryCount())
                 .set("max_retry_count", task.getMaxRetryCount())
@@ -118,6 +121,8 @@ public class MerchantNotifyRepository {
                 .set("locked_by", null)
                 .set("locked_at", null)
                 .set("lock_until", null);
-        merchantNotifyTaskDao.update(null, wrapper);
+        if (merchantNotifyTaskDao.update(null, wrapper) != 1) {
+            throw new IllegalStateException("Merchant notify task lock lost, taskNo=" + task.getTaskNo());
+        }
     }
 }

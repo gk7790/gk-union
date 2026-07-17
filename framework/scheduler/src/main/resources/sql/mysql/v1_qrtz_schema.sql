@@ -189,7 +189,7 @@ CREATE TABLE `schedule_job_log` (
   `params` varchar(2000) NULL DEFAULT NULL COMMENT '参数',
   `status` tinyint UNSIGNED NOT NULL COMMENT '任务状态    0：失败    1：成功',
   `result` text NULL COMMENT '结果',
-  `error` varchar(2000) NULL DEFAULT NULL COMMENT '失败信息',
+  `error` text NULL COMMENT '失败信息',
   `times` int NOT NULL COMMENT '耗时(单位：毫秒)',
   `created_at` datetime NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,

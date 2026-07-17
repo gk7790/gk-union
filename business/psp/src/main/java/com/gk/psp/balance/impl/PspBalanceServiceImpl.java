@@ -1,8 +1,9 @@
 package com.gk.psp.balance.impl;
 
 import com.gk.psp.support.PspCacheKeys;
-import com.gk.common.redis.RedisKeys;
 import com.gk.common.redis.RedisUtils;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.psp.config.PspConfigService;
 import com.gk.psp.adapter.PspBalanceAdapter;
 import com.gk.psp.balance.model.PspBalanceAccount;
@@ -68,13 +69,17 @@ public class PspBalanceServiceImpl implements PspBalanceService {
         int refreshed = 0;
         for (PspBalanceAccount account : accounts) {
             long cacheSeconds = cacheSeconds();
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "PSP balance account=" + account.getPspAccountNo() + ", psp=" + account.getPspCode());
             try {
                 PspBalanceSnap snap = query(account, cacheSeconds);
                 cache(snap);
                 refreshed++;
+                executionRecord.complete("Balance snapshot refreshed, status=" + snap.getStatus());
             } catch (Exception ex) {
                 log.warn("Refresh PSP account balance failed, pspAccountId={}, err={}", account.getPspAccountId(), ex.getMessage());
                 cache(errorSnap(account, ex, cacheSeconds));
+                executionRecord.error("REFRESH", "PSP balance refresh failed", ex);
             }
         }
         return refreshed;

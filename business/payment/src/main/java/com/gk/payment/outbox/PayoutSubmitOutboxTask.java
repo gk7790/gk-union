@@ -35,7 +35,7 @@ public class PayoutSubmitOutboxTask implements ITask {
     @Override
     public String run(String params) {
         int batchSize = parseBatchSize(params);
-        List<MqOutboxEntity> events = mqOutboxService.lockDueEvents(PayoutSubmitOutboxProducer.EVENT_TYPE, batchSize, "payout-submit-outbox");
+        List<MqOutboxEntity> events = mqOutboxService.lockDueEvents(PayoutSubmitOutboxProducer.EVENT_TYPE, batchSize, null);
         int success = 0;
         int failed = 0;
         for (MqOutboxEntity event : events) {
@@ -46,7 +46,7 @@ public class PayoutSubmitOutboxTask implements ITask {
                 consumer.consume(event.getPayloadJson());
                 record.step("CONSUME", "Payload consumed");
                 operation = "MARK_DONE";
-                mqOutboxService.markDone(event.getId());
+                mqOutboxService.markDone(event);
                 success++;
                 record.step("MARK_DONE", "Outbox marked done");
                 record.complete("Payout submission completed");
@@ -56,9 +56,9 @@ public class PayoutSubmitOutboxTask implements ITask {
                 log.warn("Payout submit outbox consume failed, eventId={}, bizNo={}, err={}",
                         event.getEventId(), event.getBizNo(), ex.getMessage());
                 if (isNonRetryable(ex)) {
-                    mqOutboxService.markDead(event.getId(), errorCode(ex), ex.getMessage());
+                    mqOutboxService.markDead(event, errorCode(ex), ex.getMessage());
                 } else {
-                    mqOutboxService.markRetry(event.getId(), errorCode(ex), ex.getMessage());
+                    mqOutboxService.markRetry(event, errorCode(ex), ex.getMessage());
                 }
                 record.complete("Outbox marked for retry or dead letter");
             }

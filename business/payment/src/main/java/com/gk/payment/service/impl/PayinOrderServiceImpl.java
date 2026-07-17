@@ -12,12 +12,15 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.common.utils.ConvertUtils;
 import com.gk.ledger.posting.LedgerPostingResult;
 import com.gk.ledger.posting.PaySuccessPostingRequest;
 import com.gk.ledger.service.LedgerPostingService;
 import com.gk.merchant.dao.MerchantDao;
 import com.gk.merchant.entity.MerchantEntity;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.payment.dao.PayinOrderDao;
 import com.gk.payment.dto.MerchantPayinOrderDTO;
 import com.gk.payment.dto.PayinOrderDTO;
@@ -30,7 +33,9 @@ import com.gk.payment.state.PayinOrderStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,7 +49,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
     private static final int SETTLE_DRAIN_BATCH = 50;
     private static final int EXPIRE_DRAIN_BATCH = 50;
     private static final int MANUAL_REVIEW_DRAIN_BATCH = 50;
-    private static final int MAX_ACTIVE_QUERY_COUNT = 30;
+    private static final int DEFAULT_MAX_ACTIVE_QUERY_COUNT = 30;
     private static final long PROCESSING_SLA_SECONDS = 2 * 60 * 60;
     private static final String PAYIN_ORDER_EXPIRED_REASON = "Pay order expired";
     private static final String MANUAL_REVIEW_REASON = "Pay order exceeded active query limit or SLA";
@@ -53,6 +58,8 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
     private final LedgerPostingService ledgerPostingService;
     private final OrderStatusLogService orderStatusLogService;
     private final PayinOrderStateService payinOrderStateService;
+    private final PaymentConfigService configService;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     public PageData<PayinOrderDTO> page(DynMap params) {
@@ -90,7 +97,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
         if (page.getItems() == null || page.getItems().isEmpty()) {
             throw new GkException(ErrorCode.NOT_FOUND, "Pay order not found");
         }
-        return page.getItems().get(0);
+        return page.getItems().getFirst();
     }
 
     private void applyMerchantScope(DynMap params) {
@@ -152,8 +159,11 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
      * 单笔释放待结算余额至商户可用余额。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void releaseSettle(Long orderId) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> doReleaseSettle(orderId));
+    }
+
+    private void doReleaseSettle(Long orderId) {
         if (orderId == null) {
             throw new IllegalArgumentException("order id is required");
         }
@@ -216,15 +226,20 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
                 .last("limit " + SETTLE_DRAIN_BATCH));
         int released = 0;
         for (PayinOrderEntity order : orders) {
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Payin settlement order=" + order.getPayinOrderNo());
             try {
                 MerchantEntity merchant = merchantDao.selectById(order.getMerchantId());
                 if (merchant == null || !shouldAutoRelease(merchant, order.getSettleReleaseAt())) {
+                    executionRecord.complete("Skipped because merchant or auto-release configuration is unavailable");
                     continue;
                 }
                 releaseSettle(order.getId());
                 released++;
+                executionRecord.complete("Settlement released");
             } catch (Exception ex) {
                 log.warn("Pay settle release failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
+                executionRecord.error("RELEASE", "Settlement release failed", ex);
             }
         }
         return released;
@@ -237,7 +252,7 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
     public int drainExpiredPayinOrders() {
         Instant now = Instant.now();
         List<PayinOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayinOrderEntity>()
-                .in("status", PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code())
+                .eq("status", PayinOrderStatusEnum.CREATED.code())
                 .isNotNull("expire_at")
                 .le("expire_at", now)
                 .isNull("paid_at")
@@ -246,12 +261,18 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
                 .last("limit " + EXPIRE_DRAIN_BATCH));
         int closed = 0;
         for (PayinOrderEntity order : orders) {
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Expired payin order=" + order.getPayinOrderNo());
             try {
                 if (closeExpiredPayinOrder(order, now)) {
                     closed++;
+                    executionRecord.complete("Expired order closed");
+                } else {
+                    executionRecord.complete("Skipped because order state changed concurrently");
                 }
             } catch (Exception ex) {
                 log.warn("Pay order close expired failed, orderNo={}, err={}", order.getPayinOrderNo(), ex.getMessage());
+                executionRecord.error("CLOSE", "Expired order close failed", ex);
             }
         }
         return closed;
@@ -266,15 +287,20 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
         Instant slaTime = now.minusSeconds(PROCESSING_SLA_SECONDS);
         List<PayinOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayinOrderEntity>()
                 .eq("status", PayinOrderStatusEnum.PROCESSING.code())
-                .and(wrapper -> wrapper.ge("query_count", MAX_ACTIVE_QUERY_COUNT)
+                .and(wrapper -> wrapper.ge("query_count", activeQueryLimit())
                         .or()
                         .isNotNull("submitted_at").le("submitted_at", slaTime))
                 .orderByAsc("submitted_at", "id")
                 .last("limit " + MANUAL_REVIEW_DRAIN_BATCH));
         int marked = 0;
         for (PayinOrderEntity order : orders) {
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Payin exception order=" + order.getPayinOrderNo());
             if (markManualReview(order)) {
                 marked++;
+                executionRecord.complete("Order moved to manual review");
+            } else {
+                executionRecord.complete("Skipped because order state changed concurrently");
             }
         }
         return marked;
@@ -282,6 +308,11 @@ public class PayinOrderServiceImpl extends CrudServiceImpl<PayinOrderDao, PayinO
 
     private boolean markManualReview(PayinOrderEntity order) {
         return payinOrderStateService.markManualReview(order, MANUAL_REVIEW_REASON);
+    }
+
+    private int activeQueryLimit() {
+        int limit = configService.pspQuery().getMaxQueryCount();
+        return limit > 0 ? limit : DEFAULT_MAX_ACTIVE_QUERY_COUNT;
     }
 
     /**

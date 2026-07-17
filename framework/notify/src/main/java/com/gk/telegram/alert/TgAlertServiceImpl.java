@@ -2,6 +2,7 @@ package com.gk.telegram.alert;
 
 import cn.hutool.crypto.SecureUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.telegram.support.NotifyKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.infra.notify.NotifyService;
@@ -95,7 +96,7 @@ public class TgAlertServiceImpl implements NotifyService {
             }
             TgMessageTaskEntity task = buildTask(target, eventType, content, traceId, normalizedParseMode);
             try {
-                tgMessageTaskDao.insert(task);
+                SavepointExecutor.run(() -> tgMessageTaskDao.insert(task));
                 created++;
             } catch (DuplicateKeyException ex) {
                 // 同一群同一来源事件已有任务时跳过，依赖 source_event_id 幂等。
@@ -193,9 +194,8 @@ public class TgAlertServiceImpl implements NotifyService {
         if (StringUtils.isBlank(eventTypes)) {
             return false;
         }
-        String expected = eventType;
         for (String item : eventTypes.split(",")) {
-            if (expected.equalsIgnoreCase(item.trim())) {
+            if (eventType.equalsIgnoreCase(item.trim())) {
                 return true;
             }
         }

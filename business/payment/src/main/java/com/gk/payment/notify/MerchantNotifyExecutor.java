@@ -2,6 +2,8 @@ package com.gk.payment.notify;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.model.Result;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.common.validator.AssertUtils;
 import com.gk.payment.config.MerchantNotifyConfig;
 import com.gk.payment.config.PaymentConfigService;
@@ -129,11 +131,23 @@ public class MerchantNotifyExecutor {
                 // 已被其他节点抢占, 跳过
                 continue;
             }
+            task.setLockedBy(workerId);
+            task.setLockedAt(Instant.now());
+            task.setLockUntil(lockUntil);
             handled++;
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Merchant notify task=" + task.getTaskNo() + ", bizNo=" + task.getBizNo());
             try {
-                attempt(task, false);
+                Map<String, Object> outcome = attempt(task, false);
+                if (Boolean.TRUE.equals(outcome.get("acknowledged"))) {
+                    executionRecord.complete("Merchant notification acknowledged");
+                } else {
+                    executionRecord.error("NOTIFY", StringUtils.defaultIfBlank(
+                            (String) outcome.get("errorMessage"), "Merchant notification not acknowledged"), null);
+                }
             } catch (Exception e) {
                 log.error("Merchant notify attempt error, taskNo={}", task.getTaskNo(), e);
+                executionRecord.error("NOTIFY", "Merchant notification attempt failed", e);
             }
         }
         return handled;

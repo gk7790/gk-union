@@ -26,11 +26,13 @@ public interface MqOutboxDao extends BaseDao<MqOutboxEntity> {
                        @Param("lockedStatus") String lockedStatus);
 
     int markConsumeDone(@Param("id") Long id,
+                        @Param("lockedBy") String lockedBy,
                         @Param("now") Instant now,
                         @Param("doneStatus") String doneStatus,
                         @Param("lockedStatus") String lockedStatus);
 
     int markConsumeFailed(@Param("id") Long id,
+                          @Param("lockedBy") String lockedBy,
                           @Param("nextRetryAt") Instant nextRetryAt,
                           @Param("errorCode") String errorCode,
                           @Param("errorMsg") String errorMsg,
@@ -38,6 +40,7 @@ public interface MqOutboxDao extends BaseDao<MqOutboxEntity> {
                           @Param("lockedStatus") String lockedStatus);
 
     int markConsumeDead(@Param("id") Long id,
+                        @Param("lockedBy") String lockedBy,
                         @Param("now") Instant now,
                         @Param("errorCode") String errorCode,
                         @Param("errorMsg") String errorMsg,

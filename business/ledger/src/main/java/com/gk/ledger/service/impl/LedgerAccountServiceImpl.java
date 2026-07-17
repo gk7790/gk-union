@@ -8,6 +8,7 @@ import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.dao.LedgerAccountDao;
 import com.gk.ledger.dao.LedgerBalanceDao;
@@ -153,7 +154,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setAllowNegative(0);
         account.setStatus(StatusEnum.NORMAL.code());
         try {
-            baseDao.insert(account);
+            insertAccountWithSavepoint(account);
         } catch (DuplicateKeyException ex) {
             account = findMerchantAccount(tenantId, merchantId, accountType, normalizedCurrency);
             if (account == null) {
@@ -191,7 +192,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setAllowNegative(1);
         account.setStatus(StatusEnum.NORMAL.code());
         try {
-            baseDao.insert(account);
+            insertAccountWithSavepoint(account);
         } catch (DuplicateKeyException ex) {
             account = findPspAccount(tenantId, pspAccountId, accountType, normalizedCurrency);
             if (account == null) {
@@ -217,7 +218,6 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return requireOwnerAccount(
                 tenantId,
                 LedgerOwnerTypeEnum.INTERNAL.code(),
-                0L,
                 accountType,
                 currency,
                 buildInternalAccountNo(tenantId, accountType, currency),
@@ -232,7 +232,6 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         return requireOwnerAccount(
                 tenantId,
                 SubjectTypeEnum.PLATFORM.code(),
-                0L,
                 accountType,
                 currency,
                 buildPlatformAccountNo(tenantId, accountType, currency),
@@ -241,8 +240,9 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         );
     }
 
-    private LedgerAccountEntity requireOwnerAccount(Long tenantId, String ownerType, Long ownerId, String accountType,
+    private LedgerAccountEntity requireOwnerAccount(Long tenantId, String ownerType, String accountType,
                                                     String currency, String accountNo, String normalSide, int allowNegative) {
+        long ownerId = 0L;
         String normalizedCurrency = normalizeCurrency(currency);
         LedgerAccountEntity account = findOwnerAccount(tenantId, ownerType, ownerId, accountType, normalizedCurrency);
         if (account != null) {
@@ -260,7 +260,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         account.setAllowNegative(allowNegative);
         account.setStatus(StatusEnum.NORMAL.code());
         try {
-            baseDao.insert(account);
+            insertAccountWithSavepoint(account);
         } catch (DuplicateKeyException ex) {
             account = findOwnerAccount(tenantId, ownerType, ownerId, accountType, normalizedCurrency);
             if (account == null) {
@@ -315,7 +315,7 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
         balance.setCreditTotal(zeroAmount());
         balance.setVersion(0);
         try {
-            ledgerBalanceDao.insert(balance);
+            insertBalanceWithSavepoint(balance);
         } catch (DuplicateKeyException ignored) {
             // concurrent init
         }
@@ -327,6 +327,14 @@ public class LedgerAccountServiceImpl extends CrudServiceImpl<LedgerAccountDao, 
                 normalizeCodeToken(merchantNo),
                 accountTypeToken(accountType),
                 normalizeCurrency(currency));
+    }
+
+    private void insertAccountWithSavepoint(LedgerAccountEntity account) {
+        SavepointExecutor.run(() -> baseDao.insert(account));
+    }
+
+    private void insertBalanceWithSavepoint(LedgerBalanceEntity balance) {
+        SavepointExecutor.run(() -> ledgerBalanceDao.insert(balance));
     }
 
     private String buildPspAccountNo(String pspAccountNo, String accountType, String currency) {

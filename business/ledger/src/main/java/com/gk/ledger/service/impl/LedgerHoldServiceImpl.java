@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.ledger.dao.LedgerHoldDao;
 import com.gk.ledger.dto.LedgerHoldDTO;
 import com.gk.ledger.entity.LedgerHoldEntity;
@@ -95,11 +97,17 @@ public class LedgerHoldServiceImpl extends CrudServiceImpl<LedgerHoldDao, Ledger
                 .last("limit " + EXPIRED_HOLD_DRAIN_BATCH));
         int expired = 0;
         for (LedgerHoldEntity hold : holds) {
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Ledger hold=" + hold.getHoldNo() + ", bizNo=" + hold.getBizNo());
             if (ORDER_HOLD_SCOPE.equalsIgnoreCase(StrUtil.blankToDefault(hold.getHoldScope(), ""))) {
+                executionRecord.complete("Skipped order hold; order compensation owns its lifecycle");
                 continue;
             }
             if (markExpired(hold)) {
                 expired++;
+                executionRecord.complete("Ledger hold marked expired");
+            } else {
+                executionRecord.complete("Skipped because hold state changed concurrently");
             }
         }
         return expired;

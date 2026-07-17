@@ -204,7 +204,7 @@ CREATE TABLE schedule_job_log (
   params varchar(2000) NULL,
   status smallint NOT NULL,
   result text NULL,
-  error varchar(2000) NULL,
+  error text NULL,
   times integer NOT NULL,
   created_at timestamptz(3) NULL,
   CONSTRAINT pk_schedule_job_log PRIMARY KEY (id)

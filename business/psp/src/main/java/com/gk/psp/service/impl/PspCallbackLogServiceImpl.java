@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gk.common.core.service.impl.CrudServiceImpl;
 import com.gk.common.model.DynMap;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.psp.dao.PspCallbackLogDao;
 import com.gk.psp.dto.PspCallbackLogDTO;
 import com.gk.psp.entity.PspCallbackLogEntity;
@@ -55,7 +56,7 @@ public class PspCallbackLogServiceImpl extends CrudServiceImpl<PspCallbackLogDao
             return;
         }
         try {
-            baseDao.insert(entity);
+            SavepointExecutor.run(() -> baseDao.insert(entity));
         } catch (DuplicateKeyException ignored) {
             // 重复回调保留首条日志，与同步 insert 行为一致
             } catch (Exception ex) {

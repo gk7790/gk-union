@@ -27,6 +27,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class PayinPspSubmitService {
+    private static final String PSP_SUBMIT_UNKNOWN_REASON = "PSP payin submit result unknown, waiting for query";
+    private static final String PSP_SUBMITTING_REASON = "PSP payin submission in progress";
     private final PayinOrderDao payinOrderDao;
     private final PspPayDispatchService pspPayDispatchService;
     private final PaymentConfigService configService;
@@ -88,7 +90,7 @@ public class PayinPspSubmitService {
 
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
-                .eq("status", PayinOrderStatusEnum.CREATED.code())
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
                 .set("psp_request_no", result.getPspRequestNo())
                 .set("psp_order_no", result.getPspOrderNo())
                 .set("psp_pay_url", result.getPayUrl())
@@ -99,7 +101,8 @@ public class PayinPspSubmitService {
 
         String reason = null;
         if (result.isSuccess()) {
-            wrapper.set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
+            wrapper.set("status_reason", null)
+                    .set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
                     .set("merchant_status_reason", MerchantOrderStatusEnum.PROCESSING.statusReason())
                     .set("submitted_at", now)
                     .set("next_query_at", now.plusSeconds(firstQueryDelaySeconds()));
@@ -125,14 +128,30 @@ public class PayinPspSubmitService {
     }
 
     private PayinOrderEntity submitOrder(PayinOrderEntity order, SubmitContext context) {
-        if (context != null && context.markFailedOnException()) {
-            return order;
-        }
         PayinOrderEntity currentOrder = payinOrderDao.selectById(order.getId());
         if (currentOrder == null) {
             throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payin order not found");
         }
-        return shouldSkipPspSubmit(currentOrder) ? null : currentOrder;
+        if (shouldSkipPspSubmit(currentOrder)) {
+            return null;
+        }
+        Instant now = Instant.now();
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", currentOrder.getId())
+                .eq("status", PayinOrderStatusEnum.CREATED.code())
+                .set("status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("psp_status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("status_reason", PSP_SUBMITTING_REASON)
+                .set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
+                .set("merchant_status_reason", MerchantOrderStatusEnum.PROCESSING.statusReason())
+                .set("submitted_at", now)
+                .set("next_query_at", now.plusSeconds(firstQueryDelaySeconds()));
+        if (payinOrderDao.update(null, wrapper) != 1) {
+            return null;
+        }
+        recordStatusChange(currentOrder, PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code(),
+                "PSP_SUBMITTING", PSP_SUBMITTING_REASON, context);
+        return payinOrderDao.selectById(currentOrder.getId());
     }
 
     private boolean shouldSkipPspSubmit(PayinOrderEntity order) {
@@ -144,8 +163,33 @@ public class PayinPspSubmitService {
     }
 
     private void handleSubmitException(PayinOrderEntity order, PaymentException ex, SubmitContext context) {
-        if (order != null && context != null && context.markFailedOnException()) {
-            markFailed(order, ex.getMessage(), context);
+        if (order == null || context == null || !context.markFailedOnException()) {
+            return;
+        }
+        if (PaymentErrorCode.SYSTEM_ERROR.equals(ex.getErrorCode())) {
+            markSubmitUnknown(order, ex, context);
+            return;
+        }
+        markFailed(order, ex.getMessage(), context);
+    }
+
+    private void markSubmitUnknown(PayinOrderEntity order, PaymentException ex, SubmitContext context) {
+        String fromStatus = order.getStatus();
+        String message = StringUtils.defaultIfBlank(ex.getMessage(), PSP_SUBMIT_UNKNOWN_REASON);
+        Instant now = Instant.now();
+        UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", order.getId())
+                .eq("status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("psp_status", PayinOrderStatusEnum.PROCESSING.code())
+                .set("status_reason", StringUtils.left(message, 512))
+                .set("merchant_status_code", MerchantOrderStatusEnum.PROCESSING.code())
+                .set("merchant_status_reason", MerchantOrderStatusEnum.PROCESSING.statusReason())
+                .set("submitted_at", now)
+                .set("next_query_at", now.plusSeconds(firstQueryDelaySeconds()));
+        if (payinOrderDao.update(null, wrapper) > 0) {
+            recordStatusChange(order, fromStatus, PayinOrderStatusEnum.PROCESSING.code(),
+                    "PSP_SUBMIT_UNKNOWN", message, context);
         }
     }
 

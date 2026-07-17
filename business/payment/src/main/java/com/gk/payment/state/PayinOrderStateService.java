@@ -16,6 +16,8 @@ import com.gk.psp.callback.support.PspCallbackUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.function.Consumer;
@@ -122,7 +124,7 @@ public class PayinOrderStateService {
     public boolean closeExpired(PayinOrderEntity order, Instant now, String reason) {
         UpdateWrapper<PayinOrderEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", order.getId())
-                .in("status", PayinOrderStatusEnum.CREATED.code(), PayinOrderStatusEnum.PROCESSING.code())
+                .eq("status", PayinOrderStatusEnum.CREATED.code())
                 .isNull("paid_at")
                 .and(item -> item.isNull("paid_amount").or().eq("paid_amount", java.math.BigDecimal.ZERO))
                 .set("status", PayinOrderStatusEnum.CLOSED.code())
@@ -201,7 +203,7 @@ public class PayinOrderStateService {
                               String toStatus,
                               OrderStateChangeContext context) {
         OrderStateChangeContext safeContext = context == null ? OrderStateChangeContext.system(toStatus, null) : context;
-        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
+        executeStatusLog(() -> orderStatusLogService.recordChange(
                     PayDirectionEnum.PAYIN.code(),
                     tenantId,
                     merchantId,
@@ -216,5 +218,19 @@ public class PayinOrderStateService {
                     StringUtils.defaultIfBlank(safeContext.requestId(), merchantOrderNo),
                     safeContext.traceId()
             ));
+    }
+
+    private void executeStatusLog(Runnable action) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    AsynUtils.execute("Order status log", action);
+                }
+            });
+            return;
+        }
+        AsynUtils.execute("Order status log", action);
     }
 }

@@ -9,9 +9,21 @@ public interface MqOutboxService {
 
     List<MqOutboxEntity> lockDueEvents(String eventType, int limit, String workerId);
 
-    void markDone(Long id);
+    default void markDone(MqOutboxEntity event) {
+        markDone(event.getId(), event.getLockedBy());
+    }
 
-    void markRetry(Long id, String errorCode, String errorMsg);
+    void markDone(Long id, String workerId);
 
-    void markDead(Long id, String errorCode, String errorMsg);
+    default void markRetry(MqOutboxEntity event, String errorCode, String errorMsg) {
+        markRetry(event.getId(), event.getLockedBy(), errorCode, errorMsg);
+    }
+
+    void markRetry(Long id, String workerId, String errorCode, String errorMsg);
+
+    default void markDead(MqOutboxEntity event, String errorCode, String errorMsg) {
+        markDead(event.getId(), event.getLockedBy(), errorCode, errorMsg);
+    }
+
+    void markDead(Long id, String workerId, String errorCode, String errorMsg);
 }

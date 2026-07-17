@@ -15,6 +15,8 @@ import com.gk.psp.callback.support.PspCallbackUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.function.Consumer;
@@ -127,7 +129,7 @@ public class PayoutOrderStateService {
     /**
      * 标记代付提交 PSP 前，商户资金已经冻结成功。
      */
-    public boolean markFrozen(PayoutOrderEntity order, LedgerPostingResult result, OrderStateChangeContext context) {
+    public void markFrozen(PayoutOrderEntity order, LedgerPostingResult result, OrderStateChangeContext context) {
         String fromStatus = order.getStatus();
         // holdNo 是后续扣冻结或释放冻结的幂等锚点。
         order.setHoldNo(result.getHoldNo());
@@ -136,58 +138,6 @@ public class PayoutOrderStateService {
         order.setStatusReason(null);
         order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
         order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
-        payoutOrderDao.updateById(order);
-        recordChange(order, fromStatus, order.getStatus(), context);
-        return true;
-    }
-
-    /**
-     * 标记 PSP 已受理代付提交。注意：这不是最终成功。
-     */
-    public void markPspAccepted(PayoutOrderEntity order,
-                                String pspRequestNo,
-                                String pspOrderNo,
-                                String pspRawStatus,
-                                Instant nextQueryAt,
-                                OrderStateChangeContext context) {
-        String fromStatus = order.getStatus();
-        order.setPspRequestNo(pspRequestNo);
-        order.setPspOrderNo(pspOrderNo);
-        order.setPspRawStatus(pspRawStatus);
-        order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
-        order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
-        order.setStatusReason(null);
-        order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
-        order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
-        // submittedAt 用来启动这笔代付的 SLA 和查单窗口。
-        order.setSubmittedAt(Instant.now());
-        order.setNextQueryAt(nextQueryAt);
-        payoutOrderDao.updateById(order);
-        recordChange(order, fromStatus, order.getStatus(), context);
-    }
-
-    /**
-     * 标记 PSP 在提交阶段明确拒绝。调用方应先释放冻结资金，再调用本方法落订单失败状态。
-     */
-    public void markSubmitRejected(PayoutOrderEntity order,
-                                   String pspRequestNo,
-                                   String pspOrderNo,
-                                   String pspRawStatus,
-                                   String failCode,
-                                   String reason,
-                                   OrderStateChangeContext context) {
-        String fromStatus = order.getStatus();
-        order.setPspRequestNo(pspRequestNo);
-        order.setPspOrderNo(pspOrderNo);
-        order.setPspRawStatus(pspRawStatus);
-        order.setStatus(PayoutOrderStatusEnum.FAILED.code());
-        order.setPspStatus(PayoutOrderStatusEnum.FAILED.code());
-        order.setFailCode(failCode);
-        order.setFailMsg(StringUtils.left(reason, 512));
-        order.setStatusReason(reason);
-        order.setMerchantStatusCode(MerchantOrderStatusEnum.FAILED.code());
-        order.setMerchantStatusReason(MerchantOrderStatusEnum.FAILED.statusReason());
-        order.setFailedAt(Instant.now());
         payoutOrderDao.updateById(order);
         recordChange(order, fromStatus, order.getStatus(), context);
     }
@@ -240,7 +190,7 @@ public class PayoutOrderStateService {
      */
     public void recordChange(PayoutOrderEntity order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         OrderStateChangeContext safeContext = context == null ? OrderStateChangeContext.system(toStatus, null) : context;
-        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
+        executeStatusLog(() -> orderStatusLogService.recordChange(
                     PayDirectionEnum.PAYOUT.code(),
                     order.getTenantId(),
                     order.getMerchantId(),
@@ -297,7 +247,7 @@ public class PayoutOrderStateService {
      */
     private void recordChange(PspCallbackOrder order, String fromStatus, String toStatus, OrderStateChangeContext context) {
         OrderStateChangeContext safeContext = context == null ? OrderStateChangeContext.system(toStatus, null) : context;
-        AsynUtils.execute("Order status log", () -> orderStatusLogService.recordChange(
+        executeStatusLog(() -> orderStatusLogService.recordChange(
                     PayDirectionEnum.PAYOUT.code(),
                     order.tenantId(),
                     order.merchantId(),
@@ -312,5 +262,19 @@ public class PayoutOrderStateService {
                     StringUtils.defaultIfBlank(safeContext.requestId(), order.merchantOrderNo()),
                     safeContext.traceId()
             ));
+    }
+
+    private void executeStatusLog(Runnable action) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    AsynUtils.execute("Order status log", action);
+                }
+            });
+            return;
+        }
+        AsynUtils.execute("Order status log", action);
     }
 }

@@ -41,6 +41,7 @@
             updated_at = CURRENT_TIMESTAMP(3)
         WHERE id = #{id}
           AND consume_status = #{lockedStatus}
+          AND (#{lockedBy} IS NULL OR locked_by = #{lockedBy})
     </update>
 
     <update id="markConsumeFailed">
@@ -56,6 +57,7 @@
             updated_at = CURRENT_TIMESTAMP(3)
         WHERE id = #{id}
           AND consume_status = #{lockedStatus}
+          AND (#{lockedBy} IS NULL OR locked_by = #{lockedBy})
           AND retry_count + 1 &lt; max_retry_count
     </update>
 
@@ -71,5 +73,6 @@
             updated_at = CURRENT_TIMESTAMP(3)
         WHERE id = #{id}
           AND consume_status = #{lockedStatus}
+          AND (#{lockedBy} IS NULL OR locked_by = #{lockedBy})
     </update>
 </mapper>

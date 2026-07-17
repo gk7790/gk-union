@@ -5,6 +5,8 @@ import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.gk.common.model.Result;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.telegram.bot.TgBotApiClient;
 import com.gk.telegram.dao.TgMessageTaskDao;
 import com.gk.telegram.entity.TgBotEntity;
@@ -95,13 +97,24 @@ public class TgMessageTaskExecutor {
         int handled = 0;
         for (TgMessageTaskEntity task : candidates) {
             // 先抢占任务，避免集群中多个节点同时发送同一条 Telegram 消息。
-            if (claim(task, now, now.plusSeconds(LOCK_SECONDS))) {
+            Instant lockUntil = now.plusSeconds(LOCK_SECONDS);
+            if (claim(task, now, lockUntil)) {
+                task.setStatus("PROCESSING");
+                task.setLockedBy(workerId);
+                task.setLockUntil(lockUntil);
                 handled++;
+                TaskExecutionRecord record = TaskExecutions.current().record(
+                        "Telegram task=" + task.getTaskNo() + ", bizNo=" + task.getBizNo());
                 try {
-                    attempt(task);
+                    if (attempt(task)) {
+                        record.complete("Telegram message sent");
+                    } else {
+                        record.error("SEND", "Telegram message failed and was rescheduled", null);
+                    }
                 } catch (Exception e) {
                     log.error("Telegram message task attempt error, taskNo={}", task.getTaskNo(), e);
                     applyResult(task, false, e.getMessage(), null);
+                    record.error("SEND", "Telegram message attempt failed", e);
                 }
             }
         }
@@ -208,6 +221,8 @@ public class TgMessageTaskExecutor {
         int maxRetryCount = task.getMaxRetryCount() == null ? 8 : task.getMaxRetryCount();
         UpdateWrapper<TgMessageTaskEntity> wrapper = new UpdateWrapper<>();
         wrapper.eq("id", task.getId())
+                .eq("status", "PROCESSING")
+                .eq("locked_by", task.getLockedBy())
                 .set("last_attempt_at", now)
                 .set("locked_by", null)
                 .set("lock_until", null);
@@ -225,7 +240,9 @@ public class TgMessageTaskExecutor {
                     .set("last_error_msg", StringUtils.abbreviate(errorMsg, 1024))
                     .set("dead_at", dead ? now : null);
         }
-        tgMessageTaskDao.update(null, wrapper);
+        if (tgMessageTaskDao.update(null, wrapper) != 1) {
+            log.warn("Telegram message task lock lost, taskNo={}, workerId={}", task.getTaskNo(), task.getLockedBy());
+        }
     }
 
     /**

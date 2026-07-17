@@ -63,6 +63,7 @@ public final class TaskExecution {
             builder.append("Records omitted: ").append(omittedRecords).append('\n');
         }
         builder.append("Summary: records=").append(records.size() + omittedRecords)
+                .append(", recordsSucceeded=").append(records.size() - errors)
                 .append(", recordsWithErrors=").append(errors)
                 .append(", steps=").append(steps);
         if (taskResult != null && !taskResult.isBlank()) {

@@ -6,6 +6,7 @@ import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.common.enums.StringCodeEnum;
 import com.gk.common.enums.SubjectTypeEnum;
 import com.gk.common.exception.GkException;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.payment.domain.key.BizKeyUtils;
 import com.gk.infra.enums.StatusEnum;
 import com.gk.ledger.enums.LedgerAccountTypeEnum;
@@ -449,7 +450,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         journal.setPostedAt(Instant.now());
         journal.setRemark(remark);
         try {
-            ledgerJournalDao.insert(journal);
+            SavepointExecutor.run(() -> ledgerJournalDao.insert(journal));
         } catch (DuplicateKeyException ex) {
             // 并发插入同一凭证时返null，由上层查询已有凭证
                         return null;
@@ -660,7 +661,7 @@ public class LedgerPostingServiceImpl implements LedgerPostingService {
         balance.setCreditTotal(BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
         balance.setVersion(0);
         try {
-            ledgerBalanceDao.insert(balance);
+            SavepointExecutor.run(() -> ledgerBalanceDao.insert(balance));
         } catch (DuplicateKeyException ignored) {
             // Another transaction initialized the balance row first.
         }

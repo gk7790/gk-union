@@ -1,6 +1,7 @@
 package com.gk.infra.mq.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.infra.mq.dao.MqOutboxDao;
 import com.gk.infra.mq.entity.MqOutboxEntity;
 import com.gk.infra.mq.enums.MqOutboxConsumeStatusEnum;
@@ -15,6 +16,7 @@ import java.net.InetAddress;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class MqOutboxServiceImpl implements MqOutboxService {
     private static final int MAX_ERROR_MSG_LENGTH = 1024;
 
     private final MqOutboxDao mqOutboxDao;
+    private final String workerId = defaultWorkerId() + "-" + UUID.randomUUID();
 
     @Override
     public MqOutboxEntity createIfAbsent(MqOutboxEntity event) {
@@ -32,7 +35,7 @@ public class MqOutboxServiceImpl implements MqOutboxService {
         }
         applyDefaults(event);
         try {
-            mqOutboxDao.insert(event);
+            SavepointExecutor.run(() -> mqOutboxDao.insert(event));
             return event;
         } catch (DuplicateKeyException ex) {
             return mqOutboxDao.selectOne(new QueryWrapper<MqOutboxEntity>()
@@ -65,7 +68,7 @@ public class MqOutboxServiceImpl implements MqOutboxService {
     @Override
     public List<MqOutboxEntity> lockDueEvents(String eventType, int limit, String workerId) {
         Instant now = Instant.now();
-        String lockOwner = StringUtils.defaultIfBlank(workerId, defaultWorkerId());
+        String lockOwner = StringUtils.defaultIfBlank(workerId, this.workerId);
         List<MqOutboxEntity> candidates = mqOutboxDao.selectDueForConsume(
                 eventType,
                 now,
@@ -95,9 +98,10 @@ public class MqOutboxServiceImpl implements MqOutboxService {
     }
 
     @Override
-    public void markDone(Long id) {
+    public void markDone(Long id, String workerId) {
         mqOutboxDao.markConsumeDone(
                 id,
+                workerId,
                 Instant.now(),
                 MqOutboxConsumeStatusEnum.DONE.code(),
                 MqOutboxConsumeStatusEnum.LOCKED.code()
@@ -105,10 +109,11 @@ public class MqOutboxServiceImpl implements MqOutboxService {
     }
 
     @Override
-    public void markRetry(Long id, String errorCode, String errorMsg) {
+    public void markRetry(Long id, String workerId, String errorCode, String errorMsg) {
         Instant nextRetryAt = Instant.now().plusSeconds(30);
         int updated = mqOutboxDao.markConsumeFailed(
                 id,
+                workerId,
                 nextRetryAt,
                 StringUtils.left(errorCode, MAX_ERROR_CODE_LENGTH),
                 StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH),
@@ -116,14 +121,15 @@ public class MqOutboxServiceImpl implements MqOutboxService {
                 MqOutboxConsumeStatusEnum.LOCKED.code()
         );
         if (updated != 1) {
-            markDead(id, errorCode, errorMsg);
+            markDead(id, workerId, errorCode, errorMsg);
         }
     }
 
     @Override
-    public void markDead(Long id, String errorCode, String errorMsg) {
+    public void markDead(Long id, String workerId, String errorCode, String errorMsg) {
         mqOutboxDao.markConsumeDead(
                 id,
+                workerId,
                 Instant.now(),
                 StringUtils.left(errorCode, MAX_ERROR_CODE_LENGTH),
                 StringUtils.left(errorMsg, MAX_ERROR_MSG_LENGTH),

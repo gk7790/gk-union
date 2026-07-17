@@ -52,6 +52,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class PayoutPspSubmitService {
     private static final String PSP_SUBMIT_UNKNOWN_REASON = "PSP payout submit result unknown, waiting for query";
+    private static final String PSP_SUBMITTING_REASON = "PSP payout submission in progress";
     private static final String ROUTE_SWITCH_REASON = "PSP route unavailable, switch payout route";
     private static final String ROUTE_UNAVAILABLE_FAILED_REASON = "No available payout route after PSP route unavailable";
     private static final int DEFAULT_MAX_ROUTE_ATTEMPTS = 3;
@@ -88,9 +89,14 @@ public class PayoutPspSubmitService {
         if (order == null || order.getId() == null) {
             throw new PaymentException(PaymentErrorCode.INVALID_REQUEST, "Payout order is required");
         }
+        Long orderId = order.getId();
         if (route == null) {
-            markSubmitUnknown(order.getId(), new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
-            return payoutOrderDao.selectById(order.getId());
+            markSubmitUnknown(orderId, new PaymentException(PaymentErrorCode.SERVICE_NOT_READY, "PSP route is unavailable"), context);
+            return payoutOrderDao.selectById(orderId);
+        }
+        PayoutOrderEntity claimedOrder = claimForSubmit(orderId, context);
+        if (claimedOrder == null) {
+            return payoutOrderDao.selectById(orderId);
         }
 
         Set<Long> disabledPspIds = new HashSet<>();
@@ -100,8 +106,8 @@ public class PayoutPspSubmitService {
         int maxAttempts = maxRouteAttempts();
         try {
             for (int attemptIndex = 1; attemptIndex <= maxAttempts; attemptIndex++) {
-                PayoutOrderEntity currentOrder = payoutOrderDao.selectById(order.getId());
-                if (currentOrder == null || shouldSkipPspSubmit(currentOrder)) {
+                PayoutOrderEntity currentOrder = payoutOrderDao.selectById(orderId);
+                if (currentOrder == null || shouldStopSubmitFlow(currentOrder)) {
                     return currentOrder;
                 }
 
@@ -110,39 +116,39 @@ public class PayoutPspSubmitService {
                 PspPayoutDispatchResult dispatchResult =
                         pspPayoutDispatchService.dispatch(PspOrderRequests.fromPayoutOrder(currentOrder), submitRoute);
                 SubmitDecision decision = transactionTemplate.execute(
-                        status -> applyDispatchResult(order.getId(), submitRoute, dispatchResult, context)
+                        status -> applyDispatchResult(orderId, submitRoute, dispatchResult, context)
                 );
                 if (decision == null || !decision.routeUnavailable()) {
-                    return payoutOrderDao.selectById(order.getId());
+                    return payoutOrderDao.selectById(orderId);
                 }
 
                 // 当前 route/account 已经确认不可用，本轮后续解析路由时需要排除，避免反复选中同一条通道。
                 addIfNotNull(disabledAccountIds, decision.pspAccountId());
                 addIfNotNull(disabledRouteOptionIds, decision.routeOptionId());
                 if (attemptIndex >= maxAttempts) {
-                    markRouteUnavailableFailed(order.getId(), dispatchResult, context);
-                    return payoutOrderDao.selectById(order.getId());
+                    markRouteUnavailableFailed(orderId, dispatchResult, context);
+                    return payoutOrderDao.selectById(orderId);
                 }
 
                 PayoutPlan nextPlan = resolveNextPlan(currentOrder, disabledPspIds, disabledAccountIds, disabledRouteOptionIds);
                 if (nextPlan == null) {
-                    markRouteUnavailableFailed(order.getId(), dispatchResult, context);
-                    return payoutOrderDao.selectById(order.getId());
+                    markRouteUnavailableFailed(orderId, dispatchResult, context);
+                    return payoutOrderDao.selectById(orderId);
                 }
                 // 切换路由也放在事务内完成，保证订单上的 PSP 路由快照和下一次提交使用的 route 一致。
-                currentRoute = transactionTemplate.execute(status -> switchRoute(order.getId(), nextPlan, context));
+                currentRoute = transactionTemplate.execute(status -> switchRoute(orderId, nextPlan, context));
                 if (currentRoute == null) {
-                    return payoutOrderDao.selectById(order.getId());
+                    return payoutOrderDao.selectById(orderId);
                 }
             }
         } catch (PaymentException ex) {
-            markSubmitUnknown(order.getId(), currentRoute, ex, context);
+            markSubmitUnknown(orderId, currentRoute, ex, context);
         } catch (Exception ex) {
             log.warn("Payout PSP submit result unknown, payoutOrderNo={}, err={}",
-                    order.getPayoutOrderNo(), ex.getMessage(), ex);
-            markSubmitUnknown(order.getId(), currentRoute, ex, context);
+                    claimedOrder.getPayoutOrderNo(), ex.getMessage(), ex);
+            markSubmitUnknown(orderId, currentRoute, ex, context);
         }
-        return payoutOrderDao.selectById(order.getId());
+        return payoutOrderDao.selectById(orderId);
     }
 
     /**
@@ -270,6 +276,27 @@ public class PayoutPspSubmitService {
         });
     }
 
+    private PayoutOrderEntity claimForSubmit(Long orderId, SubmitContext context) {
+        return transactionTemplate.execute(status -> {
+            PayoutOrderEntity order = lockOrder(orderId);
+            if (!PayoutOrderStatusEnum.FROZEN.code().equals(order.getStatus())
+                    || StringUtils.isBlank(order.getHoldNo())) {
+                return null;
+            }
+            String fromStatus = order.getStatus();
+            order.setStatus(PayoutOrderStatusEnum.PROCESSING.code());
+            order.setPspStatus(PayoutOrderStatusEnum.PROCESSING.code());
+            order.setStatusReason(PSP_SUBMITTING_REASON);
+            order.setMerchantStatusCode(MerchantOrderStatusEnum.PROCESSING.code());
+            order.setMerchantStatusReason(MerchantOrderStatusEnum.PROCESSING.statusReason());
+            order.setSubmittedAt(Instant.now());
+            order.setNextQueryAt(Instant.now().plusSeconds(firstQueryDelaySeconds()));
+            payoutOrderDao.updateById(order);
+            recordStatusChange(order, fromStatus, order.getStatus(), "PSP_SUBMITTING", PSP_SUBMITTING_REASON, context);
+            return order;
+        });
+    }
+
     /**
      * 冻结失败时将订单打到失败状态，并记录状态变更。
      */
@@ -338,6 +365,11 @@ public class PayoutPspSubmitService {
                 || isTerminalStatus(order);
     }
 
+    private boolean shouldStopSubmitFlow(PayoutOrderEntity order) {
+        return PayoutOrderStatusEnum.MANUAL_REVIEW.code().equals(order.getStatus())
+                || isTerminalStatus(order);
+    }
+
     /**
      * 释放代付冻结资金。
      * <p>
@@ -353,6 +385,7 @@ public class PayoutPspSubmitService {
         } catch (Exception ex) {
             log.warn("Release payout after PSP submit failure failed, payoutOrderNo={}, err={}",
                     order.getPayoutOrderNo(), ex.getMessage(), ex);
+            throw new PaymentException(PaymentErrorCode.SYSTEM_ERROR, ex);
         }
     }
 
@@ -381,7 +414,7 @@ public class PayoutPspSubmitService {
             return null;
         }
         PayoutOrderEntity order = lockOrder(orderId);
-        if (shouldSkipPspSubmit(order)) {
+        if (shouldStopSubmitFlow(order)) {
             return null;
         }
         String fromStatus = order.getStatus();

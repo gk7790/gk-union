@@ -1,6 +1,7 @@
 package com.gk.telegram.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.telegram.dao.TgUpdateLogDao;
 import com.gk.telegram.entity.TgUpdateLogEntity;
 import com.gk.telegram.service.TgUpdateLogService;
@@ -33,7 +34,7 @@ public class TgUpdateLogServiceImpl implements TgUpdateLogService {
             if (log.getHandleStatus() == null) {
                 log.setHandleStatus(0);
             }
-            tgUpdateLogDao.insert(log);
+            SavepointExecutor.run(() -> tgUpdateLogDao.insert(log));
             return true;
         } catch (DuplicateKeyException e) {
             // bot_id + update_id 已存在, 说明重复投递, 幂等跳过

@@ -10,7 +10,10 @@ import com.gk.common.exception.ErrorCode;
 import com.gk.common.exception.GkException;
 import com.gk.common.model.DynMap;
 import com.gk.common.model.PageData;
+import com.gk.common.task.TaskExecutionRecord;
+import com.gk.common.task.TaskExecutions;
 import com.gk.common.utils.ConvertUtils;
+import com.gk.payment.config.PaymentConfigService;
 import com.gk.payment.dao.PayoutOrderDao;
 import com.gk.payment.dto.MerchantPayoutOrderDTO;
 import com.gk.payment.dto.PayoutOrderDTO;
@@ -28,11 +31,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, PayoutOrderEntity, PayoutOrderDTO> implements PayoutOrderService {
     private static final int MANUAL_REVIEW_DRAIN_BATCH = 50;
-    private static final int MAX_ACTIVE_QUERY_COUNT = 30;
+    private static final int DEFAULT_MAX_ACTIVE_QUERY_COUNT = 30;
     private static final long PROCESSING_SLA_SECONDS = 2 * 60 * 60;
     private static final String MANUAL_REVIEW_REASON = "Payout order exceeded active query limit or SLA";
 
     private final PayoutOrderStateService payoutOrderStateService;
+    private final PaymentConfigService configService;
 
     @Override
     public PageData<PayoutOrderDTO> page(DynMap params) {
@@ -70,7 +74,7 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         if (page.getItems() == null || page.getItems().isEmpty()) {
             throw new GkException(ErrorCode.NOT_FOUND, "Payout order not found");
         }
-        return page.getItems().get(0);
+        return page.getItems().getFirst();
     }
 
     private void applyMerchantScope(DynMap params) {
@@ -147,15 +151,20 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
         Instant slaTime = now.minusSeconds(PROCESSING_SLA_SECONDS);
         List<PayoutOrderEntity> orders = baseDao.selectList(new QueryWrapper<PayoutOrderEntity>()
                 .eq("status", PayoutOrderStatusEnum.PROCESSING.code())
-                .and(wrapper -> wrapper.ge("query_count", MAX_ACTIVE_QUERY_COUNT)
+                .and(wrapper -> wrapper.ge("query_count", activeQueryLimit())
                         .or()
                         .isNotNull("submitted_at").le("submitted_at", slaTime))
                 .orderByAsc("submitted_at", "id")
                 .last("limit " + MANUAL_REVIEW_DRAIN_BATCH));
         int marked = 0;
         for (PayoutOrderEntity order : orders) {
+            TaskExecutionRecord executionRecord = TaskExecutions.current().record(
+                    "Payout exception order=" + order.getPayoutOrderNo());
             if (markManualReview(order)) {
                 marked++;
+                executionRecord.complete("Order moved to manual review");
+            } else {
+                executionRecord.complete("Skipped because order state changed concurrently");
             }
         }
         return marked;
@@ -163,5 +172,10 @@ public class PayoutOrderServiceImpl extends CrudServiceImpl<PayoutOrderDao, Payo
 
     private boolean markManualReview(PayoutOrderEntity order) {
         return payoutOrderStateService.markManualReview(order, MANUAL_REVIEW_REASON);
+    }
+
+    private int activeQueryLimit() {
+        int limit = configService.pspQuery().getMaxQueryCount();
+        return limit > 0 ? limit : DEFAULT_MAX_ACTIVE_QUERY_COUNT;
     }
 }

@@ -1,6 +1,7 @@
 package com.gk.payment.callback;
 
 import com.alibaba.fastjson2.JSON;
+import com.gk.common.transaction.SavepointExecutor;
 import com.gk.payment.domain.enums.BizTypeEnum;
 import com.gk.payment.domain.enums.PayDirectionEnum;
 import com.gk.payment.domain.enums.SignTypeEnum;
@@ -69,7 +70,7 @@ public class PspCallbackNotifyCreator {
         task.setNextRetryAt(Instant.now());
         task.setTraceId(logEntity == null ? null : logEntity.getTraceId());
         try {
-            merchantNotifyTaskDao.insert(task);
+            SavepointExecutor.run(() -> merchantNotifyTaskDao.insert(task));
             merchantOrderNotifyStatusService.onTaskCreated(bizType, order.id(), task.getId());
         } catch (DuplicateKeyException ignored) {
             // Duplicate terminal callbacks can race to create the same notify task.
